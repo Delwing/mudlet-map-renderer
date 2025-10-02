@@ -1,7 +1,7 @@
 import data from "./mapExport.json"
 import colors from "./colors.json"
-import {Renderer} from "../src";
-import MapReader from "../src/reader/MapReader";
+import {Renderer} from "@src";
+import MapReader from "@src/reader/MapReader";
 
 const el = document.getElementById("stage") as HTMLDivElement
 
