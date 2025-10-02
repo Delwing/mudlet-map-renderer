@@ -1,0 +1,5 @@
+{
+  "buildCommand": "yarn demo:build",
+  "outputDirectory": "demo/dist",
+  "devCommand": "yarn demo:dev"
+}
