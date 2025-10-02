@@ -6,8 +6,5 @@ import MapReader from "@src/reader/MapReader";
 const el = document.getElementById("stage") as HTMLDivElement
 
 const renderer = new Renderer(el, new MapReader(data as MapData.Map, colors as MapData.Env[]))
-renderer.drawArea(1, 0)
-let position = 1;
-setInterval(() => {
-    renderer.setPosition(position++);
-}, 300)
+//renderer.drawArea(52, 0)
+renderer.setPosition(6169);

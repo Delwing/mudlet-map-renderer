@@ -6,4 +6,5 @@ export default interface Exit {
     aDir?: MapData.direction;
     bDir?: MapData.direction;
     kind?: Kind;
+    zIndex: number[];
 }

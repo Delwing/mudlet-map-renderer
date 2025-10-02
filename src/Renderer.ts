@@ -5,14 +5,18 @@ import Exit from "./reader/Exit";
 
 const defaultRoomSize = 0.6;
 const padding = 1;
-const defaultZoom = 35
+const defaultZoom = 45
+
+export class Settings {
+    static roomSize = defaultRoomSize;
+}
 
 export class Renderer {
 
-    private stage: Konva.Stage;
-    private roomLayer: Konva.Layer;
-    private linkLayer: Konva.Layer;
-    private positionLayer: Konva.Layer;
+    private readonly stage: Konva.Stage;
+    private readonly roomLayer: Konva.Layer;
+    private readonly linkLayer: Konva.Layer;
+    private readonly positionLayer: Konva.Layer;
     private mapReader: MapReader;
     private exitRenderer: ExitRenderer;
     private currentArea?: number;
@@ -65,7 +69,7 @@ export class Renderer {
 
             const newScale = direction > 0 ? oldScale * scaleBy : oldScale / scaleBy;
 
-            this.stage.scale({x: newScale, y: -newScale});
+            this.stage.scale({x: newScale, y: newScale});
 
             const newPos = {
                 x: pointer.x - mousePointTo.x * newScale,
@@ -76,7 +80,8 @@ export class Renderer {
     }
 
     drawArea(id: number, zIndex: number) {
-        const plane = this.mapReader.getArea(id)?.getPlane(zIndex);
+        const area = this.mapReader.getArea(id);
+        const plane = area?.getPlane(zIndex);
         if (!plane) {
             return;
         }
@@ -85,11 +90,11 @@ export class Renderer {
 
         const { minX, maxX, minY, maxY } = plane.getBounds();
 
-        this.stage.offset({ x: minX - padding, y: maxY + padding });
-        this.stage.scale({ x: defaultZoom, y: -defaultZoom });
+        this.stage.offset({ x: minX - padding, y: minY - padding });
+        this.stage.scale({ x: defaultZoom, y: defaultZoom });
 
         this.renderRooms(plane.getRooms() ?? []);
-        this.renderExits(plane.getExits());
+        this.renderExits(area.getLinkExits(zIndex));
     }
 
     setPosition(roomId: number) {
@@ -102,8 +107,11 @@ export class Renderer {
         const positionRender = new Konva.Circle({
             x: room.x,
             y: room.y,
-            radius: 0.2,
-            fill: 'black',
+            radius: defaultRoomSize * 0.85,
+            stroke: "rgb(0, 229, 178)",
+            strokeWidth: 0.1,
+            dash: [0.05, 0.05],
+            dashEnabled: true,
         })
         this.positionLayer.add(positionRender);
         this.centerOnRoom(room);
@@ -135,14 +143,14 @@ export class Renderer {
     private renderRooms(rooms: MapData.Room[]) {
         rooms.forEach(room => {
             const roomRender = new Konva.Group({
-                x: room.x - defaultRoomSize / 2,
-                y: room.y - defaultRoomSize / 2,
+                x: room.x - Settings.roomSize / 2,
+                y: room.y - Settings.roomSize / 2,
             });
             const roomRect = new Konva.Rect({
                 x: 0,
                 y: 0,
-                width: defaultRoomSize,
-                height: defaultRoomSize,
+                width: Settings.roomSize,
+                height: Settings.roomSize,
                 fill: this.mapReader.getColorValue(room.env),
                 strokeWidth: 0.025,
                 stroke: "#FFFFFF"
@@ -151,8 +159,29 @@ export class Renderer {
                 roomRect.fill('red');
             })
             roomRender.add(roomRect);
+            this.renderSymbol(room, roomRender);
             this.roomLayer.add(roomRender);
+
+            this.exitRenderer.renderSpecialExits(room).forEach(render => {this.linkLayer.add(render)})
         })
+    }
+
+    private renderSymbol(room: MapData.Room, roomRender: Konva.Group) {
+        if (room.roomChar !== undefined) {
+            const roomChar = new Konva.Text({
+                x: 0,
+                y: 0,
+                text: room.roomChar,
+                fontSize: 0.4,
+                fontStyle: "bold",
+                fill: this.mapReader.getSymbolColor(room.env),
+                align: "center",
+                verticalAlign: "middle",
+                width: Settings.roomSize,
+                height: Settings.roomSize
+            })
+            roomRender.add(roomChar);
+        }
     }
 
     private renderExits(exits: Exit[]) {
