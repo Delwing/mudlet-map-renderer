@@ -83,7 +83,7 @@ export default class ExplorationArea extends Area {
     override getLinkExits(zIndex: number) {
         return super
             .getLinkExits(zIndex)
-            .filter((exit: Exit) => this.visitedRooms.has(exit.a) && this.visitedRooms.has(exit.b));
+            .filter((exit: Exit) => this.visitedRooms.has(exit.a) || this.visitedRooms.has(exit.b));
     }
 
     getVisitedRoomCount() {
