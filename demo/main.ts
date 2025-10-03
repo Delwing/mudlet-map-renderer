@@ -97,10 +97,6 @@ function walkStep() {
 
     currentRoomId = nextRoom.id;
 
-    if (newlyVisited) {
-        renderer.drawArea(nextRoom.area, nextRoom.z);
-    }
-
     renderer.setPosition(nextRoom.id);
     updateAreaStatus(nextRoom.area);
 
