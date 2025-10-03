@@ -6,9 +6,11 @@ import Exit from "./reader/Exit";
 const defaultRoomSize = 0.6;
 const padding = 1;
 const defaultZoom = 45
+const lineColor = 'rgb(225, 255, 225)';
 
 export class Settings {
     static roomSize = defaultRoomSize;
+    static lineColor = lineColor;
 }
 
 export class Renderer {
@@ -88,11 +90,12 @@ export class Renderer {
         this.roomLayer.destroyChildren();
         this.linkLayer.destroyChildren();
 
-        const { minX, maxX, minY, maxY } = plane.getBounds();
+        const {minX, maxX, minY, maxY} = plane.getBounds();
 
-        this.stage.offset({ x: minX - padding, y: minY - padding });
-        this.stage.scale({ x: defaultZoom, y: defaultZoom });
+        this.stage.offset({x: minX - padding, y: minY - padding});
+        this.stage.scale({x: defaultZoom, y: defaultZoom});
 
+        this.renderLabels(plane.getLabels());
         this.renderRooms(plane.getRooms() ?? []);
         this.renderExits(area.getLinkExits(zIndex));
     }
@@ -153,16 +156,27 @@ export class Renderer {
                 height: Settings.roomSize,
                 fill: this.mapReader.getColorValue(room.env),
                 strokeWidth: 0.025,
-                stroke: "#FFFFFF"
+                stroke: Settings.lineColor,
             });
-            roomRender.on('click', () => {
-                roomRect.fill('red');
+            roomRender.on('mouseenter', () => {
+                this.stage.container().style.cursor = 'pointer';
+            })
+            roomRender.on('mouseleave', () => {
+                this.stage.container().style.cursor = 'auto';
             })
             roomRender.add(roomRect);
             this.renderSymbol(room, roomRender);
             this.roomLayer.add(roomRender);
 
-            this.exitRenderer.renderSpecialExits(room).forEach(render => {this.linkLayer.add(render)})
+            this.exitRenderer.renderSpecialExits(room).forEach(render => {
+                this.linkLayer.add(render)
+            })
+            this.exitRenderer.renderStubs(room).forEach(render => {
+                this.linkLayer.add(render)
+            })
+            this.exitRenderer.renderInnerExits(room).forEach(render => {
+                this.roomLayer.add(render)
+            })
         })
     }
 
@@ -172,13 +186,13 @@ export class Renderer {
                 x: 0,
                 y: 0,
                 text: room.roomChar,
-                fontSize: 0.4,
+                fontSize: 0.45,
                 fontStyle: "bold",
                 fill: this.mapReader.getSymbolColor(room.env),
                 align: "center",
                 verticalAlign: "middle",
                 width: Settings.roomSize,
-                height: Settings.roomSize
+                height: Settings.roomSize,
             })
             roomRender.add(roomChar);
         }
@@ -186,13 +200,31 @@ export class Renderer {
 
     private renderExits(exits: Exit[]) {
         exits.forEach(exit => {
-           const render = this.exitRenderer.render(exit);
-           if (!render) {
-               return;
-           }
-           this.linkLayer.add(render);
+            const render = this.exitRenderer.render(exit);
+            if (!render) {
+                return;
+            }
+            this.linkLayer.add(render);
         })
 
+    }
+
+    private renderLabels(Labels: MapData.Label[]) {
+        Labels.forEach(label => {
+            if (!label.pixMap) {
+                return
+            }
+            const image = new Image()
+            image.src = `data:image/png;base64,${label.pixMap}`
+            const labelRender = new Konva.Image({
+                x: label.X,
+                y: -label.Y,
+                width: label.Width,
+                height: label.Height,
+                image: image
+            })
+            this.linkLayer.add(labelRender)
+        })
     }
 
 

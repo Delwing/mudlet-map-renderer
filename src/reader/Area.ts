@@ -1,28 +1,6 @@
 import Plane from "./Plane";
 
-import Exit from "./Exit";
-
-const regularExits: string[] = ["north", "south", "east", "west", "northeast", "northwest", "southeast", "southwest"];
-const shortToLong: Record<string, string> = {
-    n: "north",
-    s: "south",
-    e: "east",
-    w: "west",
-    ne: "northeast",
-    nw: "northwest",
-    se: "southeast",
-    sw: "southwest",
-}
-const longToShort: Record<string, string> = {
-    north: "n",
-    south: "s",
-    east: "e",
-    west: "w",
-    northeast: "ne",
-    northwest: "nw",
-    southeast: "se",
-    southwest: "sw",
-}
+import Exit, {longToShort, regularExits} from "./Exit";
 
 export default class Area {
 
@@ -59,7 +37,7 @@ export default class Area {
         }, {});
         return Object.entries(grouped).reduce(
             (acc, [z, rooms]) => {
-                acc[+z] = new Plane(rooms);
+                acc[+z] = new Plane(rooms, this.area.labels.filter(label => label.Z === +z));
                 return acc;
             },
             {} as Record<number, Plane>
@@ -69,7 +47,7 @@ export default class Area {
     private createExits() {
         this.area.rooms.forEach(room => {
             Object.entries(room.exits)
-                .filter(([direction, _]) => regularExits.indexOf(direction) > -1 && !room.customLines.hasOwnProperty(longToShort[direction]))
+                .filter(([direction, _]) => regularExits.indexOf(direction as MapData.direction) > -1 && !room.customLines.hasOwnProperty(longToShort[direction as MapData.direction]))
                 .forEach(([direction, targetRoomId]) => this.createHalfExit(room.id, targetRoomId, room.z, direction as MapData.direction))
         })
     }

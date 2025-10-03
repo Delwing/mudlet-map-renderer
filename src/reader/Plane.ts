@@ -1,17 +1,21 @@
-
-
 export default class Plane {
 
     private readonly bounds: { minX: number, maxX: number, minY: number, maxY: number }
     private readonly rooms: MapData.Room[] = [];
+    private readonly labels: MapData.Label[] = [];
 
-    constructor(rooms: MapData.Room[]) {
+    constructor(rooms: MapData.Room[], labels: MapData.Label[]) {
         this.rooms = rooms
         this.bounds = this.createBounds();
+        this.labels = labels
     }
 
     getRooms() {
         return this.rooms;
+    }
+
+    getLabels() {
+        return this.labels;
     }
 
     getBounds() {

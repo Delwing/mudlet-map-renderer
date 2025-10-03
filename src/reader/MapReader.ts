@@ -62,8 +62,14 @@ export default class MapReader {
         return this.colors[envId]?.rgbValue ?? defaultColor.rgbValue;
     }
 
-    getSymbolColor(envId: number): string {
-        return this.colors[envId]?.symbolColorValue ?? defaultColor.symbolColorValue;
+    getSymbolColor(envId: number, opacity?: number): string {
+        const color = this.colors[envId]?.symbolColor ?? defaultColor.symbolColor;
+        const normalizedOpacity = Math.min(Math.max(opacity ?? 1, 0), 1);
+        const value = color.join(',');
+        if (normalizedOpacity != 1) {
+            return `rgba(${value}, ${normalizedOpacity})`;
+        }
+        return `rgba(${value})`;
     }
 
 }
