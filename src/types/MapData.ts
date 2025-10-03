@@ -53,7 +53,7 @@ declare namespace MapData {
         hash: string;
         env: number;
         exits: Record<direction, number>;
-        doors: Record<direction, 1 | 2 | 3>;
+        doors: Record<string, 1 | 2 | 3>;
         specialExits: Record<string, number>;
     }
 

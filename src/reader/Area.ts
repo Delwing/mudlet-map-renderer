@@ -22,6 +22,10 @@ export default class Area {
         return Object.values(this.planes);
     }
 
+    getRooms() {
+        return this.area.rooms
+    }
+
     getLinkExits(zIndex: number) {
         return Array.from(this.exits.values()).filter(e => e.zIndex.includes(zIndex));
     }
@@ -53,6 +57,9 @@ export default class Area {
     }
 
     private createHalfExit(originRoom: number, targetRoom: number, zIndex: number, direction: MapData.direction,) {
+        if (originRoom === targetRoom) {
+            return
+        }
         const a = Math.min(originRoom, targetRoom);
         const b = Math.max(originRoom, targetRoom);
         const key = `${a}-${b}`;

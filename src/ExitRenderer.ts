@@ -74,7 +74,7 @@ const dirNumbers: Record<number, MapData.direction> = {
 
 const innerExits: MapData.direction[] = ["up", "down", "in", "out"];
 
-function getDoorColor(doorType) {
+function getDoorColor(doorType: 1 | 2 | 3) {
     switch (doorType) {
         case 1:
             return Colors.OPEN_DOOR
@@ -318,4 +318,5 @@ export default class ExitRenderer {
             strokeWidth: 0.025
         })
     }
+
 }

@@ -507,6 +507,11 @@
   resolved "https://registry.yarnpkg.com/@types/estree/-/estree-1.0.8.tgz#958b91c991b1867ced318bedea0e215ee050726e"
   integrity sha512-dWHzHa2WqEXI/O1E9OjrocMTKJl2mSrEolh1Iomrv6U+JuNwaHXsXx9bLu5gG7BUWFIN0skIQJQ/L1rIex4X6w==
 
+"@types/node-dijkstra@^2.5.6":
+  version "2.5.6"
+  resolved "https://registry.yarnpkg.com/@types/node-dijkstra/-/node-dijkstra-2.5.6.tgz#df4621e50df10b2e98229796ab1c2a3ca74b65b8"
+  integrity sha512-+n0D+FdGuCLsKoH7fwX3iWfkKSAG0e4z1F96UG5gAnlE2V/1AZO6LuPLzHQd1MC2fZJDcE2cpTS2Ln1lywgUvw==
+
 "@volar/language-core@2.4.23", "@volar/language-core@~2.4.11":
   version "2.4.23"
   resolved "https://registry.yarnpkg.com/@volar/language-core/-/language-core-2.4.23.tgz#deb6dbc5fdbafa9bb7ba691fc59cb196cdb856d3"
@@ -913,6 +918,11 @@ nanoid@^3.3.11:
   version "3.3.11"
   resolved "https://registry.yarnpkg.com/nanoid/-/nanoid-3.3.11.tgz#4f4f112cefbe303202f2199838128936266d185b"
   integrity sha512-N8SpfPUnUp1bK+PMYW8qSWdl9U+wwNWI4QKxOYDy9JAro3WMX7p2OeVRF9v+347pnakNevPmiHhNmZ2HbFA76w==
+
+node-dijkstra@^2.5.1:
+  version "2.5.1"
+  resolved "https://registry.yarnpkg.com/node-dijkstra/-/node-dijkstra-2.5.1.tgz#63e321df0f662884ec36451528fecdc6d6d752d0"
+  integrity sha512-0Nj8CRsQ5Y7BVuxODuIlPLb8rx0HbpLvNhwzSLxx85RBYUt3ntqwJ0xN3sm1/16su2OdwYH4bm4podGVzdB71g==
 
 path-browserify@^1.0.1:
   version "1.0.1"

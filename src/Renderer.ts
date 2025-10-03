@@ -18,6 +18,7 @@ export class Renderer {
     private readonly stage: Konva.Stage;
     private readonly roomLayer: Konva.Layer;
     private readonly linkLayer: Konva.Layer;
+    private readonly overlayLayer: Konva.Layer;
     private readonly positionLayer: Konva.Layer;
     private mapReader: MapReader;
     private exitRenderer: ExitRenderer;
@@ -25,6 +26,7 @@ export class Renderer {
     private currentZIndex?: number;
     private positionRender?: Konva.Circle;
     private currentTransition?: Konva.Tween;
+    private paths: Konva.Line[] = [];
 
     constructor(container: HTMLDivElement, mapReader: MapReader) {
         this.stage = new Konva.Stage({
@@ -44,6 +46,10 @@ export class Renderer {
         this.stage.add(this.linkLayer);
         this.roomLayer = new Konva.Layer();
         this.stage.add(this.roomLayer);
+        this.overlayLayer = new Konva.Layer({
+            listening: false,
+        })
+        this.stage.add(this.overlayLayer);
         this.positionLayer = new Konva.Layer({
             listening: false,
         });
@@ -130,6 +136,28 @@ export class Renderer {
             this.positionLayer.add(this.positionRender);
         }
         this.centerOnRoom(room, instant);
+    }
+
+    renderPath(locations: number[]) {
+        const points = locations
+            .map(location => this.mapReader.getRoom(location))
+            .filter(room => room !== undefined && room.z === this.currentZIndex)
+            .flatMap(room => [room.x, room.y]);
+        const path = new Konva.Line({
+            points,
+            stroke: 'green',
+            strokeWidth: 0.1
+        })
+        this.overlayLayer.add(path)
+        this.paths.push(path)
+        return path
+    }
+
+    clearPaths() {
+        this.paths.forEach(path => {
+            path.destroy()
+        })
+        this.paths = []
     }
 
     private centerOnRoom(room: MapData.Room, instant: boolean = false) {
