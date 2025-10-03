@@ -89,8 +89,51 @@ destinationClearButton?.addEventListener("click", () => {
     }
 });
 
+const exitNumberToDirection: Record<number, MapData.direction> = {
+    1: "north",
+    2: "northeast",
+    3: "northwest",
+    4: "east",
+    5: "west",
+    6: "south",
+    7: "southeast",
+    8: "southwest",
+    9: "up",
+    10: "down",
+    11: "in",
+    12: "out",
+};
+
 function getRoomExits(room: MapData.Room) {
-    return Object.values(room.exits).filter((exitId): exitId is number => typeof exitId === "number" && exitId > 0);
+    const lockedDirections = new Set(
+        (room.exitLocks ?? [])
+            .map(lockId => exitNumberToDirection[lockId])
+            .filter((direction): direction is MapData.direction => Boolean(direction)),
+    );
+    const lockedSpecialTargets = new Set(room.mSpecialExitLocks ?? []);
+
+    const exits: number[] = [];
+
+    Object.entries(room.exits ?? {}).forEach(([direction, exitId]) => {
+        if (lockedDirections.has(direction as MapData.direction)) {
+            return;
+        }
+        if (typeof exitId === "number" && exitId > 0) {
+            exits.push(exitId);
+        }
+    });
+
+    Object.values(room.specialExits ?? {}).forEach(exitId => {
+        if (typeof exitId !== "number" || exitId <= 0) {
+            return;
+        }
+        if (lockedSpecialTargets.has(exitId)) {
+            return;
+        }
+        exits.push(exitId);
+    });
+
+    return exits;
 }
 
 function updateAreaStatus(areaId: number) {
@@ -160,9 +203,9 @@ function pickNextRoom(room: MapData.Room) {
         return undefined;
     }
 
-    const preferredRoomId = findPreferredRoomId(room);
-    if (preferredRoomId !== undefined) {
-        const preferredRoom = exits.find(candidate => candidate.id === preferredRoomId);
+    const preferredExplorationRoomId = findPreferredRoomId(room);
+    if (preferredExplorationRoomId !== undefined) {
+        const preferredRoom = exits.find(candidate => candidate.id === preferredExplorationRoomId);
         if (preferredRoom && Math.random() < PREFERRED_PATH_PROBABILITY) {
             return preferredRoom;
         }
@@ -176,8 +219,10 @@ function pickNextRoom(room: MapData.Room) {
         return !visitedRooms?.has(candidate.id);
     });
 
-    const preferredRoomId = getNextStepTowardsDestination(room.id);
-    const preferredRoom = preferredRoomId ? exits.find(candidate => candidate.id === preferredRoomId) : undefined;
+    const preferredDestinationRoomId = getNextStepTowardsDestination(room.id);
+    const preferredRoom = preferredDestinationRoomId !== undefined
+        ? exits.find(candidate => candidate.id === preferredDestinationRoomId)
+        : undefined;
 
     if (preferredRoom) {
         const bias = unvisited.length ? 0.75 : 0.55;
