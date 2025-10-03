@@ -20,7 +20,7 @@ const visitedRooms = mapReader.decorateWithExploration([startingRoomId]);
 const renderer = new Renderer(stageElement, mapReader);
 const startingRoom = mapReader.getRoom(startingRoomId);
 let currentRoomId = startingRoomId;
-let walkerTimeout: number | undefined;
+const walkerState: { timeoutId: number | undefined } = { timeoutId: undefined };
 let destinationRoomId: number | undefined;
 let currentDestinationPath: number[] | undefined;
 
@@ -131,10 +131,8 @@ function pickNextRoom(room: MapData.Room) {
         return !visitedRooms?.has(candidate.id);
     });
 
-    const choices = unvisited.length ? unvisited : exits;
-
     const preferredRoomId = getNextStepTowardsDestination(room.id);
-    const preferredRoom = preferredRoomId ? choices.find(candidate => candidate.id === preferredRoomId) : undefined;
+    const preferredRoom = preferredRoomId ? exits.find(candidate => candidate.id === preferredRoomId) : undefined;
 
     if (preferredRoom) {
         const bias = unvisited.length ? 0.75 : 0.55;
@@ -143,14 +141,17 @@ function pickNextRoom(room: MapData.Room) {
         }
     }
 
+    const choices = unvisited.length ? unvisited : exits;
+
     return choices[Math.floor(Math.random() * choices.length)];
 }
 
 function scheduleNextStep(delay = randomDelay()) {
-    if (walkerTimeout) {
-        window.clearTimeout(walkerTimeout);
+    const {timeoutId} = walkerState;
+    if (timeoutId !== undefined) {
+        window.clearTimeout(timeoutId);
     }
-    walkerTimeout = window.setTimeout(walkStep, delay);
+    walkerState.timeoutId = window.setTimeout(walkStep, delay);
     walkerStatusElement.textContent = `Next step in ${(delay / 1000).toFixed(1)}s`;
 }
 
