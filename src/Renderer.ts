@@ -129,6 +129,7 @@ export class Renderer {
         this.renderRooms(plane.getRooms() ?? []);
         this.renderExits(area.getLinkExits(zIndex));
         this.refreshHighlights();
+        this.stage.batchDraw();
     }
 
     setPosition(roomId: number) {

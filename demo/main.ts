@@ -15,6 +15,7 @@ mapReader.decorateWithExploration([startingRoomId]);
 const renderer = new Renderer(stageElement, mapReader);
 const startingRoom = mapReader.getRoom(startingRoomId);
 let currentRoomId = startingRoomId;
+let walkerTimeout: number | undefined;
 
 if (startingRoom) {
     const startingArea = mapReader.getExplorationArea(startingRoom.area);
@@ -67,8 +68,6 @@ function pickNextRoom(room: MapData.Room) {
     const choices = unvisited.length ? unvisited : exits;
     return choices[Math.floor(Math.random() * choices.length)];
 }
-
-let walkerTimeout: number | undefined;
 
 function scheduleNextStep(delay = randomDelay()) {
     if (walkerTimeout) {
