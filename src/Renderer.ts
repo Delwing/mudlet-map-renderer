@@ -14,6 +14,13 @@ export class Settings {
     static lineColor = lineColor;
 }
 
+type HighlightData = {
+    color: string;
+    area: number;
+    z: number;
+    shape?: Konva.Circle;
+};
+
 export class Renderer {
 
     private readonly stage: Konva.Stage;
@@ -24,6 +31,7 @@ export class Renderer {
     private mapReader: MapReader;
     private exitRenderer: ExitRenderer;
     private pathRenderer: PathRenderer;
+    private highlights: Map<number, HighlightData> = new Map();
     private currentArea?: number;
     private currentZIndex?: number;
     private positionRender?: Konva.Circle;
@@ -115,6 +123,7 @@ export class Renderer {
         this.renderLabels(plane.getLabels());
         this.renderRooms(plane.getRooms() ?? []);
         this.renderExits(area.getLinkExits(zIndex));
+        this.refreshHighlights();
     }
 
     setPosition(roomId: number) {
@@ -146,6 +155,74 @@ export class Renderer {
 
     clearPaths() {
         this.pathRenderer.clearPaths();
+    }
+
+    renderHighlight(roomId: number, color: string) {
+        const room = this.mapReader.getRoom(roomId);
+        if (!room) {
+            return;
+        }
+
+        const existing = this.highlights.get(roomId);
+        if (existing?.shape) {
+            existing.shape.destroy();
+            delete existing.shape;
+        }
+
+        const highlightData: HighlightData = {color, area: room.area, z: room.z};
+
+        this.highlights.set(roomId, highlightData);
+
+        if (room.area === this.currentArea && room.z === this.currentZIndex) {
+            const shape = this.createHighlightShape(room, color);
+            this.overlayLayer.add(shape);
+            highlightData.shape = shape;
+            this.overlayLayer.batchDraw();
+            return shape;
+        }
+
+        return highlightData.shape;
+    }
+
+    clearHighlights() {
+        this.highlights.forEach(({shape}) => shape?.destroy());
+        this.highlights.clear();
+        this.overlayLayer.batchDraw();
+    }
+
+    private refreshHighlights() {
+        this.highlights.forEach((highlight, roomId) => {
+            highlight.shape?.destroy();
+            delete highlight.shape;
+
+            if (highlight.area !== this.currentArea || highlight.z !== this.currentZIndex) {
+                return;
+            }
+
+            const room = this.mapReader.getRoom(roomId);
+            if (!room) {
+                return;
+            }
+
+            const shape = this.createHighlightShape(room, highlight.color);
+            this.overlayLayer.add(shape);
+            highlight.shape = shape;
+        });
+
+        this.overlayLayer.batchDraw();
+    }
+
+    private createHighlightShape(room: MapData.Room, color: string) {
+        return new Konva.Circle({
+            x: room.x,
+            y: room.y,
+            radius: Settings.roomSize * 0.9,
+            stroke: color,
+            strokeWidth: 0.15,
+            dash: [0.1, 0.05],
+            dashEnabled: true,
+            listening: false,
+        });
     }
 
     private centerOnRoom(room: MapData.Room, instant: boolean = false) {
