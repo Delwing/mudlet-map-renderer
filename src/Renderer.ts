@@ -27,6 +27,7 @@ export class Renderer {
     private positionRender?: Konva.Circle;
     private currentTransition?: Konva.Tween;
     private paths: Konva.Line[] = [];
+    private highlights: Konva.Circle[] = [];
 
     constructor(container: HTMLDivElement, mapReader: MapReader) {
         this.stage = new Konva.Stage({
@@ -158,6 +159,35 @@ export class Renderer {
             path.destroy()
         })
         this.paths = []
+    }
+
+    renderHighlight(roomId: number, color: string) {
+        const room = this.mapReader.getRoom(roomId);
+        if (!room) {
+            return;
+        }
+
+        if (this.currentArea !== room.area || this.currentZIndex !== room.z) {
+            this.drawArea(room.area, room.z);
+        }
+
+        const highlight = new Konva.Circle({
+            x: room.x,
+            y: room.y,
+            radius: Settings.roomSize,
+            stroke: color,
+            strokeWidth: 0.1,
+            listening: false,
+        });
+
+        this.overlayLayer.add(highlight);
+        this.highlights.push(highlight);
+        return highlight;
+    }
+
+    clearHighlights() {
+        this.highlights.forEach(highlight => highlight.destroy());
+        this.highlights = [];
     }
 
     private centerOnRoom(room: MapData.Room, instant: boolean = false) {
