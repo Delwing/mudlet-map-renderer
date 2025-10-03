@@ -1,6 +1,21 @@
 import Graph from "node-dijkstra";
 import MapReader from "./reader/MapReader";
 
+const exitNumberToDirection: Record<number, MapData.direction> = {
+    1: "north",
+    2: "northeast",
+    3: "northwest",
+    4: "east",
+    5: "west",
+    6: "south",
+    7: "southeast",
+    8: "southwest",
+    9: "up",
+    10: "down",
+    11: "in",
+    12: "out",
+};
+
 type GraphDefinition = Record<string, Record<string, number>>;
 
 export default class PathFinder {
@@ -19,13 +34,27 @@ export default class PathFinder {
         this.mapReader.getRooms().forEach(room => {
             const connections: Record<string, number> = {};
 
-            Object.values(room.exits ?? {}).forEach(targetRoomId => {
+            const lockedDirections = new Set(
+                (room.exitLocks ?? [])
+                    .map(lockId => exitNumberToDirection[lockId])
+                    .filter((direction): direction is MapData.direction => Boolean(direction))
+            );
+
+            const lockedSpecialTargets = new Set(room.mSpecialExitLocks ?? []);
+
+            Object.entries(room.exits ?? {}).forEach(([direction, targetRoomId]) => {
+                if (lockedDirections.has(direction as MapData.direction)) {
+                    return;
+                }
                 if (this.mapReader.getRoom(targetRoomId)) {
                     connections[targetRoomId.toString()] = 1;
                 }
             });
 
             Object.values(room.specialExits ?? {}).forEach(targetRoomId => {
+                if (lockedSpecialTargets.has(targetRoomId)) {
+                    return;
+                }
                 if (this.mapReader.getRoom(targetRoomId)) {
                     connections[targetRoomId.toString()] = 1;
                 }
