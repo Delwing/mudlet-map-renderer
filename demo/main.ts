@@ -50,6 +50,46 @@ function randomDelay() {
     return 800 + Math.random() * 1200;
 }
 
+const PREFERRED_PATH_PROBABILITY = 0.7;
+
+function findPreferredRoomId(room: MapData.Room) {
+    const visitedRooms = mapReader.getVisitedRooms();
+    if (!visitedRooms) {
+        return undefined;
+    }
+
+    const queue: number[] = [room.id];
+    const cameFrom = new Map<number, number | null>([[room.id, null]]);
+
+    while (queue.length) {
+        const currentId = queue.shift()!;
+        const currentRoom = mapReader.getRoom(currentId);
+        if (!currentRoom) {
+            continue;
+        }
+
+        const isStartRoom = currentId === room.id;
+        if (!visitedRooms.has(currentId) && !isStartRoom) {
+            let stepId = currentId;
+            let parentId = cameFrom.get(stepId) ?? null;
+            while (parentId !== null && parentId !== room.id) {
+                stepId = parentId;
+                parentId = cameFrom.get(stepId) ?? null;
+            }
+            return stepId;
+        }
+
+        for (const neighbourId of getRoomExits(currentRoom)) {
+            if (!cameFrom.has(neighbourId)) {
+                cameFrom.set(neighbourId, currentId);
+                queue.push(neighbourId);
+            }
+        }
+    }
+
+    return undefined;
+}
+
 function pickNextRoom(room: MapData.Room) {
     const exits = getRoomExits(room)
         .map(exitRoomId => mapReader.getRoom(exitRoomId))
@@ -57,6 +97,14 @@ function pickNextRoom(room: MapData.Room) {
 
     if (!exits.length) {
         return undefined;
+    }
+
+    const preferredRoomId = findPreferredRoomId(room);
+    if (preferredRoomId !== undefined) {
+        const preferredRoom = exits.find(candidate => candidate.id === preferredRoomId);
+        if (preferredRoom && Math.random() < PREFERRED_PATH_PROBABILITY) {
+            return preferredRoom;
+        }
     }
 
     const unvisited = exits.filter(candidate => {
