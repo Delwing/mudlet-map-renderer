@@ -33,7 +33,41 @@
             border-radius: 0.5rem;
             font-size: 0.9rem;
             line-height: 1.4;
-            pointer-events: none;
+            pointer-events: auto;
+        }
+
+        #controls {
+            margin-top: 0.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        #controls label {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            font-weight: 500;
+        }
+
+        #destination-form {
+            display: flex;
+            flex-direction: column;
+            gap: 0.35rem;
+        }
+
+        #destination-inputs {
+            display: flex;
+            gap: 0.35rem;
+        }
+
+        #destination-input {
+            width: 6rem;
+        }
+
+        #destination-status {
+            font-size: 0.8rem;
+            color: #c8f7ff;
         }
 
         #hud strong {
@@ -47,6 +81,21 @@
 <div id="hud">
     <div id="status">Loading map…</div>
     <div id="walker-status"></div>
+    <div id="controls">
+        <label>
+            <input type="checkbox" id="exploration-toggle" checked>
+            Exploration overlay
+        </label>
+        <form id="destination-form">
+            <label for="destination-input">Destination room</label>
+            <div id="destination-inputs">
+                <input type="number" id="destination-input" min="1" placeholder="Room ID" />
+                <button type="submit">Set</button>
+                <button type="button" id="destination-clear">Clear</button>
+            </div>
+            <div id="destination-status"></div>
+        </form>
+    </div>
 </div>
 <script type="module" src="/main.ts"></script>
 </body>
