@@ -1,4 +1,5 @@
 import Area from "./Area";
+import ExplorationArea from "./ExplorationArea";
 
 interface Color {
     rgb: number[];
@@ -29,6 +30,8 @@ export default class MapReader {
 
     private rooms: Record<number, MapData.Room> = {};
     private areas: Record<number, Area> = {};
+    private areaSources: Record<number, MapData.Area> = {};
+    private visitedRooms?: Set<number>;
     private colors: Record<number, Color> = {};
 
     constructor(map: MapData.Map, envs: MapData.Env[]) {
@@ -37,7 +40,9 @@ export default class MapReader {
                 room.y = -room.y;
                 this.rooms[room.id] = room;
             })
-            this.areas[parseInt(area.areaId)] = new Area(area);
+            const areaId = parseInt(area.areaId);
+            this.areas[areaId] = new Area(area);
+            this.areaSources[areaId] = area;
         })
         this.colors = envs.reduce((acc, c) => ({
             ...acc,
@@ -54,6 +59,14 @@ export default class MapReader {
         return this.areas[areaId];
     }
 
+    getExplorationArea(areaId: number) {
+        const area = this.areas[areaId];
+        if (area instanceof ExplorationArea) {
+            return area;
+        }
+        return undefined;
+    }
+
     getAreas() {
         return Object.values(this.areas);
     }
@@ -64,6 +77,19 @@ export default class MapReader {
 
     getRoom(roomId: number) {
         return this.rooms[roomId];
+    }
+
+    decorateWithExploration(visitedRooms?: Iterable<number> | Set<number>) {
+        this.visitedRooms = visitedRooms instanceof Set ? visitedRooms : new Set(visitedRooms ?? []);
+        Object.entries(this.areaSources).forEach(([id, area]) => {
+            const numericId = parseInt(id, 10);
+            this.areas[numericId] = new ExplorationArea(area, this.visitedRooms);
+        });
+        return this.visitedRooms;
+    }
+
+    getVisitedRooms() {
+        return this.visitedRooms;
     }
 
     getColorValue(envId: number): string {
