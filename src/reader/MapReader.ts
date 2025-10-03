@@ -32,6 +32,7 @@ export default class MapReader {
     private areas: Record<number, Area> = {};
     private areaSources: Record<number, MapData.Area> = {};
     private visitedRooms?: Set<number>;
+    private explorationEnabled = false;
     private colors: Record<number, Color> = {};
 
     constructor(map: MapData.Map, envs: MapData.Env[]) {
@@ -83,13 +84,26 @@ export default class MapReader {
         this.visitedRooms = visitedRooms instanceof Set ? visitedRooms : new Set(visitedRooms ?? []);
         Object.entries(this.areaSources).forEach(([id, area]) => {
             const numericId = parseInt(id, 10);
-            this.areas[numericId] = new ExplorationArea(area, this.visitedRooms);
+            this.areas[numericId] = new ExplorationArea(area, this.visitedRooms!);
         });
+        this.explorationEnabled = true;
         return this.visitedRooms;
     }
 
     getVisitedRooms() {
         return this.visitedRooms;
+    }
+
+    clearExplorationDecoration() {
+        Object.entries(this.areaSources).forEach(([id, area]) => {
+            const numericId = parseInt(id, 10);
+            this.areas[numericId] = new Area(area);
+        });
+        this.explorationEnabled = false;
+    }
+
+    isExplorationEnabled() {
+        return this.explorationEnabled;
     }
 
     getColorValue(envId: number): string {

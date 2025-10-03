@@ -107,7 +107,11 @@ export default class ExplorationArea extends Area {
     addVisitedRoom(roomId: number) {
         const wasVisited = this.visitedRooms.has(roomId);
         this.visitedRooms.add(roomId);
-        return !wasVisited && this.areaRoomIds.has(roomId);
+        const newlyVisited = !wasVisited && this.areaRoomIds.has(roomId);
+        if (newlyVisited) {
+            this.markDirty();
+        }
+        return newlyVisited;
     }
 
     addVisitedRooms(roomIds: Iterable<number>) {
@@ -118,6 +122,9 @@ export default class ExplorationArea extends Area {
             if (!wasVisited && this.areaRoomIds.has(roomId)) {
                 newlyVisited++;
             }
+        }
+        if (newlyVisited > 0) {
+            this.markDirty();
         }
         return newlyVisited;
     }

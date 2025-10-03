@@ -34,6 +34,7 @@ export class Renderer {
     private highlights: Map<number, HighlightData> = new Map();
     private currentArea?: number;
     private currentZIndex?: number;
+    private currentAreaVersion?: number;
     private positionRender?: Konva.Circle;
     private currentTransition?: Konva.Tween;
 
@@ -106,12 +107,16 @@ export class Renderer {
 
     drawArea(id: number, zIndex: number) {
         const area = this.mapReader.getArea(id);
-        const plane = area?.getPlane(zIndex);
+        if (!area) {
+            return;
+        }
+        const plane = area.getPlane(zIndex);
         if (!plane) {
             return;
         }
         this.currentArea = id;
         this.currentZIndex = zIndex;
+        this.currentAreaVersion = area.getVersion();
         this.roomLayer.destroyChildren();
         this.linkLayer.destroyChildren();
 
@@ -124,13 +129,16 @@ export class Renderer {
         this.renderRooms(plane.getRooms() ?? []);
         this.renderExits(area.getLinkExits(zIndex));
         this.refreshHighlights();
+        this.stage.batchDraw();
     }
 
     setPosition(roomId: number) {
         const room = this.mapReader.getRoom(roomId);
         if (!room) return;
+        const area = this.mapReader.getArea(room.area);
+        const areaVersion = area?.getVersion();
         let instant = false
-        if (this.currentArea !== room.area || this.currentZIndex !== room.z) {
+        if (this.currentArea !== room.area || this.currentZIndex !== room.z || (areaVersion !== undefined && this.currentAreaVersion !== areaVersion)) {
             this.drawArea(room.area, room.z);
             instant = true
         }

@@ -7,11 +7,20 @@ export default class Area {
     private readonly planes: Record<number, Plane> = {};
     private readonly area: MapData.Area;
     private readonly exits: Map<string, Exit> = new Map();
+    private version = 0;
 
     constructor(area: MapData.Area) {
         this.area = area;
         this.planes = this.createPlanes();
         this.createExits();
+    }
+
+    getVersion() {
+        return this.version;
+    }
+
+    protected markDirty() {
+        this.version++;
     }
 
     getPlane(zIndex: number) {
