@@ -2,12 +2,7 @@ import Konva from "konva";
 import ExitRenderer from "./ExitRenderer";
 import MapReader from "./reader/MapReader";
 import Exit from "./reader/Exit";
-import {
-    movePoint,
-    PlanarDirection,
-    planarDirections,
-    oppositeDirections,
-} from "./directions";
+import PathRenderer from "./PathRenderer";
 
 const defaultRoomSize = 0.6;
 const padding = 1;
@@ -28,11 +23,11 @@ export class Renderer {
     private readonly positionLayer: Konva.Layer;
     private mapReader: MapReader;
     private exitRenderer: ExitRenderer;
+    private pathRenderer: PathRenderer;
     private currentArea?: number;
     private currentZIndex?: number;
     private positionRender?: Konva.Circle;
     private currentTransition?: Konva.Tween;
-    private paths: Konva.Line[] = [];
 
     constructor(container: HTMLDivElement, mapReader: MapReader) {
         this.stage = new Konva.Stage({
@@ -62,6 +57,7 @@ export class Renderer {
         this.stage.add(this.positionLayer);
         this.mapReader = mapReader;
         this.exitRenderer = new ExitRenderer(mapReader);
+        this.pathRenderer = new PathRenderer(mapReader, this.overlayLayer);
 
         const scaleBy = 1.1;
         this.initScaling(scaleBy);
@@ -145,117 +141,11 @@ export class Renderer {
     }
 
     renderPath(locations: number[]) {
-        if (this.currentArea === undefined || this.currentZIndex === undefined) {
-            return;
-        }
-
-        const rooms = locations
-            .map(location => this.mapReader.getRoom(location))
-            .filter((room): room is MapData.Room => room !== undefined);
-
-        const segments: number[][] = [];
-        let currentSegment: number[] | null = null;
-
-        const finalizeSegment = () => {
-            if (!currentSegment) {
-                return;
-            }
-            if (currentSegment.length < 4) {
-                segments.pop();
-            }
-            currentSegment = null;
-        };
-
-        const ensureSegment = () => {
-            if (!currentSegment) {
-                currentSegment = [];
-                segments.push(currentSegment);
-            }
-            return currentSegment;
-        };
-
-        rooms.forEach((room, index) => {
-            if (!this.isRoomVisible(room)) {
-                return;
-            }
-
-            const previousRoom = index > 0 ? rooms[index - 1] : undefined;
-            const nextRoom = index < rooms.length - 1 ? rooms[index + 1] : undefined;
-            const previousVisible = this.isRoomVisible(previousRoom);
-
-            if (!previousVisible) {
-                finalizeSegment();
-                const segment = ensureSegment();
-                if (previousRoom) {
-                    const directionToPrevious = this.getDirectionTowards(room, previousRoom);
-                    if (directionToPrevious) {
-                        const startPoint = movePoint(room.x, room.y, directionToPrevious, Settings.roomSize);
-                        segment.push(startPoint.x, startPoint.y);
-                    }
-                }
-            } else {
-                ensureSegment();
-            }
-
-            currentSegment?.push(room.x, room.y);
-
-            const nextVisible = this.isRoomVisible(nextRoom);
-            if (!nextVisible && nextRoom) {
-                const directionToNext = this.getDirectionTowards(room, nextRoom);
-                if (directionToNext) {
-                    const endPoint = movePoint(room.x, room.y, directionToNext, Settings.roomSize);
-                    currentSegment?.push(endPoint.x, endPoint.y);
-                }
-                finalizeSegment();
-            }
-        });
-
-        finalizeSegment();
-
-        const paths = segments
-            .filter(points => points.length >= 4)
-            .map(points => new Konva.Line({
-                points,
-                stroke: 'green',
-                strokeWidth: 0.1
-            }));
-
-        paths.forEach(path => {
-            this.overlayLayer.add(path);
-            this.paths.push(path);
-        });
-
-        return paths[0];
+        return this.pathRenderer.renderPath(locations, this.currentArea, this.currentZIndex);
     }
 
     clearPaths() {
-        this.paths.forEach(path => {
-            path.destroy()
-        })
-        this.paths = []
-    }
-
-    private isRoomVisible(room?: MapData.Room) {
-        if (!room) {
-            return false;
-        }
-        return room.area === this.currentArea && room.z === this.currentZIndex;
-    }
-
-    private getDirectionTowards(from: MapData.Room, to: MapData.Room): PlanarDirection | undefined {
-        for (const direction of planarDirections) {
-            if (from.exits[direction] === to.id) {
-                return direction;
-            }
-        }
-
-        for (const direction of planarDirections) {
-            if (to.exits[direction] === from.id) {
-                return oppositeDirections[direction];
-            }
-        }
-
-        return undefined;
+        this.pathRenderer.clearPaths();
     }
 
     private centerOnRoom(room: MapData.Room, instant: boolean = false) {
