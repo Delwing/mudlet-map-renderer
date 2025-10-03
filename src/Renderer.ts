@@ -23,6 +23,8 @@ export class Renderer {
     private exitRenderer: ExitRenderer;
     private currentArea?: number;
     private currentZIndex?: number;
+    private positionRender?: Konva.Circle;
+    private currentTransition?: Konva.Tween;
 
     constructor(container: HTMLDivElement, mapReader: MapReader) {
         this.stage = new Konva.Stage({
@@ -31,6 +33,11 @@ export class Renderer {
             height: container.clientHeight,
             draggable: true
         });
+        window.addEventListener('resize', () => {
+            this.stage.width(container.clientWidth);
+            this.stage.height(container.clientHeight);
+            this.stage.batchDraw();
+        })
         this.linkLayer = new Konva.Layer({
             listening: false,
         });
@@ -87,6 +94,8 @@ export class Renderer {
         if (!plane) {
             return;
         }
+        this.currentArea = id;
+        this.currentZIndex = zIndex;
         this.roomLayer.destroyChildren();
         this.linkLayer.destroyChildren();
 
@@ -103,25 +112,30 @@ export class Renderer {
     setPosition(roomId: number) {
         const room = this.mapReader.getRoom(roomId);
         if (!room) return;
+        let instant = false
         if (this.currentArea !== room.area || this.currentZIndex !== room.z) {
             this.drawArea(room.area, room.z);
+            instant = true
         }
-        this.positionLayer.destroyChildren();
-        const positionRender = new Konva.Circle({
-            x: room.x,
-            y: room.y,
-            radius: defaultRoomSize * 0.85,
-            stroke: "rgb(0, 229, 178)",
-            strokeWidth: 0.1,
-            dash: [0.05, 0.05],
-            dashEnabled: true,
-        })
-        this.positionLayer.add(positionRender);
-        this.centerOnRoom(room);
+        if (!this.positionRender) {
+            this.positionRender = new Konva.Circle({
+                x: room.x,
+                y: room.y,
+                radius: defaultRoomSize * 0.85,
+                stroke: "rgb(0, 229, 178)",
+                strokeWidth: 0.1,
+                dash: [0.05, 0.05],
+                dashEnabled: true,
+            })
+            this.positionLayer.add(this.positionRender);
+        }
+        this.centerOnRoom(room, instant);
     }
 
-    private centerOnRoom(room: MapData.Room) {
+    private centerOnRoom(room: MapData.Room, instant: boolean = false) {
         const roomCenter = {x: room.x, y: room.y};
+
+        this.positionRender?.position(room)
 
         const abs = this.stage.getAbsoluteTransform()
         const screenPoint = abs.point(roomCenter);
@@ -134,13 +148,27 @@ export class Renderer {
         const dx = target.x - screenPoint.x;
         const dy = target.y - screenPoint.y;
 
-        // Animate the pan
-        this.stage.to({
-            x: this.stage.x() + dx,
-            y: this.stage.y() + dy,
-            duration: 0.3,
-            easing: Konva.Easings.EaseInOut,
-        });
+        if (this.currentTransition) {
+            this.currentTransition.pause()
+            this.currentTransition.destroy()
+            delete this.currentTransition;
+        }
+
+        if (instant) {
+            this.stage.position({
+                x: this.stage.x() + dx,
+                y: this.stage.y() + dy,
+            })
+        } else {
+            this.currentTransition = new Konva.Tween({
+                node: this.stage,
+                x: this.stage.x() + dx,
+                y: this.stage.y() + dy,
+                duration: 0.2,
+                easing: Konva.Easings.EaseInOut,
+            })
+            this.currentTransition.play()
+        }
     }
 
     private renderRooms(rooms: MapData.Room[]) {
