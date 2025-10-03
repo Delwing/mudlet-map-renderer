@@ -58,6 +58,10 @@ export default class MapReader {
         return Object.values(this.areas);
     }
 
+    getRooms() {
+        return Object.values(this.rooms);
+    }
+
     getRoom(roomId: number) {
         return this.rooms[roomId];
     }
