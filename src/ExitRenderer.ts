@@ -2,59 +2,12 @@ import Exit, {longToShort} from "./reader/Exit";
 import MapReader from "./reader/MapReader";
 import Konva from "konva";
 import {Settings} from "./Renderer";
-
-interface Point {
-    x: number;
-    y: number;
-}
+import {movePoint} from "./directions";
 
 const Colors = {
     OPEN_DOOR: 'rgb(10, 155, 10)',
     CLOSED_DOOR: 'rgb(226, 205, 59)',
-    LOCKED_DOOR: 'rgb(155, 10, 10'
-}
-
-function move(
-    x: number,
-    y: number,
-    direction?: MapData.direction,
-    distance: number = 1
-): Point {
-    if (!direction) {
-        return {x, y};
-    }
-    switch (direction) {
-        case "north":
-            y -= distance;
-            break;
-        case "south":
-            y += distance;
-            break;
-        case "east":
-            x += distance;
-            break;
-        case "west":
-            x -= distance;
-            break;
-        case "northeast":
-            x += distance;
-            y -= distance;
-            break;
-        case "northwest":
-            x -= distance;
-            y -= distance;
-            break;
-        case "southeast":
-            x += distance;
-            y += distance;
-            break;
-        case "southwest":
-            x -= distance;
-            y += distance;
-            break;
-    }
-
-    return {x, y};
+    LOCKED_DOOR: 'rgb(155, 10, 10)'
 }
 
 const dirNumbers: Record<number, MapData.direction> = {
@@ -112,8 +65,8 @@ export default class ExitRenderer {
         const exitRender = new Konva.Group();
 
         const points = []
-        points.push(...Object.values(move(sourceRoom.x, sourceRoom.y, exit.aDir, Settings.roomSize / 2)));
-        points.push(...Object.values(move(targetRoom.x, targetRoom.y, exit.bDir, Settings.roomSize / 2)));
+        points.push(...Object.values(movePoint(sourceRoom.x, sourceRoom.y, exit.aDir, Settings.roomSize / 2)));
+        points.push(...Object.values(movePoint(targetRoom.x, targetRoom.y, exit.bDir, Settings.roomSize / 2)));
 
         if (sourceRoom.doors[longToShort[exit.aDir]] || targetRoom.doors[longToShort[exit.bDir]]) {
             const door = this.renderDoor(points, sourceRoom.doors[longToShort[exit.aDir]] ?? targetRoom.doors[longToShort[exit.bDir]])
@@ -145,17 +98,17 @@ export default class ExitRenderer {
 
         let targetPoint = {x: targetRoom.x, y: targetRoom.y};
         if (targetRoom.area !== sourceRoom.area || targetRoom.z !== sourceRoom.z) {
-            targetPoint = move(sourceRoom.x, sourceRoom.y, dir, Settings.roomSize / 2);
+            targetPoint = movePoint(sourceRoom.x, sourceRoom.y, dir, Settings.roomSize / 2);
         }
 
-        const startPoint = move(sourceRoom.x, sourceRoom.y, dir, 0.3);
+        const startPoint = movePoint(sourceRoom.x, sourceRoom.y, dir, 0.3);
 
         const middlePointX = startPoint.x - (startPoint.x - targetPoint.x) / 2;
         const middlePointY = startPoint.y - (startPoint.y - targetPoint.y) / 2;
 
         const group = new Konva.Group();
         const points = []
-        points.push(...Object.values(move(sourceRoom.x, sourceRoom.y, dir, Settings.roomSize / 2)));
+        points.push(...Object.values(movePoint(sourceRoom.x, sourceRoom.y, dir, Settings.roomSize / 2)));
         points.push(targetPoint.x, targetPoint.y);
         const link = new Konva.Line({
             points,
@@ -183,8 +136,8 @@ export default class ExitRenderer {
     }
 
     renderAreaExit(room: MapData.Room, dir: MapData.direction) {
-        const start = move(room.x, room.y, dir, Settings.roomSize / 2)
-        const end = move(room.x, room.y, dir, Settings.roomSize * 1.5)
+        const start = movePoint(room.x, room.y, dir, Settings.roomSize / 2)
+        const end = movePoint(room.x, room.y, dir, Settings.roomSize * 1.5)
         return new Konva.Arrow({
             points: [start.x, start.y, end.x, end.y],
             pointerLength: 0.3,
@@ -232,8 +185,8 @@ export default class ExitRenderer {
     renderStubs(room: MapData.Room) {
         return room.stubs.map(stub => {
             const direction = dirNumbers[stub];
-            const start = move(room.x, room.y, direction, Settings.roomSize / 2)
-            const end = move(room.x, room.y, direction, Settings.roomSize / 2 + 0.5)
+            const start = movePoint(room.x, room.y, direction, Settings.roomSize / 2)
+            const end = movePoint(room.x, room.y, direction, Settings.roomSize / 2 + 0.5)
             const points = [start.x, start.y, end.x, end.y]
             return new Konva.Line({
                 points,
@@ -276,27 +229,27 @@ export default class ExitRenderer {
 
                 switch (exit) {
                     case "up":
-                        triangle.position(move(room.x, room.y, "south", Settings.roomSize / 4));
+                        triangle.position(movePoint(room.x, room.y, "south", Settings.roomSize / 4));
                         break;
                     case "down":
                         triangle.rotation(180);
-                        triangle.position(move(room.x, room.y, "north", Settings.roomSize / 4));
+                        triangle.position(movePoint(room.x, room.y, "north", Settings.roomSize / 4));
                         break;
                     case "in":
                         const inRender = triangle.clone()
                         inRender.rotation(-90);
-                        inRender.position(move(room.x, room.y, "east", Settings.roomSize / 4));
+                        inRender.position(movePoint(room.x, room.y, "east", Settings.roomSize / 4));
                         render.add(inRender);
                         triangle.rotation(90);
-                        triangle.position(move(room.x, room.y, "west", Settings.roomSize / 4));
+                        triangle.position(movePoint(room.x, room.y, "west", Settings.roomSize / 4));
                         break;
                     case "out":
                         const outRender = triangle.clone()
                         outRender.rotation(90);
-                        outRender.position(move(room.x, room.y, "east", Settings.roomSize / 4));
+                        outRender.position(movePoint(room.x, room.y, "east", Settings.roomSize / 4));
                         render.add(outRender);
                         triangle.rotation(-90);
-                        triangle.position(move(room.x, room.y, "west", Settings.roomSize / 4));
+                        triangle.position(movePoint(room.x, room.y, "west", Settings.roomSize / 4));
                         break;
                 }
                 return render
