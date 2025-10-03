@@ -5,18 +5,49 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title>Konva Universal Lib — Demo</title>
     <style>
-        html, body, #stage {
+        html, body {
             width: 100%;
             height: 100%;
             margin: 0;
             font-family: Inter, system-ui, sans-serif;
             background-color: #000;
+            color: #fff;
+        }
+
+        body {
+            position: relative;
+            overflow: hidden;
+        }
+
+        #stage {
+            width: 100%;
+            height: 100%;
+        }
+
+        #hud {
+            position: absolute;
+            top: 1rem;
+            left: 1rem;
+            padding: 0.5rem 0.75rem;
+            background: rgba(0, 0, 0, 0.6);
+            border-radius: 0.5rem;
+            font-size: 0.9rem;
+            line-height: 1.4;
+            pointer-events: none;
+        }
+
+        #hud strong {
+            font-weight: 600;
         }
     </style>
     <link href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,300..800;1,300..800&family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet">
 </head>
 <body>
 <div id="stage"></div>
+<div id="hud">
+    <div id="status">Loading map…</div>
+    <div id="walker-status"></div>
+</div>
 <script type="module" src="/main.ts"></script>
 </body>
 </html>
