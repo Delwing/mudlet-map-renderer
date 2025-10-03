@@ -17,9 +17,14 @@ const startingRoom = mapReader.getRoom(startingRoomId);
 let currentRoomId = startingRoomId;
 
 if (startingRoom) {
+    const startingArea = mapReader.getExplorationArea(startingRoom.area);
+    startingArea?.addVisitedRoom(startingRoom.id);
+
     renderer.setPosition(startingRoomId);
     updateAreaStatus(startingRoom.area);
-    scheduleNextStep(1200);
+
+    walkerStatusElement.textContent = "Walker preparing first step…";
+    scheduleNextStep(600);
 } else {
     statusElement.textContent = "Starting room not found.";
     walkerStatusElement.textContent = "Walker is idle.";
@@ -45,6 +50,24 @@ function randomDelay() {
     return 800 + Math.random() * 1200;
 }
 
+function pickNextRoom(room: MapData.Room) {
+    const exits = getRoomExits(room)
+        .map(exitRoomId => mapReader.getRoom(exitRoomId))
+        .filter((candidate): candidate is MapData.Room => Boolean(candidate));
+
+    if (!exits.length) {
+        return undefined;
+    }
+
+    const unvisited = exits.filter(candidate => {
+        const area = mapReader.getExplorationArea(candidate.area);
+        return !area?.hasVisitedRoom(candidate.id);
+    });
+
+    const choices = unvisited.length ? unvisited : exits;
+    return choices[Math.floor(Math.random() * choices.length)];
+}
+
 let walkerTimeout: number | undefined;
 
 function scheduleNextStep(delay = randomDelay()) {
@@ -62,16 +85,9 @@ function walkStep() {
         return;
     }
 
-    const exits = getRoomExits(room);
-    if (!exits.length) {
-        walkerStatusElement.textContent = "Walker reached a dead end.";
-        scheduleNextStep();
-        return;
-    }
-
-    const nextRoomId = exits[Math.floor(Math.random() * exits.length)];
-    const nextRoom = mapReader.getRoom(nextRoomId);
+    const nextRoom = pickNextRoom(room);
     if (!nextRoom) {
+        walkerStatusElement.textContent = "Walker reached a dead end.";
         scheduleNextStep();
         return;
     }

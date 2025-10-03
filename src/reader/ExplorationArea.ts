@@ -1,5 +1,6 @@
 import Area from "./Area";
 import Plane from "./Plane";
+import Exit from "./Exit";
 
 class ExplorationPlane extends Plane {
 
@@ -77,6 +78,12 @@ export default class ExplorationArea extends Area {
             }
             return decorated;
         });
+    }
+
+    override getLinkExits(zIndex: number) {
+        return super
+            .getLinkExits(zIndex)
+            .filter((exit: Exit) => this.visitedRooms.has(exit.a) && this.visitedRooms.has(exit.b));
     }
 
     getVisitedRoomCount() {
