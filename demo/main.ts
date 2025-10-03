@@ -53,11 +53,6 @@ function randomDelay() {
 const PREFERRED_PATH_PROBABILITY = 0.7;
 
 function findPreferredRoomId(room: MapData.Room) {
-    const visitedRooms = mapReader.getVisitedRooms();
-    if (!visitedRooms) {
-        return undefined;
-    }
-
     const queue: number[] = [room.id];
     const cameFrom = new Map<number, number | null>([[room.id, null]]);
 
@@ -68,8 +63,10 @@ function findPreferredRoomId(room: MapData.Room) {
             continue;
         }
 
+        const area = mapReader.getExplorationArea(currentRoom.area);
+        const isVisited = area?.hasVisitedRoom(currentId) ?? false;
         const isStartRoom = currentId === room.id;
-        if (!visitedRooms.has(currentId) && !isStartRoom) {
+        if (!isVisited && !isStartRoom) {
             let stepId = currentId;
             let parentId = cameFrom.get(stepId) ?? null;
             while (parentId !== null && parentId !== room.id) {
