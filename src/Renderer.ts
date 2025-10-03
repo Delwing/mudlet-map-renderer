@@ -6,7 +6,7 @@ import PathRenderer from "./PathRenderer";
 
 const defaultRoomSize = 0.6;
 const padding = 1;
-const defaultZoom = 45
+const defaultZoom = 75
 const lineColor = 'rgb(225, 255, 225)';
 
 export class Settings {
@@ -37,6 +37,7 @@ export class Renderer {
     private currentAreaVersion?: number;
     private positionRender?: Konva.Circle;
     private currentTransition?: Konva.Tween;
+    private currentZoom: number = 1;
 
     constructor(container: HTMLDivElement, mapReader: MapReader) {
         this.stage = new Konva.Stage({
@@ -93,14 +94,15 @@ export class Renderer {
                 direction = -direction;
             }
 
-            const newScale = direction > 0 ? oldScale * scaleBy : oldScale / scaleBy;
-
-            this.stage.scale({x: newScale, y: newScale});
+            const newZoom = direction > 0 ? this.currentZoom * scaleBy : this.currentZoom / scaleBy;
+            const newScale = newZoom * defaultZoom;
+            this.setZoom(newZoom);
 
             const newPos = {
                 x: pointer.x - mousePointTo.x * newScale,
                 y: pointer.y - mousePointTo.y * newScale,
             };
+
             this.stage.position(newPos);
         });
     }
@@ -132,15 +134,19 @@ export class Renderer {
         this.stage.batchDraw();
     }
 
+    setZoom(zoom: number) {
+        this.currentZoom = zoom;
+        this.stage.scale({x: defaultZoom * zoom, y: defaultZoom * zoom});
+    }
+
     setPosition(roomId: number) {
         const room = this.mapReader.getRoom(roomId);
         if (!room) return;
         const area = this.mapReader.getArea(room.area);
         const areaVersion = area?.getVersion();
-        let instant = false
+        let instant = this.currentArea !== room.area || this.currentZIndex !== room.z
         if (this.currentArea !== room.area || this.currentZIndex !== room.z || (areaVersion !== undefined && this.currentAreaVersion !== areaVersion)) {
             this.drawArea(room.area, room.z);
-            instant = true
         }
         if (!this.positionRender) {
             this.positionRender = new Konva.Circle({
