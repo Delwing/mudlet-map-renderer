@@ -134,6 +134,12 @@ export class Renderer {
         this.stage.batchDraw();
     }
 
+    private emitRoomContextEvent(roomId: number) {
+        const container = this.stage.container();
+        const event = new CustomEvent<number>('roomcontextmenu', {detail: roomId});
+        container.dispatchEvent(event);
+    }
+
     setZoom(zoom: number) {
         this.currentZoom = zoom;
         this.stage.scale({x: defaultZoom * zoom, y: defaultZoom * zoom});
@@ -301,12 +307,42 @@ export class Renderer {
                 strokeWidth: 0.025,
                 stroke: Settings.lineColor,
             });
+            const emitContextEvent = () => this.emitRoomContextEvent(room.id);
+
             roomRender.on('mouseenter', () => {
                 this.stage.container().style.cursor = 'pointer';
             })
             roomRender.on('mouseleave', () => {
                 this.stage.container().style.cursor = 'auto';
             })
+            roomRender.on('contextmenu', (event) => {
+                event.evt.preventDefault();
+                emitContextEvent();
+            })
+
+            let longPressTimeout: number | undefined;
+            const clearLongPressTimeout = () => {
+                if (longPressTimeout !== undefined) {
+                    window.clearTimeout(longPressTimeout);
+                    longPressTimeout = undefined;
+                }
+            };
+
+            roomRender.on('touchstart', (event) => {
+                clearLongPressTimeout();
+                if (event.evt.touches && event.evt.touches.length > 1) {
+                    return;
+                }
+                longPressTimeout = window.setTimeout(() => {
+                    emitContextEvent();
+                    clearLongPressTimeout();
+                }, 500);
+            });
+
+            roomRender.on('touchend', clearLongPressTimeout);
+            roomRender.on('touchmove', clearLongPressTimeout);
+            roomRender.on('touchcancel', clearLongPressTimeout);
+
             roomRender.add(roomRect);
             this.renderSymbol(room, roomRender);
             this.roomLayer.add(roomRender);
