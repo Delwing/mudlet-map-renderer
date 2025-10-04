@@ -2,6 +2,7 @@ import Konva from "konva";
 import ExitRenderer from "./ExitRenderer";
 import MapReader from "./reader/MapReader";
 import Exit from "./reader/Exit";
+import Area from "./reader/Area";
 import PathRenderer from "./PathRenderer";
 
 const defaultRoomSize = 0.6;
@@ -37,6 +38,7 @@ export class Renderer {
     private pathRenderer: PathRenderer;
     private highlights: Map<number, HighlightData> = new Map();
     private currentArea?: number;
+    private currentAreaInstance?: Area;
     private currentZIndex?: number;
     private currentAreaVersion?: number;
     private positionRender?: Konva.Circle;
@@ -209,6 +211,7 @@ export class Renderer {
             return;
         }
         this.currentArea = id;
+        this.currentAreaInstance = area;
         this.currentZIndex = zIndex;
         this.currentAreaVersion = area.getVersion();
         this.roomLayer.destroyChildren();
@@ -256,7 +259,12 @@ export class Renderer {
         const area = this.mapReader.getArea(room.area);
         const areaVersion = area?.getVersion();
         let instant = this.currentArea !== room.area || this.currentZIndex !== room.z
-        if (this.currentArea !== room.area || this.currentZIndex !== room.z || (areaVersion !== undefined && this.currentAreaVersion !== areaVersion)) {
+        if (
+            this.currentArea !== room.area ||
+            this.currentZIndex !== room.z ||
+            (areaVersion !== undefined && this.currentAreaVersion !== areaVersion) ||
+            (area !== undefined && this.currentAreaInstance !== area)
+        ) {
             this.drawArea(room.area, room.z);
         }
         if (!this.positionRender) {
