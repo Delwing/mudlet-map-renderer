@@ -5,7 +5,6 @@ import Exit from "./reader/Exit";
 import PathRenderer from "./PathRenderer";
 
 const defaultRoomSize = 0.6;
-const padding = 1;
 const defaultZoom = 75
 const lineColor = 'rgb(225, 255, 225)';
 
@@ -210,9 +209,6 @@ export class Renderer {
         this.roomLayer.destroyChildren();
         this.linkLayer.destroyChildren();
 
-        const {minX, maxX, minY, maxY} = plane.getBounds();
-
-        this.stage.offset({x: minX - padding, y: minY - padding});
         this.stage.scale({x: defaultZoom * this.currentZoom, y: defaultZoom * this.currentZoom});
 
         this.renderLabels(plane.getLabels());
