@@ -45,6 +45,7 @@ export class Renderer {
     private currentAreaInstance?: Area;
     private currentZIndex?: number;
     private currentAreaVersion?: number;
+    private currentRoomId?: number;
     private positionRender?: Konva.Circle;
     private currentTransition?: Konva.Tween;
     private currentZoom: number = 1;
@@ -56,10 +57,11 @@ export class Renderer {
             height: container.clientHeight,
             draggable: true
         });
+        window.addEventListener('resize', () => {
+            this.onResize(container);
+        })
         container.addEventListener('resize', () => {
-            this.stage.width(container.clientWidth);
-            this.stage.height(container.clientHeight);
-            this.stage.batchDraw();
+            this.onResize(container);
         })
         this.linkLayer = new Konva.Layer({
             listening: false,
@@ -81,6 +83,15 @@ export class Renderer {
 
         const scaleBy = 1.1;
         this.initScaling(scaleBy);
+    }
+
+    private onResize(container: HTMLDivElement) {
+        this.stage.width(container.clientWidth);
+        this.stage.height(container.clientHeight);
+        if (this.currentRoomId) {
+            this.centerOnRoom(this.mapReader.getRoom(this.currentRoomId)!, false);
+        }
+        this.stage.batchDraw();
     }
 
     private initScaling(scaleBy: number) {
@@ -253,7 +264,7 @@ export class Renderer {
     }
 
     private emitZoomChangeEvent() {
-        const event = new CustomEvent<ZoomChangeEventDetail>('zoomchange', {
+        const event = new CustomEvent<ZoomChangeEventDetail>('zoom', {
             detail: {zoom: this.currentZoom},
         });
         this.stage.container().dispatchEvent(event);
@@ -384,6 +395,7 @@ export class Renderer {
     }
 
     private centerOnRoom(room: MapData.Room, instant: boolean = false) {
+        this.currentRoomId = room.id;
         const roomCenter = {x: room.x, y: room.y};
 
         this.positionRender?.position(room)
