@@ -9,6 +9,11 @@ const padding = 1;
 const defaultZoom = 75
 const lineColor = 'rgb(225, 255, 225)';
 
+export type RoomContextMenuEventDetail = {
+    roomId: number;
+    position: { x: number; y: number };
+};
+
 export class Settings {
     static roomSize = defaultRoomSize;
     static lineColor = lineColor;
@@ -134,9 +139,17 @@ export class Renderer {
         this.stage.batchDraw();
     }
 
-    private emitRoomContextEvent(roomId: number) {
+    private emitRoomContextEvent(roomId: number, clientX: number, clientY: number) {
         const container = this.stage.container();
-        const event = new CustomEvent<number>('roomcontextmenu', {detail: roomId});
+        const bounds = container.getBoundingClientRect();
+        const detail: RoomContextMenuEventDetail = {
+            roomId,
+            position: {
+                x: clientX - bounds.left,
+                y: clientY - bounds.top,
+            },
+        };
+        const event = new CustomEvent<RoomContextMenuEventDetail>('roomcontextmenu', {detail});
         container.dispatchEvent(event);
     }
 
@@ -307,7 +320,7 @@ export class Renderer {
                 strokeWidth: 0.025,
                 stroke: Settings.lineColor,
             });
-            const emitContextEvent = () => this.emitRoomContextEvent(room.id);
+            const emitContextEvent = (clientX: number, clientY: number) => this.emitRoomContextEvent(room.id, clientX, clientY);
 
             roomRender.on('mouseenter', () => {
                 this.stage.container().style.cursor = 'pointer';
@@ -317,15 +330,18 @@ export class Renderer {
             })
             roomRender.on('contextmenu', (event) => {
                 event.evt.preventDefault();
-                emitContextEvent();
+                const pointerEvent = event.evt as MouseEvent;
+                emitContextEvent(pointerEvent.clientX, pointerEvent.clientY);
             })
 
             let longPressTimeout: number | undefined;
+            let longPressStart: { clientX: number; clientY: number } | undefined;
             const clearLongPressTimeout = () => {
                 if (longPressTimeout !== undefined) {
                     window.clearTimeout(longPressTimeout);
                     longPressTimeout = undefined;
                 }
+                longPressStart = undefined;
             };
 
             roomRender.on('touchstart', (event) => {
@@ -333,8 +349,15 @@ export class Renderer {
                 if (event.evt.touches && event.evt.touches.length > 1) {
                     return;
                 }
+                const touch = event.evt.touches?.[0];
+                if (!touch) {
+                    return;
+                }
+                longPressStart = { clientX: touch.clientX, clientY: touch.clientY };
                 longPressTimeout = window.setTimeout(() => {
-                    emitContextEvent();
+                    if (longPressStart) {
+                        emitContextEvent(longPressStart.clientX, longPressStart.clientY);
+                    }
                     clearLongPressTimeout();
                 }, 500);
             });
