@@ -8,6 +8,11 @@ const defaultRoomSize = 0.6;
 const defaultZoom = 75
 const lineColor = 'rgb(225, 255, 225)';
 
+export type RoomContextMenuEventDetail = {
+    roomId: number;
+    position: { x: number; y: number };
+};
+
 export class Settings {
     static roomSize = defaultRoomSize;
     static lineColor = lineColor;
@@ -218,6 +223,20 @@ export class Renderer {
         this.stage.batchDraw();
     }
 
+    private emitRoomContextEvent(roomId: number, clientX: number, clientY: number) {
+        const container = this.stage.container();
+        const bounds = container.getBoundingClientRect();
+        const detail: RoomContextMenuEventDetail = {
+            roomId,
+            position: {
+                x: clientX - bounds.left,
+                y: clientY - bounds.top,
+            },
+        };
+        const event = new CustomEvent<RoomContextMenuEventDetail>('roomcontextmenu', {detail});
+        container.dispatchEvent(event);
+    }
+
     setZoom(zoom: number) {
         this.currentZoom = zoom;
         this.stage.scale({x: defaultZoom * zoom, y: defaultZoom * zoom});
@@ -385,12 +404,82 @@ export class Renderer {
                 strokeWidth: 0.025,
                 stroke: Settings.lineColor,
             });
+            const emitContextEvent = (clientX: number, clientY: number) => this.emitRoomContextEvent(room.id, clientX, clientY);
+
             roomRender.on('mouseenter', () => {
                 this.stage.container().style.cursor = 'pointer';
             })
             roomRender.on('mouseleave', () => {
                 this.stage.container().style.cursor = 'auto';
             })
+            roomRender.on('contextmenu', (event) => {
+                event.evt.preventDefault();
+                const pointerEvent = event.evt as MouseEvent;
+                emitContextEvent(pointerEvent.clientX, pointerEvent.clientY);
+            })
+
+            let longPressTimeout: number | undefined;
+            let longPressStart: { clientX: number; clientY: number } | undefined;
+            let stageDraggableBeforeLongPress: boolean | undefined;
+            const restoreStageDraggable = () => {
+                if (stageDraggableBeforeLongPress !== undefined) {
+                    this.stage.draggable(stageDraggableBeforeLongPress);
+                    stageDraggableBeforeLongPress = undefined;
+                }
+            };
+            const clearLongPressTimeout = () => {
+                if (longPressTimeout !== undefined) {
+                    window.clearTimeout(longPressTimeout);
+                    longPressTimeout = undefined;
+                }
+                longPressStart = undefined;
+                restoreStageDraggable();
+            };
+
+            roomRender.on('touchstart', (event) => {
+                clearLongPressTimeout();
+                if (event.evt.touches && event.evt.touches.length > 1) {
+                    return;
+                }
+                const touch = event.evt.touches?.[0];
+                if (!touch) {
+                    return;
+                }
+                longPressStart = { clientX: touch.clientX, clientY: touch.clientY };
+                stageDraggableBeforeLongPress = this.stage.draggable();
+                this.stage.draggable(false);
+                longPressTimeout = window.setTimeout(() => {
+                    if (longPressStart) {
+                        emitContextEvent(longPressStart.clientX, longPressStart.clientY);
+                    }
+                    clearLongPressTimeout();
+                }, 500);
+            });
+
+            roomRender.on('touchend', clearLongPressTimeout);
+            roomRender.on('touchmove', (event) => {
+                if (!longPressStart) {
+                    return;
+                }
+                const touch = event.evt.touches?.[0];
+                if (!touch) {
+                    clearLongPressTimeout();
+                    return;
+                }
+                const dx = touch.clientX - longPressStart.clientX;
+                const dy = touch.clientY - longPressStart.clientY;
+                const distanceSquared = dx * dx + dy * dy;
+                const movementThreshold = 10;
+                if (distanceSquared > movementThreshold * movementThreshold) {
+                    const wasDraggable = stageDraggableBeforeLongPress;
+                    clearLongPressTimeout();
+                    if (wasDraggable) {
+                        this.stage.startDrag();
+                    }
+                }
+            });
+            roomRender.on('touchcancel', clearLongPressTimeout);
+
             roomRender.add(roomRect);
             this.renderSymbol(room, roomRender);
             this.roomLayer.add(roomRender);

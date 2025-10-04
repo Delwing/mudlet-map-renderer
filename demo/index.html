@@ -36,6 +36,30 @@
             pointer-events: auto;
         }
 
+        #context-menu {
+            position: absolute;
+            min-width: 9rem;
+            padding: 0.35rem 0.5rem;
+            background: rgba(12, 16, 24, 0.92);
+            border: 1px solid rgba(99, 187, 255, 0.4);
+            border-radius: 0.4rem;
+            box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.35);
+            font-size: 0.85rem;
+            pointer-events: none;
+            transform: translate(-50%, 0.5rem);
+            color: #c8f7ff;
+            transition: opacity 0.1s ease;
+            opacity: 0;
+        }
+
+        #context-menu.visible {
+            opacity: 1;
+        }
+
+        #context-menu[hidden] {
+            display: none;
+        }
+
         #controls {
             margin-top: 0.5rem;
             display: flex;
@@ -78,6 +102,9 @@
 </head>
 <body>
 <div id="stage"></div>
+<div id="context-menu" hidden>
+    <div id="context-menu-content"></div>
+</div>
 <div id="hud">
     <div id="status">Loading map…</div>
     <div id="walker-status"></div>

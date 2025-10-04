@@ -1,11 +1,14 @@
 import data from "./mapExport.json";
 import colors from "./colors.json";
 import {Renderer} from "@src";
+import type {RoomContextMenuEventDetail} from "@src";
 import MapReader from "@src/reader/MapReader";
 
 const stageElement = document.getElementById("stage") as HTMLDivElement;
 const statusElement = document.getElementById("status") as HTMLDivElement;
 const walkerStatusElement = document.getElementById("walker-status") as HTMLDivElement;
+const contextMenuElement = document.getElementById("context-menu") as HTMLDivElement | null;
+const contextMenuContent = document.getElementById("context-menu-content") as HTMLDivElement | null;
 const walkerToggleButton = document.getElementById("walker-toggle") as HTMLButtonElement | null;
 const explorationToggle = document.getElementById("exploration-toggle") as HTMLInputElement | null;
 const destinationForm = document.getElementById("destination-form") as HTMLFormElement | null;
@@ -40,6 +43,52 @@ if (startingRoom) {
     if (walkerToggleButton) {
         walkerToggleButton.disabled = true;
     }
+}
+
+function hideContextMenu() {
+    if (!contextMenuElement) {
+        return;
+    }
+    contextMenuElement.classList.remove("visible");
+    contextMenuElement.hidden = true;
+}
+
+if (contextMenuElement && contextMenuContent) {
+    stageElement.addEventListener("roomcontextmenu", event => {
+        const contextEvent = event as CustomEvent<RoomContextMenuEventDetail>;
+        const {roomId, position} = contextEvent.detail;
+        contextMenuContent.textContent = `Room ${roomId}`;
+        contextMenuElement.style.left = `${position.x}px`;
+        contextMenuElement.style.top = `${position.y}px`;
+        contextMenuElement.hidden = false;
+        requestAnimationFrame(() => contextMenuElement.classList.add("visible"));
+    });
+
+    const handlePointerDown = (event: PointerEvent) => {
+        if (event.button === 2) {
+            return;
+        }
+        hideContextMenu();
+    };
+
+    stageElement.addEventListener("pointerdown", handlePointerDown);
+    stageElement.addEventListener("wheel", hideContextMenu, {passive: true});
+    window.addEventListener("keydown", event => {
+        if (event.key === "Escape") {
+            hideContextMenu();
+        }
+    });
+
+    stageElement.addEventListener("scroll", hideContextMenu);
+    window.addEventListener("pointerdown", event => {
+        if (event.button === 2) {
+            return;
+        }
+        if (event.target instanceof Node && contextMenuElement.contains(event.target)) {
+            return;
+        }
+        hideContextMenu();
+    });
 }
 
 explorationToggle?.addEventListener("change", () => {
