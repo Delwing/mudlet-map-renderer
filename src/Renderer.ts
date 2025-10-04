@@ -46,7 +46,7 @@ export class Renderer {
             height: container.clientHeight,
             draggable: true
         });
-        window.addEventListener('resize', () => {
+        container.addEventListener('resize', () => {
             this.stage.width(container.clientWidth);
             this.stage.height(container.clientHeight);
             this.stage.batchDraw();
@@ -125,7 +125,7 @@ export class Renderer {
         const {minX, maxX, minY, maxY} = plane.getBounds();
 
         this.stage.offset({x: minX - padding, y: minY - padding});
-        this.stage.scale({x: defaultZoom, y: defaultZoom});
+        this.stage.scale({x: defaultZoom * this.currentZoom, y: defaultZoom * this.currentZoom});
 
         this.renderLabels(plane.getLabels());
         this.renderRooms(plane.getRooms() ?? []);
@@ -137,6 +137,14 @@ export class Renderer {
     setZoom(zoom: number) {
         this.currentZoom = zoom;
         this.stage.scale({x: defaultZoom * zoom, y: defaultZoom * zoom});
+    }
+
+    getZoom() {
+        return this.currentZoom;
+    }
+
+    getCurrentArea() {
+        return this.currentArea ? this.mapReader.getArea(this.currentArea) : undefined
     }
 
     setPosition(roomId: number) {

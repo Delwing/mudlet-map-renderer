@@ -15,6 +15,14 @@ export default class Area {
         this.createExits();
     }
 
+    getAreaName() {
+        return this.area.areaName
+    }
+
+    getAreaId() {
+        return parseInt(this.area.areaId)
+    }
+
     getVersion() {
         return this.version;
     }

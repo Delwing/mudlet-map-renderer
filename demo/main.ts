@@ -118,7 +118,7 @@ function getRoomExits(room: MapData.Room) {
         if (lockedDirections.has(direction as MapData.direction)) {
             return;
         }
-        if (typeof exitId === "number" && exitId > 0) {
+        if (exitId > 0) {
             exits.push(exitId);
         }
     });
