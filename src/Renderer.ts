@@ -336,12 +336,17 @@ export class Renderer {
 
             let longPressTimeout: number | undefined;
             let longPressStart: { clientX: number; clientY: number } | undefined;
+            let stageDraggableBeforeLongPress: boolean | undefined;
             const clearLongPressTimeout = () => {
                 if (longPressTimeout !== undefined) {
                     window.clearTimeout(longPressTimeout);
                     longPressTimeout = undefined;
                 }
                 longPressStart = undefined;
+                if (stageDraggableBeforeLongPress !== undefined) {
+                    this.stage.draggable(stageDraggableBeforeLongPress);
+                    stageDraggableBeforeLongPress = undefined;
+                }
             };
 
             roomRender.on('touchstart', (event) => {
@@ -354,6 +359,8 @@ export class Renderer {
                     return;
                 }
                 longPressStart = { clientX: touch.clientX, clientY: touch.clientY };
+                stageDraggableBeforeLongPress = this.stage.draggable();
+                this.stage.draggable(false);
                 longPressTimeout = window.setTimeout(() => {
                     if (longPressStart) {
                         emitContextEvent(longPressStart.clientX, longPressStart.clientY);
@@ -363,7 +370,23 @@ export class Renderer {
             });
 
             roomRender.on('touchend', clearLongPressTimeout);
-            roomRender.on('touchmove', clearLongPressTimeout);
+            roomRender.on('touchmove', (event) => {
+                if (!longPressStart) {
+                    return;
+                }
+                const touch = event.evt.touches?.[0];
+                if (!touch) {
+                    clearLongPressTimeout();
+                    return;
+                }
+                const dx = touch.clientX - longPressStart.clientX;
+                const dy = touch.clientY - longPressStart.clientY;
+                const distanceSquared = dx * dx + dy * dy;
+                const movementThreshold = 10;
+                if (distanceSquared > movementThreshold * movementThreshold) {
+                    clearLongPressTimeout();
+                }
+            });
             roomRender.on('touchcancel', clearLongPressTimeout);
 
             roomRender.add(roomRect);
