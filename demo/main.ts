@@ -6,6 +6,7 @@ import MapReader from "@src/reader/MapReader";
 const stageElement = document.getElementById("stage") as HTMLDivElement;
 const statusElement = document.getElementById("status") as HTMLDivElement;
 const walkerStatusElement = document.getElementById("walker-status") as HTMLDivElement;
+const walkerToggleButton = document.getElementById("walker-toggle") as HTMLButtonElement | null;
 const explorationToggle = document.getElementById("exploration-toggle") as HTMLInputElement | null;
 const destinationForm = document.getElementById("destination-form") as HTMLFormElement | null;
 const destinationInput = document.getElementById("destination-input") as HTMLInputElement | null;
@@ -15,12 +16,12 @@ const destinationStatusElement = document.getElementById("destination-status") a
 const mapReader = new MapReader(data as MapData.Map, colors as MapData.Env[]);
 const startingRoomId = 1;
 
-const visitedRooms = mapReader.decorateWithExploration([startingRoomId]);
+const visitedRooms = new Set<number>([startingRoomId]);
 
 const renderer = new Renderer(stageElement, mapReader);
 const startingRoom = mapReader.getRoom(startingRoomId);
 let currentRoomId = startingRoomId;
-const walkerState: { timeoutId: number | undefined } = { timeoutId: undefined };
+const walkerState: { timeoutId: number | undefined; running: boolean } = { timeoutId: undefined, running: false };
 let destinationRoomId: number | undefined;
 let currentDestinationPath: number[] | undefined;
 
@@ -32,11 +33,13 @@ if (startingRoom) {
     updateAreaStatus(startingRoom.area);
     updateDestinationStatus("No destination set.");
 
-    walkerStatusElement.textContent = "Walker preparing first step…";
-    scheduleNextStep(600);
+    stopWalker("Walker is stopped. Press Start to begin.");
 } else {
     statusElement.textContent = "Starting room not found.";
-    walkerStatusElement.textContent = "Walker is idle.";
+    stopWalker("Walker is idle.");
+    if (walkerToggleButton) {
+        walkerToggleButton.disabled = true;
+    }
 }
 
 explorationToggle?.addEventListener("change", () => {
@@ -86,6 +89,14 @@ destinationClearButton?.addEventListener("click", () => {
     renderer.clearPaths();
     if (destinationInput) {
         destinationInput.value = "";
+    }
+});
+
+walkerToggleButton?.addEventListener("click", () => {
+    if (walkerState.running) {
+        stopWalker();
+    } else {
+        startWalker();
     }
 });
 
@@ -158,6 +169,33 @@ function randomDelay() {
 }
 
 const PREFERRED_PATH_PROBABILITY = 0.7;
+
+function updateWalkerToggle() {
+    if (!walkerToggleButton) {
+        return;
+    }
+    walkerToggleButton.textContent = walkerState.running ? "Stop walker" : "Start walker";
+}
+
+function startWalker() {
+    if (walkerState.running) {
+        return;
+    }
+    walkerState.running = true;
+    updateWalkerToggle();
+    walkerStatusElement.textContent = "Walker preparing first step…";
+    scheduleNextStep(600);
+}
+
+function stopWalker(message = "Walker paused.") {
+    if (walkerState.timeoutId !== undefined) {
+        window.clearTimeout(walkerState.timeoutId);
+        walkerState.timeoutId = undefined;
+    }
+    walkerState.running = false;
+    updateWalkerToggle();
+    walkerStatusElement.textContent = message;
+}
 
 function findPreferredRoomId(room: MapData.Room) {
     const queue: number[] = [room.id];
@@ -241,14 +279,22 @@ function scheduleNextStep(delay = randomDelay()) {
     if (timeoutId !== undefined) {
         window.clearTimeout(timeoutId);
     }
+    if (!walkerState.running) {
+        walkerState.timeoutId = undefined;
+        return;
+    }
     walkerState.timeoutId = window.setTimeout(walkStep, delay);
     walkerStatusElement.textContent = `Next step in ${(delay / 1000).toFixed(1)}s`;
 }
 
 function walkStep() {
+    if (!walkerState.running) {
+        return;
+    }
+    walkerState.timeoutId = undefined;
     const room = mapReader.getRoom(currentRoomId);
     if (!room) {
-        walkerStatusElement.textContent = "Walker lost its position.";
+        stopWalker("Walker lost its position.");
         return;
     }
 
