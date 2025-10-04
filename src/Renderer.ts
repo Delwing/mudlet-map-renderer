@@ -337,16 +337,19 @@ export class Renderer {
             let longPressTimeout: number | undefined;
             let longPressStart: { clientX: number; clientY: number } | undefined;
             let stageDraggableBeforeLongPress: boolean | undefined;
+            const restoreStageDraggable = () => {
+                if (stageDraggableBeforeLongPress !== undefined) {
+                    this.stage.draggable(stageDraggableBeforeLongPress);
+                    stageDraggableBeforeLongPress = undefined;
+                }
+            };
             const clearLongPressTimeout = () => {
                 if (longPressTimeout !== undefined) {
                     window.clearTimeout(longPressTimeout);
                     longPressTimeout = undefined;
                 }
                 longPressStart = undefined;
-                if (stageDraggableBeforeLongPress !== undefined) {
-                    this.stage.draggable(stageDraggableBeforeLongPress);
-                    stageDraggableBeforeLongPress = undefined;
-                }
+                restoreStageDraggable();
             };
 
             roomRender.on('touchstart', (event) => {
@@ -384,7 +387,11 @@ export class Renderer {
                 const distanceSquared = dx * dx + dy * dy;
                 const movementThreshold = 10;
                 if (distanceSquared > movementThreshold * movementThreshold) {
+                    const wasDraggable = stageDraggableBeforeLongPress;
                     clearLongPressTimeout();
+                    if (wasDraggable) {
+                        this.stage.startDrag();
+                    }
                 }
             });
             roomRender.on('touchcancel', clearLongPressTimeout);
