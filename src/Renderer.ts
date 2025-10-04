@@ -13,6 +13,10 @@ export type RoomContextMenuEventDetail = {
     position: { x: number; y: number };
 };
 
+export type ZoomChangeEventDetail = {
+    zoom: number;
+};
+
 export class Settings {
     static roomSize = defaultRoomSize;
     static lineColor = lineColor;
@@ -111,7 +115,7 @@ export class Renderer {
 
             const newZoom = direction > 0 ? this.currentZoom * scaleBy : this.currentZoom / scaleBy;
             const newScale = newZoom * defaultZoom;
-            this.setZoom(newZoom);
+            const zoomChanged = this.setZoom(newZoom);
 
             const newPos = {
                 x: pointer.x - mousePointTo.x * newScale,
@@ -119,6 +123,10 @@ export class Renderer {
             };
 
             this.stage.position(newPos);
+
+            if (zoomChanged) {
+                this.emitZoomChangeEvent();
+            }
         });
 
         this.stage.on('touchmove', (e) => {
@@ -181,7 +189,7 @@ export class Renderer {
                 y: (newCenter.y - this.stage.y()) / oldScale,
             };
 
-            this.setZoom(newZoom);
+            const zoomChanged = this.setZoom(newZoom);
 
             const newScale = this.stage.scaleX();
             const dx = newCenter.x - lastPinchCenter.x;
@@ -196,6 +204,10 @@ export class Renderer {
 
             lastPinchDistance = distance;
             lastPinchCenter = newCenter;
+
+            if (zoomChanged) {
+                this.emitZoomChangeEvent();
+            }
         });
     }
 
@@ -237,9 +249,22 @@ export class Renderer {
         container.dispatchEvent(event);
     }
 
-    setZoom(zoom: number) {
+    private emitZoomChangeEvent() {
+        const event = new CustomEvent<ZoomChangeEventDetail>('zoomchange', {
+            detail: {zoom: this.currentZoom},
+        });
+        this.stage.container().dispatchEvent(event);
+    }
+
+    setZoom(zoom: number): boolean {
+        if (this.currentZoom === zoom) {
+            return false;
+        }
+
         this.currentZoom = zoom;
         this.stage.scale({x: defaultZoom * zoom, y: defaultZoom * zoom});
+
+        return true;
     }
 
     getZoom() {
