@@ -19,8 +19,6 @@ const destinationStatusElement = document.getElementById("destination-status") a
 const mapReader = new MapReader(data as MapData.Map, colors as MapData.Env[]);
 const startingRoomId = 1;
 
-const visitedRooms = new Set<number>([startingRoomId]);
-
 const renderer = new Renderer(stageElement, mapReader);
 const startingRoom = mapReader.getRoom(startingRoomId);
 let currentRoomId = startingRoomId;
@@ -29,8 +27,7 @@ let destinationRoomId: number | undefined;
 let currentDestinationPath: number[] | undefined;
 
 if (startingRoom) {
-    const startingArea = mapReader.getExplorationArea(startingRoom.area);
-    startingArea?.addVisitedRoom(startingRoom.id);
+    mapReader.addVisitedRoom(startingRoom.id);
 
     renderer.setPosition(startingRoomId);
     updateAreaStatus(startingRoom.area);
@@ -93,7 +90,7 @@ if (contextMenuElement && contextMenuContent) {
 
 explorationToggle?.addEventListener("change", () => {
     if (explorationToggle.checked) {
-        mapReader.decorateWithExploration(visitedRooms);
+        mapReader.decorateWithExploration();
     } else {
         mapReader.clearExplorationDecoration();
     }
@@ -258,7 +255,7 @@ function findPreferredRoomId(room: MapData.Room) {
         }
 
         const area = mapReader.getExplorationArea(currentRoom.area);
-        const isVisited = area?.hasVisitedRoom(currentId) ?? false;
+        const isVisited = area?.hasVisitedRoom(currentId) ?? mapReader.hasVisitedRoom(currentId);
         const isStartRoom = currentId === room.id;
         if (!isVisited && !isStartRoom) {
             let stepId = currentId;
@@ -303,7 +300,7 @@ function pickNextRoom(room: MapData.Room) {
         if (area) {
             return !area.hasVisitedRoom(candidate.id);
         }
-        return !visitedRooms?.has(candidate.id);
+        return !mapReader.hasVisitedRoom(candidate.id);
     });
 
     const preferredDestinationRoomId = getNextStepTowardsDestination(room.id);
@@ -354,12 +351,7 @@ function walkStep() {
         return;
     }
 
-    const explorationArea = mapReader.getExplorationArea(nextRoom.area);
-    if (explorationArea) {
-        explorationArea.addVisitedRoom(nextRoom.id);
-    } else {
-        visitedRooms?.add(nextRoom.id);
-    }
+    mapReader.addVisitedRoom(nextRoom.id);
 
     currentRoomId = nextRoom.id;
 
