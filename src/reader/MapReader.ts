@@ -80,12 +80,30 @@ export default class MapReader {
         return this.rooms[roomId];
     }
 
-    decorateWithExploration(visitedRooms?: Iterable<number> | Set<number>) {
-        this.visitedRooms = visitedRooms instanceof Set ? visitedRooms : new Set(visitedRooms ?? []);
+    private ensureVisitedRooms() {
+        if (!this.visitedRooms) {
+            this.visitedRooms = new Set();
+        }
+        return this.visitedRooms;
+    }
+
+    private applyExplorationDecoration() {
+        if (!this.visitedRooms) {
+            return;
+        }
         Object.entries(this.areaSources).forEach(([id, area]) => {
             const numericId = parseInt(id, 10);
-            this.areas[numericId] = new ExplorationArea(area, this.visitedRooms!);
+            this.areas[numericId] = new ExplorationArea(area, this.visitedRooms);
         });
+    }
+
+    decorateWithExploration(visitedRooms?: Iterable<number> | Set<number>) {
+        if (visitedRooms !== undefined) {
+            this.setVisitedRooms(visitedRooms);
+        } else {
+            this.ensureVisitedRooms();
+        }
+        this.applyExplorationDecoration();
         this.explorationEnabled = true;
         return this.visitedRooms;
     }
@@ -104,6 +122,59 @@ export default class MapReader {
 
     isExplorationEnabled() {
         return this.explorationEnabled;
+    }
+
+    setVisitedRooms(visitedRooms: Iterable<number> | Set<number>) {
+        this.visitedRooms = visitedRooms instanceof Set ? visitedRooms : new Set(visitedRooms);
+        if (this.explorationEnabled) {
+            this.applyExplorationDecoration();
+        }
+        return this.visitedRooms;
+    }
+
+    addVisitedRoom(roomId: number) {
+        if (this.explorationEnabled) {
+            const room = this.getRoom(roomId);
+            if (room) {
+                const area = this.getExplorationArea(room.area);
+                if (area) {
+                    return area.addVisitedRoom(roomId);
+                }
+            }
+        }
+        const visitedRooms = this.ensureVisitedRooms();
+        const wasVisited = visitedRooms.has(roomId);
+        visitedRooms.add(roomId);
+        return !wasVisited;
+    }
+
+    addVisitedRooms(roomIds: Iterable<number>) {
+        const visitedRooms = this.ensureVisitedRooms();
+        let newlyVisited = 0;
+        for (const roomId of roomIds) {
+            if (this.explorationEnabled) {
+                const room = this.getRoom(roomId);
+                if (room) {
+                    const area = this.getExplorationArea(room.area);
+                    if (area) {
+                        if (area.addVisitedRoom(roomId)) {
+                            newlyVisited++;
+                        }
+                        continue;
+                    }
+                }
+            }
+            const wasVisited = visitedRooms.has(roomId);
+            visitedRooms.add(roomId);
+            if (!wasVisited) {
+                newlyVisited++;
+            }
+        }
+        return newlyVisited;
+    }
+
+    hasVisitedRoom(roomId: number) {
+        return this.visitedRooms?.has(roomId) ?? false;
     }
 
     getColorValue(envId: number): string {
