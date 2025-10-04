@@ -74,6 +74,11 @@ export class Renderer {
     }
 
     private initScaling(scaleBy: number) {
+        let lastPinchDistance: number | undefined;
+        this.stage.on('touchend touchcancel', () => {
+            lastPinchDistance = undefined;
+        });
+
         this.stage.on('wheel', (e) => {
             e.evt.preventDefault();
 
@@ -104,6 +109,55 @@ export class Renderer {
             };
 
             this.stage.position(newPos);
+        });
+
+        this.stage.on('touchmove', (e) => {
+            const pointers = this.stage.getPointersPositions();
+            if (!pointers || pointers.length !== 2) {
+                lastPinchDistance = undefined;
+                return;
+            }
+
+            e.evt.preventDefault();
+
+            const [p1, p2] = pointers;
+            const currentDistance = Math.hypot(p1.x - p2.x, p1.y - p2.y);
+
+            if (lastPinchDistance === undefined) {
+                lastPinchDistance = currentDistance;
+                return;
+            }
+
+            if (lastPinchDistance === 0) {
+                return;
+            }
+
+            const oldZoom = this.currentZoom;
+            const newZoom = oldZoom * (currentDistance / lastPinchDistance);
+            const oldScale = this.stage.scaleX();
+
+            const center = {
+                x: (p1.x + p2.x) / 2,
+                y: (p1.y + p2.y) / 2,
+            };
+
+            const pointTo = {
+                x: (center.x - this.stage.x()) / oldScale,
+                y: (center.y - this.stage.y()) / oldScale,
+            };
+
+            this.setZoom(newZoom);
+
+            const newScale = this.stage.scaleX();
+            const newPos = {
+                x: center.x - pointTo.x * newScale,
+                y: center.y - pointTo.y * newScale,
+            };
+
+            this.stage.position(newPos);
+            this.stage.batchDraw();
+
+            lastPinchDistance = currentDistance;
         });
     }
 
