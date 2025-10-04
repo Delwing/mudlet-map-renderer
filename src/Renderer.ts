@@ -83,12 +83,6 @@ export class Renderer {
         this.stage.on('touchend touchcancel', () => {
             lastPinchDistance = undefined;
             lastPinchCenter = undefined;
-
-            // if dragging was stopped for a pinch gesture, allow it to resume
-            if (!this.stage.isDragging() && dragStopped) {
-                this.stage.startDrag();
-                dragStopped = false;
-            }
         });
 
         this.stage.on('wheel', (e) => {
