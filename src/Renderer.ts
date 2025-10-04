@@ -5,7 +5,6 @@ import Exit from "./reader/Exit";
 import PathRenderer from "./PathRenderer";
 
 const defaultRoomSize = 0.6;
-const padding = 1;
 const defaultZoom = 75
 const lineColor = 'rgb(225, 255, 225)';
 
@@ -79,6 +78,17 @@ export class Renderer {
     }
 
     private initScaling(scaleBy: number) {
+        Konva.hitOnDragEnabled = true;
+
+        let lastPinchDistance: number | undefined;
+        let lastPinchCenter: { x: number; y: number } | undefined;
+        let dragStopped = false;
+
+        this.stage.on('touchend touchcancel', () => {
+            lastPinchDistance = undefined;
+            lastPinchCenter = undefined;
+        });
+
         this.stage.on('wheel', (e) => {
             e.evt.preventDefault();
 
@@ -110,6 +120,83 @@ export class Renderer {
 
             this.stage.position(newPos);
         });
+
+        this.stage.on('touchmove', (e) => {
+            const touches = e.evt.touches;
+            const touch1 = touches?.[0];
+            const touch2 = touches?.[1];
+
+            if (touch1 && !touch2 && dragStopped && !this.stage.isDragging()) {
+                this.stage.startDrag();
+                dragStopped = false;
+            }
+
+            if (!touch1 || !touch2) {
+                lastPinchDistance = undefined;
+                lastPinchCenter = undefined;
+                return;
+            }
+
+            e.evt.preventDefault();
+
+            if (this.stage.isDragging()) {
+                this.stage.stopDrag();
+                dragStopped = true;
+            }
+
+            const rect = this.stage.container().getBoundingClientRect();
+            const p1 = {
+                x: touch1.clientX - rect.left,
+                y: touch1.clientY - rect.top,
+            };
+            const p2 = {
+                x: touch2.clientX - rect.left,
+                y: touch2.clientY - rect.top,
+            };
+
+            const newCenter = {
+                x: (p1.x + p2.x) / 2,
+                y: (p1.y + p2.y) / 2,
+            };
+            const distance = Math.hypot(p1.x - p2.x, p1.y - p2.y);
+
+            if (lastPinchCenter === undefined) {
+                lastPinchCenter = newCenter;
+            }
+
+            if (lastPinchDistance === undefined) {
+                lastPinchDistance = distance;
+                return;
+            }
+
+            if (lastPinchDistance === 0) {
+                return;
+            }
+
+            const oldScale = this.stage.scaleX();
+            const newZoom = this.currentZoom * (distance / lastPinchDistance);
+
+            const pointTo = {
+                x: (newCenter.x - this.stage.x()) / oldScale,
+                y: (newCenter.y - this.stage.y()) / oldScale,
+            };
+
+            this.setZoom(newZoom);
+
+            const newScale = this.stage.scaleX();
+            const dx = newCenter.x - lastPinchCenter.x;
+            const dy = newCenter.y - lastPinchCenter.y;
+            const newPos = {
+                x: newCenter.x - pointTo.x * newScale + dx,
+                y: newCenter.y - pointTo.y * newScale + dy,
+            };
+
+            this.stage.position(newPos);
+            this.stage.batchDraw();
+
+            lastPinchDistance = distance;
+            lastPinchCenter = newCenter;
+        });
     }
 
     drawArea(id: number, zIndex: number) {
@@ -127,9 +214,6 @@ export class Renderer {
         this.roomLayer.destroyChildren();
         this.linkLayer.destroyChildren();
 
-        const {minX, maxX, minY, maxY} = plane.getBounds();
-
-        this.stage.offset({x: minX - padding, y: minY - padding});
         this.stage.scale({x: defaultZoom * this.currentZoom, y: defaultZoom * this.currentZoom});
 
         this.renderLabels(plane.getLabels());
