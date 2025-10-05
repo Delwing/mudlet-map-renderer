@@ -209,11 +209,9 @@ export class Renderer {
             const zoomChanged = this.setZoom(newZoom);
 
             const newScale = this.stage.scaleX();
-            const dx = newCenter.x - lastPinchCenter.x;
-            const dy = newCenter.y - lastPinchCenter.y;
             const newPos = {
-                x: newCenter.x - pointTo.x * newScale + dx,
-                y: newCenter.y - pointTo.y * newScale + dy,
+                x: newCenter.x - pointTo.x * newScale,
+                y: newCenter.y - pointTo.y * newScale,
             };
 
             this.stage.position(newPos);
