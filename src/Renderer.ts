@@ -594,7 +594,6 @@ export class Renderer {
         roomsToRedraw.set(room.id, room);
 
         const preRoomNodes: Array<Konva.Group | Konva.Shape> = [];
-        const postRoomNodes: Array<Konva.Group | Konva.Shape> = [];
 
         const explorationArea =
             this.currentAreaInstance instanceof ExplorationArea ? this.currentAreaInstance : undefined;
@@ -643,11 +642,6 @@ export class Renderer {
             preRoomNodes.push(render);
         });
 
-        this.exitRenderer.renderInnerExits(room, highlightColor).forEach(render => {
-            this.disableListening(render);
-            postRoomNodes.push(render);
-        });
-
         preRoomNodes.forEach(node => {
             this.overlayLayer.add(node);
             this.currentRoomOverlay.push(node);
@@ -665,11 +659,13 @@ export class Renderer {
             );
             this.overlayLayer.add(overlayRoom);
             this.currentRoomOverlay.push(overlayRoom);
-        });
 
-        postRoomNodes.forEach(node => {
-            this.overlayLayer.add(node);
-            this.currentRoomOverlay.push(node);
+            const innerExitColor = isCurrent && Settings.highlightCurrentRoom ? currentRoomColor : undefined;
+            this.exitRenderer.renderInnerExits(roomToRedraw, innerExitColor).forEach(render => {
+                this.disableListening(render);
+                this.overlayLayer.add(render);
+                this.currentRoomOverlay.push(render);
+            });
         });
 
         this.overlayLayer.batchDraw();
