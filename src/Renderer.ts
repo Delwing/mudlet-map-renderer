@@ -598,6 +598,8 @@ export class Renderer {
         const explorationArea =
             this.currentAreaInstance instanceof ExplorationArea ? this.currentAreaInstance : undefined;
 
+        const candidateRooms = this.mapReader.getRooms();
+
         if (this.currentAreaInstance && this.currentZIndex !== undefined) {
             const exits = this.currentAreaInstance
                 .getLinkExits(this.currentZIndex)
@@ -626,6 +628,19 @@ export class Renderer {
                 }
             });
         }
+
+        const customLineRooms = this.getRoomsConnectedByCustomLines(room, candidateRooms);
+        customLineRooms.forEach((otherRoom, otherRoomId) => {
+            const canRenderOtherRoom =
+                !explorationArea || explorationArea.hasVisitedRoom(otherRoomId);
+            if (
+                otherRoom.area === this.currentArea &&
+                otherRoom.z === this.currentZIndex &&
+                canRenderOtherRoom
+            ) {
+                roomsToRedraw.set(otherRoomId, otherRoom);
+            }
+        });
 
         const highlightColor = Settings.highlightCurrentRoom ? currentRoomColor : undefined;
 
@@ -697,6 +712,57 @@ export class Renderer {
         this.renderSymbol(room, roomGroup);
 
         return roomGroup;
+    }
+
+    private getRoomsConnectedByCustomLines(room: MapData.Room, candidateRooms: MapData.Room[]) {
+        const connectedRooms = new Map<number, MapData.Room>();
+
+        Object.values(room.customLines).forEach(line => {
+            if (!line.points.length) {
+                return;
+            }
+
+            line.points.forEach(point => {
+                const targetRoom = this.findRoomNearPosition(
+                    room.area,
+                    room.z,
+                    point.x,
+                    -point.y,
+                    candidateRooms,
+                );
+
+                if (targetRoom && targetRoom.id !== room.id) {
+                    connectedRooms.set(targetRoom.id, targetRoom);
+                }
+            });
+        });
+
+        return connectedRooms;
+    }
+
+    private findRoomNearPosition(
+        area: number,
+        z: number,
+        x: number,
+        y: number,
+        candidateRooms: MapData.Room[],
+    ) {
+        const tolerance = Settings.roomSize * 1.5;
+        let closest: { room: MapData.Room; distance: number } | undefined;
+
+        candidateRooms.forEach(candidate => {
+            if (candidate.area !== area || candidate.z !== z) {
+                return;
+            }
+
+            const distance = Math.hypot(candidate.x - x, candidate.y - y);
+
+            if (distance <= tolerance && (!closest || distance < closest.distance)) {
+                closest = { room: candidate, distance };
+            }
+        });
+
+        return closest?.room;
     }
 
     private disableListening(node: Konva.Node) {
