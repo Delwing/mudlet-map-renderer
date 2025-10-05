@@ -19,7 +19,7 @@ const destinationClearButton = document.getElementById("destination-clear") as H
 const destinationStatusElement = document.getElementById("destination-status") as HTMLDivElement | null;
 
 const mapReader = new MapReader(data as MapData.Map, colors as MapData.Env[]);
-const startingRoomId = 1;
+const startingRoomId = 6730;
 
 const renderer = new Renderer(stageElement, mapReader);
 const startingRoom = mapReader.getRoom(startingRoomId);

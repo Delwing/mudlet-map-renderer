@@ -451,7 +451,6 @@ export class Renderer {
             delete this.currentTransition;
         }
 
-        console.log(Settings.instantMapMove)
         if (instant || Settings.instantMapMove) {
             this.stage.position({
                 x: this.stage.x() + dx,
@@ -525,7 +524,7 @@ export class Renderer {
                 if (!touch) {
                     return;
                 }
-                longPressStart = { clientX: touch.clientX, clientY: touch.clientY };
+                longPressStart = {clientX: touch.clientX, clientY: touch.clientY};
                 stageDraggableBeforeLongPress = this.stage.draggable();
                 this.stage.draggable(false);
                 longPressTimeout = window.setTimeout(() => {
@@ -609,24 +608,11 @@ export class Renderer {
                 if (render) {
                     preRoomNodes.push(render);
                 }
-
-                const otherRoomId = exit.a === room.id ? exit.b : exit.a;
-                const otherRoom = this.mapReader.getRoom(otherRoomId);
-                const canRenderOtherRoom =
-                    !explorationArea || explorationArea.hasVisitedRoom(otherRoomId);
-
-                if (
-                    otherRoom &&
-                    otherRoom.area === this.currentArea &&
-                    otherRoom.z === this.currentZIndex &&
-                    canRenderOtherRoom
-                ) {
-                    roomsToRedraw.set(otherRoom.id, otherRoom);
-                }
             });
         }
 
         const highlightColor = Settings.highlightCurrentRoom ? currentRoomColor : undefined;
+
 
         this.exitRenderer.renderSpecialExits(room, highlightColor).forEach(render => {
             preRoomNodes.push(render);
@@ -639,9 +625,18 @@ export class Renderer {
             preRoomNodes.push(render);
         });
 
-        Object.values(room.specialExits).forEach(id => {
-            const room = this.mapReader.getRoom(id);
-            roomsToRedraw.set(id, room)
+        [...Object.values(room.exits), ...Object.values(room.specialExits)].forEach(id => {
+            const otherRoom = this.mapReader.getRoom(id);
+            const canRenderOtherRoom =
+                !explorationArea || explorationArea.hasVisitedRoom(id);
+
+            if (
+                otherRoom &&
+                otherRoom.area === this.currentArea &&
+                otherRoom.z === this.currentZIndex &&
+                canRenderOtherRoom) {
+                roomsToRedraw.set(id, otherRoom)
+            }
         })
 
         preRoomNodes.forEach(node => {
@@ -672,7 +667,11 @@ export class Renderer {
         this.overlayLayer.batchDraw();
     }
 
-    private createOverlayRoomGroup(room: MapData.Room, options: { stroke: string; fillEnabled: boolean; strokeEnabled: boolean }) {
+    private createOverlayRoomGroup(room: MapData.Room, options: {
+        stroke: string;
+        fillEnabled: boolean;
+        strokeEnabled: boolean
+    }) {
         const roomGroup = new Konva.Group({
             x: room.x - Settings.roomSize / 2,
             y: room.y - Settings.roomSize / 2,
