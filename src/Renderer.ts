@@ -103,9 +103,30 @@ export class Renderer {
 
         let lastPinchDistance: number | undefined;
         let dragStopped = false;
+        let multiTouchActive = false;
 
-        this.stage.on('touchend touchcancel', () => {
+        this.stage.on('touchstart', (e) => {
+            const touches = e.evt.touches;
+            if (touches && touches.length > 1) {
+                multiTouchActive = true;
+                if (this.stage.isDragging()) {
+                    this.stage.stopDrag();
+                    dragStopped = true;
+                }
+                this.stage.draggable(false);
+            } else {
+                multiTouchActive = false;
+                this.stage.draggable(true);
+            }
+        });
+
+        this.stage.on('touchend touchcancel', (e) => {
             lastPinchDistance = undefined;
+            const touches = e.evt.touches;
+            if (!touches || touches.length <= 1) {
+                multiTouchActive = false;
+                this.stage.draggable(true);
+            }
         });
 
         this.stage.on('wheel', (e) => {
@@ -149,6 +170,13 @@ export class Renderer {
             const touch1 = touches?.[0];
             const touch2 = touches?.[1];
 
+            if (!touch2) {
+                if (multiTouchActive) {
+                    multiTouchActive = false;
+                    this.stage.draggable(true);
+                }
+            }
+
             if (touch1 && !touch2 && dragStopped && !this.stage.isDragging()) {
                 this.stage.startDrag();
                 dragStopped = false;
@@ -164,6 +192,11 @@ export class Renderer {
             if (this.stage.isDragging()) {
                 this.stage.stopDrag();
                 dragStopped = true;
+            }
+
+            if (!multiTouchActive) {
+                multiTouchActive = true;
+                this.stage.draggable(false);
             }
 
             const rect = this.stage.container().getBoundingClientRect();
