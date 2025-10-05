@@ -191,13 +191,14 @@ export class Renderer {
             const stageX = this.stage.x();
             const stageY = this.stage.y();
 
-            const mapPoint1 = {
-                x: (p1.x - stageX) / oldScale,
-                y: (p1.y - stageY) / oldScale,
+            const centerPointer = {
+                x: this.stage.width() / 2,
+                y: this.stage.height() / 2,
             };
-            const mapPoint2 = {
-                x: (p2.x - stageX) / oldScale,
-                y: (p2.y - stageY) / oldScale,
+
+            const centerMapPoint = {
+                x: (centerPointer.x - stageX) / oldScale,
+                y: (centerPointer.y - stageY) / oldScale,
             };
 
             const newZoom = this.currentZoom * (distance / lastPinchDistance);
@@ -205,17 +206,9 @@ export class Renderer {
             const zoomChanged = this.setZoom(newZoom);
 
             const newScale = this.stage.scaleX();
-            const pos1 = {
-                x: p1.x - mapPoint1.x * newScale,
-                y: p1.y - mapPoint1.y * newScale,
-            };
-            const pos2 = {
-                x: p2.x - mapPoint2.x * newScale,
-                y: p2.y - mapPoint2.y * newScale,
-            };
             const newPos = {
-                x: (pos1.x + pos2.x) / 2,
-                y: (pos1.y + pos2.y) / 2,
+                x: centerPointer.x - centerMapPoint.x * newScale,
+                y: centerPointer.y - centerMapPoint.y * newScale,
             };
 
             this.stage.position(newPos);
