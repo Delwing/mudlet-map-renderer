@@ -319,8 +319,8 @@ export class Renderer {
         this.centerOnRoom(room, instant);
     }
 
-    renderPath(locations: number[]) {
-        return this.pathRenderer.renderPath(locations, this.currentArea, this.currentZIndex);
+    renderPath(locations: number[], color?: string) {
+        return this.pathRenderer.renderPath(locations, this.currentArea, this.currentZIndex, color);
     }
 
     clearPaths() {

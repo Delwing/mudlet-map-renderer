@@ -13,7 +13,7 @@ export default class PathRenderer {
         this.overlayLayer = overlayLayer;
     }
 
-    renderPath(locations: number[], currentArea?: number, currentZIndex?: number) {
+    renderPath(locations: number[], currentArea?: number, currentZIndex?: number, color: string = '#66E64D') {
         if (currentArea === undefined || currentZIndex === undefined) {
             return;
         }
@@ -85,7 +85,7 @@ export default class PathRenderer {
             .filter(points => points.length >= 4)
             .map(points => new Konva.Line({
                 points,
-                stroke: 'green',
+                stroke: color,
                 strokeWidth: 0.1
             }));
 
