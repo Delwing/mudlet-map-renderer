@@ -665,26 +665,6 @@ export class Renderer {
             );
             this.overlayLayer.add(overlayRoom);
             this.currentRoomOverlay.push(overlayRoom);
-
-            if (!isCurrent) {
-                this.exitRenderer.renderSpecialExits(roomToRedraw).forEach(render => {
-                    this.disableListening(render);
-                    this.overlayLayer.add(render);
-                    this.currentRoomOverlay.push(render);
-                });
-
-                this.exitRenderer.renderStubs(roomToRedraw).forEach(render => {
-                    this.disableListening(render);
-                    this.overlayLayer.add(render);
-                    this.currentRoomOverlay.push(render);
-                });
-
-                this.exitRenderer.renderInnerExits(roomToRedraw).forEach(render => {
-                    this.disableListening(render);
-                    this.overlayLayer.add(render);
-                    this.currentRoomOverlay.push(render);
-                });
-            }
         });
 
         postRoomNodes.forEach(node => {
