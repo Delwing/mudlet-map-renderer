@@ -102,12 +102,10 @@ export class Renderer {
         Konva.hitOnDragEnabled = true;
 
         let lastPinchDistance: number | undefined;
-        let lastPinchCenter: { x: number; y: number } | undefined;
         let dragStopped = false;
 
         this.stage.on('touchend touchcancel', () => {
             lastPinchDistance = undefined;
-            lastPinchCenter = undefined;
         });
 
         this.stage.on('wheel', (e) => {
@@ -158,7 +156,6 @@ export class Renderer {
 
             if (!touch1 || !touch2) {
                 lastPinchDistance = undefined;
-                lastPinchCenter = undefined;
                 return;
             }
 
@@ -179,15 +176,7 @@ export class Renderer {
                 y: touch2.clientY - rect.top,
             };
 
-            const newCenter = {
-                x: (p1.x + p2.x) / 2,
-                y: (p1.y + p2.y) / 2,
-            };
             const distance = Math.hypot(p1.x - p2.x, p1.y - p2.y);
-
-            if (lastPinchCenter === undefined) {
-                lastPinchCenter = newCenter;
-            }
 
             if (lastPinchDistance === undefined) {
                 lastPinchDistance = distance;
@@ -199,26 +188,40 @@ export class Renderer {
             }
 
             const oldScale = this.stage.scaleX();
-            const newZoom = this.currentZoom * (distance / lastPinchDistance);
+            const stageX = this.stage.x();
+            const stageY = this.stage.y();
 
-            const pointTo = {
-                x: (newCenter.x - this.stage.x()) / oldScale,
-                y: (newCenter.y - this.stage.y()) / oldScale,
+            const mapPoint1 = {
+                x: (p1.x - stageX) / oldScale,
+                y: (p1.y - stageY) / oldScale,
             };
+            const mapPoint2 = {
+                x: (p2.x - stageX) / oldScale,
+                y: (p2.y - stageY) / oldScale,
+            };
+
+            const newZoom = this.currentZoom * (distance / lastPinchDistance);
 
             const zoomChanged = this.setZoom(newZoom);
 
             const newScale = this.stage.scaleX();
+            const pos1 = {
+                x: p1.x - mapPoint1.x * newScale,
+                y: p1.y - mapPoint1.y * newScale,
+            };
+            const pos2 = {
+                x: p2.x - mapPoint2.x * newScale,
+                y: p2.y - mapPoint2.y * newScale,
+            };
             const newPos = {
-                x: newCenter.x - pointTo.x * newScale,
-                y: newCenter.y - pointTo.y * newScale,
+                x: (pos1.x + pos2.x) / 2,
+                y: (pos1.y + pos2.y) / 2,
             };
 
             this.stage.position(newPos);
             this.stage.batchDraw();
 
             lastPinchDistance = distance;
-            lastPinchCenter = newCenter;
 
             if (zoomChanged) {
                 this.emitZoomChangeEvent();
