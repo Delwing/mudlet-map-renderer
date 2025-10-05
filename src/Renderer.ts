@@ -561,18 +561,11 @@ export class Renderer {
             return;
         }
 
-        const outline = new Konva.Rect({
-            x: room.x - Settings.roomSize / 2,
-            y: room.y - Settings.roomSize / 2,
-            width: Settings.roomSize,
-            height: Settings.roomSize,
-            stroke: currentRoomColor,
-            strokeWidth: 0.15,
-            listening: false,
-        });
-        outline.fillEnabled(false);
-        this.overlayLayer.add(outline);
-        this.currentRoomOverlay.push(outline);
+        const roomsToRedraw = new Map<number, MapData.Room>();
+        roomsToRedraw.set(room.id, room);
+
+        const preRoomNodes: Konva.Node[] = [];
+        const postRoomNodes: Konva.Node[] = [];
 
         if (this.currentAreaInstance && this.currentZIndex !== undefined) {
             const exits = this.currentAreaInstance
@@ -582,31 +575,107 @@ export class Renderer {
                 const render = this.exitRenderer.renderWithColor(exit, currentRoomColor);
                 if (render) {
                     this.disableListening(render);
-                    this.overlayLayer.add(render);
-                    this.currentRoomOverlay.push(render);
+                    preRoomNodes.push(render);
+                }
+
+                const otherRoomId = exit.a === room.id ? exit.b : exit.a;
+                const otherRoom = this.mapReader.getRoom(otherRoomId);
+                if (
+                    otherRoom &&
+                    otherRoom.area === this.currentArea &&
+                    otherRoom.z === this.currentZIndex
+                ) {
+                    roomsToRedraw.set(otherRoom.id, otherRoom);
                 }
             });
         }
 
         this.exitRenderer.renderSpecialExits(room, currentRoomColor).forEach(render => {
             this.disableListening(render);
-            this.overlayLayer.add(render);
-            this.currentRoomOverlay.push(render);
+            preRoomNodes.push(render);
         });
 
         this.exitRenderer.renderStubs(room, currentRoomColor).forEach(render => {
             this.disableListening(render);
-            this.overlayLayer.add(render);
-            this.currentRoomOverlay.push(render);
+            preRoomNodes.push(render);
         });
 
         this.exitRenderer.renderInnerExits(room, currentRoomColor).forEach(render => {
             this.disableListening(render);
-            this.overlayLayer.add(render);
-            this.currentRoomOverlay.push(render);
+            postRoomNodes.push(render);
+        });
+
+        preRoomNodes.forEach(node => {
+            this.overlayLayer.add(node);
+            this.currentRoomOverlay.push(node);
+        });
+
+        roomsToRedraw.forEach((roomToRedraw, id) => {
+            const isCurrent = id === room.id;
+            const overlayRoom = this.createOverlayRoomGroup(
+                roomToRedraw,
+                {
+                    stroke: isCurrent ? currentRoomColor : Settings.lineColor,
+                    fillEnabled: !isCurrent,
+                }
+            );
+            this.overlayLayer.add(overlayRoom);
+            this.currentRoomOverlay.push(overlayRoom);
+
+            if (!isCurrent) {
+                this.exitRenderer.renderSpecialExits(roomToRedraw).forEach(render => {
+                    this.disableListening(render);
+                    this.overlayLayer.add(render);
+                    this.currentRoomOverlay.push(render);
+                });
+
+                this.exitRenderer.renderStubs(roomToRedraw).forEach(render => {
+                    this.disableListening(render);
+                    this.overlayLayer.add(render);
+                    this.currentRoomOverlay.push(render);
+                });
+
+                this.exitRenderer.renderInnerExits(roomToRedraw).forEach(render => {
+                    this.disableListening(render);
+                    this.overlayLayer.add(render);
+                    this.currentRoomOverlay.push(render);
+                });
+            }
+        });
+
+        postRoomNodes.forEach(node => {
+            this.overlayLayer.add(node);
+            this.currentRoomOverlay.push(node);
         });
 
         this.overlayLayer.batchDraw();
+    }
+
+    private createOverlayRoomGroup(room: MapData.Room, options: { stroke: string; fillEnabled: boolean }) {
+        const roomGroup = new Konva.Group({
+            x: room.x - Settings.roomSize / 2,
+            y: room.y - Settings.roomSize / 2,
+            listening: false,
+        });
+
+        const rect = new Konva.Rect({
+            x: 0,
+            y: 0,
+            width: Settings.roomSize,
+            height: Settings.roomSize,
+            fill: this.mapReader.getColorValue(room.env),
+            stroke: options.stroke,
+            strokeWidth: 0.025,
+        });
+
+        if (!options.fillEnabled) {
+            rect.fillEnabled(false);
+        }
+
+        roomGroup.add(rect);
+        this.renderSymbol(room, roomGroup);
+
+        return roomGroup;
     }
 
     private disableListening(node: Konva.Node) {
