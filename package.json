@@ -18,6 +18,7 @@
     "dev": "vite",
     "build": "tsc -p tsconfig.json && vite build",
     "preview": "vite preview",
+    "test": "vitest run",
     "demo:dev": "vite --config vite.demo.config.ts",
     "demo:build": "vite build --config vite.demo.config.ts",
     "demo:preview": "vite preview --config vite.demo.config.ts"
@@ -27,12 +28,13 @@
     "node-dijkstra": "^2.5.1"
   },
   "devDependencies": {
+    "@types/node-dijkstra": "^2.5.6",
     "tslib": "^2.8.1",
     "tsx": "^4.19.1",
     "typescript": "^5.6.3",
     "vite": "^5.4.8",
     "vite-plugin-dts": "^4.3.0",
-    "@types/node-dijkstra": "^2.5.6"
+    "vitest": "^2.1.4"
   },
   "files": [
     "dist"

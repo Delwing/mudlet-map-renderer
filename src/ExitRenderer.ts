@@ -41,9 +41,11 @@ function getDoorColor(doorType: 1 | 2 | 3) {
 export default class ExitRenderer {
 
     private mapReader: MapReader;
+    private exitNodes: Map<string, { node: Konva.Node; name: string }>; 
 
     constructor(mapReader: MapReader) {
         this.mapReader = mapReader;
+        this.exitNodes = new Map();
     }
 
     render(exit: Exit) {
@@ -79,6 +81,9 @@ export default class ExitRenderer {
             strokeWidth: 0.025,
         });
         exitRender.add(link);
+
+        this.registerDirectionalExit(exitRender, exit.a, exit.aDir);
+        this.registerDirectionalExit(exitRender, exit.b, exit.bDir);
 
         return exitRender;
     }
@@ -132,13 +137,16 @@ export default class ExitRenderer {
 
         group.add(arrow)
 
+        const sourceId = exit.aDir ? exit.a : exit.b;
+        this.registerDirectionalExit(group, sourceId, dir);
+
         return group;
     }
 
     renderAreaExit(room: MapData.Room, dir: MapData.direction) {
         const start = movePoint(room.x, room.y, dir, Settings.roomSize / 2)
         const end = movePoint(room.x, room.y, dir, Settings.roomSize * 1.5)
-        return new Konva.Arrow({
+        const arrow = new Konva.Arrow({
             points: [start.x, start.y, end.x, end.y],
             pointerLength: 0.3,
             pointerWidth: 0.3,
@@ -146,10 +154,14 @@ export default class ExitRenderer {
             stroke: this.mapReader.getColorValue(room.env),
             fill: this.mapReader.getColorValue(room.env),
         })
+
+        this.registerDirectionalExit(arrow, room.id, dir);
+
+        return arrow;
     }
 
     renderSpecialExits(room: MapData.Room) {
-        return Object.entries(room.customLines).map(([_, line]) => {
+        return Object.entries(room.customLines).map(([id, line]) => {
             const points = [room.x, room.y]
             line.points.reduce((acc, point) => {
                 acc.push(point.x, -point.y);
@@ -177,6 +189,8 @@ export default class ExitRenderer {
             } else if (style !== undefined) {
                 console.log("Brak opisu stylu: " + style);
             }
+
+            this.registerSpecialExit(lineRender, room.id, id);
 
             return lineRender;
         })
@@ -272,4 +286,112 @@ export default class ExitRenderer {
         })
     }
 
+    clearExitCache() {
+        this.exitNodes.clear();
+    }
+
+    setDirectionalExitColorByReference(roomId: number, direction: MapData.direction, color: string) {
+        return this.setExitColorByReference(this.buildDirectionalKey(roomId, direction), color);
+    }
+
+    setSpecialExitColorByReference(roomId: number, exitId: string, color: string) {
+        return this.setExitColorByReference(this.buildSpecialKey(roomId, exitId), color);
+    }
+
+    setDirectionalExitColorByName(layer: Konva.Layer, roomId: number, direction: MapData.direction, color: string) {
+        return this.setExitColorByName(layer, this.buildDirectionalIdentifier(roomId, direction), color);
+    }
+
+    setSpecialExitColorByName(layer: Konva.Layer, roomId: number, exitId: string, color: string) {
+        return this.setExitColorByName(layer, this.buildSpecialIdentifier(roomId, exitId), color);
+    }
+
+    private setExitColorByReference(key: string, color: string) {
+        const record = this.exitNodes.get(key);
+        if (!record) {
+            return false;
+        }
+        this.applyColor(record.node, color);
+        record.node.getLayer()?.batchDraw();
+        return true;
+    }
+
+    private setExitColorByName(layer: Konva.Layer, identifier: { key: string; name: string }, color: string) {
+        const node = layer.findOne(`.${identifier.name}`);
+        if (!node) {
+            return false;
+        }
+        this.applyColor(node, color);
+        node.getLayer()?.batchDraw();
+        return true;
+    }
+
+    private registerDirectionalExit(node: Konva.Node, roomId: number | undefined, direction: MapData.direction | undefined) {
+        if (roomId === undefined || direction === undefined) {
+            return;
+        }
+        this.registerExit(node, this.buildDirectionalIdentifier(roomId, direction));
+    }
+
+    private registerSpecialExit(node: Konva.Node, roomId: number, exitId: string) {
+        this.registerExit(node, this.buildSpecialIdentifier(roomId, exitId));
+    }
+
+    private registerExit(node: Konva.Node, identifier: { key: string; name: string }) {
+        this.exitNodes.set(identifier.key, { node, name: identifier.name });
+        if (typeof (node as Konva.Node & { addName?: (name: string) => Konva.Node }).addName === "function") {
+            (node as Konva.Node & { addName?: (name: string) => Konva.Node }).addName(identifier.name);
+        } else {
+            const currentName = node.name();
+            const names = new Set((currentName ?? "").split(/\s+/).filter(Boolean));
+            names.add(identifier.name);
+            node.name(Array.from(names).join(" "));
+        }
+    }
+
+    private buildDirectionalIdentifier(roomId: number, direction: MapData.direction) {
+        const tag = `direction:${direction}`;
+        return {
+            key: this.buildKey(roomId, tag),
+            name: this.buildName(roomId, tag),
+        };
+    }
+
+    private buildSpecialIdentifier(roomId: number, exitId: string) {
+        const tag = `special:${exitId}`;
+        return {
+            key: this.buildKey(roomId, tag),
+            name: this.buildName(roomId, tag),
+        };
+    }
+
+    private buildDirectionalKey(roomId: number, direction: MapData.direction) {
+        return this.buildDirectionalIdentifier(roomId, direction).key;
+    }
+
+    private buildSpecialKey(roomId: number, exitId: string) {
+        return this.buildSpecialIdentifier(roomId, exitId).key;
+    }
+
+    private buildKey(roomId: number, tag: string) {
+        return `${roomId}:${tag}`;
+    }
+
+    private buildName(roomId: number, tag: string) {
+        const sanitizedTag = tag.replace(/[^a-zA-Z0-9:_-]/g, "_");
+        return `exit-${roomId}-${sanitizedTag}`;
+    }
+
+    private applyColor(node: Konva.Node, color: string) {
+        if (node instanceof Konva.Group) {
+            node.getChildren().forEach(child => this.applyColor(child, color));
+            return;
+        }
+        if (node instanceof Konva.Line || node instanceof Konva.Arrow) {
+            node.stroke(color);
+        }
+        if (node instanceof Konva.Arrow) {
+            node.fill(color);
+        }
+    }
 }

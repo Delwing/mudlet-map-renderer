@@ -238,6 +238,7 @@ export class Renderer {
         this.currentAreaInstance = area;
         this.currentZIndex = zIndex;
         this.currentAreaVersion = area.getVersion();
+        this.exitRenderer.clearExitCache();
         this.roomLayer.destroyChildren();
         this.linkLayer.destroyChildren();
 
@@ -262,6 +263,22 @@ export class Renderer {
         };
         const event = new CustomEvent<RoomContextMenuEventDetail>('roomcontextmenu', {detail});
         container.dispatchEvent(event);
+    }
+
+    setDirectionalExitColorByReference(roomId: number, direction: MapData.direction, color: string) {
+        return this.exitRenderer.setDirectionalExitColorByReference(roomId, direction, color);
+    }
+
+    setDirectionalExitColorByName(roomId: number, direction: MapData.direction, color: string) {
+        return this.exitRenderer.setDirectionalExitColorByName(this.linkLayer, roomId, direction, color);
+    }
+
+    setSpecialExitColorByReference(roomId: number, exitId: string, color: string) {
+        return this.exitRenderer.setSpecialExitColorByReference(roomId, exitId, color);
+    }
+
+    setSpecialExitColorByName(roomId: number, exitId: string, color: string) {
+        return this.exitRenderer.setSpecialExitColorByName(this.linkLayer, roomId, exitId, color);
     }
 
     private emitZoomChangeEvent() {
