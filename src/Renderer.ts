@@ -3,6 +3,7 @@ import ExitRenderer from "./ExitRenderer";
 import MapReader from "./reader/MapReader";
 import Exit from "./reader/Exit";
 import Area from "./reader/Area";
+import ExplorationArea from "./reader/ExplorationArea";
 import PathRenderer from "./PathRenderer";
 
 const defaultRoomSize = 0.6;
@@ -275,8 +276,8 @@ export class Renderer {
         this.stage.scale({x: defaultZoom * this.currentZoom, y: defaultZoom * this.currentZoom});
 
         this.renderLabels(plane.getLabels());
-        this.renderRooms(plane.getRooms() ?? []);
         this.renderExits(area.getLinkExits(zIndex));
+        this.renderRooms(plane.getRooms() ?? []);
         this.refreshHighlights();
         this.stage.batchDraw();
     }
@@ -595,6 +596,9 @@ export class Renderer {
         const preRoomNodes: Array<Konva.Group | Konva.Shape> = [];
         const postRoomNodes: Array<Konva.Group | Konva.Shape> = [];
 
+        const explorationArea =
+            this.currentAreaInstance instanceof ExplorationArea ? this.currentAreaInstance : undefined;
+
         if (this.currentAreaInstance && this.currentZIndex !== undefined) {
             const exits = this.currentAreaInstance
                 .getLinkExits(this.currentZIndex)
@@ -610,10 +614,14 @@ export class Renderer {
 
                 const otherRoomId = exit.a === room.id ? exit.b : exit.a;
                 const otherRoom = this.mapReader.getRoom(otherRoomId);
+                const canRenderOtherRoom =
+                    !explorationArea || explorationArea.hasVisitedRoom(otherRoomId);
+
                 if (
                     otherRoom &&
                     otherRoom.area === this.currentArea &&
-                    otherRoom.z === this.currentZIndex
+                    otherRoom.z === this.currentZIndex &&
+                    canRenderOtherRoom
                 ) {
                     roomsToRedraw.set(otherRoom.id, otherRoom);
                 }
