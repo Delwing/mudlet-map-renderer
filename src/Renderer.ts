@@ -21,7 +21,7 @@ export type ZoomChangeEventDetail = {
 export class Settings {
     static roomSize = defaultRoomSize;
     static lineColor = lineColor;
-    static instantMapMove: false
+    static instantMapMove = false
 }
 
 type HighlightData = {
@@ -418,7 +418,8 @@ export class Renderer {
             delete this.currentTransition;
         }
 
-        if (instant && Settings.instantMapMove) {
+        console.log(Settings.instantMapMove)
+        if (instant || Settings.instantMapMove) {
             this.stage.position({
                 x: this.stage.x() + dx,
                 y: this.stage.y() + dy,
