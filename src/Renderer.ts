@@ -672,8 +672,6 @@ export class Renderer {
                     strokeEnabled: isCurrent ? Settings.highlightCurrentRoom : false,
                 }
             );
-            this.overlayLayer.add(overlayRoom);
-            this.currentRoomOverlay.push(overlayRoom);
 
             const innerExitColor = isCurrent && Settings.highlightCurrentRoom ? currentRoomColor : undefined;
             this.exitRenderer.renderInnerExits(roomToRedraw, innerExitColor).forEach(render => {
@@ -681,6 +679,9 @@ export class Renderer {
                 this.overlayLayer.add(render);
                 this.currentRoomOverlay.push(render);
             });
+
+            this.overlayLayer.add(overlayRoom);
+            this.currentRoomOverlay.push(overlayRoom);
         });
 
         this.overlayLayer.batchDraw();
