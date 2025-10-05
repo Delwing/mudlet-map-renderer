@@ -269,16 +269,8 @@ export class Renderer {
         return this.exitRenderer.setDirectionalExitColorByReference(roomId, direction, color);
     }
 
-    setDirectionalExitColorByName(roomId: number, direction: MapData.direction, color: string) {
-        return this.exitRenderer.setDirectionalExitColorByName(this.linkLayer, roomId, direction, color);
-    }
-
     setSpecialExitColorByReference(roomId: number, exitId: string, color: string) {
         return this.exitRenderer.setSpecialExitColorByReference(roomId, exitId, color);
-    }
-
-    setSpecialExitColorByName(roomId: number, exitId: string, color: string) {
-        return this.exitRenderer.setSpecialExitColorByName(this.linkLayer, roomId, exitId, color);
     }
 
     private emitZoomChangeEvent() {

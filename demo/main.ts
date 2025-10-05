@@ -1,6 +1,6 @@
 import data from "./mapExport.json";
 import colors from "./colors.json";
-import {Renderer} from "@src";
+import {Renderer, Settings} from "@src";
 import type {RoomContextMenuEventDetail} from "@src";
 import MapReader from "@src/reader/MapReader";
 
@@ -25,11 +25,56 @@ let currentRoomId = startingRoomId;
 const walkerState: { timeoutId: number | undefined; running: boolean } = { timeoutId: undefined, running: false };
 let destinationRoomId: number | undefined;
 let currentDestinationPath: number[] | undefined;
+const currentRoomExitColor = "#8B4513";
+const defaultExitColor = Settings.lineColor;
+let highlightedRoomId: number | undefined;
+let highlightedDirections: MapData.direction[] = [];
+
+function setCurrentRoom(roomId: number) {
+    currentRoomId = roomId;
+    renderer.setPosition(roomId);
+    highlightCurrentRoomExits(roomId);
+}
+
+function highlightCurrentRoomExits(roomId: number) {
+    if (highlightedRoomId !== undefined && highlightedDirections.length) {
+        const previousRoom = mapReader.getRoom(highlightedRoomId);
+        if (previousRoom) {
+            highlightedDirections.forEach(direction => {
+                renderer.setDirectionalExitColorByReference(previousRoom.id, direction, defaultExitColor);
+            });
+        }
+    }
+
+    highlightedRoomId = undefined;
+    highlightedDirections = [];
+    renderer.clearHighlights();
+
+    const room = mapReader.getRoom(roomId);
+    if (!room) {
+        return;
+    }
+
+    renderer.renderHighlight(room.id, currentRoomExitColor);
+
+    const availableDirections = getAvailableExitDirections(room);
+    if (!availableDirections.length) {
+        highlightedRoomId = room.id;
+        return;
+    }
+
+    availableDirections.forEach(direction => {
+        renderer.setDirectionalExitColorByReference(room.id, direction, currentRoomExitColor);
+    });
+
+    highlightedRoomId = room.id;
+    highlightedDirections = availableDirections;
+}
 
 if (startingRoom) {
     mapReader.addVisitedRoom(startingRoom.id);
 
-    renderer.setPosition(startingRoomId);
+    setCurrentRoom(startingRoomId);
     updateAreaStatus(startingRoom.area);
     updateDestinationStatus("No destination set.");
 
@@ -94,7 +139,7 @@ explorationToggle?.addEventListener("change", () => {
     } else {
         mapReader.clearExplorationDecoration();
     }
-    renderer.setPosition(currentRoomId);
+    setCurrentRoom(currentRoomId);
     const currentRoom = mapReader.getRoom(currentRoomId);
     if (currentRoom) {
         updateAreaStatus(currentRoom.area);
@@ -191,6 +236,28 @@ function getRoomExits(room: MapData.Room) {
     });
 
     return exits;
+}
+
+function getAvailableExitDirections(room: MapData.Room) {
+    const lockedDirections = new Set(
+        (room.exitLocks ?? [])
+            .map(lockId => exitNumberToDirection[lockId])
+            .filter((direction): direction is MapData.direction => Boolean(direction)),
+    );
+
+    const directions: MapData.direction[] = [];
+
+    Object.entries(room.exits ?? {}).forEach(([direction, exitId]) => {
+        if (exitId <= 0) {
+            return;
+        }
+        if (lockedDirections.has(direction as MapData.direction)) {
+            return;
+        }
+        directions.push(direction as MapData.direction);
+    });
+
+    return directions;
 }
 
 function updateAreaStatus(areaId: number) {
@@ -353,9 +420,7 @@ function walkStep() {
 
     mapReader.addVisitedRoom(nextRoom.id);
 
-    currentRoomId = nextRoom.id;
-
-    renderer.setPosition(nextRoom.id);
+    setCurrentRoom(nextRoom.id);
     updateAreaStatus(nextRoom.area);
     updateDestinationGuidance();
 

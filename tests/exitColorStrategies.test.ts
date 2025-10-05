@@ -170,7 +170,6 @@ import ExitRenderer from "../src/ExitRenderer";
 import type Exit from "../src/reader/Exit";
 import type MapReader from "../src/reader/MapReader";
 import {Settings} from "../src/Renderer";
-import {performance} from "node:perf_hooks";
 
 type RoomInit = {
     id: number;
@@ -253,16 +252,7 @@ describe("ExitRenderer color strategies", () => {
         expect(line.stroke()).toBe("#123456");
     });
 
-    it("updates directional exits via node names", () => {
-        renderTwoWayExit();
-        const updated = renderer.setDirectionalExitColorByName(layer, 1, "east", "#654321");
-        expect(updated).toBe(true);
-        const group = layer.findOne(".exit-1-direction:east") as Konva.Group;
-        const line = group.findOne("Line") as Konva.Line;
-        expect(line.stroke()).toBe("#654321");
-    });
-
-    it("updates special exits with both strategies", () => {
+    it("updates special exits via cached references", () => {
         const room = rooms.get(1)!;
         room.customLines = {
             link: {
@@ -283,36 +273,7 @@ describe("ExitRenderer color strategies", () => {
         expect((byRef as Konva.Arrow).stroke()).toBe("#abcdef");
         expect((byRef as Konva.Arrow).fill()).toBe("#abcdef");
 
-        const nameUpdated = renderer.setSpecialExitColorByName(layer, 1, "link", "#fedcba");
-        expect(nameUpdated).toBe(true);
-        const byName = layer.findOne(".exit-1-special:link") as Konva.Arrow;
-        expect(byName.stroke()).toBe("#fedcba");
-        expect(byName.fill()).toBe("#fedcba");
-    });
-
-    it("performs faster with cached references", () => {
-        renderTwoWayExit();
-
-        const iterations = 2000;
-        const colors = Array.from({length: iterations}, (_, index) => {
-            const channel = (index % 256).toString(16).padStart(2, "0");
-            return `#${channel}ff33`;
-        });
-
-        const referenceStart = performance.now();
-        colors.forEach(color => {
-            const ok = renderer.setDirectionalExitColorByReference(1, "east", color);
-            if (!ok) throw new Error("reference update failed");
-        });
-        const referenceTime = performance.now() - referenceStart;
-
-        const nameStart = performance.now();
-        colors.forEach(color => {
-            const ok = renderer.setDirectionalExitColorByName(layer, 1, "east", color);
-            if (!ok) throw new Error("name update failed");
-        });
-        const nameTime = performance.now() - nameStart;
-
-        expect(referenceTime).toBeLessThan(nameTime);
+        const missing = renderer.setDirectionalExitColorByReference(2, "north", "#ffffff");
+        expect(missing).toBe(false);
     });
 });

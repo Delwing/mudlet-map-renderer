@@ -41,7 +41,7 @@ function getDoorColor(doorType: 1 | 2 | 3) {
 export default class ExitRenderer {
 
     private mapReader: MapReader;
-    private exitNodes: Map<string, { node: Konva.Node; name: string }>; 
+    private exitNodes: Map<string, { node: Konva.Node; name: string }>;
 
     constructor(mapReader: MapReader) {
         this.mapReader = mapReader;
@@ -298,14 +298,6 @@ export default class ExitRenderer {
         return this.setExitColorByReference(this.buildSpecialKey(roomId, exitId), color);
     }
 
-    setDirectionalExitColorByName(layer: Konva.Layer, roomId: number, direction: MapData.direction, color: string) {
-        return this.setExitColorByName(layer, this.buildDirectionalIdentifier(roomId, direction), color);
-    }
-
-    setSpecialExitColorByName(layer: Konva.Layer, roomId: number, exitId: string, color: string) {
-        return this.setExitColorByName(layer, this.buildSpecialIdentifier(roomId, exitId), color);
-    }
-
     private setExitColorByReference(key: string, color: string) {
         const record = this.exitNodes.get(key);
         if (!record) {
@@ -313,16 +305,6 @@ export default class ExitRenderer {
         }
         this.applyColor(record.node, color);
         record.node.getLayer()?.batchDraw();
-        return true;
-    }
-
-    private setExitColorByName(layer: Konva.Layer, identifier: { key: string; name: string }, color: string) {
-        const node = layer.findOne(`.${identifier.name}`);
-        if (!node) {
-            return false;
-        }
-        this.applyColor(node, color);
-        node.getLayer()?.batchDraw();
         return true;
     }
 
