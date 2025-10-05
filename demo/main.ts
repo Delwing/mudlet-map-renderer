@@ -1,6 +1,6 @@
 import data from "./mapExport.json";
 import colors from "./colors.json";
-import {Renderer} from "@src";
+import {Renderer, Settings} from "@src";
 import type {RoomContextMenuEventDetail} from "@src";
 import MapReader from "@src/reader/MapReader";
 
@@ -11,6 +11,8 @@ const contextMenuElement = document.getElementById("context-menu") as HTMLDivEle
 const contextMenuContent = document.getElementById("context-menu-content") as HTMLDivElement | null;
 const walkerToggleButton = document.getElementById("walker-toggle") as HTMLButtonElement | null;
 const explorationToggle = document.getElementById("exploration-toggle") as HTMLInputElement | null;
+const instantMoveToggle = document.getElementById("instant-move-toggle") as HTMLInputElement | null;
+const highlightToggle = document.getElementById("highlight-toggle") as HTMLInputElement | null;
 const destinationForm = document.getElementById("destination-form") as HTMLFormElement | null;
 const destinationInput = document.getElementById("destination-input") as HTMLInputElement | null;
 const destinationClearButton = document.getElementById("destination-clear") as HTMLButtonElement | null;
@@ -104,6 +106,23 @@ explorationToggle?.addEventListener("change", () => {
 
 if (explorationToggle) {
     explorationToggle.checked = mapReader.isExplorationEnabled();
+}
+
+instantMoveToggle?.addEventListener("change", () => {
+    Settings.instantMapMove = instantMoveToggle.checked;
+});
+
+if (instantMoveToggle) {
+    instantMoveToggle.checked = Settings.instantMapMove;
+}
+
+highlightToggle?.addEventListener("change", () => {
+    Settings.highlightCurrentRoom = highlightToggle.checked;
+    renderer.setPosition(currentRoomId);
+});
+
+if (highlightToggle) {
+    highlightToggle.checked = Settings.highlightCurrentRoom;
 }
 
 destinationForm?.addEventListener("submit", event => {
