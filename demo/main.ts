@@ -180,6 +180,160 @@ const exitNumberToDirection: Record<number, MapData.direction> = {
     12: "out",
 };
 
+const keypadCodeToDirection: Partial<Record<string, MapData.direction>> = {
+    Numpad1: "southwest",
+    Numpad2: "south",
+    Numpad3: "southeast",
+    Numpad4: "west",
+    Numpad6: "east",
+    Numpad7: "northwest",
+    Numpad8: "north",
+    Numpad9: "northeast",
+};
+
+const keypadKeyToDirection: Partial<Record<string, MapData.direction>> = {
+    "1": "southwest",
+    "2": "south",
+    "3": "southeast",
+    "4": "west",
+    "6": "east",
+    "7": "northwest",
+    "8": "north",
+    "9": "northeast",
+};
+
+const directionFromVector: Record<string, MapData.direction> = {
+    "0:-1": "north",
+    "1:-1": "northeast",
+    "-1:-1": "northwest",
+    "1:0": "east",
+    "-1:0": "west",
+    "0:1": "south",
+    "1:1": "southeast",
+    "-1:1": "southwest",
+};
+
+function normalizeDelta(delta: number) {
+    if (Math.abs(delta) < 0.5) {
+        return 0;
+    }
+    return delta > 0 ? 1 : -1;
+}
+
+function inferDirectionFromRooms(source: MapData.Room, target: MapData.Room) {
+    const dx = target.x - source.x;
+    const dy = target.y - source.y;
+
+    const normalizedX = normalizeDelta(dx);
+    const normalizedY = normalizeDelta(dy);
+
+    if (normalizedX === 0 && normalizedY === 0) {
+        return undefined;
+    }
+
+    return directionFromVector[`${normalizedX}:${normalizedY}`];
+}
+
+function getDirectionalExitTarget(room: MapData.Room, direction: MapData.direction) {
+    const lockedDirections = new Set(
+        (room.exitLocks ?? [])
+            .map(lockId => exitNumberToDirection[lockId])
+            .filter((lockedDirection): lockedDirection is MapData.direction => Boolean(lockedDirection)),
+    );
+
+    if (lockedDirections.has(direction)) {
+        return undefined;
+    }
+
+    const exits = room.exits ?? {};
+    const directExitId = exits[direction];
+
+    if (typeof directExitId === "number" && directExitId > 0) {
+        return directExitId;
+    }
+
+    const lockedSpecialTargets = new Set(room.mSpecialExitLocks ?? []);
+
+    const specialExits = room.specialExits ?? {};
+    for (const exitId of Object.values(specialExits)) {
+        if (typeof exitId !== "number" || exitId <= 0) {
+            continue;
+        }
+        if (lockedSpecialTargets.has(exitId)) {
+            continue;
+        }
+        const targetRoom = mapReader.getRoom(exitId);
+        if (!targetRoom) {
+            continue;
+        }
+        const exitDirection = inferDirectionFromRooms(room, targetRoom);
+        if (exitDirection === direction) {
+            return exitId;
+        }
+    }
+
+    return undefined;
+}
+
+function moveToRoom(room: MapData.Room) {
+    mapReader.addVisitedRoom(room.id);
+    currentRoomId = room.id;
+    renderer.setPosition(room.id);
+    updateAreaStatus(room.area);
+    updateDestinationGuidance();
+}
+
+function isEditableElement(target: EventTarget | null) {
+    if (!(target instanceof HTMLElement)) {
+        return false;
+    }
+    if (target.isContentEditable) {
+        return true;
+    }
+    return target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement;
+}
+
+function getDirectionFromKeyboardEvent(event: KeyboardEvent) {
+    const directionFromCode = keypadCodeToDirection[event.code];
+    if (directionFromCode) {
+        return directionFromCode;
+    }
+
+    const directionFromKey = keypadKeyToDirection[event.key];
+    if (directionFromKey) {
+        return directionFromKey;
+    }
+
+    return undefined;
+}
+
+function handleDirectionalMove(direction: MapData.direction) {
+    const room = mapReader.getRoom(currentRoomId);
+    if (!room) {
+        return;
+    }
+
+    const nextRoomId = getDirectionalExitTarget(room, direction);
+    if (!nextRoomId) {
+        walkerStatusElement.textContent = `No ${direction} exit from room ${room.id}.`;
+        return;
+    }
+
+    const nextRoom = mapReader.getRoom(nextRoomId);
+    if (!nextRoom) {
+        walkerStatusElement.textContent = `Unable to find destination room ${nextRoomId}.`;
+        return;
+    }
+
+    moveToRoom(nextRoom);
+
+    if (walkerState.running) {
+        walkerStatusElement.textContent = `Manual move ${direction} to room ${nextRoom.id}. Walker continues.`;
+    } else {
+        walkerStatusElement.textContent = `Moved ${direction} to room ${nextRoom.id}.`;
+    }
+}
+
 function getRoomExits(room: MapData.Room) {
     const lockedDirections = new Set(
         (room.exitLocks ?? [])
@@ -370,13 +524,7 @@ function walkStep() {
         return;
     }
 
-    mapReader.addVisitedRoom(nextRoom.id);
-
-    currentRoomId = nextRoom.id;
-
-    renderer.setPosition(nextRoom.id);
-    updateAreaStatus(nextRoom.area);
-    updateDestinationGuidance();
+    moveToRoom(nextRoom);
 
     walkerStatusElement.textContent = `Walker moved to room ${nextRoom.id}`;
     scheduleNextStep();
@@ -493,3 +641,21 @@ function updateDestinationGuidance() {
     updateDestinationStatus(`Biasing towards room ${destinationRoomId} (${path.length - 1} steps away).`);
     currentDestinationPath = path;
 }
+
+window.addEventListener("keydown", event => {
+    if (event.defaultPrevented) {
+        return;
+    }
+
+    if (isEditableElement(event.target)) {
+        return;
+    }
+
+    const direction = getDirectionFromKeyboardEvent(event);
+    if (!direction) {
+        return;
+    }
+
+    event.preventDefault();
+    handleDirectionalMove(direction);
+});
