@@ -184,20 +184,6 @@ export default class ExitRenderer {
                 console.log("Brak opisu stylu: " + style);
             }
 
-            if (overrideColor) {
-                const padding = Settings.roomSize * 0.1;
-                const clipGroup = new Konva.Group({
-                    clip: {
-                        x: room.x - Settings.roomSize / 2 - padding,
-                        y: room.y - Settings.roomSize / 2 - padding,
-                        width: Settings.roomSize + padding * 2,
-                        height: Settings.roomSize + padding * 2,
-                    },
-                });
-                clipGroup.add(lineRender);
-                return clipGroup;
-            }
-
             return lineRender;
         })
     }
