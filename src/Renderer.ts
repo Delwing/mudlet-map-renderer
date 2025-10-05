@@ -23,6 +23,7 @@ export class Settings {
     static roomSize = defaultRoomSize;
     static lineColor = lineColor;
     static instantMapMove = false
+    static highlightCurrentRoom = true;
 }
 
 type HighlightData = {
@@ -564,15 +565,17 @@ export class Renderer {
         const roomsToRedraw = new Map<number, MapData.Room>();
         roomsToRedraw.set(room.id, room);
 
-        const preRoomNodes: Konva.Node[] = [];
-        const postRoomNodes: Konva.Node[] = [];
+        const preRoomNodes: Array<Konva.Group | Konva.Shape> = [];
+        const postRoomNodes: Array<Konva.Group | Konva.Shape> = [];
 
         if (this.currentAreaInstance && this.currentZIndex !== undefined) {
             const exits = this.currentAreaInstance
                 .getLinkExits(this.currentZIndex)
                 .filter(exit => exit.a === room.id || exit.b === room.id);
             exits.forEach(exit => {
-                const render = this.exitRenderer.renderWithColor(exit, currentRoomColor);
+                const render = Settings.highlightCurrentRoom
+                    ? this.exitRenderer.renderWithColor(exit, currentRoomColor)
+                    : this.exitRenderer.render(exit);
                 if (render) {
                     this.disableListening(render);
                     preRoomNodes.push(render);
@@ -590,17 +593,22 @@ export class Renderer {
             });
         }
 
-        this.exitRenderer.renderSpecialExits(room, currentRoomColor).forEach(render => {
+        const highlightColor = Settings.highlightCurrentRoom ? currentRoomColor : undefined;
+
+        this.exitRenderer.renderSpecialExits(room, highlightColor).forEach(render => {
             this.disableListening(render);
             preRoomNodes.push(render);
         });
 
-        this.exitRenderer.renderStubs(room, currentRoomColor).forEach(render => {
+        const stubs = Settings.highlightCurrentRoom
+            ? this.exitRenderer.renderStubs(room, currentRoomColor)
+            : this.exitRenderer.renderStubs(room);
+        stubs.forEach(render => {
             this.disableListening(render);
             preRoomNodes.push(render);
         });
 
-        this.exitRenderer.renderInnerExits(room, currentRoomColor).forEach(render => {
+        this.exitRenderer.renderInnerExits(room, highlightColor).forEach(render => {
             this.disableListening(render);
             postRoomNodes.push(render);
         });
@@ -615,8 +623,9 @@ export class Renderer {
             const overlayRoom = this.createOverlayRoomGroup(
                 roomToRedraw,
                 {
-                    stroke: isCurrent ? currentRoomColor : Settings.lineColor,
+                    stroke: isCurrent && Settings.highlightCurrentRoom ? currentRoomColor : Settings.lineColor,
                     fillEnabled: !isCurrent,
+                    strokeEnabled: isCurrent ? Settings.highlightCurrentRoom : false,
                 }
             );
             this.overlayLayer.add(overlayRoom);
@@ -651,7 +660,7 @@ export class Renderer {
         this.overlayLayer.batchDraw();
     }
 
-    private createOverlayRoomGroup(room: MapData.Room, options: { stroke: string; fillEnabled: boolean }) {
+    private createOverlayRoomGroup(room: MapData.Room, options: { stroke: string; fillEnabled: boolean; strokeEnabled: boolean }) {
         const roomGroup = new Konva.Group({
             x: room.x - Settings.roomSize / 2,
             y: room.y - Settings.roomSize / 2,
@@ -666,6 +675,7 @@ export class Renderer {
             fill: this.mapReader.getColorValue(room.env),
             stroke: options.stroke,
             strokeWidth: 0.025,
+            strokeEnabled: options.strokeEnabled,
         });
 
         if (!options.fillEnabled) {
