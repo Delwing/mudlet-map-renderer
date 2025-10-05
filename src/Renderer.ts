@@ -598,8 +598,6 @@ export class Renderer {
         const explorationArea =
             this.currentAreaInstance instanceof ExplorationArea ? this.currentAreaInstance : undefined;
 
-        const candidateRooms = this.mapReader.getRooms();
-
         if (this.currentAreaInstance && this.currentZIndex !== undefined) {
             const exits = this.currentAreaInstance
                 .getLinkExits(this.currentZIndex)
@@ -609,7 +607,6 @@ export class Renderer {
                     ? this.exitRenderer.renderWithColor(exit, currentRoomColor)
                     : this.exitRenderer.render(exit);
                 if (render) {
-                    this.disableListening(render);
                     preRoomNodes.push(render);
                 }
 
@@ -629,23 +626,9 @@ export class Renderer {
             });
         }
 
-        const customLineRooms = this.getRoomsConnectedByCustomLines(room, candidateRooms);
-        customLineRooms.forEach((otherRoom, otherRoomId) => {
-            const canRenderOtherRoom =
-                !explorationArea || explorationArea.hasVisitedRoom(otherRoomId);
-            if (
-                otherRoom.area === this.currentArea &&
-                otherRoom.z === this.currentZIndex &&
-                canRenderOtherRoom
-            ) {
-                roomsToRedraw.set(otherRoomId, otherRoom);
-            }
-        });
-
         const highlightColor = Settings.highlightCurrentRoom ? currentRoomColor : undefined;
 
         this.exitRenderer.renderSpecialExits(room, highlightColor).forEach(render => {
-            this.disableListening(render);
             preRoomNodes.push(render);
         });
 
@@ -653,9 +636,13 @@ export class Renderer {
             ? this.exitRenderer.renderStubs(room, currentRoomColor)
             : this.exitRenderer.renderStubs(room);
         stubs.forEach(render => {
-            this.disableListening(render);
             preRoomNodes.push(render);
         });
+
+        Object.values(room.specialExits).forEach(id => {
+            const room = this.mapReader.getRoom(id);
+            roomsToRedraw.set(id, room)
+        })
 
         preRoomNodes.forEach(node => {
             this.overlayLayer.add(node);
@@ -668,7 +655,7 @@ export class Renderer {
                 roomToRedraw,
                 {
                     stroke: isCurrent && Settings.highlightCurrentRoom ? currentRoomColor : Settings.lineColor,
-                    fillEnabled: !isCurrent,
+                    fillEnabled: true,
                     strokeEnabled: isCurrent ? Settings.highlightCurrentRoom : false,
                 }
             );
@@ -677,7 +664,6 @@ export class Renderer {
 
             const innerExitColor = isCurrent && Settings.highlightCurrentRoom ? currentRoomColor : undefined;
             this.exitRenderer.renderInnerExits(roomToRedraw, innerExitColor).forEach(render => {
-                this.disableListening(render);
                 this.overlayLayer.add(render);
                 this.currentRoomOverlay.push(render);
             });
@@ -712,64 +698,6 @@ export class Renderer {
         this.renderSymbol(room, roomGroup);
 
         return roomGroup;
-    }
-
-    private getRoomsConnectedByCustomLines(room: MapData.Room, candidateRooms: MapData.Room[]) {
-        const connectedRooms = new Map<number, MapData.Room>();
-
-        Object.values(room.customLines).forEach(line => {
-            if (!line.points.length) {
-                return;
-            }
-
-            line.points.forEach(point => {
-                const targetRoom = this.findRoomNearPosition(
-                    room.area,
-                    room.z,
-                    point.x,
-                    -point.y,
-                    candidateRooms,
-                );
-
-                if (targetRoom && targetRoom.id !== room.id) {
-                    connectedRooms.set(targetRoom.id, targetRoom);
-                }
-            });
-        });
-
-        return connectedRooms;
-    }
-
-    private findRoomNearPosition(
-        area: number,
-        z: number,
-        x: number,
-        y: number,
-        candidateRooms: MapData.Room[],
-    ) {
-        const tolerance = Settings.roomSize * 1.5;
-        let closest: { room: MapData.Room; distance: number } | undefined;
-
-        candidateRooms.forEach(candidate => {
-            if (candidate.area !== area || candidate.z !== z) {
-                return;
-            }
-
-            const distance = Math.hypot(candidate.x - x, candidate.y - y);
-
-            if (distance <= tolerance && (!closest || distance < closest.distance)) {
-                closest = { room: candidate, distance };
-            }
-        });
-
-        return closest?.room;
-    }
-
-    private disableListening(node: Konva.Node) {
-        node.listening(false);
-        if ('getChildren' in node && typeof (node as Konva.Container).getChildren === 'function') {
-            (node as Konva.Container).getChildren().forEach(child => this.disableListening(child));
-        }
     }
 
     private renderSymbol(room: MapData.Room, roomRender: Konva.Group) {
