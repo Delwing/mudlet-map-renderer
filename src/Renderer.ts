@@ -8,6 +8,7 @@ import PathRenderer from "./PathRenderer";
 const defaultRoomSize = 0.6;
 const defaultZoom = 75
 const lineColor = 'rgb(225, 255, 225)';
+const defaultRoomStrokeWidth = 0.025;
 
 export type RoomContextMenuEventDetail = {
     roomId: number;
@@ -28,7 +29,6 @@ type HighlightData = {
     color: string;
     area: number;
     z: number;
-    shape?: Konva.Circle;
 };
 
 export class Renderer {
@@ -42,6 +42,7 @@ export class Renderer {
     private exitRenderer: ExitRenderer;
     private pathRenderer: PathRenderer;
     private highlights: Map<number, HighlightData> = new Map();
+    private roomRects: Map<number, Konva.Rect> = new Map();
     private currentArea?: number;
     private currentAreaInstance?: Area;
     private currentZIndex?: number;
@@ -239,6 +240,7 @@ export class Renderer {
         this.currentZIndex = zIndex;
         this.currentAreaVersion = area.getVersion();
         this.exitRenderer.clearExitCache();
+        this.roomRects.clear();
         this.roomLayer.destroyChildren();
         this.linkLayer.destroyChildren();
 
@@ -342,66 +344,56 @@ export class Renderer {
             return;
         }
 
-        const existing = this.highlights.get(roomId);
-        if (existing?.shape) {
-            existing.shape.destroy();
-            delete existing.shape;
-        }
-
         const highlightData: HighlightData = {color, area: room.area, z: room.z};
 
         this.highlights.set(roomId, highlightData);
 
         if (room.area === this.currentArea && room.z === this.currentZIndex) {
-            const shape = this.createHighlightShape(room, color);
-            this.overlayLayer.add(shape);
-            highlightData.shape = shape;
-            this.overlayLayer.batchDraw();
-            return shape;
+            this.applyHighlight(roomId, color);
+            return this.roomRects.get(roomId);
         }
 
-        return highlightData.shape;
+        return undefined;
     }
 
     clearHighlights() {
-        this.highlights.forEach(({shape}) => shape?.destroy());
+        this.highlights.forEach((_, roomId) => this.resetRoomStroke(roomId));
         this.highlights.clear();
-        this.overlayLayer.batchDraw();
+        this.roomLayer.batchDraw();
     }
 
     private refreshHighlights() {
         this.highlights.forEach((highlight, roomId) => {
-            highlight.shape?.destroy();
-            delete highlight.shape;
-
             if (highlight.area !== this.currentArea || highlight.z !== this.currentZIndex) {
                 return;
             }
 
-            const room = this.mapReader.getRoom(roomId);
-            if (!room) {
-                return;
-            }
-
-            const shape = this.createHighlightShape(room, highlight.color);
-            this.overlayLayer.add(shape);
-            highlight.shape = shape;
+            this.applyHighlight(roomId, highlight.color);
         });
 
-        this.overlayLayer.batchDraw();
+        this.roomLayer.batchDraw();
     }
 
-    private createHighlightShape(room: MapData.Room, color: string) {
-        return new Konva.Circle({
-            x: room.x,
-            y: room.y,
-            radius: Settings.roomSize * 0.9,
-            stroke: color,
-            strokeWidth: 0.15,
-            dash: [0.1, 0.05],
-            dashEnabled: true,
-            listening: false,
-        });
+    private applyHighlight(roomId: number, color: string) {
+        const rect = this.roomRects.get(roomId);
+        if (!rect) {
+            return;
+        }
+
+        rect.stroke(color);
+        rect.strokeWidth(defaultRoomStrokeWidth * 2);
+        rect.getLayer()?.batchDraw();
+    }
+
+    private resetRoomStroke(roomId: number) {
+        const rect = this.roomRects.get(roomId);
+        if (!rect) {
+            return;
+        }
+
+        rect.stroke(Settings.lineColor);
+        rect.strokeWidth(defaultRoomStrokeWidth);
+        rect.getLayer()?.batchDraw();
     }
 
     private centerOnRoom(room: MapData.Room, instant: boolean = false) {
@@ -457,7 +449,7 @@ export class Renderer {
                 width: Settings.roomSize,
                 height: Settings.roomSize,
                 fill: this.mapReader.getColorValue(room.env),
-                strokeWidth: 0.025,
+                strokeWidth: defaultRoomStrokeWidth,
                 stroke: Settings.lineColor,
             });
             const emitContextEvent = (clientX: number, clientY: number) => this.emitRoomContextEvent(room.id, clientX, clientY);
@@ -539,6 +531,13 @@ export class Renderer {
             roomRender.add(roomRect);
             this.renderSymbol(room, roomRender);
             this.roomLayer.add(roomRender);
+
+            this.roomRects.set(room.id, roomRect);
+
+            const highlight = this.highlights.get(room.id);
+            if (highlight && highlight.area === room.area && highlight.z === room.z) {
+                this.applyHighlight(room.id, highlight.color);
+            }
 
             this.exitRenderer.renderSpecialExits(room).forEach(render => {
                 this.linkLayer.add(render)
