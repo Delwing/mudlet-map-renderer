@@ -657,8 +657,7 @@ export class Renderer {
             this.overlayLayer.add(overlayRoom);
             this.currentRoomOverlay.push(overlayRoom);
 
-            const innerExitColor = isCurrent && Settings.highlightCurrentRoom ? currentRoomColor : undefined;
-            this.exitRenderer.renderInnerExits(roomToRedraw, innerExitColor).forEach(render => {
+            this.exitRenderer.renderInnerExits(roomToRedraw).forEach(render => {
                 this.overlayLayer.add(render);
                 this.currentRoomOverlay.push(render);
             });

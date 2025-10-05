@@ -202,7 +202,7 @@ export default class ExitRenderer {
         })
     }
 
-    renderInnerExits(room: MapData.Room, color?: string) {
+    renderInnerExits(room: MapData.Room) {
         return innerExits.map(exit => {
             if (room.exits[exit]) {
                 const render = new Konva.Group();
@@ -210,8 +210,8 @@ export default class ExitRenderer {
                     x: room.x,
                     y: room.y,
                     sides: 3,
-                    fill: color ? this.mapReader.getSymbolColor(room.env, 0.2) : this.mapReader.getSymbolColor(room.env, 0.6),
-                    stroke: color ?? this.mapReader.getSymbolColor(room.env),
+                    fill: this.mapReader.getSymbolColor(room.env, 0.6),
+                    stroke: this.mapReader.getSymbolColor(room.env),
                     strokeWidth: 0.025,
                     radius: Settings.roomSize / 5,
                     scaleX: 1.4,
@@ -221,9 +221,6 @@ export default class ExitRenderer {
 
                 let doorType = room.doors[exit];
                 if (doorType !== undefined) {
-                    if (color) {
-                        triangle.stroke(color);
-                    } else {
                     switch (doorType) {
                         case 1:
                             triangle.stroke(Colors.OPEN_DOOR)
@@ -233,7 +230,6 @@ export default class ExitRenderer {
                             break;
                         default:
                             triangle.stroke(Colors.LOCKED_DOOR);
-                    }
                     }
                 }
 
