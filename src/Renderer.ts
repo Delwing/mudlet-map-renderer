@@ -102,12 +102,31 @@ export class Renderer {
         Konva.hitOnDragEnabled = true;
 
         let lastPinchDistance: number | undefined;
-        let lastPinchCenter: { x: number; y: number } | undefined;
         let dragStopped = false;
+        let multiTouchActive = false;
 
-        this.stage.on('touchend touchcancel', () => {
+        this.stage.on('touchstart', (e) => {
+            const touches = e.evt.touches;
+            if (touches && touches.length > 1) {
+                multiTouchActive = true;
+                if (this.stage.isDragging()) {
+                    this.stage.stopDrag();
+                    dragStopped = true;
+                }
+                this.stage.draggable(false);
+            } else {
+                multiTouchActive = false;
+                this.stage.draggable(true);
+            }
+        });
+
+        this.stage.on('touchend touchcancel', (e) => {
             lastPinchDistance = undefined;
-            lastPinchCenter = undefined;
+            const touches = e.evt.touches;
+            if (!touches || touches.length <= 1) {
+                multiTouchActive = false;
+                this.stage.draggable(true);
+            }
         });
 
         this.stage.on('wheel', (e) => {
@@ -151,6 +170,13 @@ export class Renderer {
             const touch1 = touches?.[0];
             const touch2 = touches?.[1];
 
+            if (!touch2) {
+                if (multiTouchActive) {
+                    multiTouchActive = false;
+                    this.stage.draggable(true);
+                }
+            }
+
             if (touch1 && !touch2 && dragStopped && !this.stage.isDragging()) {
                 this.stage.startDrag();
                 dragStopped = false;
@@ -158,7 +184,6 @@ export class Renderer {
 
             if (!touch1 || !touch2) {
                 lastPinchDistance = undefined;
-                lastPinchCenter = undefined;
                 return;
             }
 
@@ -167,6 +192,11 @@ export class Renderer {
             if (this.stage.isDragging()) {
                 this.stage.stopDrag();
                 dragStopped = true;
+            }
+
+            if (!multiTouchActive) {
+                multiTouchActive = true;
+                this.stage.draggable(false);
             }
 
             const rect = this.stage.container().getBoundingClientRect();
@@ -179,15 +209,7 @@ export class Renderer {
                 y: touch2.clientY - rect.top,
             };
 
-            const newCenter = {
-                x: (p1.x + p2.x) / 2,
-                y: (p1.y + p2.y) / 2,
-            };
             const distance = Math.hypot(p1.x - p2.x, p1.y - p2.y);
-
-            if (lastPinchCenter === undefined) {
-                lastPinchCenter = newCenter;
-            }
 
             if (lastPinchDistance === undefined) {
                 lastPinchDistance = distance;
@@ -199,28 +221,33 @@ export class Renderer {
             }
 
             const oldScale = this.stage.scaleX();
-            const newZoom = this.currentZoom * (distance / lastPinchDistance);
+            const stageX = this.stage.x();
+            const stageY = this.stage.y();
 
-            const pointTo = {
-                x: (newCenter.x - this.stage.x()) / oldScale,
-                y: (newCenter.y - this.stage.y()) / oldScale,
+            const centerPointer = {
+                x: this.stage.width() / 2,
+                y: this.stage.height() / 2,
             };
+
+            const centerMapPoint = {
+                x: (centerPointer.x - stageX) / oldScale,
+                y: (centerPointer.y - stageY) / oldScale,
+            };
+
+            const newZoom = this.currentZoom * (distance / lastPinchDistance);
 
             const zoomChanged = this.setZoom(newZoom);
 
             const newScale = this.stage.scaleX();
-            const dx = newCenter.x - lastPinchCenter.x;
-            const dy = newCenter.y - lastPinchCenter.y;
             const newPos = {
-                x: newCenter.x - pointTo.x * newScale + dx,
-                y: newCenter.y - pointTo.y * newScale + dy,
+                x: centerPointer.x - centerMapPoint.x * newScale,
+                y: centerPointer.y - centerMapPoint.y * newScale,
             };
 
             this.stage.position(newPos);
             this.stage.batchDraw();
 
             lastPinchDistance = distance;
-            lastPinchCenter = newCenter;
 
             if (zoomChanged) {
                 this.emitZoomChangeEvent();
