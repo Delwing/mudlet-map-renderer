@@ -8,6 +8,7 @@ import PathRenderer from "./PathRenderer";
 const defaultRoomSize = 0.6;
 const defaultZoom = 75
 const lineColor = 'rgb(225, 255, 225)';
+const currentRoomColor = 'rgb(120, 72, 0)';
 
 export type RoomContextMenuEventDetail = {
     roomId: number;
@@ -50,6 +51,7 @@ export class Renderer {
     private positionRender?: Konva.Circle;
     private currentTransition?: Konva.Tween;
     private currentZoom: number = 1;
+    private currentRoomOverlay: Konva.Node[] = [];
 
     constructor(container: HTMLDivElement, mapReader: MapReader) {
         this.stage = new Konva.Stage({
@@ -238,6 +240,7 @@ export class Renderer {
         this.currentAreaInstance = area;
         this.currentZIndex = zIndex;
         this.currentAreaVersion = area.getVersion();
+        this.clearCurrentRoomOverlay();
         this.roomLayer.destroyChildren();
         this.linkLayer.destroyChildren();
 
@@ -317,6 +320,7 @@ export class Renderer {
             this.positionLayer.add(this.positionRender);
         }
         this.centerOnRoom(room, instant);
+        this.updateCurrentRoomOverlay(room);
     }
 
     renderPath(locations: number[], color?: string) {
@@ -541,6 +545,75 @@ export class Renderer {
                 this.roomLayer.add(render)
             })
         })
+    }
+
+    private clearCurrentRoomOverlay() {
+        this.currentRoomOverlay.forEach(node => node.destroy());
+        this.currentRoomOverlay = [];
+        this.overlayLayer.batchDraw();
+    }
+
+    private updateCurrentRoomOverlay(room: MapData.Room) {
+        this.clearCurrentRoomOverlay();
+
+        if (room.area !== this.currentArea || room.z !== this.currentZIndex) {
+            this.overlayLayer.batchDraw();
+            return;
+        }
+
+        const outline = new Konva.Rect({
+            x: room.x - Settings.roomSize / 2,
+            y: room.y - Settings.roomSize / 2,
+            width: Settings.roomSize,
+            height: Settings.roomSize,
+            stroke: currentRoomColor,
+            strokeWidth: 0.15,
+            listening: false,
+        });
+        outline.fillEnabled(false);
+        this.overlayLayer.add(outline);
+        this.currentRoomOverlay.push(outline);
+
+        if (this.currentAreaInstance && this.currentZIndex !== undefined) {
+            const exits = this.currentAreaInstance
+                .getLinkExits(this.currentZIndex)
+                .filter(exit => exit.a === room.id || exit.b === room.id);
+            exits.forEach(exit => {
+                const render = this.exitRenderer.renderWithColor(exit, currentRoomColor);
+                if (render) {
+                    this.disableListening(render);
+                    this.overlayLayer.add(render);
+                    this.currentRoomOverlay.push(render);
+                }
+            });
+        }
+
+        this.exitRenderer.renderSpecialExits(room, currentRoomColor).forEach(render => {
+            this.disableListening(render);
+            this.overlayLayer.add(render);
+            this.currentRoomOverlay.push(render);
+        });
+
+        this.exitRenderer.renderStubs(room, currentRoomColor).forEach(render => {
+            this.disableListening(render);
+            this.overlayLayer.add(render);
+            this.currentRoomOverlay.push(render);
+        });
+
+        this.exitRenderer.renderInnerExits(room, currentRoomColor).forEach(render => {
+            this.disableListening(render);
+            this.overlayLayer.add(render);
+            this.currentRoomOverlay.push(render);
+        });
+
+        this.overlayLayer.batchDraw();
+    }
+
+    private disableListening(node: Konva.Node) {
+        node.listening(false);
+        if ('getChildren' in node && typeof (node as Konva.Container).getChildren === 'function') {
+            (node as Konva.Container).getChildren().forEach(child => this.disableListening(child));
+        }
     }
 
     private renderSymbol(room: MapData.Room, roomRender: Konva.Group) {
