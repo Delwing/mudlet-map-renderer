@@ -8,6 +8,7 @@ import PathRenderer from "./PathRenderer";
 const defaultRoomSize = 0.6;
 const defaultZoom = 75
 const lineColor = 'rgb(225, 255, 225)';
+const currentRoomColor = 'rgb(120, 72, 0)';
 
 export type RoomContextMenuEventDetail = {
     roomId: number;
@@ -50,6 +51,7 @@ export class Renderer {
     private positionRender?: Konva.Circle;
     private currentTransition?: Konva.Tween;
     private currentZoom: number = 1;
+    private currentRoomOverlay: Konva.Node[] = [];
 
     constructor(container: HTMLDivElement, mapReader: MapReader) {
         this.stage = new Konva.Stage({
@@ -238,6 +240,7 @@ export class Renderer {
         this.currentAreaInstance = area;
         this.currentZIndex = zIndex;
         this.currentAreaVersion = area.getVersion();
+        this.clearCurrentRoomOverlay();
         this.roomLayer.destroyChildren();
         this.linkLayer.destroyChildren();
 
@@ -317,6 +320,7 @@ export class Renderer {
             this.positionLayer.add(this.positionRender);
         }
         this.centerOnRoom(room, instant);
+        this.updateCurrentRoomOverlay(room);
     }
 
     renderPath(locations: number[], color?: string) {
@@ -541,6 +545,144 @@ export class Renderer {
                 this.roomLayer.add(render)
             })
         })
+    }
+
+    private clearCurrentRoomOverlay() {
+        this.currentRoomOverlay.forEach(node => node.destroy());
+        this.currentRoomOverlay = [];
+        this.overlayLayer.batchDraw();
+    }
+
+    private updateCurrentRoomOverlay(room: MapData.Room) {
+        this.clearCurrentRoomOverlay();
+
+        if (room.area !== this.currentArea || room.z !== this.currentZIndex) {
+            this.overlayLayer.batchDraw();
+            return;
+        }
+
+        const roomsToRedraw = new Map<number, MapData.Room>();
+        roomsToRedraw.set(room.id, room);
+
+        const preRoomNodes: Konva.Node[] = [];
+        const postRoomNodes: Konva.Node[] = [];
+
+        if (this.currentAreaInstance && this.currentZIndex !== undefined) {
+            const exits = this.currentAreaInstance
+                .getLinkExits(this.currentZIndex)
+                .filter(exit => exit.a === room.id || exit.b === room.id);
+            exits.forEach(exit => {
+                const render = this.exitRenderer.renderWithColor(exit, currentRoomColor);
+                if (render) {
+                    this.disableListening(render);
+                    preRoomNodes.push(render);
+                }
+
+                const otherRoomId = exit.a === room.id ? exit.b : exit.a;
+                const otherRoom = this.mapReader.getRoom(otherRoomId);
+                if (
+                    otherRoom &&
+                    otherRoom.area === this.currentArea &&
+                    otherRoom.z === this.currentZIndex
+                ) {
+                    roomsToRedraw.set(otherRoom.id, otherRoom);
+                }
+            });
+        }
+
+        this.exitRenderer.renderSpecialExits(room, currentRoomColor).forEach(render => {
+            this.disableListening(render);
+            preRoomNodes.push(render);
+        });
+
+        this.exitRenderer.renderStubs(room, currentRoomColor).forEach(render => {
+            this.disableListening(render);
+            preRoomNodes.push(render);
+        });
+
+        this.exitRenderer.renderInnerExits(room, currentRoomColor).forEach(render => {
+            this.disableListening(render);
+            postRoomNodes.push(render);
+        });
+
+        preRoomNodes.forEach(node => {
+            this.overlayLayer.add(node);
+            this.currentRoomOverlay.push(node);
+        });
+
+        roomsToRedraw.forEach((roomToRedraw, id) => {
+            const isCurrent = id === room.id;
+            const overlayRoom = this.createOverlayRoomGroup(
+                roomToRedraw,
+                {
+                    stroke: isCurrent ? currentRoomColor : Settings.lineColor,
+                    fillEnabled: !isCurrent,
+                }
+            );
+            this.overlayLayer.add(overlayRoom);
+            this.currentRoomOverlay.push(overlayRoom);
+
+            if (!isCurrent) {
+                this.exitRenderer.renderSpecialExits(roomToRedraw).forEach(render => {
+                    this.disableListening(render);
+                    this.overlayLayer.add(render);
+                    this.currentRoomOverlay.push(render);
+                });
+
+                this.exitRenderer.renderStubs(roomToRedraw).forEach(render => {
+                    this.disableListening(render);
+                    this.overlayLayer.add(render);
+                    this.currentRoomOverlay.push(render);
+                });
+
+                this.exitRenderer.renderInnerExits(roomToRedraw).forEach(render => {
+                    this.disableListening(render);
+                    this.overlayLayer.add(render);
+                    this.currentRoomOverlay.push(render);
+                });
+            }
+        });
+
+        postRoomNodes.forEach(node => {
+            this.overlayLayer.add(node);
+            this.currentRoomOverlay.push(node);
+        });
+
+        this.overlayLayer.batchDraw();
+    }
+
+    private createOverlayRoomGroup(room: MapData.Room, options: { stroke: string; fillEnabled: boolean }) {
+        const roomGroup = new Konva.Group({
+            x: room.x - Settings.roomSize / 2,
+            y: room.y - Settings.roomSize / 2,
+            listening: false,
+        });
+
+        const rect = new Konva.Rect({
+            x: 0,
+            y: 0,
+            width: Settings.roomSize,
+            height: Settings.roomSize,
+            fill: this.mapReader.getColorValue(room.env),
+            stroke: options.stroke,
+            strokeWidth: 0.025,
+        });
+
+        if (!options.fillEnabled) {
+            rect.fillEnabled(false);
+        }
+
+        roomGroup.add(rect);
+        this.renderSymbol(room, roomGroup);
+
+        return roomGroup;
+    }
+
+    private disableListening(node: Konva.Node) {
+        node.listening(false);
+        if ('getChildren' in node && typeof (node as Konva.Container).getChildren === 'function') {
+            (node as Konva.Container).getChildren().forEach(child => this.disableListening(child));
+        }
     }
 
     private renderSymbol(room: MapData.Room, roomRender: Konva.Group) {

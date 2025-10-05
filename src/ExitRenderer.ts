@@ -47,14 +47,18 @@ export default class ExitRenderer {
     }
 
     render(exit: Exit) {
+        return this.renderWithColor(exit, Settings.lineColor);
+    }
+
+    renderWithColor(exit: Exit, color: string) {
         if (exit.aDir && exit.bDir) {
-            return this.renderTwoWayExit(exit);
+            return this.renderTwoWayExit(exit, color);
         } else {
-            return this.renderOneWayExit(exit);
+            return this.renderOneWayExit(exit, color);
         }
     }
 
-    private renderTwoWayExit(exit: Exit) {
+    private renderTwoWayExit(exit: Exit, color: string) {
         const sourceRoom = this.mapReader.getRoom(exit.a)
         const targetRoom = this.mapReader.getRoom(exit.b);
 
@@ -69,13 +73,13 @@ export default class ExitRenderer {
         points.push(...Object.values(movePoint(targetRoom.x, targetRoom.y, exit.bDir, Settings.roomSize / 2)));
 
         if (sourceRoom.doors[longToShort[exit.aDir]] || targetRoom.doors[longToShort[exit.bDir]]) {
-            const door = this.renderDoor(points, sourceRoom.doors[longToShort[exit.aDir]] ?? targetRoom.doors[longToShort[exit.bDir]])
+            const door = this.renderDoor(points, sourceRoom.doors[longToShort[exit.aDir]] ?? targetRoom.doors[longToShort[exit.bDir]], color)
             exitRender.add(door);
         }
 
         const link = new Konva.Line({
             points,
-            stroke: Settings.lineColor,
+            stroke: color,
             strokeWidth: 0.025,
         });
         exitRender.add(link);
@@ -83,7 +87,7 @@ export default class ExitRenderer {
         return exitRender;
     }
 
-    private renderOneWayExit(exit: Exit) {
+    private renderOneWayExit(exit: Exit, color: string) {
         const sourceRoom = exit.aDir ? this.mapReader.getRoom(exit.a) : this.mapReader.getRoom(exit.b)
         const targetRoom = exit.aDir ? this.mapReader.getRoom(exit.b) : this.mapReader.getRoom(exit.a)
         const dir = exit.aDir ? exit.aDir : exit.bDir;
@@ -93,7 +97,7 @@ export default class ExitRenderer {
         }
 
         if (sourceRoom.area != targetRoom.area && dir) {
-            return this.renderAreaExit(sourceRoom, dir);
+            return this.renderAreaExit(sourceRoom, dir, color);
         }
 
         let targetPoint = {x: targetRoom.x, y: targetRoom.y};
@@ -112,7 +116,7 @@ export default class ExitRenderer {
         points.push(targetPoint.x, targetPoint.y);
         const link = new Konva.Line({
             points,
-            stroke: Settings.lineColor,
+            stroke: color,
             strokeWidth: 0.025,
             dashEnabled: true,
             dash: [0.1, 0.05],
@@ -124,8 +128,8 @@ export default class ExitRenderer {
             pointerLength: 0.5,
             pointerWidth: 0.35,
             strokeWidth: 0.035,
-            stroke: Settings.lineColor,
-            fill: '#FF0000',
+            stroke: color,
+            fill: color,
             dashEnabled: true,
             dash: [0.1, 0.05],
         })
@@ -135,20 +139,21 @@ export default class ExitRenderer {
         return group;
     }
 
-    renderAreaExit(room: MapData.Room, dir: MapData.direction) {
+    renderAreaExit(room: MapData.Room, dir: MapData.direction, color?: string) {
         const start = movePoint(room.x, room.y, dir, Settings.roomSize / 2)
         const end = movePoint(room.x, room.y, dir, Settings.roomSize * 1.5)
+        const stroke = color ?? this.mapReader.getColorValue(room.env);
         return new Konva.Arrow({
             points: [start.x, start.y, end.x, end.y],
             pointerLength: 0.3,
             pointerWidth: 0.3,
             strokeWidth: 0.035,
-            stroke: this.mapReader.getColorValue(room.env),
-            fill: this.mapReader.getColorValue(room.env),
+            stroke,
+            fill: stroke,
         })
     }
 
-    renderSpecialExits(room: MapData.Room) {
+    renderSpecialExits(room: MapData.Room, overrideColor?: string) {
         return Object.entries(room.customLines).map(([_, line]) => {
             const points = [room.x, room.y]
             line.points.reduce((acc, point) => {
@@ -157,11 +162,12 @@ export default class ExitRenderer {
             }, points)
 
             const construct = line.attributes.arrow ? Konva.Arrow : Konva.Line;
+            const strokeColor = overrideColor ?? `rgb(${line.attributes.color.r}, ${line.attributes.color.g}, ${line.attributes.color.b})`;
             const lineRender = new construct({
                 points: points,
                 strokeWidth: .025,
-                stroke: `rgb(${line.attributes.color.r}, ${line.attributes.color.g}, ${line.attributes.color.b})`,
-                fill: `rgb(${line.attributes.color.r}, ${line.attributes.color.g} , ${line.attributes.color.b})`,
+                stroke: strokeColor,
+                fill: overrideColor ?? `rgb(${line.attributes.color.r}, ${line.attributes.color.g} , ${line.attributes.color.b})`,
                 pointerLength: 0.3,
                 pointerWidth: 0.2,
 
@@ -182,7 +188,7 @@ export default class ExitRenderer {
         })
     }
 
-    renderStubs(room: MapData.Room) {
+    renderStubs(room: MapData.Room, color: string = Settings.lineColor) {
         return room.stubs.map(stub => {
             const direction = dirNumbers[stub];
             const start = movePoint(room.x, room.y, direction, Settings.roomSize / 2)
@@ -190,13 +196,13 @@ export default class ExitRenderer {
             const points = [start.x, start.y, end.x, end.y]
             return new Konva.Line({
                 points,
-                stroke: Settings.lineColor,
+                stroke: color,
                 strokeWidth: 0.025,
             });
         })
     }
 
-    renderInnerExits(room: MapData.Room) {
+    renderInnerExits(room: MapData.Room, color?: string) {
         return innerExits.map(exit => {
             if (room.exits[exit]) {
                 const render = new Konva.Group();
@@ -204,8 +210,8 @@ export default class ExitRenderer {
                     x: room.x,
                     y: room.y,
                     sides: 3,
-                    fill: this.mapReader.getSymbolColor(room.env, 0.6),
-                    stroke: this.mapReader.getSymbolColor(room.env),
+                    fill: color ? this.mapReader.getSymbolColor(room.env, 0.2) : this.mapReader.getSymbolColor(room.env, 0.6),
+                    stroke: color ?? this.mapReader.getSymbolColor(room.env),
                     strokeWidth: 0.025,
                     radius: Settings.roomSize / 5,
                     scaleX: 1.4,
@@ -215,6 +221,9 @@ export default class ExitRenderer {
 
                 let doorType = room.doors[exit];
                 if (doorType !== undefined) {
+                    if (color) {
+                        triangle.stroke(color);
+                    } else {
                     switch (doorType) {
                         case 1:
                             triangle.stroke(Colors.OPEN_DOOR)
@@ -224,6 +233,7 @@ export default class ExitRenderer {
                             break;
                         default:
                             triangle.stroke(Colors.LOCKED_DOOR);
+                    }
                     }
                 }
 
@@ -257,7 +267,7 @@ export default class ExitRenderer {
         }).filter(e => e !== undefined)
     }
 
-    renderDoor(points: number[], type: 1 | 2 | 3) {
+    renderDoor(points: number[], type: 1 | 2 | 3, color?: string) {
         const point = {
             x: points[0] + (points[2] - points[0]) / 2,
             y: points[1] + (points[3] - points[1]) / 2,
@@ -267,7 +277,7 @@ export default class ExitRenderer {
             y: point.y - Settings.roomSize / 4,
             width: Settings.roomSize / 2,
             height: Settings.roomSize / 2,
-            stroke: getDoorColor(type),
+            stroke: color ?? getDoorColor(type),
             strokeWidth: 0.025
         })
     }
