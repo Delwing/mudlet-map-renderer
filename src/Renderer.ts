@@ -581,10 +581,6 @@ export class Renderer {
 
             roomRender.add(roomRect);
             this.renderSymbol(room, roomRender);
-            this.exitRenderer.renderInnerExits(room).forEach(render => {
-                roomRender.add(render);
-                render.moveToTop();
-            })
             this.roomLayer.add(roomRender);
 
             const linkNodes: Konva.Node[] = [];
@@ -595,6 +591,9 @@ export class Renderer {
             this.exitRenderer.renderStubs(room).forEach(render => {
                 this.linkLayer.add(render)
                 linkNodes.push(render);
+            })
+            this.exitRenderer.renderInnerExits(room).forEach(render => {
+                this.roomLayer.add(render)
             })
 
             this.roomNodes.set(room.id, {room, group: roomRender, linkNodes});

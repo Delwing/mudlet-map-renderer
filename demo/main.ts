@@ -23,7 +23,7 @@ const destinationClearButton = document.getElementById("destination-clear") as H
 const destinationStatusElement = document.getElementById("destination-status") as HTMLDivElement | null;
 
 const mapReader = new MapReader(data as MapData.Map, colors as MapData.Env[]);
-const DEFAULT_STARTING_ROOM_ID = 6730;
+const DEFAULT_STARTING_ROOM_ID = 6726;
 
 function parseRoomId(input: string | null | undefined) {
     if (!input) {
@@ -55,6 +55,8 @@ function getStartingRoomId() {
 }
 
 const {roomId: startingRoomId, status: initialRoomStatus} = getStartingRoomId();
+
+Settings.cullingBounds = {x:0, y:0, width: 1000, height: 1000};
 
 const renderer = new Renderer(stageElement, mapReader);
 startFpsCounter();
