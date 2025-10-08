@@ -7,7 +7,8 @@ import {movePoint} from "./directions";
 const Colors = {
     OPEN_DOOR: 'rgb(10, 155, 10)',
     CLOSED_DOOR: 'rgb(226, 205, 59)',
-    LOCKED_DOOR: 'rgb(155, 10, 10)'
+    LOCKED_DOOR: 'rgb(155, 10, 10)',
+    ONE_WAY_FILL: 'rgb(155, 10, 10)'
 }
 
 const dirNumbers: Record<number, MapData.direction> = {
@@ -129,7 +130,7 @@ export default class ExitRenderer {
             pointerWidth: 0.35,
             strokeWidth: 0.035,
             stroke: color,
-            fill: color,
+            fill: Colors.ONE_WAY_FILL,
             dashEnabled: true,
             dash: [0.1, 0.05],
         })
