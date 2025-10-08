@@ -7,6 +7,7 @@ import MapReader from "@src/reader/MapReader";
 const stageElement = document.getElementById("stage") as HTMLDivElement;
 const statusElement = document.getElementById("status") as HTMLDivElement;
 const walkerStatusElement = document.getElementById("walker-status") as HTMLDivElement;
+const fpsElement = document.getElementById("fps") as HTMLDivElement | null;
 const contextMenuElement = document.getElementById("context-menu") as HTMLDivElement | null;
 const contextMenuContent = document.getElementById("context-menu-content") as HTMLDivElement | null;
 const walkerToggleButton = document.getElementById("walker-toggle") as HTMLButtonElement | null;
@@ -22,6 +23,7 @@ const mapReader = new MapReader(data as MapData.Map, colors as MapData.Env[]);
 const startingRoomId = 6730;
 
 const renderer = new Renderer(stageElement, mapReader);
+startFpsCounter();
 const startingRoom = mapReader.getRoom(startingRoomId);
 let currentRoomId = startingRoomId;
 const walkerState: { timeoutId: number | undefined; running: boolean } = { timeoutId: undefined, running: false };
@@ -88,6 +90,31 @@ if (contextMenuElement && contextMenuContent) {
         }
         hideContextMenu();
     });
+}
+
+function startFpsCounter() {
+    if (!fpsElement) {
+        return;
+    }
+
+    let lastSampleTime = performance.now();
+    let frameCount = 0;
+
+    const updateFps = (timestamp: number) => {
+        frameCount += 1;
+        const elapsed = timestamp - lastSampleTime;
+
+        if (elapsed >= 500) {
+            const fps = (frameCount / elapsed) * 1000;
+            fpsElement.textContent = `FPS: ${fps.toFixed(1)}`;
+            frameCount = 0;
+            lastSampleTime = timestamp;
+        }
+
+        requestAnimationFrame(updateFps);
+    };
+
+    requestAnimationFrame(updateFps);
 }
 
 explorationToggle?.addEventListener("change", () => {
