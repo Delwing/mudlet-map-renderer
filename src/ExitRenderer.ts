@@ -73,7 +73,7 @@ export default class ExitRenderer {
         points.push(...Object.values(movePoint(targetRoom.x, targetRoom.y, exit.bDir, Settings.roomSize / 2)));
 
         if (sourceRoom.doors[longToShort[exit.aDir]] || targetRoom.doors[longToShort[exit.bDir]]) {
-            const door = this.renderDoor(points, sourceRoom.doors[longToShort[exit.aDir]] ?? targetRoom.doors[longToShort[exit.bDir]], color)
+            const door = this.renderDoor(points, sourceRoom.doors[longToShort[exit.aDir]] ?? targetRoom.doors[longToShort[exit.bDir]])
             exitRender.add(door);
         }
 
@@ -263,7 +263,7 @@ export default class ExitRenderer {
         }).filter(e => e !== undefined)
     }
 
-    renderDoor(points: number[], type: 1 | 2 | 3, color?: string) {
+    renderDoor(points: number[], type: 1 | 2 | 3) {
         const point = {
             x: points[0] + (points[2] - points[0]) / 2,
             y: points[1] + (points[3] - points[1]) / 2,
@@ -273,7 +273,7 @@ export default class ExitRenderer {
             y: point.y - Settings.roomSize / 4,
             width: Settings.roomSize / 2,
             height: Settings.roomSize / 2,
-            stroke: color ?? getDoorColor(type),
+            stroke: getDoorColor(type),
             strokeWidth: 0.025
         })
     }
