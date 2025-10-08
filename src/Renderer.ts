@@ -25,6 +25,8 @@ export class Settings {
     static lineColor = lineColor;
     static instantMapMove = false
     static highlightCurrentRoom = true;
+    static cullingEnabled = true;
+    static cullingBounds: { x: number; y: number; width: number; height: number } | null = null;
 }
 
 type HighlightData = {
@@ -54,6 +56,9 @@ export class Renderer {
     private currentTransition?: Konva.Tween;
     private currentZoom: number = 1;
     private currentRoomOverlay: Konva.Node[] = [];
+    private roomNodes: Map<number, {room: MapData.Room; group: Konva.Group; linkNodes: Konva.Node[]}> = new Map();
+    private standaloneExitNodes: Konva.Node[] = [];
+    private cullingScheduled = false;
 
     constructor(container: HTMLDivElement, mapReader: MapReader) {
         this.stage = new Konva.Stage({
@@ -88,6 +93,9 @@ export class Renderer {
 
         const scaleBy = 1.1;
         this.initScaling(scaleBy);
+
+        this.stage.on('dragmove', () => this.scheduleRoomCulling());
+        this.stage.on('dragend', () => this.scheduleRoomCulling());
     }
 
     private onResize(container: HTMLDivElement) {
@@ -97,6 +105,7 @@ export class Renderer {
             this.centerOnRoom(this.mapReader.getRoom(this.currentRoomId)!, false);
         }
         this.stage.batchDraw();
+        this.scheduleRoomCulling();
     }
 
     private initScaling(scaleBy: number) {
@@ -160,6 +169,8 @@ export class Renderer {
             };
 
             this.stage.position(newPos);
+
+            this.scheduleRoomCulling();
 
             if (zoomChanged) {
                 this.emitZoomChangeEvent();
@@ -248,6 +259,8 @@ export class Renderer {
             this.stage.position(newPos);
             this.stage.batchDraw();
 
+            this.scheduleRoomCulling();
+
             lastPinchDistance = distance;
 
             if (zoomChanged) {
@@ -272,6 +285,8 @@ export class Renderer {
         this.clearCurrentRoomOverlay();
         this.roomLayer.destroyChildren();
         this.linkLayer.destroyChildren();
+        this.roomNodes.clear();
+        this.standaloneExitNodes = [];
 
         this.stage.scale({x: defaultZoom * this.currentZoom, y: defaultZoom * this.currentZoom});
 
@@ -280,6 +295,7 @@ export class Renderer {
         this.renderRooms(plane.getRooms() ?? []);
         this.refreshHighlights();
         this.stage.batchDraw();
+        this.scheduleRoomCulling();
     }
 
     private emitRoomContextEvent(roomId: number, clientX: number, clientY: number) {
@@ -310,6 +326,7 @@ export class Renderer {
 
         this.currentZoom = zoom;
         this.stage.scale({x: defaultZoom * zoom, y: defaultZoom * zoom});
+        this.scheduleRoomCulling();
 
         return true;
     }
@@ -456,6 +473,7 @@ export class Renderer {
                 x: this.stage.x() + dx,
                 y: this.stage.y() + dy,
             })
+            this.scheduleRoomCulling();
         } else {
             this.currentTransition = new Konva.Tween({
                 node: this.stage,
@@ -463,6 +481,8 @@ export class Renderer {
                 y: this.stage.y() + dy,
                 duration: 0.2,
                 easing: Konva.Easings.EaseInOut,
+                onUpdate: () => this.scheduleRoomCulling(),
+                onFinish: () => this.scheduleRoomCulling(),
             })
             this.currentTransition.play()
         }
@@ -561,18 +581,146 @@ export class Renderer {
 
             roomRender.add(roomRect);
             this.renderSymbol(room, roomRender);
+            this.exitRenderer.renderInnerExits(room).forEach(render => {
+                roomRender.add(render);
+                render.moveToTop();
+            })
             this.roomLayer.add(roomRender);
 
+            const linkNodes: Konva.Node[] = [];
             this.exitRenderer.renderSpecialExits(room).forEach(render => {
                 this.linkLayer.add(render)
+                linkNodes.push(render);
             })
             this.exitRenderer.renderStubs(room).forEach(render => {
                 this.linkLayer.add(render)
+                linkNodes.push(render);
             })
-            this.exitRenderer.renderInnerExits(room).forEach(render => {
-                this.roomLayer.add(render)
-            })
+
+            this.roomNodes.set(room.id, {room, group: roomRender, linkNodes});
         })
+    }
+
+    private scheduleRoomCulling() {
+        if (this.cullingScheduled) {
+            return;
+        }
+        this.cullingScheduled = true;
+        window.requestAnimationFrame(() => {
+            this.cullingScheduled = false;
+            this.updateRoomCulling();
+        });
+    }
+
+    private updateRoomCulling() {
+        if (this.roomNodes.size === 0 && this.standaloneExitNodes.length === 0) {
+            return;
+        }
+
+        const scale = this.stage.scaleX();
+        if (!scale) {
+            return;
+        }
+
+        const stagePosition = this.stage.position();
+        const halfSize = Settings.roomSize / 2;
+        const bounds = Settings.cullingBounds;
+        const viewportMinX = bounds ? bounds.x : 0;
+        const viewportMaxX = bounds ? bounds.x + bounds.width : this.stage.width();
+        const viewportMinY = bounds ? bounds.y : 0;
+        const viewportMaxY = bounds ? bounds.y + bounds.height : this.stage.height();
+        const minViewportX = Math.min(viewportMinX, viewportMaxX);
+        const maxViewportX = Math.max(viewportMinX, viewportMaxX);
+        const minViewportY = Math.min(viewportMinY, viewportMaxY);
+        const maxViewportY = Math.max(viewportMinY, viewportMaxY);
+        const minX = (minViewportX - stagePosition.x) / scale;
+        const maxX = (maxViewportX - stagePosition.x) / scale;
+        const minY = (minViewportY - stagePosition.y) / scale;
+        const maxY = (maxViewportY - stagePosition.y) / scale;
+
+        let roomLayerNeedsDraw = false;
+        let linkLayerNeedsDraw = false;
+
+        if (!Settings.cullingEnabled) {
+            this.roomNodes.forEach(({group, linkNodes}) => {
+                if (!group.visible()) {
+                    group.visible(true);
+                    roomLayerNeedsDraw = true;
+                }
+                linkNodes.forEach(node => {
+                    if (!node.visible()) {
+                        node.visible(true);
+                        linkLayerNeedsDraw = true;
+                    }
+                });
+            });
+
+            this.standaloneExitNodes.forEach(node => {
+                if (!node.visible()) {
+                    node.visible(true);
+                    linkLayerNeedsDraw = true;
+                }
+            });
+
+            if (roomLayerNeedsDraw) {
+                this.roomLayer.batchDraw();
+            }
+            if (linkLayerNeedsDraw) {
+                this.linkLayer.batchDraw();
+            }
+            return;
+        }
+
+        this.roomNodes.forEach(({room, group, linkNodes}) => {
+            const roomMinX = room.x - halfSize;
+            const roomMaxX = room.x + halfSize;
+            const roomMinY = room.y - halfSize;
+            const roomMaxY = room.y + halfSize;
+
+            const isVisible =
+                roomMaxX >= minX &&
+                roomMinX <= maxX &&
+                roomMaxY >= minY &&
+                roomMinY <= maxY;
+
+            if (group.visible() !== isVisible) {
+                group.visible(isVisible);
+                roomLayerNeedsDraw = true;
+            }
+
+            linkNodes.forEach(node => {
+                if (node.visible() !== isVisible) {
+                    node.visible(isVisible);
+                    linkLayerNeedsDraw = true;
+                }
+            });
+        });
+
+        this.standaloneExitNodes.forEach(node => {
+            const rect = node.getClientRect({relativeTo: this.linkLayer});
+            const nodeMinX = rect.x;
+            const nodeMaxX = rect.x + rect.width;
+            const nodeMinY = rect.y;
+            const nodeMaxY = rect.y + rect.height;
+
+            const isVisible =
+                nodeMaxX >= minX &&
+                nodeMinX <= maxX &&
+                nodeMaxY >= minY &&
+                nodeMinY <= maxY;
+
+            if (node.visible() !== isVisible) {
+                node.visible(isVisible);
+                linkLayerNeedsDraw = true;
+            }
+        });
+
+        if (roomLayerNeedsDraw) {
+            this.roomLayer.batchDraw();
+        }
+        if (linkLayerNeedsDraw) {
+            this.linkLayer.batchDraw();
+        }
     }
 
     private clearCurrentRoomOverlay() {
@@ -723,6 +871,7 @@ export class Renderer {
                 return;
             }
             this.linkLayer.add(render);
+            this.standaloneExitNodes.push(render);
         })
 
     }
