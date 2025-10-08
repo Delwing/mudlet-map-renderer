@@ -26,7 +26,7 @@ export class Settings {
     static instantMapMove = false
     static highlightCurrentRoom = true;
     static cullingEnabled = true;
-    static cullingBoundsPadding = defaultRoomSize;
+    static cullingBounds: { x: number; y: number; width: number; height: number } | null = null;
 }
 
 type HighlightData = {
@@ -624,15 +624,19 @@ export class Renderer {
 
         const stagePosition = this.stage.position();
         const halfSize = Settings.roomSize / 2;
-        const padding = Math.max(0, Settings.cullingBoundsPadding);
-        const viewportMinX = (0 - stagePosition.x) / scale;
-        const viewportMaxX = (this.stage.width() - stagePosition.x) / scale;
-        const viewportMinY = (0 - stagePosition.y) / scale;
-        const viewportMaxY = (this.stage.height() - stagePosition.y) / scale;
-        const minX = Math.min(viewportMinX, viewportMaxX) - padding;
-        const maxX = Math.max(viewportMinX, viewportMaxX) + padding;
-        const minY = Math.min(viewportMinY, viewportMaxY) - padding;
-        const maxY = Math.max(viewportMinY, viewportMaxY) + padding;
+        const bounds = Settings.cullingBounds;
+        const viewportMinX = bounds ? bounds.x : 0;
+        const viewportMaxX = bounds ? bounds.x + bounds.width : this.stage.width();
+        const viewportMinY = bounds ? bounds.y : 0;
+        const viewportMaxY = bounds ? bounds.y + bounds.height : this.stage.height();
+        const minViewportX = Math.min(viewportMinX, viewportMaxX);
+        const maxViewportX = Math.max(viewportMinX, viewportMaxX);
+        const minViewportY = Math.min(viewportMinY, viewportMaxY);
+        const maxViewportY = Math.max(viewportMinY, viewportMaxY);
+        const minX = (minViewportX - stagePosition.x) / scale;
+        const maxX = (maxViewportX - stagePosition.x) / scale;
+        const minY = (minViewportY - stagePosition.y) / scale;
+        const maxY = (maxViewportY - stagePosition.y) / scale;
 
         let roomLayerNeedsDraw = false;
         let linkLayerNeedsDraw = false;
