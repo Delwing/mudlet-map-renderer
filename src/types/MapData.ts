@@ -62,7 +62,7 @@ declare namespace MapData {
     export interface Label {
         labelId: number;
         areaId: number;
-        pixMap: string;
+        pixMap?: string;
         X: number;
         Y: number;
         Z: number;

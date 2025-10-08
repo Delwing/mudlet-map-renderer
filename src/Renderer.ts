@@ -11,6 +11,8 @@ const defaultZoom = 75
 const lineColor = 'rgb(225, 255, 225)';
 const currentRoomColor = 'rgb(120, 72, 0)';
 
+export type LabelRenderMode = "image" | "data";
+
 export type RoomContextMenuEventDetail = {
     roomId: number;
     position: { x: number; y: number };
@@ -27,6 +29,7 @@ export class Settings {
     static highlightCurrentRoom = true;
     static cullingEnabled = true;
     static cullingBounds: { x: number; y: number; width: number; height: number } | null = null;
+    static labelRenderMode: LabelRenderMode = "image";
 }
 
 type HighlightData = {
@@ -877,20 +880,77 @@ export class Renderer {
 
     private renderLabels(Labels: MapData.Label[]) {
         Labels.forEach(label => {
-            if (!label.pixMap) {
-                return
+            if (Settings.labelRenderMode === "image") {
+                if (!label.pixMap) {
+                    return;
+                }
+
+                const image = new Image();
+                image.src = `data:image/png;base64,${label.pixMap}`;
+                const labelRender = new Konva.Image({
+                    x: label.X,
+                    y: -label.Y,
+                    width: label.Width,
+                    height: label.Height,
+                    image: image,
+                    listening: false,
+                });
+                this.linkLayer.add(labelRender);
+                return;
             }
-            const image = new Image()
-            image.src = `data:image/png;base64,${label.pixMap}`
-            const labelRender = new Konva.Image({
-                x: label.X,
-                y: -label.Y,
-                width: label.Width,
-                height: label.Height,
-                image: image
-            })
-            this.linkLayer.add(labelRender)
-        })
+
+            this.renderLabelAsData(label);
+        });
+    }
+
+    private renderLabelAsData(label: MapData.Label) {
+        const topLeftY = -label.Y - label.Height;
+        const labelRender = new Konva.Group({
+            listening: false,
+        });
+
+        const background = new Konva.Rect({
+            x: label.X,
+            y: topLeftY,
+            width: label.Width,
+            height: label.Height,
+            listening: false,
+        });
+
+        if ((label.BgColor?.alpha ?? 0) > 0) {
+            background.fill(this.getLabelColor(label.BgColor));
+        } else {
+            background.fillEnabled(false);
+        }
+
+        labelRender.add(background);
+
+        const ratio = Math.min(0.75, label.Width / Math.max(label.Text.length / 2, 1));
+        const fontSize = Math.max(0.1, Math.min(ratio, Math.max(label.Height * 0.9, 0.1)));
+
+        const text = new Konva.Text({
+            x: label.X,
+            y: topLeftY,
+            width: label.Width,
+            height: label.Height,
+            text: label.Text,
+            fontSize,
+            fill: this.getLabelColor(label.FgColor),
+            fontStyle: "bold",
+            align: "center",
+            verticalAlign: "middle",
+            listening: false,
+        });
+
+        labelRender.add(text);
+
+        this.linkLayer.add(labelRender);
+    }
+
+    private getLabelColor(color: MapData.Color): string {
+        const alpha = (color?.alpha ?? 255) / 255;
+        const clamp = (value: number) => Math.min(255, Math.max(0, value ?? 0));
+        return `rgba(${clamp(color?.r)}, ${clamp(color?.g)}, ${clamp(color?.b)}, ${alpha})`;
     }
 
 
