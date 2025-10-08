@@ -7,21 +7,57 @@ import MapReader from "@src/reader/MapReader";
 const stageElement = document.getElementById("stage") as HTMLDivElement;
 const statusElement = document.getElementById("status") as HTMLDivElement;
 const walkerStatusElement = document.getElementById("walker-status") as HTMLDivElement;
+const fpsElement = document.getElementById("fps") as HTMLDivElement | null;
 const contextMenuElement = document.getElementById("context-menu") as HTMLDivElement | null;
 const contextMenuContent = document.getElementById("context-menu-content") as HTMLDivElement | null;
 const walkerToggleButton = document.getElementById("walker-toggle") as HTMLButtonElement | null;
 const explorationToggle = document.getElementById("exploration-toggle") as HTMLInputElement | null;
 const instantMoveToggle = document.getElementById("instant-move-toggle") as HTMLInputElement | null;
 const highlightToggle = document.getElementById("highlight-toggle") as HTMLInputElement | null;
+const roomForm = document.getElementById("room-form") as HTMLFormElement | null;
+const roomInput = document.getElementById("room-input") as HTMLInputElement | null;
+const roomStatusElement = document.getElementById("room-status") as HTMLDivElement | null;
 const destinationForm = document.getElementById("destination-form") as HTMLFormElement | null;
 const destinationInput = document.getElementById("destination-input") as HTMLInputElement | null;
 const destinationClearButton = document.getElementById("destination-clear") as HTMLButtonElement | null;
 const destinationStatusElement = document.getElementById("destination-status") as HTMLDivElement | null;
 
 const mapReader = new MapReader(data as MapData.Map, colors as MapData.Env[]);
-const startingRoomId = 6730;
+const DEFAULT_STARTING_ROOM_ID = 6730;
+
+function parseRoomId(input: string | null | undefined) {
+    if (!input) {
+        return undefined;
+    }
+    const roomId = Number.parseInt(input, 10);
+    if (Number.isNaN(roomId) || roomId <= 0) {
+        return undefined;
+    }
+    return roomId;
+}
+
+function getStartingRoomId() {
+    const params = new URLSearchParams(window.location.search);
+    const requestedRoomId = parseRoomId(params.get("roomId") ?? params.get("room"));
+
+    if (requestedRoomId !== undefined) {
+        const requestedRoom = mapReader.getRoom(requestedRoomId);
+        if (requestedRoom) {
+            return { roomId: requestedRoomId, status: "" } as const;
+        }
+        return {
+            roomId: DEFAULT_STARTING_ROOM_ID,
+            status: `Room ${requestedRoomId} not found. Showing default room instead.`,
+        } as const;
+    }
+
+    return { roomId: DEFAULT_STARTING_ROOM_ID, status: "" } as const;
+}
+
+const {roomId: startingRoomId, status: initialRoomStatus} = getStartingRoomId();
 
 const renderer = new Renderer(stageElement, mapReader);
+startFpsCounter();
 const startingRoom = mapReader.getRoom(startingRoomId);
 let currentRoomId = startingRoomId;
 const walkerState: { timeoutId: number | undefined; running: boolean } = { timeoutId: undefined, running: false };
@@ -29,12 +65,7 @@ let destinationRoomId: number | undefined;
 let currentDestinationPath: number[] | undefined;
 
 if (startingRoom) {
-    mapReader.addVisitedRoom(startingRoom.id);
-
-    renderer.setPosition(startingRoomId);
-    updateAreaStatus(startingRoom.area);
-    updateDestinationStatus("No destination set.");
-
+    moveToRoom(startingRoom);
     stopWalker("Walker is stopped. Press Start to begin.");
 } else {
     statusElement.textContent = "Starting room not found.";
@@ -42,6 +73,10 @@ if (startingRoom) {
     if (walkerToggleButton) {
         walkerToggleButton.disabled = true;
     }
+}
+
+if (initialRoomStatus && roomStatusElement) {
+    roomStatusElement.textContent = initialRoomStatus;
 }
 
 function hideContextMenu() {
@@ -88,6 +123,31 @@ if (contextMenuElement && contextMenuContent) {
         }
         hideContextMenu();
     });
+}
+
+function startFpsCounter() {
+    if (!fpsElement) {
+        return;
+    }
+
+    let lastSampleTime = performance.now();
+    let frameCount = 0;
+
+    const updateFps = (timestamp: number) => {
+        frameCount += 1;
+        const elapsed = timestamp - lastSampleTime;
+
+        if (elapsed >= 500) {
+            const fps = (frameCount / elapsed) * 1000;
+            fpsElement.textContent = `FPS: ${fps.toFixed(1)}`;
+            frameCount = 0;
+            lastSampleTime = timestamp;
+        }
+
+        requestAnimationFrame(updateFps);
+    };
+
+    requestAnimationFrame(updateFps);
 }
 
 explorationToggle?.addEventListener("change", () => {
@@ -154,6 +214,33 @@ destinationClearButton?.addEventListener("click", () => {
     renderer.clearPaths();
     if (destinationInput) {
         destinationInput.value = "";
+    }
+});
+
+roomForm?.addEventListener("submit", event => {
+    event.preventDefault();
+    if (!roomInput) {
+        return;
+    }
+
+    const roomId = parseRoomId(roomInput.value);
+    if (roomId === undefined) {
+        updateRoomStatus("Enter a valid room id.");
+        return;
+    }
+
+    const room = mapReader.getRoom(roomId);
+    if (!room) {
+        updateRoomStatus(`Room ${roomId} not found.`);
+        return;
+    }
+
+    moveToRoom(room);
+    updateRoomStatus(`Jumped to room ${room.id}.`);
+    if (walkerState.running) {
+        walkerStatusElement.textContent = `Jumped to room ${room.id}. Walker continues.`;
+    } else {
+        walkerStatusElement.textContent = `Moved to room ${room.id}.`;
     }
 });
 
@@ -276,6 +363,8 @@ function getDirectionalExitTarget(room: MapData.Room, direction: MapData.directi
 }
 
 function moveToRoom(room: MapData.Room) {
+    updateRoomInput(room.id);
+    updateRoomStatus("");
     mapReader.addVisitedRoom(room.id);
     currentRoomId = room.id;
     renderer.setPosition(room.id);
@@ -613,6 +702,20 @@ function updateDestinationStatus(message: string) {
         return;
     }
     destinationStatusElement.textContent = message;
+}
+
+function updateRoomStatus(message: string) {
+    if (!roomStatusElement) {
+        return;
+    }
+    roomStatusElement.textContent = message;
+}
+
+function updateRoomInput(roomId: number) {
+    if (!roomInput) {
+        return;
+    }
+    roomInput.value = roomId.toString();
 }
 
 function updateDestinationGuidance() {

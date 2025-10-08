@@ -80,7 +80,7 @@
             gap: 0.35rem;
         }
 
-        #destination-inputs {
+        .control-inputs {
             display: flex;
             gap: 0.35rem;
         }
@@ -89,7 +89,7 @@
             width: 6rem;
         }
 
-        #destination-status {
+        .form-status {
             font-size: 0.8rem;
             color: #c8f7ff;
         }
@@ -107,6 +107,7 @@
 </div>
 <div id="hud">
     <div id="status">Loading map…</div>
+    <div id="fps">FPS: --</div>
     <div id="walker-status"></div>
     <div id="controls">
         <button type="button" id="walker-toggle">Start walker</button>
@@ -122,14 +123,22 @@
             <input type="checkbox" id="highlight-toggle">
             Highlight current room &amp; exits
         </label>
+        <form id="room-form">
+            <label for="room-input">Current room</label>
+            <div class="control-inputs">
+                <input type="number" id="room-input" min="1" placeholder="Room ID" />
+                <button type="submit">Go</button>
+            </div>
+            <div class="form-status" id="room-status"></div>
+        </form>
         <form id="destination-form">
             <label for="destination-input">Destination room</label>
-            <div id="destination-inputs">
+            <div class="control-inputs">
                 <input type="number" id="destination-input" min="1" placeholder="Room ID" />
                 <button type="submit">Set</button>
                 <button type="button" id="destination-clear">Clear</button>
             </div>
-            <div id="destination-status"></div>
+            <div class="form-status" id="destination-status"></div>
         </form>
     </div>
 </div>
