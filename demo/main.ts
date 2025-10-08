@@ -56,7 +56,6 @@ function getStartingRoomId() {
 
 const {roomId: startingRoomId, status: initialRoomStatus} = getStartingRoomId();
 
-Settings.cullingBounds = {x:0, y:0, width: 1000, height: 1000};
 
 const renderer = new Renderer(stageElement, mapReader);
 startFpsCounter();
