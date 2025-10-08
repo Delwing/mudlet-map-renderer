@@ -25,6 +25,8 @@ export class Settings {
     static lineColor = lineColor;
     static instantMapMove = false
     static highlightCurrentRoom = true;
+    static cullingEnabled = true;
+    static cullingBoundsPadding = defaultRoomSize;
 }
 
 type HighlightData = {
@@ -55,6 +57,7 @@ export class Renderer {
     private currentZoom: number = 1;
     private currentRoomOverlay: Konva.Node[] = [];
     private roomNodes: Map<number, {room: MapData.Room; group: Konva.Group; linkNodes: Konva.Node[]}> = new Map();
+    private standaloneExitNodes: Konva.Node[] = [];
     private cullingScheduled = false;
 
     constructor(container: HTMLDivElement, mapReader: MapReader) {
@@ -283,6 +286,7 @@ export class Renderer {
         this.roomLayer.destroyChildren();
         this.linkLayer.destroyChildren();
         this.roomNodes.clear();
+        this.standaloneExitNodes = [];
 
         this.stage.scale({x: defaultZoom * this.currentZoom, y: defaultZoom * this.currentZoom});
 
@@ -609,7 +613,7 @@ export class Renderer {
     }
 
     private updateRoomCulling() {
-        if (this.roomNodes.size === 0) {
+        if (this.roomNodes.size === 0 && this.standaloneExitNodes.length === 0) {
             return;
         }
 
@@ -620,14 +624,48 @@ export class Renderer {
 
         const stagePosition = this.stage.position();
         const halfSize = Settings.roomSize / 2;
-        const padding = Settings.roomSize;
-        const minX = (0 - stagePosition.x) / scale - padding;
-        const maxX = (this.stage.width() - stagePosition.x) / scale + padding;
-        const minY = (0 - stagePosition.y) / scale - padding;
-        const maxY = (this.stage.height() - stagePosition.y) / scale + padding;
+        const padding = Math.max(0, Settings.cullingBoundsPadding);
+        const viewportMinX = (0 - stagePosition.x) / scale;
+        const viewportMaxX = (this.stage.width() - stagePosition.x) / scale;
+        const viewportMinY = (0 - stagePosition.y) / scale;
+        const viewportMaxY = (this.stage.height() - stagePosition.y) / scale;
+        const minX = Math.min(viewportMinX, viewportMaxX) - padding;
+        const maxX = Math.max(viewportMinX, viewportMaxX) + padding;
+        const minY = Math.min(viewportMinY, viewportMaxY) - padding;
+        const maxY = Math.max(viewportMinY, viewportMaxY) + padding;
 
         let roomLayerNeedsDraw = false;
         let linkLayerNeedsDraw = false;
+
+        if (!Settings.cullingEnabled) {
+            this.roomNodes.forEach(({group, linkNodes}) => {
+                if (!group.visible()) {
+                    group.visible(true);
+                    roomLayerNeedsDraw = true;
+                }
+                linkNodes.forEach(node => {
+                    if (!node.visible()) {
+                        node.visible(true);
+                        linkLayerNeedsDraw = true;
+                    }
+                });
+            });
+
+            this.standaloneExitNodes.forEach(node => {
+                if (!node.visible()) {
+                    node.visible(true);
+                    linkLayerNeedsDraw = true;
+                }
+            });
+
+            if (roomLayerNeedsDraw) {
+                this.roomLayer.batchDraw();
+            }
+            if (linkLayerNeedsDraw) {
+                this.linkLayer.batchDraw();
+            }
+            return;
+        }
 
         this.roomNodes.forEach(({room, group, linkNodes}) => {
             const roomMinX = room.x - halfSize;
@@ -652,6 +690,25 @@ export class Renderer {
                     linkLayerNeedsDraw = true;
                 }
             });
+        });
+
+        this.standaloneExitNodes.forEach(node => {
+            const rect = node.getClientRect({relativeTo: this.linkLayer});
+            const nodeMinX = rect.x;
+            const nodeMaxX = rect.x + rect.width;
+            const nodeMinY = rect.y;
+            const nodeMaxY = rect.y + rect.height;
+
+            const isVisible =
+                nodeMaxX >= minX &&
+                nodeMinX <= maxX &&
+                nodeMaxY >= minY &&
+                nodeMinY <= maxY;
+
+            if (node.visible() !== isVisible) {
+                node.visible(isVisible);
+                linkLayerNeedsDraw = true;
+            }
         });
 
         if (roomLayerNeedsDraw) {
@@ -810,6 +867,7 @@ export class Renderer {
                 return;
             }
             this.linkLayer.add(render);
+            this.standaloneExitNodes.push(render);
         })
 
     }
