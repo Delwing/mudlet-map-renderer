@@ -23,7 +23,7 @@ const destinationClearButton = document.getElementById("destination-clear") as H
 const destinationStatusElement = document.getElementById("destination-status") as HTMLDivElement | null;
 
 const mapReader = new MapReader(data as MapData.Map, colors as MapData.Env[]);
-const DEFAULT_STARTING_ROOM_ID = 6726;
+const DEFAULT_STARTING_ROOM_ID = 4563;
 
 function parseRoomId(input: string | null | undefined) {
     if (!input) {

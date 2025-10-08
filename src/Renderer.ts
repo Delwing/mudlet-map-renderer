@@ -30,6 +30,7 @@ export class Settings {
     static cullingEnabled = true;
     static cullingBounds: { x: number; y: number; width: number; height: number } | null = null;
     static labelRenderMode: LabelRenderMode = "image";
+    static transparentLabels: boolean;
 }
 
 type HighlightData = {
@@ -904,20 +905,19 @@ export class Renderer {
     }
 
     private renderLabelAsData(label: MapData.Label) {
-        const topLeftY = -label.Y - label.Height;
         const labelRender = new Konva.Group({
             listening: false,
         });
 
         const background = new Konva.Rect({
             x: label.X,
-            y: topLeftY,
+            y: -label.Y,
             width: label.Width,
             height: label.Height,
             listening: false,
         });
 
-        if ((label.BgColor?.alpha ?? 0) > 0) {
+        if ((label.BgColor?.alpha ?? 0) > 0 && !Settings.transparentLabels) {
             background.fill(this.getLabelColor(label.BgColor));
         } else {
             background.fillEnabled(false);
@@ -930,13 +930,13 @@ export class Renderer {
 
         const text = new Konva.Text({
             x: label.X,
-            y: topLeftY,
+            y: -label.Y,
             width: label.Width,
             height: label.Height,
             text: label.Text,
             fontSize,
+            fillEnabled: true,
             fill: this.getLabelColor(label.FgColor),
-            fontStyle: "bold",
             align: "center",
             verticalAlign: "middle",
             listening: false,
