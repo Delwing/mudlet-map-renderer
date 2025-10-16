@@ -1,6 +1,6 @@
 import Plane from "./Plane";
 
-import Exit, {longToShort, regularExits} from "./Exit";
+import Exit from "./Exit";
 
 export default class Area {
 
@@ -68,12 +68,13 @@ export default class Area {
     private createExits() {
         this.area.rooms.forEach(room => {
             Object.entries(room.exits)
-                .filter(([direction, _]) => regularExits.indexOf(direction as MapData.direction) > -1 && !room.customLines.hasOwnProperty(longToShort[direction as MapData.direction]))
+                .forEach(([direction, targetRoomId]) => this.createHalfExit(room.id, targetRoomId, room.z, direction as MapData.direction))
+            Object.entries(room.specialExits)
                 .forEach(([direction, targetRoomId]) => this.createHalfExit(room.id, targetRoomId, room.z, direction as MapData.direction))
         })
     }
 
-    private createHalfExit(originRoom: number, targetRoom: number, zIndex: number, direction: MapData.direction,) {
+    private createHalfExit(originRoom: number, targetRoom: number, zIndex: number, direction: MapData.direction) {
         if (originRoom === targetRoom) {
             return
         }

@@ -1,4 +1,4 @@
-import Exit, {longToShort} from "./reader/Exit";
+import Exit, {longToShort, regularExits} from "./reader/Exit";
 import MapReader from "./reader/MapReader";
 import Konva from "konva";
 import {Settings} from "./Renderer";
@@ -62,7 +62,7 @@ export default class ExitRenderer {
         const sourceRoom = this.mapReader.getRoom(exit.a)
         const targetRoom = this.mapReader.getRoom(exit.b);
 
-        if (!sourceRoom || !targetRoom || !exit.aDir || !exit.bDir) {
+        if (!sourceRoom || !targetRoom || !exit.aDir || !exit.bDir || !regularExits.includes(exit.aDir) || !regularExits.includes(exit.bDir)) {
             return;
         }
 

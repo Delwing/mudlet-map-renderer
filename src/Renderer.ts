@@ -801,8 +801,6 @@ export class Renderer {
                 roomToRedraw,
                 {
                     stroke: isCurrent && Settings.highlightCurrentRoom ? currentRoomColor : Settings.lineColor,
-                    fillEnabled: true,
-                    strokeEnabled: isCurrent ? Settings.highlightCurrentRoom : false,
                 }
             );
             this.overlayLayer.add(overlayRoom);
@@ -819,8 +817,6 @@ export class Renderer {
 
     private createOverlayRoomGroup(room: MapData.Room, options: {
         stroke: string;
-        fillEnabled: boolean;
-        strokeEnabled: boolean
     }) {
         const roomGroup = new Konva.Group({
             x: room.x - Settings.roomSize / 2,
@@ -836,12 +832,8 @@ export class Renderer {
             fill: this.mapReader.getColorValue(room.env),
             stroke: options.stroke,
             strokeWidth: 0.025,
-            strokeEnabled: options.strokeEnabled,
+            strokeEnabled: true
         });
-
-        if (!options.fillEnabled) {
-            rect.fillEnabled(false);
-        }
 
         roomGroup.add(rect);
         this.renderSymbol(room, roomGroup);
