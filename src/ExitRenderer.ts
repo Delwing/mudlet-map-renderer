@@ -1,7 +1,7 @@
 import Exit, {longToShort, regularExits} from "./reader/Exit";
 import MapReader from "./reader/MapReader";
 import Konva from "konva";
-import {Settings} from "./Renderer";
+import {Renderer, Settings} from "./Renderer";
 import {movePoint} from "./directions";
 
 const Colors = {
@@ -42,29 +42,44 @@ function getDoorColor(doorType: 1 | 2 | 3) {
 export default class ExitRenderer {
 
     private mapReader: MapReader;
+    private mapRenderer: Renderer;
 
-    constructor(mapReader: MapReader) {
+    constructor(mapReader: MapReader, mapRenderer: Renderer) {
         this.mapReader = mapReader;
+        this.mapRenderer = mapRenderer;
     }
 
-    render(exit: Exit) {
-        return this.renderWithColor(exit, Settings.lineColor);
+    render(exit: Exit, zIndex: number) {
+        return this.renderWithColor(exit, Settings.lineColor, zIndex);
     }
 
-    renderWithColor(exit: Exit, color: string) {
+    renderWithColor(exit: Exit, color: string, zIndex: number) {
         if (exit.aDir && exit.bDir) {
-            return this.renderTwoWayExit(exit, color);
+            return this.renderTwoWayExit(exit, color, zIndex);
         } else {
             return this.renderOneWayExit(exit, color);
         }
     }
 
-    private renderTwoWayExit(exit: Exit, color: string) {
+    private renderTwoWayExit(exit: Exit, color: string, zIndex: number) {
         const sourceRoom = this.mapReader.getRoom(exit.a)
         const targetRoom = this.mapReader.getRoom(exit.b);
 
         if (!sourceRoom || !targetRoom || !exit.aDir || !exit.bDir || !regularExits.includes(exit.aDir) || !regularExits.includes(exit.bDir)) {
             return;
+        }
+
+        if (sourceRoom.customLines[longToShort[exit.aDir]] && targetRoom.customLines[longToShort[exit.bDir]]) {
+            return
+        }
+
+        if (sourceRoom.z !== targetRoom.z) {
+            if (zIndex !== targetRoom.z && sourceRoom.customLines[longToShort[exit.aDir]]) {
+                return
+            }
+            if (zIndex !== sourceRoom.z && targetRoom.customLines[longToShort[exit.bDir]]) {
+                return
+            }
         }
 
         const exitRender = new Konva.Group();
@@ -93,7 +108,7 @@ export default class ExitRenderer {
         const targetRoom = exit.aDir ? this.mapReader.getRoom(exit.b) : this.mapReader.getRoom(exit.a)
         const dir = exit.aDir ? exit.aDir : exit.bDir;
 
-        if (!sourceRoom || !targetRoom) {
+        if (!dir || !sourceRoom || !targetRoom || sourceRoom.customLines[longToShort[dir] || dir]) {
             return;
         }
 

@@ -92,7 +92,7 @@ export class Renderer {
         });
         this.stage.add(this.positionLayer);
         this.mapReader = mapReader;
-        this.exitRenderer = new ExitRenderer(mapReader);
+        this.exitRenderer = new ExitRenderer(mapReader, this);
         this.pathRenderer = new PathRenderer(mapReader, this.overlayLayer);
 
         const scaleBy = 1.1;
@@ -754,8 +754,8 @@ export class Renderer {
                 .filter(exit => exit.a === room.id || exit.b === room.id);
             exits.forEach(exit => {
                 const render = Settings.highlightCurrentRoom
-                    ? this.exitRenderer.renderWithColor(exit, currentRoomColor)
-                    : this.exitRenderer.render(exit);
+                    ? this.exitRenderer.renderWithColor(exit, currentRoomColor, this.currentZIndex!)
+                    : this.exitRenderer.render(exit, this.currentZIndex!);
                 if (render) {
                     preRoomNodes.push(render);
                 }
@@ -861,7 +861,7 @@ export class Renderer {
 
     private renderExits(exits: Exit[]) {
         exits.forEach(exit => {
-            const render = this.exitRenderer.render(exit);
+            const render = this.exitRenderer.render(exit, this.currentZIndex!);
             if (!render) {
                 return;
             }

@@ -67,9 +67,9 @@ export default class Area {
 
     private createExits() {
         this.area.rooms.forEach(room => {
-            Object.entries(room.exits)
-                .forEach(([direction, targetRoomId]) => this.createHalfExit(room.id, targetRoomId, room.z, direction as MapData.direction))
             Object.entries(room.specialExits)
+                .forEach(([direction, targetRoomId]) => this.createHalfExit(room.id, targetRoomId, room.z, direction as MapData.direction))
+            Object.entries(room.exits)
                 .forEach(([direction, targetRoomId]) => this.createHalfExit(room.id, targetRoomId, room.z, direction as MapData.direction))
         })
     }

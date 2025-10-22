@@ -1,6 +1,6 @@
 {
   "name": "mudlet-map-renderer",
-  "version": "0.8.2-konva",
+  "version": "0.8.6-konva",
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -15,6 +15,7 @@
   },
   "sideEffects": false,
   "scripts": {
+    "prepublish": "build",
     "dev": "vite",
     "build": "tsc -p tsconfig.json && vite build",
     "preview": "vite preview",
