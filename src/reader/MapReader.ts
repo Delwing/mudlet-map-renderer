@@ -49,7 +49,7 @@ export default class MapReader {
             ...acc,
             [c.envId]: {
                 rgb: c.colors,
-                rgbValue: `rgb(${c.colors.join(',')}`,
+                rgbValue: `rgb(${c.colors.join(',')})`,
                 symbolColor: calculateLuminance(c.colors) > 0.41 ? [25, 25, 25] : [225, 255, 255],
                 symbolColorValue: calculateLuminance(c.colors) > 0.41 ? 'rgb(25,25,25)' : 'rgb(225,255,255)'
             }
