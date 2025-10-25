@@ -21,6 +21,7 @@
     "preview": "vite preview",
     "demo:dev": "vite --config vite.demo.config.ts",
     "demo:build": "vite build --config vite.demo.config.ts",
+    "vercel-build": "yarn demo:build",
     "demo:preview": "vite preview --config vite.demo.config.ts"
   },
   "dependencies": {
