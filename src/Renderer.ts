@@ -40,6 +40,18 @@ type HighlightData = {
     shape?: Konva.Circle;
 };
 
+type ExitNodeBounds = {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+};
+
+type StandaloneExitNode = {
+    node: Konva.Node;
+    bounds: ExitNodeBounds;
+};
+
 export class Renderer {
 
     private readonly stage: Konva.Stage;
@@ -61,7 +73,8 @@ export class Renderer {
     private currentZoom: number = 1;
     private currentRoomOverlay: Konva.Node[] = [];
     private roomNodes: Map<number, {room: MapData.Room; group: Konva.Group; linkNodes: Konva.Node[]}> = new Map();
-    private standaloneExitNodes: Konva.Node[] = [];
+    private standaloneExitNodes: StandaloneExitNode[] = [];
+    private cachedStandaloneExitBoundsRoomSize = Settings.roomSize;
     private cullingScheduled = false;
 
     constructor(container: HTMLDivElement, mapReader: MapReader) {
@@ -291,6 +304,7 @@ export class Renderer {
         this.linkLayer.destroyChildren();
         this.roomNodes.clear();
         this.standaloneExitNodes = [];
+        this.cachedStandaloneExitBoundsRoomSize = Settings.roomSize;
 
         this.stage.scale({x: defaultZoom * this.currentZoom, y: defaultZoom * this.currentZoom});
 
@@ -641,6 +655,10 @@ export class Renderer {
         const minY = (minViewportY - stagePosition.y) / scale;
         const maxY = (maxViewportY - stagePosition.y) / scale;
 
+        if (this.cachedStandaloneExitBoundsRoomSize !== Settings.roomSize) {
+            this.refreshStandaloneExitBounds();
+        }
+
         let roomLayerNeedsDraw = false;
         let linkLayerNeedsDraw = false;
 
@@ -658,7 +676,7 @@ export class Renderer {
                 });
             });
 
-            this.standaloneExitNodes.forEach(node => {
+            this.standaloneExitNodes.forEach(({node}) => {
                 if (!node.visible()) {
                     node.visible(true);
                     linkLayerNeedsDraw = true;
@@ -697,14 +715,13 @@ export class Renderer {
                     linkLayerNeedsDraw = true;
                 }
             });
-        });
+            });
 
-        this.standaloneExitNodes.forEach(node => {
-            const rect = node.getClientRect({relativeTo: this.linkLayer});
-            const nodeMinX = rect.x;
-            const nodeMaxX = rect.x + rect.width;
-            const nodeMinY = rect.y;
-            const nodeMaxY = rect.y + rect.height;
+        this.standaloneExitNodes.forEach(({node, bounds}) => {
+            const nodeMinX = bounds.x;
+            const nodeMaxX = bounds.x + bounds.width;
+            const nodeMinY = bounds.y;
+            const nodeMaxY = bounds.y + bounds.height;
 
             const isVisible =
                 nodeMaxX >= minX &&
@@ -866,9 +883,18 @@ export class Renderer {
                 return;
             }
             this.linkLayer.add(render);
-            this.standaloneExitNodes.push(render);
+            const bounds = render.getClientRect({relativeTo: this.linkLayer});
+            this.standaloneExitNodes.push({node: render, bounds});
         })
+        this.cachedStandaloneExitBoundsRoomSize = Settings.roomSize;
 
+    }
+
+    private refreshStandaloneExitBounds() {
+        this.standaloneExitNodes.forEach(cache => {
+            cache.bounds = cache.node.getClientRect({relativeTo: this.linkLayer});
+        });
+        this.cachedStandaloneExitBoundsRoomSize = Settings.roomSize;
     }
 
     private renderLabels(Labels: MapData.Label[]) {
