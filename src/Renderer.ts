@@ -45,6 +45,8 @@ type HighlightData = {
 };
 
 type RoomNodeEntry = { room: MapData.Room; group: Konva.Group; linkNodes: Konva.Node[] };
+type Bounds = { x: number; y: number; width: number; height: number };
+type StandaloneExitEntry = { node: Konva.Node; bounds: Bounds };
 
 export class Renderer {
 
@@ -68,12 +70,13 @@ export class Renderer {
     private currentZoom: number = 1;
     private currentRoomOverlay: Konva.Node[] = [];
     private roomNodes: Map<number, RoomNodeEntry> = new Map();
-    private standaloneExitNodes: Konva.Node[] = [];
+    private standaloneExitNodes: StandaloneExitEntry[] = [];
     private spatialBucketSize = 5;
     private roomSpatialIndex: Map<string, Set<RoomNodeEntry>> = new Map();
-    private exitSpatialIndex: Map<string, Set<Konva.Node>> = new Map();
+    private exitSpatialIndex: Map<string, Set<StandaloneExitEntry>> = new Map();
     private visibleRooms: Set<RoomNodeEntry> = new Set();
-    private visibleStandaloneExitNodes: Set<Konva.Node> = new Set();
+    private visibleStandaloneExitNodes: Set<StandaloneExitEntry> = new Set();
+    private standaloneExitBoundsRoomSize?: number;
     private cullingScheduled = false;
     private cullingViewportDebug?: Konva.Rect;
     private cullingSearchDebug?: Konva.Rect;
@@ -311,6 +314,7 @@ export class Renderer {
         this.debugLayer.destroyChildren();
         this.roomNodes.clear();
         this.standaloneExitNodes = [];
+        this.standaloneExitBoundsRoomSize = undefined;
         this.roomSpatialIndex.clear();
         this.exitSpatialIndex.clear();
         this.visibleRooms.clear();
@@ -373,12 +377,12 @@ export class Renderer {
         });
     }
 
-    private addStandaloneExitToSpatialIndex(node: Konva.Node) {
-        const rect = node.getClientRect({relativeTo: this.linkLayer});
-        const minX = rect.x;
-        const maxX = rect.x + rect.width;
-        const minY = rect.y;
-        const maxY = rect.y + rect.height;
+    private addStandaloneExitToSpatialIndex(entry: StandaloneExitEntry) {
+        const {bounds} = entry;
+        const minX = bounds.x;
+        const maxX = bounds.x + bounds.width;
+        const minY = bounds.y;
+        const maxY = bounds.y + bounds.height;
 
         this.forEachBucket(minX, minY, maxX, maxY, key => {
             let bucket = this.exitSpatialIndex.get(key);
@@ -386,7 +390,7 @@ export class Renderer {
                 bucket = new Set();
                 this.exitSpatialIndex.set(key, bucket);
             }
-            bucket.add(node);
+            bucket.add(entry);
         });
     }
 
@@ -403,15 +407,28 @@ export class Renderer {
     }
 
     private collectStandaloneExitCandidates(minX: number, minY: number, maxX: number, maxY: number, debugBuckets?: Set<string>) {
-        const result = new Set<Konva.Node>();
+        const result = new Set<StandaloneExitEntry>();
         this.forEachBucket(minX, minY, maxX, maxY, key => {
             if (debugBuckets) {
                 debugBuckets.add(key);
             }
             const bucket = this.exitSpatialIndex.get(key);
-            bucket?.forEach(node => result.add(node));
+            bucket?.forEach(entry => result.add(entry));
         });
         return result;
+    }
+
+    private refreshStandaloneExitBoundsIfNeeded() {
+        if (this.standaloneExitBoundsRoomSize === Settings.roomSize) {
+            return;
+        }
+
+        this.exitSpatialIndex.clear();
+        this.standaloneExitNodes.forEach(entry => {
+            entry.bounds = entry.node.getClientRect({relativeTo: this.linkLayer});
+            this.addStandaloneExitToSpatialIndex(entry);
+        });
+        this.standaloneExitBoundsRoomSize = Settings.roomSize;
     }
 
     private getBucketBounds(key: string) {
@@ -792,6 +809,8 @@ export class Renderer {
         const searchMinY = minY - halfSize;
         const searchMaxY = maxY + halfSize;
 
+        this.refreshStandaloneExitBoundsIfNeeded();
+
         if (mode === "none") {
             this.roomNodes.forEach(entry => {
                 if (!entry.group.visible()) {
@@ -806,10 +825,11 @@ export class Renderer {
                 });
             });
 
-            this.standaloneExitNodes.forEach(node => {
+            this.standaloneExitNodes.forEach(entry => {
+                const {node} = entry;
                 if (!node.visible()) {
-                    node.visible(true);
                     linkLayerNeedsDraw = true;
+                    node.visible(true);
                 }
             });
 
@@ -868,14 +888,14 @@ export class Renderer {
                 }
             });
 
-            const nextVisibleStandaloneExitNodes = new Set<Konva.Node>();
+            const nextVisibleStandaloneExitNodes = new Set<StandaloneExitEntry>();
 
-            this.standaloneExitNodes.forEach(node => {
-                const rect = node.getClientRect({relativeTo: this.linkLayer});
-                const nodeMinX = rect.x;
-                const nodeMaxX = rect.x + rect.width;
-                const nodeMinY = rect.y;
-                const nodeMaxY = rect.y + rect.height;
+            this.standaloneExitNodes.forEach(entry => {
+                const {node, bounds} = entry;
+                const nodeMinX = bounds.x;
+                const nodeMaxX = bounds.x + bounds.width;
+                const nodeMinY = bounds.y;
+                const nodeMaxY = bounds.y + bounds.height;
 
                 const isVisible =
                     nodeMaxX >= minX &&
@@ -889,7 +909,7 @@ export class Renderer {
                 }
 
                 if (isVisible) {
-                    nextVisibleStandaloneExitNodes.add(node);
+                    nextVisibleStandaloneExitNodes.add(entry);
                 }
             });
 
@@ -972,17 +992,17 @@ export class Renderer {
         this.visibleRooms = nextVisibleRooms;
 
         const exitCandidates = this.collectStandaloneExitCandidates(searchMinX, searchMinY, searchMaxX, searchMaxY, exitDebugBuckets);
-        const processedExits = new Set<Konva.Node>();
-        const nextVisibleStandaloneExitNodes = new Set<Konva.Node>();
+        const processedExits = new Set<StandaloneExitEntry>();
+        const nextVisibleStandaloneExitNodes = new Set<StandaloneExitEntry>();
 
-        exitCandidates.forEach(node => {
-            processedExits.add(node);
+        exitCandidates.forEach(entry => {
+            processedExits.add(entry);
 
-            const rect = node.getClientRect({relativeTo: this.linkLayer});
-            const nodeMinX = rect.x;
-            const nodeMaxX = rect.x + rect.width;
-            const nodeMinY = rect.y;
-            const nodeMaxY = rect.y + rect.height;
+            const {node, bounds} = entry;
+            const nodeMinX = bounds.x;
+            const nodeMaxX = bounds.x + bounds.width;
+            const nodeMinY = bounds.y;
+            const nodeMaxY = bounds.y + bounds.height;
 
             const isVisible =
                 nodeMaxX >= minX &&
@@ -996,12 +1016,13 @@ export class Renderer {
             }
 
             if (isVisible) {
-                nextVisibleStandaloneExitNodes.add(node);
+                nextVisibleStandaloneExitNodes.add(entry);
             }
         });
 
-        this.visibleStandaloneExitNodes.forEach(node => {
-            if (!processedExits.has(node) && node.visible()) {
+        this.visibleStandaloneExitNodes.forEach(entry => {
+            const {node} = entry;
+            if (!processedExits.has(entry) && node.visible()) {
                 node.visible(false);
                 linkLayerNeedsDraw = true;
             }
@@ -1287,10 +1308,13 @@ export class Renderer {
                 return;
             }
             this.linkLayer.add(render);
-            this.standaloneExitNodes.push(render);
-            this.addStandaloneExitToSpatialIndex(render);
-        })
+            const bounds = render.getClientRect({relativeTo: this.linkLayer});
+            const entry: StandaloneExitEntry = {node: render, bounds};
+            this.standaloneExitNodes.push(entry);
+            this.addStandaloneExitToSpatialIndex(entry);
+        });
 
+        this.standaloneExitBoundsRoomSize = Settings.roomSize;
     }
 
     private renderLabels(Labels: MapData.Label[]) {
