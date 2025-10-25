@@ -1,5 +1,3 @@
-import data from "./mapExport.json";
-import colors from "./colors.json";
 import {Renderer, Settings, CullingMode} from "@src";
 import type {RoomContextMenuEventDetail} from "@src";
 import MapReader from "@src/reader/MapReader";
@@ -26,8 +24,18 @@ const destinationClearButton = document.getElementById("destination-clear") as H
 const destinationStatusElement = document.getElementById("destination-status") as HTMLDivElement | null;
 const cullingStatusElement = document.getElementById("culling-status") as HTMLDivElement | null;
 
-const mapReader = new MapReader(data as MapData.Map, colors as MapData.Env[]);
 const DEFAULT_STARTING_ROOM_ID = 21461;
+
+const mapDataUrl = new URL("./mapExport.json", import.meta.url).href;
+const colorDataUrl = new URL("./colors.json", import.meta.url).href;
+
+let mapReader!: MapReader;
+let renderer!: Renderer;
+let currentRoomId!: number;
+let destinationRoomId: number | undefined;
+let currentDestinationPath: number[] | undefined;
+
+const walkerState: { timeoutId: number | undefined; running: boolean } = { timeoutId: undefined, running: false };
 
 function parseRoomId(input: string | null | undefined) {
     if (!input) {
@@ -58,45 +66,215 @@ function getStartingRoomId() {
     return { roomId: DEFAULT_STARTING_ROOM_ID, status: "" } as const;
 }
 
-const {roomId: startingRoomId, status: initialRoomStatus} = getStartingRoomId();
-
-
-const renderer = new Renderer(stageElement, mapReader);
-startFpsCounter();
-const startingRoom = mapReader.getRoom(startingRoomId);
-let currentRoomId = startingRoomId;
-const walkerState: { timeoutId: number | undefined; running: boolean } = { timeoutId: undefined, running: false };
-let destinationRoomId: number | undefined;
-let currentDestinationPath: number[] | undefined;
-
-if (startingRoom) {
-    moveToRoom(startingRoom);
-    stopWalker("Walker is stopped. Press Start to begin.");
-} else {
-    statusElement.textContent = "Starting room not found.";
-    stopWalker("Walker is idle.");
-    if (walkerToggleButton) {
-        walkerToggleButton.disabled = true;
+async function loadJson<T>(url: string, label: string): Promise<T> {
+    const response = await fetch(url);
+    if (!response.ok) {
+        throw new Error(`Failed to load ${label}: ${response.status} ${response.statusText}`);
     }
+    return (await response.json()) as T;
 }
 
-if (initialRoomStatus && roomStatusElement) {
-    roomStatusElement.textContent = initialRoomStatus;
+async function initialize() {
+    try {
+        const [mapData, colorData] = await Promise.all([
+            loadJson<MapData.Map>(mapDataUrl, "mapExport.json"),
+            loadJson<MapData.Env[]>(colorDataUrl, "colors.json"),
+        ]);
+        mapReader = new MapReader(mapData, colorData);
+    } catch (error) {
+        console.error("Failed to load map data", error);
+        statusElement.textContent = "Failed to load map data.";
+        walkerStatusElement.textContent = "Walker unavailable.";
+        if (walkerToggleButton) {
+            walkerToggleButton.disabled = true;
+        }
+        if (cullingStatusElement) {
+            cullingStatusElement.textContent = "Culling status unavailable.";
+        }
+        return;
+    }
+
+    renderer = new Renderer(stageElement, mapReader);
+    startFpsCounter();
+
+    const {roomId: startingRoomId, status: initialRoomStatus} = getStartingRoomId();
+    const startingRoom = mapReader.getRoom(startingRoomId);
+    currentRoomId = startingRoomId;
+    destinationRoomId = undefined;
+    currentDestinationPath = undefined;
+
+    if (startingRoom) {
+        moveToRoom(startingRoom);
+        stopWalker("Walker is stopped. Press Start to begin.");
+        if (walkerToggleButton) {
+            walkerToggleButton.disabled = false;
+        }
+    } else {
+        statusElement.textContent = "Starting room not found.";
+        stopWalker("Walker is idle.");
+        if (walkerToggleButton) {
+            walkerToggleButton.disabled = true;
+        }
+    }
+
+    if (initialRoomStatus && roomStatusElement) {
+        roomStatusElement.textContent = initialRoomStatus;
+    }
+
+    if (explorationToggle) {
+        explorationToggle.checked = mapReader.isExplorationEnabled();
+    }
+
+    if (cullingModeSelect) {
+        cullingModeSelect.value = renderer.getCullingMode();
+    }
+
+    if (cullingDebugToggle) {
+        cullingDebugToggle.checked = Settings.cullingDebug;
+    }
+
+    if (cullingLegend) {
+        cullingLegend.hidden = !Settings.cullingDebug;
+    }
+
+    if (instantMoveToggle) {
+        instantMoveToggle.checked = Settings.instantMapMove;
+    }
+
+    if (highlightToggle) {
+        highlightToggle.checked = Settings.highlightCurrentRoom;
+    }
+
+    updateCullingStatus();
+    attachEventListeners();
 }
 
-if (cullingModeSelect) {
-    cullingModeSelect.value = renderer.getCullingMode();
+function attachEventListeners() {
+    explorationToggle?.addEventListener("change", () => {
+        if (explorationToggle.checked) {
+            mapReader.decorateWithExploration();
+        } else {
+            mapReader.clearExplorationDecoration();
+        }
+        renderer.setPosition(currentRoomId);
+        const currentRoom = mapReader.getRoom(currentRoomId);
+        if (currentRoom) {
+            updateAreaStatus(currentRoom.area);
+        }
+        updateDestinationGuidance();
+    });
+
+    instantMoveToggle?.addEventListener("change", () => {
+        Settings.instantMapMove = instantMoveToggle.checked;
+    });
+
+    highlightToggle?.addEventListener("change", () => {
+        Settings.highlightCurrentRoom = highlightToggle.checked;
+        renderer.setPosition(currentRoomId);
+    });
+
+    cullingModeSelect?.addEventListener("change", () => {
+        const value = (cullingModeSelect.value ?? "indexed") as CullingMode;
+        renderer.setCullingMode(value);
+        updateCullingStatus();
+    });
+
+    cullingDebugToggle?.addEventListener("change", () => {
+        const enabled = Boolean(cullingDebugToggle.checked);
+        renderer.setCullingDebug(enabled);
+        if (cullingLegend) {
+            cullingLegend.hidden = !enabled;
+        }
+        updateCullingStatus();
+    });
+
+    destinationForm?.addEventListener("submit", event => {
+        event.preventDefault();
+        if (!destinationInput) {
+            return;
+        }
+        const roomId = Number.parseInt(destinationInput.value, 10);
+        if (Number.isNaN(roomId)) {
+            updateDestinationStatus("Enter a valid room id.");
+            return;
+        }
+
+        const room = mapReader.getRoom(roomId);
+        if (!room) {
+            updateDestinationStatus(`Room ${roomId} not found.`);
+            return;
+        }
+
+        destinationRoomId = roomId;
+        destinationInput.value = roomId.toString();
+        updateDestinationGuidance();
+    });
+
+    destinationClearButton?.addEventListener("click", () => {
+        destinationRoomId = undefined;
+        currentDestinationPath = undefined;
+        updateDestinationStatus("Destination cleared. Walking freely.");
+        renderer.clearPaths();
+        if (destinationInput) {
+            destinationInput.value = "";
+        }
+    });
+
+    roomForm?.addEventListener("submit", event => {
+        event.preventDefault();
+        if (!roomInput) {
+            return;
+        }
+
+        const roomId = parseRoomId(roomInput.value);
+        if (roomId === undefined) {
+            updateRoomStatus("Enter a valid room id.");
+            return;
+        }
+
+        const room = mapReader.getRoom(roomId);
+        if (!room) {
+            updateRoomStatus(`Room ${roomId} not found.`);
+            return;
+        }
+
+        moveToRoom(room);
+        updateRoomStatus(`Jumped to room ${room.id}.`);
+        if (walkerState.running) {
+            walkerStatusElement.textContent = `Jumped to room ${room.id}. Walker continues.`;
+        } else {
+            walkerStatusElement.textContent = `Moved to room ${room.id}.`;
+        }
+    });
+
+    walkerToggleButton?.addEventListener("click", () => {
+        if (walkerState.running) {
+            stopWalker();
+        } else {
+            startWalker();
+        }
+    });
+
+    window.addEventListener("keydown", event => {
+        if (event.defaultPrevented) {
+            return;
+        }
+
+        if (isEditableElement(event.target)) {
+            return;
+        }
+
+        const direction = getDirectionFromKeyboardEvent(event);
+        if (!direction) {
+            return;
+        }
+
+        event.preventDefault();
+        handleDirectionalMove(direction);
+    });
 }
 
-if (cullingDebugToggle) {
-    cullingDebugToggle.checked = Settings.cullingDebug;
-}
-
-if (cullingLegend) {
-    cullingLegend.hidden = !Settings.cullingDebug;
-}
-
-updateCullingStatus();
+void initialize();
 
 function hideContextMenu() {
     if (!contextMenuElement) {
@@ -191,122 +369,6 @@ function updateCullingStatus() {
     cullingStatusElement.textContent = `Culling mode: ${description}${debugSuffix}`;
 }
 
-explorationToggle?.addEventListener("change", () => {
-    if (explorationToggle.checked) {
-        mapReader.decorateWithExploration();
-    } else {
-        mapReader.clearExplorationDecoration();
-    }
-    renderer.setPosition(currentRoomId);
-    const currentRoom = mapReader.getRoom(currentRoomId);
-    if (currentRoom) {
-        updateAreaStatus(currentRoom.area);
-    }
-    updateDestinationGuidance();
-});
-
-if (explorationToggle) {
-    explorationToggle.checked = mapReader.isExplorationEnabled();
-}
-
-instantMoveToggle?.addEventListener("change", () => {
-    Settings.instantMapMove = instantMoveToggle.checked;
-});
-
-if (instantMoveToggle) {
-    instantMoveToggle.checked = Settings.instantMapMove;
-}
-
-highlightToggle?.addEventListener("change", () => {
-    Settings.highlightCurrentRoom = highlightToggle.checked;
-    renderer.setPosition(currentRoomId);
-});
-
-if (highlightToggle) {
-    highlightToggle.checked = Settings.highlightCurrentRoom;
-}
-
-cullingModeSelect?.addEventListener("change", () => {
-    const value = (cullingModeSelect.value ?? "indexed") as CullingMode;
-    renderer.setCullingMode(value);
-    updateCullingStatus();
-});
-
-cullingDebugToggle?.addEventListener("change", () => {
-    const enabled = Boolean(cullingDebugToggle.checked);
-    renderer.setCullingDebug(enabled);
-    if (cullingLegend) {
-        cullingLegend.hidden = !enabled;
-    }
-    updateCullingStatus();
-});
-
-destinationForm?.addEventListener("submit", event => {
-    event.preventDefault();
-    if (!destinationInput) {
-        return;
-    }
-    const roomId = Number.parseInt(destinationInput.value, 10);
-    if (Number.isNaN(roomId)) {
-        updateDestinationStatus("Enter a valid room id.");
-        return;
-    }
-
-    const room = mapReader.getRoom(roomId);
-    if (!room) {
-        updateDestinationStatus(`Room ${roomId} not found.`);
-        return;
-    }
-
-    destinationRoomId = roomId;
-    destinationInput.value = roomId.toString();
-    updateDestinationGuidance();
-});
-
-destinationClearButton?.addEventListener("click", () => {
-    destinationRoomId = undefined;
-    currentDestinationPath = undefined;
-    updateDestinationStatus("Destination cleared. Walking freely.");
-    renderer.clearPaths();
-    if (destinationInput) {
-        destinationInput.value = "";
-    }
-});
-
-roomForm?.addEventListener("submit", event => {
-    event.preventDefault();
-    if (!roomInput) {
-        return;
-    }
-
-    const roomId = parseRoomId(roomInput.value);
-    if (roomId === undefined) {
-        updateRoomStatus("Enter a valid room id.");
-        return;
-    }
-
-    const room = mapReader.getRoom(roomId);
-    if (!room) {
-        updateRoomStatus(`Room ${roomId} not found.`);
-        return;
-    }
-
-    moveToRoom(room);
-    updateRoomStatus(`Jumped to room ${room.id}.`);
-    if (walkerState.running) {
-        walkerStatusElement.textContent = `Jumped to room ${room.id}. Walker continues.`;
-    } else {
-        walkerStatusElement.textContent = `Moved to room ${room.id}.`;
-    }
-});
-
-walkerToggleButton?.addEventListener("click", () => {
-    if (walkerState.running) {
-        stopWalker();
-    } else {
-        startWalker();
-    }
-});
 
 const exitNumberToDirection: Record<number, MapData.direction> = {
     1: "north",
@@ -801,20 +863,3 @@ function updateDestinationGuidance() {
     currentDestinationPath = path;
 }
 
-window.addEventListener("keydown", event => {
-    if (event.defaultPrevented) {
-        return;
-    }
-
-    if (isEditableElement(event.target)) {
-        return;
-    }
-
-    const direction = getDirectionFromKeyboardEvent(event);
-    if (!direction) {
-        return;
-    }
-
-    event.preventDefault();
-    handleDirectionalMove(direction);
-});
