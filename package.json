@@ -15,7 +15,7 @@
   },
   "sideEffects": false,
   "scripts": {
-    "prepublish": "build",
+    "prepublish": "vite build",
     "dev": "vite",
     "build": "tsc -p tsconfig.json && vite build",
     "preview": "vite preview",

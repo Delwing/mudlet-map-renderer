@@ -13,6 +13,8 @@ const currentRoomColor = 'rgb(120, 72, 0)';
 
 export type LabelRenderMode = "image" | "data";
 
+export type CullingMode = "none" | "basic" | "indexed";
+
 export type RoomContextMenuEventDetail = {
     roomId: number;
     position: { x: number; y: number };
@@ -28,9 +30,11 @@ export class Settings {
     static instantMapMove = false
     static highlightCurrentRoom = true;
     static cullingEnabled = true;
+    static cullingMode: CullingMode = "indexed";
     static cullingBounds: { x: number; y: number; width: number; height: number } | null = null;
     static labelRenderMode: LabelRenderMode = "image";
     static transparentLabels: boolean;
+    static cullingDebug = false;
 }
 
 type HighlightData = {
@@ -40,6 +44,8 @@ type HighlightData = {
     shape?: Konva.Circle;
 };
 
+type RoomNodeEntry = { room: MapData.Room; group: Konva.Group; linkNodes: Konva.Node[] };
+
 export class Renderer {
 
     private readonly stage: Konva.Stage;
@@ -47,6 +53,7 @@ export class Renderer {
     private readonly linkLayer: Konva.Layer;
     private readonly overlayLayer: Konva.Layer;
     private readonly positionLayer: Konva.Layer;
+    private readonly debugLayer: Konva.Layer;
     private mapReader: MapReader;
     private exitRenderer: ExitRenderer;
     private pathRenderer: PathRenderer;
@@ -60,9 +67,17 @@ export class Renderer {
     private currentTransition?: Konva.Tween;
     private currentZoom: number = 1;
     private currentRoomOverlay: Konva.Node[] = [];
-    private roomNodes: Map<number, {room: MapData.Room; group: Konva.Group; linkNodes: Konva.Node[]}> = new Map();
+    private roomNodes: Map<number, RoomNodeEntry> = new Map();
     private standaloneExitNodes: Konva.Node[] = [];
+    private spatialBucketSize = 5;
+    private roomSpatialIndex: Map<string, Set<RoomNodeEntry>> = new Map();
+    private exitSpatialIndex: Map<string, Set<Konva.Node>> = new Map();
+    private visibleRooms: Set<RoomNodeEntry> = new Set();
+    private visibleStandaloneExitNodes: Set<Konva.Node> = new Set();
     private cullingScheduled = false;
+    private cullingViewportDebug?: Konva.Rect;
+    private cullingSearchDebug?: Konva.Rect;
+    private cullingBucketDebug: Konva.Rect[] = [];
 
     constructor(container: HTMLDivElement, mapReader: MapReader) {
         this.stage = new Konva.Stage({
@@ -87,6 +102,10 @@ export class Renderer {
             listening: false,
         })
         this.stage.add(this.overlayLayer);
+        this.debugLayer = new Konva.Layer({
+            listening: false,
+        });
+        this.stage.add(this.debugLayer);
         this.positionLayer = new Konva.Layer({
             listening: false,
         });
@@ -289,8 +308,17 @@ export class Renderer {
         this.clearCurrentRoomOverlay();
         this.roomLayer.destroyChildren();
         this.linkLayer.destroyChildren();
+        this.debugLayer.destroyChildren();
         this.roomNodes.clear();
         this.standaloneExitNodes = [];
+        this.roomSpatialIndex.clear();
+        this.exitSpatialIndex.clear();
+        this.visibleRooms.clear();
+        this.visibleStandaloneExitNodes.clear();
+        this.cullingViewportDebug = undefined;
+        this.cullingSearchDebug = undefined;
+        this.cullingBucketDebug = [];
+        this.spatialBucketSize = this.computeSpatialBucketSize();
 
         this.stage.scale({x: defaultZoom * this.currentZoom, y: defaultZoom * this.currentZoom});
 
@@ -300,6 +328,103 @@ export class Renderer {
         this.refreshHighlights();
         this.stage.batchDraw();
         this.scheduleRoomCulling();
+    }
+
+    private computeSpatialBucketSize() {
+        return Math.max(Settings.roomSize * 10, 5);
+    }
+
+    private getBucketKey(bucketX: number, bucketY: number) {
+        return `${bucketX},${bucketY}`;
+    }
+
+    private forEachBucket(minX: number, minY: number, maxX: number, maxY: number, callback: (key: string) => void) {
+        const bucketSize = this.spatialBucketSize;
+        const safeMinX = Math.min(minX, maxX);
+        const safeMaxX = Math.max(minX, maxX);
+        const safeMinY = Math.min(minY, maxY);
+        const safeMaxY = Math.max(minY, maxY);
+        const minBucketX = Math.floor(safeMinX / bucketSize);
+        const maxBucketX = Math.floor(safeMaxX / bucketSize);
+        const minBucketY = Math.floor(safeMinY / bucketSize);
+        const maxBucketY = Math.floor(safeMaxY / bucketSize);
+
+        for (let bucketX = minBucketX; bucketX <= maxBucketX; bucketX++) {
+            for (let bucketY = minBucketY; bucketY <= maxBucketY; bucketY++) {
+                callback(this.getBucketKey(bucketX, bucketY));
+            }
+        }
+    }
+
+    private addRoomToSpatialIndex(entry: RoomNodeEntry) {
+        const halfSize = Settings.roomSize / 2;
+        const minX = entry.room.x - halfSize;
+        const maxX = entry.room.x + halfSize;
+        const minY = entry.room.y - halfSize;
+        const maxY = entry.room.y + halfSize;
+
+        this.forEachBucket(minX, minY, maxX, maxY, key => {
+            let bucket = this.roomSpatialIndex.get(key);
+            if (!bucket) {
+                bucket = new Set();
+                this.roomSpatialIndex.set(key, bucket);
+            }
+            bucket.add(entry);
+        });
+    }
+
+    private addStandaloneExitToSpatialIndex(node: Konva.Node) {
+        const rect = node.getClientRect({relativeTo: this.linkLayer});
+        const minX = rect.x;
+        const maxX = rect.x + rect.width;
+        const minY = rect.y;
+        const maxY = rect.y + rect.height;
+
+        this.forEachBucket(minX, minY, maxX, maxY, key => {
+            let bucket = this.exitSpatialIndex.get(key);
+            if (!bucket) {
+                bucket = new Set();
+                this.exitSpatialIndex.set(key, bucket);
+            }
+            bucket.add(node);
+        });
+    }
+
+    private collectRoomCandidates(minX: number, minY: number, maxX: number, maxY: number, debugBuckets?: Set<string>) {
+        const result = new Set<RoomNodeEntry>();
+        this.forEachBucket(minX, minY, maxX, maxY, key => {
+            if (debugBuckets) {
+                debugBuckets.add(key);
+            }
+            const bucket = this.roomSpatialIndex.get(key);
+            bucket?.forEach(entry => result.add(entry));
+        });
+        return result;
+    }
+
+    private collectStandaloneExitCandidates(minX: number, minY: number, maxX: number, maxY: number, debugBuckets?: Set<string>) {
+        const result = new Set<Konva.Node>();
+        this.forEachBucket(minX, minY, maxX, maxY, key => {
+            if (debugBuckets) {
+                debugBuckets.add(key);
+            }
+            const bucket = this.exitSpatialIndex.get(key);
+            bucket?.forEach(node => result.add(node));
+        });
+        return result;
+    }
+
+    private getBucketBounds(key: string) {
+        const [xString, yString] = key.split(",");
+        const bucketX = Number.parseInt(xString, 10);
+        const bucketY = Number.parseInt(yString, 10);
+        const bucketSize = this.spatialBucketSize;
+        return {
+            x: bucketX * bucketSize,
+            y: bucketY * bucketSize,
+            width: bucketSize,
+            height: bucketSize,
+        };
     }
 
     private emitRoomContextEvent(roomId: number, clientX: number, clientY: number) {
@@ -337,6 +462,21 @@ export class Renderer {
 
     getZoom() {
         return this.currentZoom;
+    }
+
+    setCullingMode(mode: CullingMode) {
+        Settings.cullingMode = mode;
+        Settings.cullingEnabled = mode !== "none";
+        this.scheduleRoomCulling();
+    }
+
+    getCullingMode() {
+        return Settings.cullingMode;
+    }
+
+    setCullingDebug(enabled: boolean) {
+        Settings.cullingDebug = enabled;
+        this.scheduleRoomCulling();
     }
 
     getCurrentArea() {
@@ -600,7 +740,9 @@ export class Renderer {
                 this.roomLayer.add(render)
             })
 
-            this.roomNodes.set(room.id, {room, group: roomRender, linkNodes});
+            const entry: RoomNodeEntry = {room, group: roomRender, linkNodes};
+            this.roomNodes.set(room.id, entry);
+            this.addRoomToSpatialIndex(entry);
         })
     }
 
@@ -644,13 +786,19 @@ export class Renderer {
         let roomLayerNeedsDraw = false;
         let linkLayerNeedsDraw = false;
 
-        if (!Settings.cullingEnabled) {
-            this.roomNodes.forEach(({group, linkNodes}) => {
-                if (!group.visible()) {
-                    group.visible(true);
+        const mode: CullingMode = Settings.cullingEnabled ? Settings.cullingMode ?? "indexed" : "none";
+        const searchMinX = minX - halfSize;
+        const searchMaxX = maxX + halfSize;
+        const searchMinY = minY - halfSize;
+        const searchMaxY = maxY + halfSize;
+
+        if (mode === "none") {
+            this.roomNodes.forEach(entry => {
+                if (!entry.group.visible()) {
+                    entry.group.visible(true);
                     roomLayerNeedsDraw = true;
                 }
-                linkNodes.forEach(node => {
+                entry.linkNodes.forEach(node => {
                     if (!node.visible()) {
                         node.visible(true);
                         linkLayerNeedsDraw = true;
@@ -671,14 +819,117 @@ export class Renderer {
             if (linkLayerNeedsDraw) {
                 this.linkLayer.batchDraw();
             }
+
+            this.visibleRooms = new Set(this.roomNodes.values());
+            this.visibleStandaloneExitNodes = new Set(this.standaloneExitNodes);
+            this.updateCullingDebugVisuals({
+                mode,
+                minX,
+                minY,
+                maxX,
+                maxY,
+                searchMinX,
+                searchMinY,
+                searchMaxX,
+                searchMaxY,
+            });
             return;
         }
 
-        this.roomNodes.forEach(({room, group, linkNodes}) => {
-            const roomMinX = room.x - halfSize;
-            const roomMaxX = room.x + halfSize;
-            const roomMinY = room.y - halfSize;
-            const roomMaxY = room.y + halfSize;
+        if (mode === "basic") {
+            const nextVisibleRooms = new Set<RoomNodeEntry>();
+
+            this.roomNodes.forEach(entry => {
+                const roomMinX = entry.room.x - halfSize;
+                const roomMaxX = entry.room.x + halfSize;
+                const roomMinY = entry.room.y - halfSize;
+                const roomMaxY = entry.room.y + halfSize;
+
+                const isVisible =
+                    roomMaxX >= minX &&
+                    roomMinX <= maxX &&
+                    roomMaxY >= minY &&
+                    roomMinY <= maxY;
+
+                if (entry.group.visible() !== isVisible) {
+                    entry.group.visible(isVisible);
+                    roomLayerNeedsDraw = true;
+                }
+
+                entry.linkNodes.forEach(node => {
+                    if (node.visible() !== isVisible) {
+                        node.visible(isVisible);
+                        linkLayerNeedsDraw = true;
+                    }
+                });
+
+                if (isVisible) {
+                    nextVisibleRooms.add(entry);
+                }
+            });
+
+            const nextVisibleStandaloneExitNodes = new Set<Konva.Node>();
+
+            this.standaloneExitNodes.forEach(node => {
+                const rect = node.getClientRect({relativeTo: this.linkLayer});
+                const nodeMinX = rect.x;
+                const nodeMaxX = rect.x + rect.width;
+                const nodeMinY = rect.y;
+                const nodeMaxY = rect.y + rect.height;
+
+                const isVisible =
+                    nodeMaxX >= minX &&
+                    nodeMinX <= maxX &&
+                    nodeMaxY >= minY &&
+                    nodeMinY <= maxY;
+
+                if (node.visible() !== isVisible) {
+                    node.visible(isVisible);
+                    linkLayerNeedsDraw = true;
+                }
+
+                if (isVisible) {
+                    nextVisibleStandaloneExitNodes.add(node);
+                }
+            });
+
+            this.visibleRooms = nextVisibleRooms;
+            this.visibleStandaloneExitNodes = nextVisibleStandaloneExitNodes;
+
+            if (roomLayerNeedsDraw) {
+                this.roomLayer.batchDraw();
+            }
+            if (linkLayerNeedsDraw) {
+                this.linkLayer.batchDraw();
+            }
+
+            this.updateCullingDebugVisuals({
+                mode,
+                minX,
+                minY,
+                maxX,
+                maxY,
+                searchMinX,
+                searchMinY,
+                searchMaxX,
+                searchMaxY,
+            });
+            return;
+        }
+
+        const roomDebugBuckets = Settings.cullingDebug ? new Set<string>() : undefined;
+        const exitDebugBuckets = Settings.cullingDebug ? new Set<string>() : undefined;
+        const roomCandidates = this.collectRoomCandidates(searchMinX, searchMinY, searchMaxX, searchMaxY, roomDebugBuckets);
+        const processedRooms = new Set<RoomNodeEntry>();
+        const nextVisibleRooms = new Set<RoomNodeEntry>();
+
+        roomCandidates.forEach(entry => {
+            processedRooms.add(entry);
+
+            const roomMinX = entry.room.x - halfSize;
+            const roomMaxX = entry.room.x + halfSize;
+            const roomMinY = entry.room.y - halfSize;
+            const roomMaxY = entry.room.y + halfSize;
 
             const isVisible =
                 roomMaxX >= minX &&
@@ -686,20 +937,47 @@ export class Renderer {
                 roomMaxY >= minY &&
                 roomMinY <= maxY;
 
-            if (group.visible() !== isVisible) {
-                group.visible(isVisible);
+            if (entry.group.visible() !== isVisible) {
+                entry.group.visible(isVisible);
                 roomLayerNeedsDraw = true;
             }
 
-            linkNodes.forEach(node => {
+            entry.linkNodes.forEach(node => {
                 if (node.visible() !== isVisible) {
                     node.visible(isVisible);
                     linkLayerNeedsDraw = true;
                 }
             });
+
+            if (isVisible) {
+                nextVisibleRooms.add(entry);
+            }
         });
 
-        this.standaloneExitNodes.forEach(node => {
+        this.visibleRooms.forEach(entry => {
+            if (!processedRooms.has(entry)) {
+                if (entry.group.visible()) {
+                    entry.group.visible(false);
+                    roomLayerNeedsDraw = true;
+                }
+                entry.linkNodes.forEach(node => {
+                    if (node.visible()) {
+                        node.visible(false);
+                        linkLayerNeedsDraw = true;
+                    }
+                });
+            }
+        });
+
+        this.visibleRooms = nextVisibleRooms;
+
+        const exitCandidates = this.collectStandaloneExitCandidates(searchMinX, searchMinY, searchMaxX, searchMaxY, exitDebugBuckets);
+        const processedExits = new Set<Konva.Node>();
+        const nextVisibleStandaloneExitNodes = new Set<Konva.Node>();
+
+        exitCandidates.forEach(node => {
+            processedExits.add(node);
+
             const rect = node.getClientRect({relativeTo: this.linkLayer});
             const nodeMinX = rect.x;
             const nodeMaxX = rect.x + rect.width;
@@ -716,7 +994,20 @@ export class Renderer {
                 node.visible(isVisible);
                 linkLayerNeedsDraw = true;
             }
+
+            if (isVisible) {
+                nextVisibleStandaloneExitNodes.add(node);
+            }
         });
+
+        this.visibleStandaloneExitNodes.forEach(node => {
+            if (!processedExits.has(node) && node.visible()) {
+                node.visible(false);
+                linkLayerNeedsDraw = true;
+            }
+        });
+
+        this.visibleStandaloneExitNodes = nextVisibleStandaloneExitNodes;
 
         if (roomLayerNeedsDraw) {
             this.roomLayer.batchDraw();
@@ -724,6 +1015,136 @@ export class Renderer {
         if (linkLayerNeedsDraw) {
             this.linkLayer.batchDraw();
         }
+
+        this.updateCullingDebugVisuals({
+            mode,
+            minX,
+            minY,
+            maxX,
+            maxY,
+            searchMinX,
+            searchMinY,
+            searchMaxX,
+            searchMaxY,
+            roomBuckets: roomDebugBuckets,
+            exitBuckets: exitDebugBuckets,
+        });
+    }
+
+    private updateCullingDebugVisuals({
+        mode,
+        minX,
+        minY,
+        maxX,
+        maxY,
+        searchMinX,
+        searchMinY,
+        searchMaxX,
+        searchMaxY,
+        roomBuckets,
+        exitBuckets,
+    }: {
+        mode: CullingMode;
+        minX: number;
+        minY: number;
+        maxX: number;
+        maxY: number;
+        searchMinX: number;
+        searchMinY: number;
+        searchMaxX: number;
+        searchMaxY: number;
+        roomBuckets?: Set<string>;
+        exitBuckets?: Set<string>;
+    }) {
+        if (!Settings.cullingDebug) {
+            if (this.debugLayer.children.length > 0) {
+                this.debugLayer.destroyChildren();
+                this.debugLayer.batchDraw();
+            }
+            this.cullingViewportDebug = undefined;
+            this.cullingSearchDebug = undefined;
+            this.cullingBucketDebug = [];
+            return;
+        }
+
+        this.debugLayer.destroyChildren();
+
+        const viewportWidth = Math.max(0, maxX - minX);
+        const viewportHeight = Math.max(0, maxY - minY);
+        const viewportRect = new Konva.Rect({
+            x: minX,
+            y: minY,
+            width: viewportWidth,
+            height: viewportHeight,
+            stroke: "rgba(102, 255, 204, 0.9)",
+            strokeWidth: 0.1,
+            dash: [0.4, 0.2],
+            listening: false,
+        });
+        this.debugLayer.add(viewportRect);
+        this.cullingViewportDebug = viewportRect;
+
+        const paddingDiffers =
+            searchMinX < minX ||
+            searchMinY < minY ||
+            searchMaxX > maxX ||
+            searchMaxY > maxY;
+
+        if (paddingDiffers) {
+            const searchRect = new Konva.Rect({
+                x: searchMinX,
+                y: searchMinY,
+                width: Math.max(0, searchMaxX - searchMinX),
+                height: Math.max(0, searchMaxY - searchMinY),
+                stroke: "rgba(80, 160, 255, 0.75)",
+                strokeWidth: 0.08,
+                dash: [0.3, 0.15],
+                fill: "rgba(80, 160, 255, 0.15)",
+                listening: false,
+            });
+            this.debugLayer.add(searchRect);
+            this.cullingSearchDebug = searchRect;
+        } else {
+            this.cullingSearchDebug = undefined;
+        }
+
+        this.cullingBucketDebug = [];
+        if (mode === "indexed" && (roomBuckets?.size || exitBuckets?.size)) {
+            const bucketStyles = new Map<string, { rooms: boolean; exits: boolean }>();
+            roomBuckets?.forEach(key => {
+                const existing = bucketStyles.get(key);
+                bucketStyles.set(key, { rooms: true, exits: existing?.exits ?? false });
+            });
+            exitBuckets?.forEach(key => {
+                const existing = bucketStyles.get(key);
+                bucketStyles.set(key, { rooms: existing?.rooms ?? false, exits: true });
+            });
+
+            bucketStyles.forEach(({rooms, exits}, key) => {
+                const bounds = this.getBucketBounds(key);
+                const fillColor = rooms && exits
+                    ? "rgba(255, 196, 102, 0.18)"
+                    : rooms
+                        ? "rgba(102, 255, 204, 0.18)"
+                        : "rgba(255, 196, 102, 0.12)";
+                const strokeColor = rooms && exits
+                    ? "rgba(255, 196, 102, 0.75)"
+                    : rooms
+                        ? "rgba(102, 255, 204, 0.8)"
+                        : "rgba(255, 196, 102, 0.6)";
+                const rect = new Konva.Rect({
+                    ...bounds,
+                    stroke: strokeColor,
+                    strokeWidth: 0.05,
+                    fill: fillColor,
+                    listening: false,
+                });
+                this.debugLayer.add(rect);
+                this.cullingBucketDebug.push(rect);
+            });
+        }
+
+        this.debugLayer.batchDraw();
     }
 
     private clearCurrentRoomOverlay() {
@@ -867,6 +1288,7 @@ export class Renderer {
             }
             this.linkLayer.add(render);
             this.standaloneExitNodes.push(render);
+            this.addStandaloneExitToSpatialIndex(render);
         })
 
     }
