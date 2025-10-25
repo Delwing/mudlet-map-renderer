@@ -1,6 +1,6 @@
 import data from "./mapExport.json";
 import colors from "./colors.json";
-import {Renderer, Settings} from "@src";
+import {Renderer, Settings, CullingMode} from "@src";
 import type {RoomContextMenuEventDetail} from "@src";
 import MapReader from "@src/reader/MapReader";
 
@@ -14,6 +14,9 @@ const walkerToggleButton = document.getElementById("walker-toggle") as HTMLButto
 const explorationToggle = document.getElementById("exploration-toggle") as HTMLInputElement | null;
 const instantMoveToggle = document.getElementById("instant-move-toggle") as HTMLInputElement | null;
 const highlightToggle = document.getElementById("highlight-toggle") as HTMLInputElement | null;
+const cullingModeSelect = document.getElementById("culling-mode") as HTMLSelectElement | null;
+const cullingDebugToggle = document.getElementById("culling-debug-toggle") as HTMLInputElement | null;
+const cullingLegend = document.getElementById("culling-legend") as HTMLDivElement | null;
 const roomForm = document.getElementById("room-form") as HTMLFormElement | null;
 const roomInput = document.getElementById("room-input") as HTMLInputElement | null;
 const roomStatusElement = document.getElementById("room-status") as HTMLDivElement | null;
@@ -21,6 +24,7 @@ const destinationForm = document.getElementById("destination-form") as HTMLFormE
 const destinationInput = document.getElementById("destination-input") as HTMLInputElement | null;
 const destinationClearButton = document.getElementById("destination-clear") as HTMLButtonElement | null;
 const destinationStatusElement = document.getElementById("destination-status") as HTMLDivElement | null;
+const cullingStatusElement = document.getElementById("culling-status") as HTMLDivElement | null;
 
 const mapReader = new MapReader(data as MapData.Map, colors as MapData.Env[]);
 const DEFAULT_STARTING_ROOM_ID = 21461;
@@ -79,6 +83,20 @@ if (startingRoom) {
 if (initialRoomStatus && roomStatusElement) {
     roomStatusElement.textContent = initialRoomStatus;
 }
+
+if (cullingModeSelect) {
+    cullingModeSelect.value = renderer.getCullingMode();
+}
+
+if (cullingDebugToggle) {
+    cullingDebugToggle.checked = Settings.cullingDebug;
+}
+
+if (cullingLegend) {
+    cullingLegend.hidden = !Settings.cullingDebug;
+}
+
+updateCullingStatus();
 
 function hideContextMenu() {
     if (!contextMenuElement) {
@@ -151,6 +169,28 @@ function startFpsCounter() {
     requestAnimationFrame(updateFps);
 }
 
+function describeCullingMode(mode: CullingMode) {
+    switch (mode) {
+        case "none":
+            return "No culling";
+        case "basic":
+            return "Classic culling";
+        case "indexed":
+        default:
+            return "Spatial index culling";
+    }
+}
+
+function updateCullingStatus() {
+    if (!cullingStatusElement) {
+        return;
+    }
+    const mode = renderer.getCullingMode();
+    const description = describeCullingMode(mode);
+    const debugSuffix = Settings.cullingDebug ? " • Debug overlay enabled" : "";
+    cullingStatusElement.textContent = `Culling mode: ${description}${debugSuffix}`;
+}
+
 explorationToggle?.addEventListener("change", () => {
     if (explorationToggle.checked) {
         mapReader.decorateWithExploration();
@@ -185,6 +225,21 @@ highlightToggle?.addEventListener("change", () => {
 if (highlightToggle) {
     highlightToggle.checked = Settings.highlightCurrentRoom;
 }
+
+cullingModeSelect?.addEventListener("change", () => {
+    const value = (cullingModeSelect.value ?? "indexed") as CullingMode;
+    renderer.setCullingMode(value);
+    updateCullingStatus();
+});
+
+cullingDebugToggle?.addEventListener("change", () => {
+    const enabled = Boolean(cullingDebugToggle.checked);
+    renderer.setCullingDebug(enabled);
+    if (cullingLegend) {
+        cullingLegend.hidden = !enabled;
+    }
+    updateCullingStatus();
+});
 
 destinationForm?.addEventListener("submit", event => {
     event.preventDefault();
