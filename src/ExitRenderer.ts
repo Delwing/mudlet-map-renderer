@@ -97,6 +97,7 @@ export default class ExitRenderer {
             points,
             stroke: color,
             strokeWidth: 0.025,
+            perfectDrawEnabled: false,
         });
         exitRender.add(link);
 
@@ -136,6 +137,7 @@ export default class ExitRenderer {
             strokeWidth: 0.025,
             dashEnabled: true,
             dash: [0.1, 0.05],
+            perfectDrawEnabled: false,
         });
         group.add(link)
 
@@ -186,6 +188,7 @@ export default class ExitRenderer {
                 fill: overrideColor ?? `rgb(${line.attributes.color.r}, ${line.attributes.color.g} , ${line.attributes.color.b})`,
                 pointerLength: 0.3,
                 pointerWidth: 0.2,
+                perfectDrawEnabled: false,
 
             })
 
@@ -231,7 +234,8 @@ export default class ExitRenderer {
                     strokeWidth: 0.025,
                     radius: Settings.roomSize / 5,
                     scaleX: 1.4,
-                    scaleY: 0.8
+                    scaleY: 0.8,
+                    perfectDrawEnabled: false,
                 })
                 render.add(triangle);
 

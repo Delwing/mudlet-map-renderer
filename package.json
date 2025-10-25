@@ -1,6 +1,6 @@
 {
   "name": "mudlet-map-renderer",
-  "version": "0.8.6-konva",
+  "version": "0.9.1-konva",
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.cjs",

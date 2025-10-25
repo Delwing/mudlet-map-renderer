@@ -663,6 +663,7 @@ export class Renderer {
                 fill: this.mapReader.getColorValue(room.env),
                 strokeWidth: 0.025,
                 stroke: Settings.lineColor,
+                perfectDrawEnabled: false,
             });
             const emitContextEvent = (clientX: number, clientY: number) => this.emitRoomContextEvent(room.id, clientX, clientY);
 
