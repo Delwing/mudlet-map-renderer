@@ -15,13 +15,12 @@
   },
   "sideEffects": false,
   "scripts": {
-    "prepublish": "build",
+    "prepublish": "vite build",
     "dev": "vite",
     "build": "tsc -p tsconfig.json && vite build",
     "preview": "vite preview",
     "demo:dev": "vite --config vite.demo.config.ts",
     "demo:build": "vite build --config vite.demo.config.ts",
-    "vercel-build": "yarn demo:build",
     "demo:preview": "vite preview --config vite.demo.config.ts"
   },
   "dependencies": {
