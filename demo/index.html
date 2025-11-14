@@ -119,55 +119,6 @@
             font-size: 0.8rem;
             color: #8ee7ff;
         }
-
-        #culling-legend {
-            display: flex;
-            flex-direction: column;
-            gap: 0.3rem;
-            padding: 0.4rem 0.5rem;
-            background: rgba(10, 20, 32, 0.6);
-            border-radius: 0.4rem;
-            border: 1px solid rgba(99, 187, 255, 0.25);
-        }
-
-        #culling-legend[hidden] {
-            display: none;
-        }
-
-        .legend-item {
-            display: flex;
-            align-items: center;
-            gap: 0.4rem;
-            font-size: 0.75rem;
-            color: #c8f7ff;
-        }
-
-        .legend-swatch {
-            width: 1rem;
-            height: 0.6rem;
-            border-radius: 0.25rem;
-            border: 1px solid rgba(200, 240, 255, 0.8);
-        }
-
-        .legend-swatch.viewport {
-            border-color: rgba(102, 255, 204, 0.9);
-            background: rgba(102, 255, 204, 0.2);
-        }
-
-        .legend-swatch.padding {
-            border-color: rgba(80, 160, 255, 0.75);
-            background: rgba(80, 160, 255, 0.22);
-        }
-
-        .legend-swatch.rooms {
-            border-color: rgba(102, 255, 204, 0.8);
-            background: rgba(102, 255, 204, 0.18);
-        }
-
-        .legend-swatch.exits {
-            border-color: rgba(255, 196, 102, 0.75);
-            background: rgba(255, 196, 102, 0.2);
-        }
     </style>
     <link href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,300..800;1,300..800&family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet">
 </head>
@@ -203,16 +154,6 @@
                 <option value="indexed">Spatial index culling</option>
             </select>
         </label>
-        <label>
-            <input type="checkbox" id="culling-debug-toggle">
-            Show culling debug overlay
-        </label>
-        <div id="culling-legend" hidden>
-            <div class="legend-item"><span class="legend-swatch viewport"></span>Visible viewport</div>
-            <div class="legend-item"><span class="legend-swatch padding"></span>Viewport padding for culling checks</div>
-            <div class="legend-item"><span class="legend-swatch rooms"></span>Spatial index buckets with room nodes</div>
-            <div class="legend-item"><span class="legend-swatch exits"></span>Spatial index buckets with standalone exits</div>
-        </div>
         <form id="room-form">
             <label for="room-input">Current room</label>
             <div class="control-inputs">

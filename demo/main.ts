@@ -1,4 +1,4 @@
-import {Renderer, Settings, CullingMode, PathFinder} from "@src";
+import {Renderer, Settings, CullingMode} from "@src";
 import type {RoomContextMenuEventDetail} from "@src";
 import MapReader from "@src/reader/MapReader";
 
@@ -13,8 +13,6 @@ const explorationToggle = document.getElementById("exploration-toggle") as HTMLI
 const instantMoveToggle = document.getElementById("instant-move-toggle") as HTMLInputElement | null;
 const highlightToggle = document.getElementById("highlight-toggle") as HTMLInputElement | null;
 const cullingModeSelect = document.getElementById("culling-mode") as HTMLSelectElement | null;
-const cullingDebugToggle = document.getElementById("culling-debug-toggle") as HTMLInputElement | null;
-const cullingLegend = document.getElementById("culling-legend") as HTMLDivElement | null;
 const roomForm = document.getElementById("room-form") as HTMLFormElement | null;
 const roomInput = document.getElementById("room-input") as HTMLInputElement | null;
 const roomStatusElement = document.getElementById("room-status") as HTMLDivElement | null;
@@ -130,14 +128,6 @@ async function initialize() {
         cullingModeSelect.value = renderer.getCullingMode();
     }
 
-    if (cullingDebugToggle) {
-        cullingDebugToggle.checked = Settings.cullingDebug;
-    }
-
-    if (cullingLegend) {
-        cullingLegend.hidden = !Settings.cullingDebug;
-    }
-
     if (instantMoveToggle) {
         instantMoveToggle.checked = Settings.instantMapMove;
     }
@@ -177,15 +167,6 @@ function attachEventListeners() {
     cullingModeSelect?.addEventListener("change", () => {
         const value = (cullingModeSelect.value ?? "indexed") as CullingMode;
         renderer.setCullingMode(value);
-        updateCullingStatus();
-    });
-
-    cullingDebugToggle?.addEventListener("change", () => {
-        const enabled = Boolean(cullingDebugToggle.checked);
-        renderer.setCullingDebug(enabled);
-        if (cullingLegend) {
-            cullingLegend.hidden = !enabled;
-        }
         updateCullingStatus();
     });
 
@@ -366,8 +347,7 @@ function updateCullingStatus() {
     }
     const mode = renderer.getCullingMode();
     const description = describeCullingMode(mode);
-    const debugSuffix = Settings.cullingDebug ? " • Debug overlay enabled" : "";
-    cullingStatusElement.textContent = `Culling mode: ${description}${debugSuffix}`;
+    cullingStatusElement.textContent = `Culling mode: ${description}`;
 }
 
 
@@ -454,7 +434,7 @@ function getDirectionalExitTarget(room: MapData.Room, direction: MapData.directi
     const exits = room.exits ?? {};
     const directExitId = exits[direction];
 
-    if (typeof directExitId === "number" && directExitId > 0) {
+    if (directExitId > 0) {
         return directExitId;
     }
 
@@ -462,7 +442,7 @@ function getDirectionalExitTarget(room: MapData.Room, direction: MapData.directi
 
     const specialExits = room.specialExits ?? {};
     for (const exitId of Object.values(specialExits)) {
-        if (typeof exitId !== "number" || exitId <= 0) {
+        if (exitId <= 0) {
             continue;
         }
         if (lockedSpecialTargets.has(exitId)) {
@@ -562,7 +542,7 @@ function getRoomExits(room: MapData.Room) {
     });
 
     Object.values(room.specialExits ?? {}).forEach(exitId => {
-        if (typeof exitId !== "number" || exitId <= 0) {
+        if (exitId <= 0) {
             return;
         }
         if (lockedSpecialTargets.has(exitId)) {

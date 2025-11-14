@@ -34,7 +34,6 @@ export class Settings {
     static cullingBounds: { x: number; y: number; width: number; height: number } | null = null;
     static labelRenderMode: LabelRenderMode = "image";
     static transparentLabels: boolean;
-    static cullingDebug = false;
 }
 
 type HighlightData = {
@@ -55,7 +54,6 @@ export class Renderer {
     private readonly linkLayer: Konva.Layer;
     private readonly positionLayer: Konva.Layer;
     private readonly overlayLayer: Konva.Layer;
-    private readonly debugLayer: Konva.Layer;
     private mapReader: MapReader;
     private exitRenderer: ExitRenderer;
     private pathRenderer: PathRenderer;
@@ -78,9 +76,6 @@ export class Renderer {
     private visibleStandaloneExitNodes: Set<StandaloneExitEntry> = new Set();
     private standaloneExitBoundsRoomSize?: number;
     private cullingScheduled = false;
-    private cullingViewportDebug?: Konva.Rect;
-    private cullingSearchDebug?: Konva.Rect;
-    private cullingBucketDebug: Konva.Rect[] = [];
 
     constructor(container: HTMLDivElement, mapReader: MapReader) {
         this.stage = new Konva.Stage({
@@ -109,10 +104,6 @@ export class Renderer {
             listening: false,
         })
         this.stage.add(this.overlayLayer);
-        this.debugLayer = new Konva.Layer({
-            listening: false,
-        });
-        this.stage.add(this.debugLayer);
         this.mapReader = mapReader;
         this.exitRenderer = new ExitRenderer(mapReader, this);
         this.pathRenderer = new PathRenderer(mapReader, this.overlayLayer);
@@ -311,7 +302,6 @@ export class Renderer {
         this.clearCurrentRoomOverlay();
         this.roomLayer.destroyChildren();
         this.linkLayer.destroyChildren();
-        this.debugLayer.destroyChildren();
         this.roomNodes.clear();
         this.standaloneExitNodes = [];
         this.standaloneExitBoundsRoomSize = undefined;
@@ -319,9 +309,6 @@ export class Renderer {
         this.exitSpatialIndex.clear();
         this.visibleRooms.clear();
         this.visibleStandaloneExitNodes.clear();
-        this.cullingViewportDebug = undefined;
-        this.cullingSearchDebug = undefined;
-        this.cullingBucketDebug = [];
         this.spatialBucketSize = this.computeSpatialBucketSize();
 
         this.stage.scale({x: defaultZoom * this.currentZoom, y: defaultZoom * this.currentZoom});
@@ -394,24 +381,18 @@ export class Renderer {
         });
     }
 
-    private collectRoomCandidates(minX: number, minY: number, maxX: number, maxY: number, debugBuckets?: Set<string>) {
+    private collectRoomCandidates(minX: number, minY: number, maxX: number, maxY: number) {
         const result = new Set<RoomNodeEntry>();
         this.forEachBucket(minX, minY, maxX, maxY, key => {
-            if (debugBuckets) {
-                debugBuckets.add(key);
-            }
             const bucket = this.roomSpatialIndex.get(key);
             bucket?.forEach(entry => result.add(entry));
         });
         return result;
     }
 
-    private collectStandaloneExitCandidates(minX: number, minY: number, maxX: number, maxY: number, debugBuckets?: Set<string>) {
+    private collectStandaloneExitCandidates(minX: number, minY: number, maxX: number, maxY: number) {
         const result = new Set<StandaloneExitEntry>();
         this.forEachBucket(minX, minY, maxX, maxY, key => {
-            if (debugBuckets) {
-                debugBuckets.add(key);
-            }
             const bucket = this.exitSpatialIndex.get(key);
             bucket?.forEach(entry => result.add(entry));
         });
@@ -429,19 +410,6 @@ export class Renderer {
             this.addStandaloneExitToSpatialIndex(entry);
         });
         this.standaloneExitBoundsRoomSize = Settings.roomSize;
-    }
-
-    private getBucketBounds(key: string) {
-        const [xString, yString] = key.split(",");
-        const bucketX = Number.parseInt(xString, 10);
-        const bucketY = Number.parseInt(yString, 10);
-        const bucketSize = this.spatialBucketSize;
-        return {
-            x: bucketX * bucketSize,
-            y: bucketY * bucketSize,
-            width: bucketSize,
-            height: bucketSize,
-        };
     }
 
     private emitRoomContextEvent(roomId: number, clientX: number, clientY: number) {
@@ -489,11 +457,6 @@ export class Renderer {
 
     getCullingMode() {
         return Settings.cullingMode;
-    }
-
-    setCullingDebug(enabled: boolean) {
-        Settings.cullingDebug = enabled;
-        this.scheduleRoomCulling();
     }
 
     getCurrentArea() {
@@ -849,17 +812,6 @@ export class Renderer {
 
             this.visibleRooms = new Set(this.roomNodes.values());
             this.visibleStandaloneExitNodes = new Set(this.standaloneExitNodes);
-            this.updateCullingDebugVisuals({
-                mode,
-                minX,
-                minY,
-                maxX,
-                maxY,
-                searchMinX,
-                searchMinY,
-                searchMaxX,
-                searchMaxY,
-            });
             return;
         }
 
@@ -930,23 +882,10 @@ export class Renderer {
                 this.linkLayer.batchDraw();
             }
 
-            this.updateCullingDebugVisuals({
-                mode,
-                minX,
-                minY,
-                maxX,
-                maxY,
-                searchMinX,
-                searchMinY,
-                searchMaxX,
-                searchMaxY,
-            });
             return;
         }
 
-        const roomDebugBuckets = Settings.cullingDebug ? new Set<string>() : undefined;
-        const exitDebugBuckets = Settings.cullingDebug ? new Set<string>() : undefined;
-        const roomCandidates = this.collectRoomCandidates(searchMinX, searchMinY, searchMaxX, searchMaxY, roomDebugBuckets);
+        const roomCandidates = this.collectRoomCandidates(searchMinX, searchMinY, searchMaxX, searchMaxY);
         const processedRooms = new Set<RoomNodeEntry>();
         const nextVisibleRooms = new Set<RoomNodeEntry>();
 
@@ -998,7 +937,7 @@ export class Renderer {
 
         this.visibleRooms = nextVisibleRooms;
 
-        const exitCandidates = this.collectStandaloneExitCandidates(searchMinX, searchMinY, searchMaxX, searchMaxY, exitDebugBuckets);
+        const exitCandidates = this.collectStandaloneExitCandidates(searchMinX, searchMinY, searchMaxX, searchMaxY);
         const processedExits = new Set<StandaloneExitEntry>();
         const nextVisibleStandaloneExitNodes = new Set<StandaloneExitEntry>();
 
@@ -1043,136 +982,6 @@ export class Renderer {
         if (linkLayerNeedsDraw) {
             this.linkLayer.batchDraw();
         }
-
-        this.updateCullingDebugVisuals({
-            mode,
-            minX,
-            minY,
-            maxX,
-            maxY,
-            searchMinX,
-            searchMinY,
-            searchMaxX,
-            searchMaxY,
-            roomBuckets: roomDebugBuckets,
-            exitBuckets: exitDebugBuckets,
-        });
-    }
-
-    private updateCullingDebugVisuals({
-        mode,
-        minX,
-        minY,
-        maxX,
-        maxY,
-        searchMinX,
-        searchMinY,
-        searchMaxX,
-        searchMaxY,
-        roomBuckets,
-        exitBuckets,
-    }: {
-        mode: CullingMode;
-        minX: number;
-        minY: number;
-        maxX: number;
-        maxY: number;
-        searchMinX: number;
-        searchMinY: number;
-        searchMaxX: number;
-        searchMaxY: number;
-        roomBuckets?: Set<string>;
-        exitBuckets?: Set<string>;
-    }) {
-        if (!Settings.cullingDebug) {
-            if (this.debugLayer.children.length > 0) {
-                this.debugLayer.destroyChildren();
-                this.debugLayer.batchDraw();
-            }
-            this.cullingViewportDebug = undefined;
-            this.cullingSearchDebug = undefined;
-            this.cullingBucketDebug = [];
-            return;
-        }
-
-        this.debugLayer.destroyChildren();
-
-        const viewportWidth = Math.max(0, maxX - minX);
-        const viewportHeight = Math.max(0, maxY - minY);
-        const viewportRect = new Konva.Rect({
-            x: minX,
-            y: minY,
-            width: viewportWidth,
-            height: viewportHeight,
-            stroke: "rgba(102, 255, 204, 0.9)",
-            strokeWidth: 0.1,
-            dash: [0.4, 0.2],
-            listening: false,
-        });
-        this.debugLayer.add(viewportRect);
-        this.cullingViewportDebug = viewportRect;
-
-        const paddingDiffers =
-            searchMinX < minX ||
-            searchMinY < minY ||
-            searchMaxX > maxX ||
-            searchMaxY > maxY;
-
-        if (paddingDiffers) {
-            const searchRect = new Konva.Rect({
-                x: searchMinX,
-                y: searchMinY,
-                width: Math.max(0, searchMaxX - searchMinX),
-                height: Math.max(0, searchMaxY - searchMinY),
-                stroke: "rgba(80, 160, 255, 0.75)",
-                strokeWidth: 0.08,
-                dash: [0.3, 0.15],
-                fill: "rgba(80, 160, 255, 0.15)",
-                listening: false,
-            });
-            this.debugLayer.add(searchRect);
-            this.cullingSearchDebug = searchRect;
-        } else {
-            this.cullingSearchDebug = undefined;
-        }
-
-        this.cullingBucketDebug = [];
-        if (mode === "indexed" && (roomBuckets?.size || exitBuckets?.size)) {
-            const bucketStyles = new Map<string, { rooms: boolean; exits: boolean }>();
-            roomBuckets?.forEach(key => {
-                const existing = bucketStyles.get(key);
-                bucketStyles.set(key, { rooms: true, exits: existing?.exits ?? false });
-            });
-            exitBuckets?.forEach(key => {
-                const existing = bucketStyles.get(key);
-                bucketStyles.set(key, { rooms: existing?.rooms ?? false, exits: true });
-            });
-
-            bucketStyles.forEach(({rooms, exits}, key) => {
-                const bounds = this.getBucketBounds(key);
-                const fillColor = rooms && exits
-                    ? "rgba(255, 196, 102, 0.18)"
-                    : rooms
-                        ? "rgba(102, 255, 204, 0.18)"
-                        : "rgba(255, 196, 102, 0.12)";
-                const strokeColor = rooms && exits
-                    ? "rgba(255, 196, 102, 0.75)"
-                    : rooms
-                        ? "rgba(102, 255, 204, 0.8)"
-                        : "rgba(255, 196, 102, 0.6)";
-                const rect = new Konva.Rect({
-                    ...bounds,
-                    stroke: strokeColor,
-                    strokeWidth: 0.05,
-                    fill: fillColor,
-                    listening: false,
-                });
-                this.debugLayer.add(rect);
-                this.cullingBucketDebug.push(rect);
-            });
-        }
-
-        this.debugLayer.batchDraw();
     }
 
     private clearCurrentRoomOverlay() {
