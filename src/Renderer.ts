@@ -41,7 +41,7 @@ type HighlightData = {
     color: string;
     area: number;
     z: number;
-    shape?: Konva.Circle;
+    shape?: Konva.Shape;
 };
 
 type RoomNodeEntry = { room: MapData.Room; group: Konva.Group; linkNodes: Konva.Node[] };
@@ -53,8 +53,8 @@ export class Renderer {
     private readonly stage: Konva.Stage;
     private readonly roomLayer: Konva.Layer;
     private readonly linkLayer: Konva.Layer;
-    private readonly overlayLayer: Konva.Layer;
     private readonly positionLayer: Konva.Layer;
+    private readonly overlayLayer: Konva.Layer;
     private readonly debugLayer: Konva.Layer;
     private mapReader: MapReader;
     private exitRenderer: ExitRenderer;
@@ -101,6 +101,10 @@ export class Renderer {
         this.stage.add(this.linkLayer);
         this.roomLayer = new Konva.Layer();
         this.stage.add(this.roomLayer);
+        this.positionLayer = new Konva.Layer({
+            listening: false,
+        });
+        this.stage.add(this.positionLayer);
         this.overlayLayer = new Konva.Layer({
             listening: false,
         })
@@ -109,10 +113,6 @@ export class Renderer {
             listening: false,
         });
         this.stage.add(this.debugLayer);
-        this.positionLayer = new Konva.Layer({
-            listening: false,
-        });
-        this.stage.add(this.positionLayer);
         this.mapReader = mapReader;
         this.exitRenderer = new ExitRenderer(mapReader, this);
         this.pathRenderer = new PathRenderer(mapReader, this.overlayLayer);
@@ -594,13 +594,15 @@ export class Renderer {
     }
 
     private createHighlightShape(room: MapData.Room, color: string) {
-        return new Konva.Circle({
-            x: room.x,
-            y: room.y,
-            radius: Settings.roomSize * 0.9,
+        const highlightFactor = 1.5;
+        return new Konva.Rect({
+            x: room.x - Settings.roomSize / 2 * highlightFactor,
+            y: room.y - Settings.roomSize / 2 * highlightFactor,
+            width: Settings.roomSize * highlightFactor,
+            height: Settings.roomSize * highlightFactor,
             stroke: color,
-            strokeWidth: 0.15,
-            dash: [0.1, 0.05],
+            strokeWidth: 0.1,
+            dash: [0.05, 0.05],
             dashEnabled: true,
             listening: false,
         });
@@ -746,9 +748,13 @@ export class Renderer {
             this.roomLayer.add(roomRender);
 
             const linkNodes: Konva.Node[] = [];
+            // Special exits are added as standalone nodes for independent culling
             this.exitRenderer.renderSpecialExits(room).forEach(render => {
-                this.linkLayer.add(render)
-                linkNodes.push(render);
+                this.linkLayer.add(render);
+                const bounds = render.getClientRect({relativeTo: this.linkLayer});
+                const entry: StandaloneExitEntry = {node: render, bounds};
+                this.standaloneExitNodes.push(entry);
+                this.addStandaloneExitToSpatialIndex(entry);
             })
             this.exitRenderer.renderStubs(room).forEach(render => {
                 this.linkLayer.add(render)
@@ -1172,14 +1178,14 @@ export class Renderer {
     private clearCurrentRoomOverlay() {
         this.currentRoomOverlay.forEach(node => node.destroy());
         this.currentRoomOverlay = [];
-        this.overlayLayer.batchDraw();
+        this.positionLayer.batchDraw();
     }
 
     private updateCurrentRoomOverlay(room: MapData.Room) {
         this.clearCurrentRoomOverlay();
 
         if (room.area !== this.currentArea || room.z !== this.currentZIndex) {
-            this.overlayLayer.batchDraw();
+            this.positionLayer.batchDraw();
             return;
         }
 
@@ -1234,7 +1240,7 @@ export class Renderer {
         })
 
         preRoomNodes.forEach(node => {
-            this.overlayLayer.add(node);
+            this.positionLayer.add(node);
             this.currentRoomOverlay.push(node);
         });
 
@@ -1246,16 +1252,16 @@ export class Renderer {
                     stroke: isCurrent && Settings.highlightCurrentRoom ? currentRoomColor : Settings.lineColor,
                 }
             );
-            this.overlayLayer.add(overlayRoom);
+            this.positionLayer.add(overlayRoom);
             this.currentRoomOverlay.push(overlayRoom);
 
             this.exitRenderer.renderInnerExits(roomToRedraw).forEach(render => {
-                this.overlayLayer.add(render);
+                this.positionLayer.add(render);
                 this.currentRoomOverlay.push(render);
             });
         });
 
-        this.overlayLayer.batchDraw();
+        this.positionLayer.batchDraw();
     }
 
     private createOverlayRoomGroup(room: MapData.Room, options: {

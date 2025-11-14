@@ -1,4 +1,4 @@
-import {Renderer, Settings, CullingMode} from "@src";
+import {Renderer, Settings, CullingMode, PathFinder} from "@src";
 import type {RoomContextMenuEventDetail} from "@src";
 import MapReader from "@src/reader/MapReader";
 
@@ -99,6 +99,7 @@ async function initialize() {
 
     const {roomId: startingRoomId, status: initialRoomStatus} = getStartingRoomId();
     const startingRoom = mapReader.getRoom(startingRoomId);
+    renderer.renderHighlight(startingRoom.id, 'yellow')
     currentRoomId = startingRoomId;
     destinationRoomId = undefined;
     currentDestinationPath = undefined;
@@ -844,6 +845,9 @@ function updateDestinationGuidance() {
     }
 
     const path = findPathBetweenRooms(currentRoomId, destinationRoomId);
+    if (path) {
+        renderer.renderPath(path, 'green')
+    }
     renderer.clearPaths();
 
     if (!path) {
