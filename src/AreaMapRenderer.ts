@@ -36,6 +36,9 @@ type AreaNode = {
     height: number;
     connections: AreaConnection[];
     roomCount: number;
+    // Real world center position (from room coordinates)
+    realCenterX: number;
+    realCenterY: number;
 };
 
 type ConnectionGroup = {
@@ -215,26 +218,96 @@ export class AreaMapRenderer {
         const rooms = this.mapReader.getRooms();
         const areas = this.mapReader.getAreas();
 
+        // Calculate bounds and center for each area (only z=0 rooms) to determine proportional sizes and positions
+        const areaBounds = new Map<number, {minX: number; maxX: number; minY: number; maxY: number; centerX: number; centerY: number; roomCount: number}>();
+        for (const area of areas) {
+            const areaId = area.getAreaId();
+            const areaRooms = area.getRooms();
+            if (areaRooms.length === 0) continue;
+
+            let minX = Infinity, maxX = -Infinity;
+            let minY = Infinity, maxY = -Infinity;
+            let z0RoomCount = 0;
+
+            for (const room of areaRooms) {
+                // Only count rooms at z=0
+                if (room.z !== 0) continue;
+                z0RoomCount++;
+                minX = Math.min(minX, room.x);
+                maxX = Math.max(maxX, room.x);
+                minY = Math.min(minY, room.y);
+                maxY = Math.max(maxY, room.y);
+            }
+
+            // If no z=0 rooms, use all rooms
+            if (z0RoomCount === 0) {
+                for (const room of areaRooms) {
+                    minX = Math.min(minX, room.x);
+                    maxX = Math.max(maxX, room.x);
+                    minY = Math.min(minY, room.y);
+                    maxY = Math.max(maxY, room.y);
+                }
+            }
+
+            // Calculate center of the area
+            const centerX = (minX + maxX) / 2;
+            const centerY = (minY + maxY) / 2;
+
+            areaBounds.set(areaId, {minX, maxX, minY, maxY, centerX, centerY, roomCount: areaRooms.length});
+        }
+
+        // Find the scale factor to normalize area sizes
+        // Use the largest area dimension as reference
+        let maxDimension = 1;
+        for (const bounds of areaBounds.values()) {
+            const width = bounds.maxX - bounds.minX;
+            const height = bounds.maxY - bounds.minY;
+            maxDimension = Math.max(maxDimension, width, height);
+        }
+
+        // Scale factor: map the largest area to max size, others proportionally
+        const maxAreaSize = 200; // Maximum rectangle dimension
+        const minAreaSize = 100; // Minimum rectangle dimension
+        const scaleFactor = maxAreaSize / maxDimension;
+
         // Create area nodes (skip areas with no rooms and filter by domain)
         for (const area of areas) {
             const areaId = area.getAreaId();
-            const roomCount = area.getRooms().length;
-            if (roomCount === 0) {
-                continue;
-            }
+            const bounds = areaBounds.get(areaId);
+            if (!bounds) continue;
+
             // Skip areas not in selected domain
             if (!this.isAreaInDomain(areaId)) {
                 continue;
             }
+
+            // Calculate proportional size
+            const boundsWidth = bounds.maxX - bounds.minX;
+            const boundsHeight = bounds.maxY - bounds.minY;
+
+            // Scale proportionally, with minimum size
+            let width = Math.max(minAreaSize, boundsWidth * scaleFactor);
+            let height = Math.max(minAreaSize, boundsHeight * scaleFactor);
+
+            // Ensure reasonable aspect ratio (not too extreme)
+            const aspectRatio = width / height;
+            if (aspectRatio > 3) {
+                height = width / 3;
+            } else if (aspectRatio < 1/3) {
+                width = height / 3;
+            }
+
             this.areaNodes.set(areaId, {
                 areaId,
                 name: area.getAreaName(),
                 x: 0,
                 y: 0,
-                width: AreaMapSettings.areaWidth,
-                height: AreaMapSettings.areaHeight,
+                width,
+                height,
                 connections: [],
-                roomCount,
+                roomCount: bounds.roomCount,
+                realCenterX: bounds.centerX,
+                realCenterY: bounds.centerY,
             });
         }
 
@@ -425,14 +498,6 @@ export class AreaMapRenderer {
     private layoutAreas() {
         const nodes = Array.from(this.areaNodes.values());
         if (nodes.length === 0) return;
-
-        // Initialize all nodes with valid positions first
-        let initX = 0;
-        for (const node of nodes) {
-            node.x = initX;
-            node.y = 0;
-            initX += AreaMapSettings.areaWidth + AreaMapSettings.areaSpacing;
-        }
 
         // Find connected components
         const components = this.findConnectedComponents();
@@ -676,27 +741,69 @@ export class AreaMapRenderer {
             }
         }
 
-        // BFS to position hubs based on directions
+        // BFS to position hubs based on connection directions
+        // Use real-world positions only to refine ordering when multiple areas share same direction
         while (queue.length > 0) {
             const currentId = queue.shift()!;
             const currentNode = this.areaNodes.get(currentId)!;
 
+            // Group connections by direction
+            const connectionsByDir = new Map<string, Array<{id: number; node: AreaNode; conn: AreaConnection}>>();
+
             for (const conn of currentNode.connections) {
                 const targetId = conn.toAreaId;
                 if (positioned.has(targetId)) continue;
-
-                // Only position hubs in this pass
                 if (!hubNodes.has(targetId)) continue;
 
                 const targetNode = this.areaNodes.get(targetId);
                 if (!targetNode) continue;
 
-                const offset = this.getDirectionOffset(conn.direction);
-                targetNode.x = currentNode.x + offset.x * (AreaMapSettings.areaWidth + AreaMapSettings.areaSpacing);
-                targetNode.y = currentNode.y + offset.y * (AreaMapSettings.areaHeight + AreaMapSettings.areaSpacing);
+                const dirKey = conn.direction ?? "none";
+                if (!connectionsByDir.has(dirKey)) {
+                    connectionsByDir.set(dirKey, []);
+                }
+                connectionsByDir.get(dirKey)!.push({id: targetId, node: targetNode, conn});
+            }
 
-                positioned.add(targetId);
-                queue.push(targetId);
+            // Position each group, sorting by real-world position within the group
+            for (const [dirKey, targets] of connectionsByDir) {
+                const dirOffset = this.getDirectionOffset(dirKey === "none" ? null : dirKey as PlanarDirection);
+
+                // Sort targets by their real-world position perpendicular to the direction
+                // This ensures proper ordering when multiple areas are in the same direction
+                targets.sort((a, b) => {
+                    if (Math.abs(dirOffset.x) > Math.abs(dirOffset.y)) {
+                        // Primarily horizontal direction - sort by Y (perpendicular)
+                        return b.node.realCenterY - a.node.realCenterY; // Higher Y = more north = lower index
+                    } else {
+                        // Primarily vertical direction - sort by X (perpendicular)
+                        return a.node.realCenterX - b.node.realCenterX; // Lower X = more west = lower index
+                    }
+                });
+
+                const baseSpacingX = AreaMapSettings.areaWidth + AreaMapSettings.areaSpacing;
+                const baseSpacingY = AreaMapSettings.areaHeight + AreaMapSettings.areaSpacing;
+
+                // Position each target with offset for multiple in same direction
+                targets.forEach((target, index) => {
+                    target.node.x = currentNode.x + dirOffset.x * baseSpacingX;
+                    target.node.y = currentNode.y + dirOffset.y * baseSpacingY;
+
+                    // Add perpendicular offset for multiple areas in same direction
+                    if (targets.length > 1) {
+                        const perpOffset = (index - (targets.length - 1) / 2) * 0.5;
+                        if (Math.abs(dirOffset.x) > Math.abs(dirOffset.y)) {
+                            // Horizontal - offset vertically
+                            target.node.y += perpOffset * baseSpacingY;
+                        } else {
+                            // Vertical - offset horizontally
+                            target.node.x += perpOffset * baseSpacingX;
+                        }
+                    }
+
+                    positioned.add(target.id);
+                    queue.push(target.id);
+                });
             }
         }
 
