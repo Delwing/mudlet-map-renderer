@@ -707,20 +707,34 @@ export class AreaMapRenderer {
         }
 
         // Position chain nodes with appropriate distance based on direction
-        const horizontalDistance = AreaMapSettings.areaWidth + AreaMapSettings.areaSpacing; // For east/west (200px)
-        const verticalDistance = AreaMapSettings.areaHeight + AreaMapSettings.areaSpacing; // For north/south (130px)
+        // Add extra spacing to avoid overlaps with connection lines
+        const horizontalDistance = AreaMapSettings.areaWidth + AreaMapSettings.areaSpacing + 30; // For east/west (230px)
+        const verticalDistance = AreaMapSettings.areaHeight + AreaMapSettings.areaSpacing + 30; // For north/south (160px)
 
         // Store chain offsets relative to hub so we can reposition after hub moves
         const chainOffsets = new Map<number, {dx: number; dy: number; hubId: number}>();
+
+        // Fallback directions for chains without explicit direction
+        const fallbackDirections: PlanarDirection[] = [
+            "east", "west", "north", "south",
+            "northeast", "northwest", "southeast", "southwest"
+        ];
 
         for (const [hubId, chains] of clusterChains) {
             const hubNode = this.areaNodes.get(hubId);
             if (!hubNode) continue;
 
+            // Track which fallback direction to use for null-direction chains
+            let fallbackIndex = 0;
+
+            // Track how many chains use each direction to offset duplicates
+            const directionUsageCount = new Map<string, number>();
+
             for (const chain of chains) {
                 let prevId = hubId;
                 let prevX = hubNode.x;
                 let prevY = hubNode.y;
+                let chainFallbackDirection: PlanarDirection | null = null;
 
                 for (const chainNodeId of chain) {
                     const chainNode = this.areaNodes.get(chainNodeId);
@@ -738,11 +752,48 @@ export class AreaMapRenderer {
                         }
                     }
 
+                    // If no direction and this is first node in chain, use fallback
+                    if (!direction && prevId === hubId) {
+                        chainFallbackDirection = fallbackDirections[fallbackIndex % fallbackDirections.length];
+                        fallbackIndex++;
+                        direction = chainFallbackDirection;
+                    } else if (!direction && chainFallbackDirection) {
+                        // Continue in same fallback direction for rest of chain
+                        direction = chainFallbackDirection;
+                    }
+
                     // Position relative to previous node with direction-appropriate distance
                     const offset = this.getDirectionOffset(direction);
+
+                    // Check if this is first node in chain from hub - apply stacking offset for same direction
+                    let stackOffset = 0;
+                    if (prevId === hubId && direction) {
+                        const dirKey = direction;
+                        const usageCount = directionUsageCount.get(dirKey) ?? 0;
+                        directionUsageCount.set(dirKey, usageCount + 1);
+                        stackOffset = usageCount;
+                    }
+
                     // Use horizontal distance for x component, vertical for y component
                     chainNode.x = prevX + offset.x * horizontalDistance;
                     chainNode.y = prevY + offset.y * verticalDistance;
+
+                    // Apply perpendicular offset if multiple chains in same direction
+                    if (stackOffset > 0) {
+                        // Offset perpendicular to the direction - use full area size + extra spacing
+                        const extraPadding = 1.2; // 20% extra spacing for multi-satellite hubs
+                        if (offset.x !== 0 && offset.y === 0) {
+                            // Horizontal direction - offset vertically
+                            chainNode.y += stackOffset * verticalDistance * extraPadding;
+                        } else if (offset.y !== 0 && offset.x === 0) {
+                            // Vertical direction - offset horizontally
+                            chainNode.x += stackOffset * horizontalDistance * extraPadding;
+                        } else {
+                            // Diagonal - offset along the perpendicular diagonal (full spacing)
+                            chainNode.x += stackOffset * horizontalDistance * extraPadding;
+                            chainNode.y -= stackOffset * verticalDistance * extraPadding;
+                        }
+                    }
 
                     // Store offset from hub for later repositioning
                     chainOffsets.set(chainNodeId, {
@@ -949,8 +1000,8 @@ export class AreaMapRenderer {
     private applyForces(areaIds: number[], iterations: number) {
         const damping = 0.8;
         const padding = 20; // Minimum gap between areas
-        const idealDistance = AreaMapSettings.areaWidth + AreaMapSettings.areaSpacing + 30;
-        const lineAvoidanceDistance = AreaMapSettings.areaWidth / 2 + 40;
+        const idealDistance = AreaMapSettings.areaWidth + AreaMapSettings.areaSpacing; // 200px - same as chain spacing
+        const lineAvoidanceDistance = AreaMapSettings.areaWidth / 2 + 60; // Increased to push nodes further from lines
 
         // Build list of edges for line avoidance (only between nodes in areaIds)
         const areaIdSet = new Set(areaIds);
@@ -1040,7 +1091,7 @@ export class AreaMapRenderer {
                     const dist = Math.sqrt(dx * dx + dy * dy) || 1;
 
                     if (dist < lineAvoidanceDistance) {
-                        const repulsion = (lineAvoidanceDistance - dist) * 0.4;
+                        const repulsion = (lineAvoidanceDistance - dist) * 0.6; // Stronger push away from lines
                         vel.vx += (dx / dist) * repulsion;
                         vel.vy += (dy / dist) * repulsion;
                     }
@@ -1170,35 +1221,6 @@ export class AreaMapRenderer {
             });
 
             this.connectionLayer.add(line);
-
-            // Draw connection count badge
-            const midX = (fromEdge.x + toEdge.x) / 2;
-            const midY = (fromEdge.y + toEdge.y) / 2;
-
-            if (group.connections.length > 1 && isFinite(midX) && isFinite(midY)) {
-                const badge = new Konva.Group({x: midX, y: midY, listening: false});
-
-                const circle = new Konva.Circle({
-                    radius: 12,
-                    fill: AreaMapSettings.areaFillColor,
-                    stroke: AreaMapSettings.connectionColor,
-                    strokeWidth: 1,
-                });
-                badge.add(circle);
-
-                const text = new Konva.Text({
-                    text: String(group.connections.length),
-                    fontSize: 10,
-                    fill: AreaMapSettings.textColor,
-                    align: "center",
-                    verticalAlign: "middle",
-                });
-                text.x(-text.width() / 2);
-                text.y(-text.height() / 2);
-                badge.add(text);
-
-                this.connectionLayer.add(badge);
-            }
         }
     }
 
@@ -1245,6 +1267,7 @@ export class AreaMapRenderer {
             const group = new Konva.Group({
                 x: node.x,
                 y: node.y,
+                draggable: true,
             });
 
             const isHighlighted = node.areaId === this.highlightedArea;
@@ -1301,6 +1324,21 @@ export class AreaMapRenderer {
                 this.stage.container().style.cursor = "auto";
                 rect.stroke(isHighlighted ? AreaMapSettings.highlightColor : AreaMapSettings.areaStrokeColor);
                 this.areaLayer.batchDraw();
+            });
+
+            group.on("dragmove", () => {
+                node.x = group.x();
+                node.y = group.y();
+                this.drawConnections();
+                this.connectionLayer.batchDraw();
+            });
+
+            group.on("dragstart", () => {
+                this.stage.container().style.cursor = "grabbing";
+            });
+
+            group.on("dragend", () => {
+                this.stage.container().style.cursor = "pointer";
             });
 
             this.areaLayer.add(group);
