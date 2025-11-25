@@ -1,4 +1,4 @@
-import {Renderer, Settings, CullingMode} from "@src";
+import {Renderer, Settings, CullingMode, RoomShape} from "@src";
 import type {RoomContextMenuEventDetail} from "@src";
 import MapReader from "@src/reader/MapReader";
 
@@ -12,7 +12,12 @@ const walkerToggleButton = document.getElementById("walker-toggle") as HTMLButto
 const explorationToggle = document.getElementById("exploration-toggle") as HTMLInputElement | null;
 const instantMoveToggle = document.getElementById("instant-move-toggle") as HTMLInputElement | null;
 const highlightToggle = document.getElementById("highlight-toggle") as HTMLInputElement | null;
+const roomShapeSelect = document.getElementById("room-shape") as HTMLSelectElement | null;
 const cullingModeSelect = document.getElementById("culling-mode") as HTMLSelectElement | null;
+const roomSizeSlider = document.getElementById("room-size-slider") as HTMLInputElement | null;
+const roomSizeValue = document.getElementById("room-size-value") as HTMLSpanElement | null;
+const lineWidthSlider = document.getElementById("line-width-slider") as HTMLInputElement | null;
+const lineWidthValue = document.getElementById("line-width-value") as HTMLSpanElement | null;
 const roomForm = document.getElementById("room-form") as HTMLFormElement | null;
 const roomInput = document.getElementById("room-input") as HTMLInputElement | null;
 const roomStatusElement = document.getElementById("room-status") as HTMLDivElement | null;
@@ -21,6 +26,17 @@ const destinationInput = document.getElementById("destination-input") as HTMLInp
 const destinationClearButton = document.getElementById("destination-clear") as HTMLButtonElement | null;
 const destinationStatusElement = document.getElementById("destination-status") as HTMLDivElement | null;
 const cullingStatusElement = document.getElementById("culling-status") as HTMLDivElement | null;
+const playerMarkerStrokeColor = document.getElementById("player-marker-stroke-color") as HTMLInputElement | null;
+const playerMarkerStrokeAlpha = document.getElementById("player-marker-stroke-alpha") as HTMLInputElement | null;
+const playerMarkerStrokeAlphaValue = document.getElementById("player-marker-stroke-alpha-value") as HTMLSpanElement | null;
+const playerMarkerFillColor = document.getElementById("player-marker-fill-color") as HTMLInputElement | null;
+const playerMarkerFillAlpha = document.getElementById("player-marker-fill-alpha") as HTMLInputElement | null;
+const playerMarkerFillAlphaValue = document.getElementById("player-marker-fill-alpha-value") as HTMLSpanElement | null;
+const playerMarkerStrokeWidth = document.getElementById("player-marker-stroke-width") as HTMLInputElement | null;
+const playerMarkerStrokeWidthValue = document.getElementById("player-marker-stroke-width-value") as HTMLSpanElement | null;
+const playerMarkerSize = document.getElementById("player-marker-size") as HTMLInputElement | null;
+const playerMarkerSizeValue = document.getElementById("player-marker-size-value") as HTMLSpanElement | null;
+const playerMarkerDashEnabled = document.getElementById("player-marker-dash-enabled") as HTMLInputElement | null;
 
 const DEFAULT_STARTING_ROOM_ID = 21461;
 
@@ -124,6 +140,10 @@ async function initialize() {
         explorationToggle.checked = mapReader.isExplorationEnabled();
     }
 
+    if (roomShapeSelect) {
+        roomShapeSelect.value = Settings.roomShape;
+    }
+
     if (cullingModeSelect) {
         cullingModeSelect.value = renderer.getCullingMode();
     }
@@ -134,6 +154,48 @@ async function initialize() {
 
     if (highlightToggle) {
         highlightToggle.checked = Settings.highlightCurrentRoom;
+    }
+
+    if (roomSizeSlider && roomSizeValue) {
+        roomSizeSlider.value = Settings.roomSize.toString();
+        roomSizeValue.textContent = Settings.roomSize.toFixed(1);
+    }
+
+    if (lineWidthSlider && lineWidthValue) {
+        lineWidthSlider.value = Settings.lineWidth.toString();
+        lineWidthValue.textContent = Settings.lineWidth.toFixed(3);
+    }
+
+    if (playerMarkerStrokeColor) {
+        playerMarkerStrokeColor.value = Settings.playerMarker.strokeColor;
+    }
+
+    if (playerMarkerStrokeAlpha && playerMarkerStrokeAlphaValue) {
+        playerMarkerStrokeAlpha.value = Settings.playerMarker.strokeAlpha.toString();
+        playerMarkerStrokeAlphaValue.textContent = Settings.playerMarker.strokeAlpha.toFixed(2);
+    }
+
+    if (playerMarkerFillColor) {
+        playerMarkerFillColor.value = Settings.playerMarker.fillColor;
+    }
+
+    if (playerMarkerFillAlpha && playerMarkerFillAlphaValue) {
+        playerMarkerFillAlpha.value = Settings.playerMarker.fillAlpha.toString();
+        playerMarkerFillAlphaValue.textContent = Settings.playerMarker.fillAlpha.toFixed(2);
+    }
+
+    if (playerMarkerStrokeWidth && playerMarkerStrokeWidthValue) {
+        playerMarkerStrokeWidth.value = Settings.playerMarker.strokeWidth.toString();
+        playerMarkerStrokeWidthValue.textContent = Settings.playerMarker.strokeWidth.toFixed(2);
+    }
+
+    if (playerMarkerSize && playerMarkerSizeValue) {
+        playerMarkerSize.value = Settings.playerMarker.sizeFactor.toString();
+        playerMarkerSizeValue.textContent = Settings.playerMarker.sizeFactor.toFixed(2);
+    }
+
+    if (playerMarkerDashEnabled) {
+        playerMarkerDashEnabled.checked = Settings.playerMarker.dashEnabled;
     }
 
     updateCullingStatus();
@@ -164,10 +226,85 @@ function attachEventListeners() {
         renderer.setPosition(currentRoomId);
     });
 
+    roomShapeSelect?.addEventListener("change", () => {
+        const value = (roomShapeSelect.value ?? "rectangle") as RoomShape;
+        Settings.roomShape = value;
+        renderer.refresh();
+    });
+
     cullingModeSelect?.addEventListener("change", () => {
         const value = (cullingModeSelect.value ?? "indexed") as CullingMode;
         renderer.setCullingMode(value);
         updateCullingStatus();
+    });
+
+    roomSizeSlider?.addEventListener("input", () => {
+        const value = parseFloat(roomSizeSlider.value);
+        Settings.roomSize = value;
+        if (roomSizeValue) {
+            roomSizeValue.textContent = value.toFixed(1);
+        }
+        renderer.refresh();
+    });
+
+    lineWidthSlider?.addEventListener("input", () => {
+        const value = parseFloat(lineWidthSlider.value);
+        Settings.lineWidth = value;
+        if (lineWidthValue) {
+            lineWidthValue.textContent = value.toFixed(3);
+        }
+        renderer.refresh();
+    });
+
+    playerMarkerStrokeColor?.addEventListener("input", () => {
+        Settings.playerMarker.strokeColor = playerMarkerStrokeColor.value;
+        renderer.setPosition(currentRoomId);
+    });
+
+    playerMarkerStrokeAlpha?.addEventListener("input", () => {
+        const value = parseFloat(playerMarkerStrokeAlpha.value);
+        Settings.playerMarker.strokeAlpha = value;
+        if (playerMarkerStrokeAlphaValue) {
+            playerMarkerStrokeAlphaValue.textContent = value.toFixed(2);
+        }
+        renderer.setPosition(currentRoomId);
+    });
+
+    playerMarkerFillColor?.addEventListener("input", () => {
+        Settings.playerMarker.fillColor = playerMarkerFillColor.value;
+        renderer.setPosition(currentRoomId);
+    });
+
+    playerMarkerFillAlpha?.addEventListener("input", () => {
+        const value = parseFloat(playerMarkerFillAlpha.value);
+        Settings.playerMarker.fillAlpha = value;
+        if (playerMarkerFillAlphaValue) {
+            playerMarkerFillAlphaValue.textContent = value.toFixed(2);
+        }
+        renderer.setPosition(currentRoomId);
+    });
+
+    playerMarkerStrokeWidth?.addEventListener("input", () => {
+        const value = parseFloat(playerMarkerStrokeWidth.value);
+        Settings.playerMarker.strokeWidth = value;
+        if (playerMarkerStrokeWidthValue) {
+            playerMarkerStrokeWidthValue.textContent = value.toFixed(2);
+        }
+        renderer.setPosition(currentRoomId);
+    });
+
+    playerMarkerSize?.addEventListener("input", () => {
+        const value = parseFloat(playerMarkerSize.value);
+        Settings.playerMarker.sizeFactor = value;
+        if (playerMarkerSizeValue) {
+            playerMarkerSizeValue.textContent = value.toFixed(2);
+        }
+        renderer.setPosition(currentRoomId);
+    });
+
+    playerMarkerDashEnabled?.addEventListener("change", () => {
+        Settings.playerMarker.dashEnabled = playerMarkerDashEnabled.checked;
+        renderer.setPosition(currentRoomId);
     });
 
     destinationForm?.addEventListener("submit", event => {

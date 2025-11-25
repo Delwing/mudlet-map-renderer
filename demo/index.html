@@ -90,6 +90,35 @@
             font: inherit;
         }
 
+        #controls input[type="range"] {
+            width: 100%;
+            height: 0.35rem;
+            background: rgba(32, 40, 56, 0.7);
+            border: 1px solid rgba(99, 187, 255, 0.4);
+            border-radius: 0.35rem;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        #controls input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 1rem;
+            height: 1rem;
+            background: #63bbff;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+
+        #controls input[type="range"]::-moz-range-thumb {
+            width: 1rem;
+            height: 1rem;
+            background: #63bbff;
+            border-radius: 50%;
+            cursor: pointer;
+            border: none;
+        }
+
         #destination-form {
             display: flex;
             flex-direction: column;
@@ -147,6 +176,13 @@
             Highlight current room &amp; exits
         </label>
         <label class="select-label">
+            <span>Room shape</span>
+            <select id="room-shape">
+                <option value="rectangle">Rectangle</option>
+                <option value="circle">Circle</option>
+            </select>
+        </label>
+        <label class="select-label">
             <span>Culling mode</span>
             <select id="culling-mode">
                 <option value="none">No culling</option>
@@ -154,6 +190,47 @@
                 <option value="indexed">Spatial index culling</option>
             </select>
         </label>
+        <label class="select-label">
+            <span>Room size: <span id="room-size-value">0.6</span></span>
+            <input type="range" id="room-size-slider" min="0.2" max="1.5" step="0.1" value="0.6">
+        </label>
+        <label class="select-label">
+            <span>Line width: <span id="line-width-value">0.025</span></span>
+            <input type="range" id="line-width-slider" min="0.01" max="0.1" step="0.005" value="0.025">
+        </label>
+        <details>
+            <summary style="cursor: pointer; font-weight: 600; margin-top: 0.5rem;">Player Marker</summary>
+            <div style="margin-top: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
+                <label class="select-label">
+                    <span>Stroke color</span>
+                    <input type="color" id="player-marker-stroke-color" value="#00e5b2">
+                </label>
+                <label class="select-label">
+                    <span>Stroke alpha: <span id="player-marker-stroke-alpha-value">1.00</span></span>
+                    <input type="range" id="player-marker-stroke-alpha" min="0" max="1" step="0.01" value="1">
+                </label>
+                <label class="select-label">
+                    <span>Fill color</span>
+                    <input type="color" id="player-marker-fill-color" value="#00e5b2">
+                </label>
+                <label class="select-label">
+                    <span>Fill alpha: <span id="player-marker-fill-alpha-value">0.00</span></span>
+                    <input type="range" id="player-marker-fill-alpha" min="0" max="1" step="0.01" value="0">
+                </label>
+                <label class="select-label">
+                    <span>Stroke width: <span id="player-marker-stroke-width-value">0.10</span></span>
+                    <input type="range" id="player-marker-stroke-width" min="0.01" max="0.3" step="0.01" value="0.1">
+                </label>
+                <label class="select-label">
+                    <span>Size factor: <span id="player-marker-size-value">1.70</span></span>
+                    <input type="range" id="player-marker-size" min="0.5" max="3.0" step="0.05" value="1.7">
+                </label>
+                <label>
+                    <input type="checkbox" id="player-marker-dash-enabled" checked>
+                    Dashed line
+                </label>
+            </div>
+        </details>
         <form id="room-form">
             <label for="room-input">Current room</label>
             <div class="control-inputs">

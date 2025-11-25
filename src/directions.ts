@@ -64,3 +64,29 @@ export function movePoint(
         y: y + offset.y * distance,
     };
 }
+
+/**
+ * Calculate the edge point of a circle for a given direction
+ * For circles, we need to calculate the exact point on the circle's circumference
+ * based on the angle to the direction
+ */
+export function movePointCircle(
+    x: number,
+    y: number,
+    direction?: MapData.direction,
+    radius: number = 1,
+) {
+    if (!isPlanarDirection(direction)) {
+        return {x, y};
+    }
+
+    const offset = planarDirectionOffsets[direction];
+    // Calculate the angle from the direction offset
+    const angle = Math.atan2(offset.y, offset.x);
+
+    // Calculate the point on the circle's edge
+    return {
+        x: x + Math.cos(angle) * radius,
+        y: y + Math.sin(angle) * radius,
+    };
+}

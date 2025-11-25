@@ -8,12 +8,22 @@ import PathRenderer from "./PathRenderer";
 
 const defaultRoomSize = 0.6;
 const defaultZoom = 75
+const defaultLineWidth = 0.025;
 const lineColor = 'rgb(225, 255, 225)';
 const currentRoomColor = 'rgb(120, 72, 0)';
+
+function hexToRgba(hex: string, alpha: number): string {
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
 
 export type LabelRenderMode = "image" | "data";
 
 export type CullingMode = "none" | "basic" | "indexed";
+
+export type RoomShape = "rectangle" | "circle";
 
 export type RoomContextMenuEventDetail = {
     roomId: number;
@@ -24,16 +34,167 @@ export type ZoomChangeEventDetail = {
     zoom: number;
 };
 
+/**
+ * Style configuration for the player position marker.
+ * The player marker is a circle that indicates the current player position on the map.
+ */
+export type PlayerMarkerStyle = {
+    /**
+     * Hex color for the marker's stroke/border (e.g., "#00e5b2" for cyan-green).
+     */
+    strokeColor: string;
+
+    /**
+     * Opacity for the stroke/border (0.0 = fully transparent, 1.0 = fully opaque).
+     */
+    strokeAlpha: number;
+
+    /**
+     * Hex color for the marker's fill (e.g., "#00e5b2" for cyan-green).
+     */
+    fillColor: string;
+
+    /**
+     * Opacity for the fill (0.0 = fully transparent, 1.0 = fully opaque).
+     * Setting this to 0 creates a hollow circle effect.
+     */
+    fillAlpha: number;
+
+    /**
+     * Width of the marker's stroke/border in map units (typically 0.01-0.3).
+     */
+    strokeWidth: number;
+
+    /**
+     * Size multiplier relative to the room size.
+     * - 1.0 = marker radius equals room radius (matches room size)
+     * - Values > 1.0 make the marker larger than rooms
+     * - Values < 1.0 make the marker smaller than rooms
+     *
+     * Note: Room circles have radius = roomSize / 2, so sizeFactor is applied to that radius.
+     */
+    sizeFactor: number;
+
+    /**
+     * Dash pattern for the stroke as an array of [dash length, gap length].
+     * Example: [0.05, 0.05] creates evenly spaced dashes.
+     * Only applied when dashEnabled is true.
+     */
+    dash?: number[];
+
+    /**
+     * Whether to apply the dash pattern to the stroke.
+     * When false, the stroke is solid regardless of the dash property.
+     */
+    dashEnabled: boolean;
+};
+
+/**
+ * Global settings for map rendering.
+ * All properties are static and can be modified at runtime to change the map's appearance and behavior.
+ */
 export class Settings {
+    /**
+     * Size of each room in map units (width/height for rectangles, diameter for circles).
+     * Typical values: 0.2 - 1.5
+     * Default: 0.6
+     */
     static roomSize = defaultRoomSize;
+
+    /**
+     * Width of lines (exit connections, room borders) in map units.
+     * Typical values: 0.01 - 0.1
+     * Default: 0.025
+     */
+    static lineWidth = defaultLineWidth;
+
+    /**
+     * Color of exit connection lines as RGB string.
+     * Example: 'rgb(225, 255, 225)' for light green
+     */
     static lineColor = lineColor;
-    static instantMapMove = false
+
+    /**
+     * When true, map instantly jumps to the new position when the current room changes.
+     * When false, the map smoothly animates/pans to the new position.
+     * Default: false (animated movement)
+     */
+    static instantMapMove = false;
+
+    /**
+     * When true, highlights the current room and its exits with an overlay.
+     * The overlay uses a semi-transparent color to emphasize the current position.
+     * Default: true
+     */
     static highlightCurrentRoom = true;
+
+    /**
+     * Legacy flag for enabling/disabling culling (prefer using cullingMode instead).
+     * Default: true
+     */
     static cullingEnabled = true;
+
+    /**
+     * Determines how off-screen elements are culled to improve performance:
+     * - "none": No culling, render everything (worst performance, best accuracy)
+     * - "basic": Classic viewport-based culling (good performance)
+     * - "indexed": Spatial index culling using R-tree (best performance)
+     *
+     * Default: "indexed"
+     */
     static cullingMode: CullingMode = "indexed";
+
+    /**
+     * Custom culling bounds for manually specifying the visible area.
+     * When set, only elements within these bounds are rendered.
+     * Format: { x, y, width, height } in map coordinates.
+     * Default: null (uses viewport bounds)
+     */
     static cullingBounds: { x: number; y: number; width: number; height: number } | null = null;
+
+    /**
+     * How to render room labels:
+     * - "image": Render labels as images (better performance for many labels)
+     * - "data": Render labels as text data (better for dynamic content)
+     *
+     * Default: "image"
+     */
     static labelRenderMode: LabelRenderMode = "image";
+
+    /**
+     * When true, room labels have transparent backgrounds.
+     * When false, labels have opaque backgrounds for better readability.
+     */
     static transparentLabels: boolean;
+
+    /**
+     * Shape used to render rooms:
+     * - "rectangle": Rooms are drawn as squares/rectangles
+     * - "circle": Rooms are drawn as circles
+     *
+     * Default: "rectangle"
+     *
+     * Note: Exit line calculations automatically adjust based on room shape.
+     * Circle mode calculates exact tangent points on the circle's edge.
+     */
+    static roomShape: RoomShape = "rectangle";
+
+    /**
+     * Style configuration for the player position marker.
+     * See PlayerMarkerStyle type for details on individual properties.
+     *
+     * Default configuration creates a cyan-green dashed circle that's 1.7x the room size.
+     */
+    static playerMarker: PlayerMarkerStyle = {
+        strokeColor: "#00e5b2",
+        strokeAlpha: 1.0,
+        fillColor: "#00e5b2",
+        fillAlpha: 0.0,
+        strokeWidth: 0.1,
+        sizeFactor: 1.7,
+        dash: [0.05, 0.05],
+        dashEnabled: true,
+    };
 }
 
 type HighlightData = {
@@ -52,8 +213,8 @@ export class Renderer {
     private readonly stage: Konva.Stage;
     private readonly roomLayer: Konva.Layer;
     private readonly linkLayer: Konva.Layer;
-    private readonly positionLayer: Konva.Layer;
     private readonly overlayLayer: Konva.Layer;
+    private readonly positionLayer: Konva.Layer;
     private mapReader: MapReader;
     private exitRenderer: ExitRenderer;
     private pathRenderer: PathRenderer;
@@ -463,6 +624,37 @@ export class Renderer {
         return this.currentArea ? this.mapReader.getArea(this.currentArea) : undefined
     }
 
+    /**
+     * Refreshes the current room overlay to reflect any changes to Settings.
+     * Call this after modifying Settings properties (like roomSize, roomShape, lineWidth, etc.)
+     * to update the visual appearance of the current room and its exits without changing position.
+     */
+    refreshCurrentRoomOverlay() {
+        if (this.currentRoomId !== undefined) {
+            const room = this.mapReader.getRoom(this.currentRoomId);
+            if (room) {
+                this.updateCurrentRoomOverlay(room);
+            }
+        }
+    }
+
+    /**
+     * Completely refreshes the map to reflect changes to Settings.
+     * This re-renders the entire current area and updates the player position marker.
+     * Call this after changing Settings properties like roomSize, roomShape, lineWidth, etc.
+     *
+     * Note: This is more expensive than refreshCurrentRoomOverlay() but ensures everything is updated.
+     */
+    refresh() {
+        if (this.currentRoomId !== undefined && this.currentArea !== undefined && this.currentZIndex !== undefined) {
+            // Re-render the current area
+            this.drawArea(this.currentArea, this.currentZIndex);
+
+            // Update the player position (which also updates the overlay)
+            this.setPosition(this.currentRoomId);
+        }
+    }
+
     setPosition(roomId: number) {
         const room = this.mapReader.getRoom(roomId);
         if (!room) return;
@@ -477,20 +669,36 @@ export class Renderer {
         ) {
             this.drawArea(room.area, room.z);
         }
+        this.centerOnRoom(room, instant);
+        this.updateCurrentRoomOverlay(room);
+
+        const strokeColor = hexToRgba(Settings.playerMarker.strokeColor, Settings.playerMarker.strokeAlpha);
+        const fillColor = hexToRgba(Settings.playerMarker.fillColor, Settings.playerMarker.fillAlpha);
+        // Player marker radius: at sizeFactor 1.0, it should match room size
+        // Room circles have radius = roomSize / 2, so we use (roomSize / 2) * sizeFactor
+        const markerRadius = (Settings.roomSize / 2) * Settings.playerMarker.sizeFactor;
+
         if (!this.positionRender) {
             this.positionRender = new Konva.Circle({
                 x: room.x,
                 y: room.y,
-                radius: defaultRoomSize * 0.85,
-                stroke: "rgb(0, 229, 178)",
-                strokeWidth: 0.1,
-                dash: [0.05, 0.05],
-                dashEnabled: true,
+                radius: markerRadius,
+                stroke: strokeColor,
+                fill: fillColor,
+                strokeWidth: Settings.playerMarker.strokeWidth,
+                dash: Settings.playerMarker.dash,
+                dashEnabled: Settings.playerMarker.dashEnabled,
             })
             this.positionLayer.add(this.positionRender);
+        } else {
+            // Update the marker style when settings change
+            this.positionRender.radius(markerRadius);
+            this.positionRender.stroke(strokeColor);
+            this.positionRender.fill(fillColor);
+            this.positionRender.strokeWidth(Settings.playerMarker.strokeWidth);
+            this.positionRender.dash(Settings.playerMarker.dash ?? []);
+            this.positionRender.dashEnabled(Settings.playerMarker.dashEnabled);
         }
-        this.centerOnRoom(room, instant);
-        this.updateCurrentRoomOverlay(room);
     }
 
     renderPath(locations: number[], color?: string) {
@@ -558,17 +766,28 @@ export class Renderer {
 
     private createHighlightShape(room: MapData.Room, color: string) {
         const highlightFactor = 1.5;
-        return new Konva.Rect({
-            x: room.x - Settings.roomSize / 2 * highlightFactor,
-            y: room.y - Settings.roomSize / 2 * highlightFactor,
-            width: Settings.roomSize * highlightFactor,
-            height: Settings.roomSize * highlightFactor,
-            stroke: color,
-            strokeWidth: 0.1,
-            dash: [0.05, 0.05],
-            dashEnabled: true,
-            listening: false,
-        });
+        return Settings.roomShape === "circle"
+            ? new Konva.Circle({
+                x: room.x,
+                y: room.y,
+                radius: Settings.roomSize / 2 * highlightFactor,
+                stroke: color,
+                strokeWidth: 0.1,
+                dash: [0.05, 0.05],
+                dashEnabled: true,
+                listening: false,
+            })
+            : new Konva.Rect({
+                x: room.x - Settings.roomSize / 2 * highlightFactor,
+                y: room.y - Settings.roomSize / 2 * highlightFactor,
+                width: Settings.roomSize * highlightFactor,
+                height: Settings.roomSize * highlightFactor,
+                stroke: color,
+                strokeWidth: 0.1,
+                dash: [0.05, 0.05],
+                dashEnabled: true,
+                listening: false,
+            });
     }
 
     private centerOnRoom(room: MapData.Room, instant: boolean = false) {
@@ -620,16 +839,31 @@ export class Renderer {
                 x: room.x - Settings.roomSize / 2,
                 y: room.y - Settings.roomSize / 2,
             });
-            const roomRect = new Konva.Rect({
-                x: 0,
-                y: 0,
-                width: Settings.roomSize,
-                height: Settings.roomSize,
-                fill: this.mapReader.getColorValue(room.env),
-                strokeWidth: 0.025,
-                stroke: Settings.lineColor,
-                perfectDrawEnabled: false,
-            });
+
+            const fillColor = this.mapReader.getColorValue(room.env);
+            const strokeColor = Settings.lineColor;
+
+            const roomShape = Settings.roomShape === "circle"
+                ? new Konva.Circle({
+                    x: Settings.roomSize / 2,
+                    y: Settings.roomSize / 2,
+                    radius: Settings.roomSize / 2,
+                    fill: fillColor,
+                    strokeWidth: Settings.lineWidth,
+                    stroke: strokeColor,
+                    perfectDrawEnabled: false,
+                })
+                : new Konva.Rect({
+                    x: 0,
+                    y: 0,
+                    width: Settings.roomSize,
+                    height: Settings.roomSize,
+                    fill: fillColor,
+                    strokeWidth: Settings.lineWidth,
+                    stroke: strokeColor,
+                    perfectDrawEnabled: false,
+                });
+            const roomRect = roomShape;
             const emitContextEvent = (clientX: number, clientY: number) => this.emitRoomContextEvent(room.id, clientX, clientY);
 
             roomRender.on('mouseenter', () => {
@@ -1070,6 +1304,11 @@ export class Renderer {
             });
         });
 
+        // Move the position circle to the top so it draws over the overlay
+        if (this.positionRender) {
+            this.positionRender.moveToTop();
+        }
+
         this.positionLayer.batchDraw();
     }
 
@@ -1082,18 +1321,29 @@ export class Renderer {
             listening: false,
         });
 
-        const rect = new Konva.Rect({
-            x: 0,
-            y: 0,
-            width: Settings.roomSize,
-            height: Settings.roomSize,
-            fill: this.mapReader.getColorValue(room.env),
-            stroke: options.stroke,
-            strokeWidth: 0.025,
-            strokeEnabled: true
-        });
+        const fillColor = this.mapReader.getColorValue(room.env);
+        const strokeColor = options.stroke;
 
-        roomGroup.add(rect);
+        const roomShape = Settings.roomShape === "circle"
+            ? new Konva.Circle({
+                x: Settings.roomSize / 2,
+                y: Settings.roomSize / 2,
+                radius: Settings.roomSize / 2,
+                fill: fillColor,
+                stroke: strokeColor,
+                strokeWidth: Settings.lineWidth,
+            })
+            : new Konva.Rect({
+                x: 0,
+                y: 0,
+                width: Settings.roomSize,
+                height: Settings.roomSize,
+                fill: fillColor,
+                stroke: strokeColor,
+                strokeWidth: Settings.lineWidth,
+            });
+
+        roomGroup.add(roomShape);
         this.renderSymbol(room, roomGroup);
 
         return roomGroup;
@@ -1101,11 +1351,13 @@ export class Renderer {
 
     private renderSymbol(room: MapData.Room, roomRender: Konva.Group) {
         if (room.roomChar !== undefined) {
+            // Font size scales with room size: 0.75 is the ratio (at default roomSize 0.6, fontSize is 0.45)
+            const fontSize = Settings.roomSize * 0.75;
             const roomChar = new Konva.Text({
                 x: 0,
                 y: 0,
                 text: room.roomChar,
-                fontSize: 0.45,
+                fontSize: fontSize,
                 fontStyle: "bold",
                 fill: this.mapReader.getSymbolColor(room.env),
                 align: "center",

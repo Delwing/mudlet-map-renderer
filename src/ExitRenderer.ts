@@ -2,7 +2,7 @@ import Exit, {longToShort, regularExits} from "./reader/Exit";
 import MapReader from "./reader/MapReader";
 import Konva from "konva";
 import {Renderer, Settings} from "./Renderer";
-import {movePoint} from "./directions";
+import {movePoint, movePointCircle} from "./directions";
 
 const Colors = {
     OPEN_DOOR: 'rgb(10, 155, 10)',
@@ -49,6 +49,17 @@ export default class ExitRenderer {
         this.mapRenderer = mapRenderer;
     }
 
+    /**
+     * Get the edge point of a room based on its shape
+     */
+    private getRoomEdgePoint(x: number, y: number, direction: MapData.direction, distance: number) {
+        if (Settings.roomShape === "circle") {
+            return movePointCircle(x, y, direction, distance);
+        } else {
+            return movePoint(x, y, direction, distance);
+        }
+    }
+
     render(exit: Exit, zIndex: number) {
         return this.renderWithColor(exit, Settings.lineColor, zIndex);
     }
@@ -85,8 +96,8 @@ export default class ExitRenderer {
         const exitRender = new Konva.Group();
 
         const points = []
-        points.push(...Object.values(movePoint(sourceRoom.x, sourceRoom.y, exit.aDir, Settings.roomSize / 2)));
-        points.push(...Object.values(movePoint(targetRoom.x, targetRoom.y, exit.bDir, Settings.roomSize / 2)));
+        points.push(...Object.values(this.getRoomEdgePoint(sourceRoom.x, sourceRoom.y, exit.aDir, Settings.roomSize / 2)));
+        points.push(...Object.values(this.getRoomEdgePoint(targetRoom.x, targetRoom.y, exit.bDir, Settings.roomSize / 2)));
 
         if (sourceRoom.doors[longToShort[exit.aDir]] || targetRoom.doors[longToShort[exit.bDir]]) {
             const door = this.renderDoor(points, sourceRoom.doors[longToShort[exit.aDir]] ?? targetRoom.doors[longToShort[exit.bDir]])
@@ -96,7 +107,7 @@ export default class ExitRenderer {
         const link = new Konva.Line({
             points,
             stroke: color,
-            strokeWidth: 0.025,
+            strokeWidth: Settings.lineWidth,
             perfectDrawEnabled: false,
         });
         exitRender.add(link);
@@ -129,12 +140,12 @@ export default class ExitRenderer {
 
         const group = new Konva.Group();
         const points = []
-        points.push(...Object.values(movePoint(sourceRoom.x, sourceRoom.y, dir, Settings.roomSize / 2)));
+        points.push(...Object.values(this.getRoomEdgePoint(sourceRoom.x, sourceRoom.y, dir, Settings.roomSize / 2)));
         points.push(targetPoint.x, targetPoint.y);
         const link = new Konva.Line({
             points,
             stroke: color,
-            strokeWidth: 0.025,
+            strokeWidth: Settings.lineWidth,
             dashEnabled: true,
             dash: [0.1, 0.05],
             perfectDrawEnabled: false,
@@ -145,7 +156,7 @@ export default class ExitRenderer {
             points: [points[0], points[1], middlePointX, middlePointY],
             pointerLength: 0.5,
             pointerWidth: 0.35,
-            strokeWidth: 0.035,
+            strokeWidth: Settings.lineWidth * 1.4,
             stroke: color,
             fill: Colors.ONE_WAY_FILL,
             dashEnabled: true,
@@ -158,14 +169,14 @@ export default class ExitRenderer {
     }
 
     renderAreaExit(room: MapData.Room, dir: MapData.direction, color?: string) {
-        const start = movePoint(room.x, room.y, dir, Settings.roomSize / 2)
+        const start = this.getRoomEdgePoint(room.x, room.y, dir, Settings.roomSize / 2)
         const end = movePoint(room.x, room.y, dir, Settings.roomSize * 1.5)
         const stroke = color ?? this.mapReader.getColorValue(room.env);
         return new Konva.Arrow({
             points: [start.x, start.y, end.x, end.y],
             pointerLength: 0.3,
             pointerWidth: 0.3,
-            strokeWidth: 0.035,
+            strokeWidth: Settings.lineWidth * 1.4,
             stroke,
             fill: stroke,
         })
@@ -183,7 +194,7 @@ export default class ExitRenderer {
             const strokeColor = overrideColor ?? `rgb(${line.attributes.color.r}, ${line.attributes.color.g}, ${line.attributes.color.b})`;
             const lineRender = new construct({
                 points: points,
-                strokeWidth: .025,
+                strokeWidth: Settings.lineWidth,
                 stroke: strokeColor,
                 fill: overrideColor ?? `rgb(${line.attributes.color.r}, ${line.attributes.color.g} , ${line.attributes.color.b})`,
                 pointerLength: 0.3,
@@ -210,13 +221,13 @@ export default class ExitRenderer {
     renderStubs(room: MapData.Room, color: string = Settings.lineColor) {
         return room.stubs.map(stub => {
             const direction = dirNumbers[stub];
-            const start = movePoint(room.x, room.y, direction, Settings.roomSize / 2)
+            const start = this.getRoomEdgePoint(room.x, room.y, direction, Settings.roomSize / 2)
             const end = movePoint(room.x, room.y, direction, Settings.roomSize / 2 + 0.5)
             const points = [start.x, start.y, end.x, end.y]
             return new Konva.Line({
                 points,
                 stroke: color,
-                strokeWidth: 0.025,
+                strokeWidth: Settings.lineWidth,
             });
         })
     }
@@ -231,7 +242,7 @@ export default class ExitRenderer {
                     sides: 3,
                     fill: this.mapReader.getSymbolColor(room.env, 0.6),
                     stroke: this.mapReader.getSymbolColor(room.env),
-                    strokeWidth: 0.025,
+                    strokeWidth: Settings.lineWidth,
                     radius: Settings.roomSize / 5,
                     scaleX: 1.4,
                     scaleY: 0.8,
@@ -294,7 +305,7 @@ export default class ExitRenderer {
             width: Settings.roomSize / 2,
             height: Settings.roomSize / 2,
             stroke: getDoorColor(type),
-            strokeWidth: 0.025
+            strokeWidth: Settings.lineWidth
         })
     }
 
