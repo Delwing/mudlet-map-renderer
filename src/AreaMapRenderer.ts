@@ -707,8 +707,8 @@ export class AreaMapRenderer {
         }
 
         // Position chain nodes with appropriate distance based on direction
-        const horizontalDistance = AreaMapSettings.areaWidth + 20; // For east/west
-        const verticalDistance = AreaMapSettings.areaHeight + 20; // For north/south
+        const horizontalDistance = AreaMapSettings.areaWidth + AreaMapSettings.areaSpacing; // For east/west (200px)
+        const verticalDistance = AreaMapSettings.areaHeight + AreaMapSettings.areaSpacing; // For north/south (130px)
 
         // Store chain offsets relative to hub so we can reposition after hub moves
         const chainOffsets = new Map<number, {dx: number; dy: number; hubId: number}>();
@@ -815,16 +815,16 @@ export class AreaMapRenderer {
     }
 
     private getDirectionOffset(direction: PlanarDirection | null): {x: number; y: number} {
-        // Use full 1.0 for diagonals so they get proper spacing in both dimensions
+        // Use 0.75 for diagonals to keep them compact but not overlapping
         const offsets: Record<PlanarDirection, {x: number; y: number}> = {
             north: {x: 0, y: -1},
             south: {x: 0, y: 1},
             east: {x: 1, y: 0},
             west: {x: -1, y: 0},
-            northeast: {x: 1, y: -1},
-            northwest: {x: -1, y: -1},
-            southeast: {x: 1, y: 1},
-            southwest: {x: -1, y: 1},
+            northeast: {x: 0.75, y: -0.75},
+            northwest: {x: -0.75, y: -0.75},
+            southeast: {x: 0.75, y: 0.75},
+            southwest: {x: -0.75, y: 0.75},
         };
 
         if (direction && offsets[direction]) {
@@ -949,6 +949,7 @@ export class AreaMapRenderer {
     private applyForces(areaIds: number[], iterations: number) {
         const damping = 0.8;
         const padding = 20; // Minimum gap between areas
+        const idealDistance = AreaMapSettings.areaWidth + AreaMapSettings.areaSpacing + 30;
         const lineAvoidanceDistance = AreaMapSettings.areaWidth / 2 + 40;
 
         // Build list of edges for line avoidance (only between nodes in areaIds)
@@ -1045,25 +1046,30 @@ export class AreaMapRenderer {
                     }
                 }
 
-                // Spring force for connected nodes - use direction-appropriate distances
+                // Spring force for connected nodes
                 for (const conn of node.connections) {
                     if (!areaIdSet.has(conn.toAreaId)) continue;
                     const other = this.areaNodes.get(conn.toAreaId);
                     if (!other) continue;
 
-                    // Ideal distances based on direction
-                    const idealDistX = AreaMapSettings.areaWidth + AreaMapSettings.areaSpacing;
-                    const idealDistY = AreaMapSettings.areaHeight + AreaMapSettings.areaSpacing;
+                    const dx = other.x - node.x;
+                    const dy = other.y - node.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy) || 1;
 
-                    // Directional hint - push toward ideal position
+                    const displacement = dist - idealDistance;
+                    const springForce = displacement * 0.03;
+                    vel.vx += (dx / dist) * springForce;
+                    vel.vy += (dy / dist) * springForce;
+
+                    // Directional hint
                     const targetOffset = this.getDirectionOffset(conn.direction);
-                    const idealX = node.x + targetOffset.x * idealDistX;
-                    const idealY = node.y + targetOffset.y * idealDistY;
+                    const idealX = node.x + targetOffset.x * idealDistance;
+                    const idealY = node.y + targetOffset.y * idealDistance;
 
                     const otherVel = velocities.get(conn.toAreaId);
                     if (otherVel) {
-                        otherVel.vx += (idealX - other.x) * 0.02;
-                        otherVel.vy += (idealY - other.y) * 0.02;
+                        otherVel.vx += (idealX - other.x) * 0.01;
+                        otherVel.vy += (idealY - other.y) * 0.01;
                     }
                 }
             }
