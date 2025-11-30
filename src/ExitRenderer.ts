@@ -125,7 +125,8 @@ export default class ExitRenderer {
         }
 
         if (sourceRoom.area != targetRoom.area && dir) {
-            return this.renderAreaExit(sourceRoom, dir, color);
+            const targetEnvColor = this.mapReader.getColorValue(targetRoom.env);
+            return this.renderAreaExit(sourceRoom, dir, targetEnvColor);
         }
 
         let targetPoint = {x: targetRoom.x, y: targetRoom.y};
