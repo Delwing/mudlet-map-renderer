@@ -71,6 +71,7 @@ export class AreaMapSettings {
 
 export class AreaMapRenderer {
     private readonly stage: Konva.Stage;
+    private readonly backgroundLayer: Konva.Layer;
     private readonly areaLayer: Konva.Layer;
     private readonly connectionLayer: Konva.Layer;
     private readonly mapReader: MapReader;
@@ -80,6 +81,9 @@ export class AreaMapRenderer {
     private highlightedArea?: number;
     private domainInfo: Map<number, AreaDomainInfo> = new Map();
     private domainFilter: DomainFilter = "all";
+    private backgroundImage?: Konva.Image;
+    private backgroundConfig?: {url: string; x: number; y: number; width: number; height: number; opacity: number};
+    private dotsMode = false;
 
     constructor(container: HTMLDivElement, mapReader: MapReader) {
         this.stage = new Konva.Stage({
@@ -88,6 +92,9 @@ export class AreaMapRenderer {
             height: container.clientHeight,
             draggable: true,
         });
+
+        this.backgroundLayer = new Konva.Layer({listening: false});
+        this.stage.add(this.backgroundLayer);
 
         this.connectionLayer = new Konva.Layer({listening: false});
         this.stage.add(this.connectionLayer);
@@ -165,6 +172,43 @@ export class AreaMapRenderer {
         return this.domainFilter;
     }
 
+    setBackgroundImage(config: {url: string; x: number; y: number; width: number; height: number; opacity?: number}) {
+        this.backgroundConfig = {
+            url: config.url,
+            x: config.x,
+            y: config.y,
+            width: config.width,
+            height: config.height,
+            opacity: config.opacity ?? 0.3,
+        };
+    }
+
+    clearBackgroundImage() {
+        this.backgroundConfig = undefined;
+        this.backgroundImage = undefined;
+        this.backgroundLayer.destroyChildren();
+        this.backgroundLayer.batchDraw();
+    }
+
+    redrawBackground() {
+        this.drawBackground();
+    }
+
+    setDotsMode(enabled: boolean) {
+        this.dotsMode = enabled;
+    }
+
+    getDotsMode() {
+        return this.dotsMode;
+    }
+
+    redraw() {
+        this.drawBackground();
+        this.drawConnections();
+        this.drawAreas();
+        this.stage.batchDraw();
+    }
+
     private isAreaInDomain(areaId: number): boolean {
         const info = this.domainInfo.get(areaId);
         if (!info) {
@@ -205,10 +249,41 @@ export class AreaMapRenderer {
     render() {
         this.analyzeConnections();
         this.layoutAreas();
+        this.drawBackground();
         this.drawConnections();
         this.drawAreas();
         this.centerView();
         this.stage.batchDraw();
+    }
+
+    private drawBackground() {
+        this.backgroundLayer.destroyChildren();
+
+        if (!this.backgroundConfig) return;
+
+        const imageObj = new Image();
+        imageObj.crossOrigin = "anonymous";
+
+        imageObj.onload = () => {
+            this.backgroundImage = new Konva.Image({
+                x: this.backgroundConfig!.x,
+                y: this.backgroundConfig!.y,
+                image: imageObj,
+                width: this.backgroundConfig!.width,
+                height: this.backgroundConfig!.height,
+                opacity: this.backgroundConfig!.opacity,
+                listening: false,
+            });
+
+            this.backgroundLayer.add(this.backgroundImage);
+            this.backgroundLayer.batchDraw();
+        };
+
+        imageObj.onerror = () => {
+            console.error("Failed to load background image:", this.backgroundConfig?.url);
+        };
+
+        imageObj.src = this.backgroundConfig.url;
     }
 
     private analyzeConnections() {
@@ -1309,20 +1384,31 @@ export class AreaMapRenderer {
                 y: toNode.y + toNode.height / 2,
             };
 
-            // Draw line from edge to edge
-            const fromEdge = this.getEdgePoint(fromNode, toCenter);
-            const toEdge = this.getEdgePoint(toNode, fromCenter);
+            // In dots mode, draw from center to center; otherwise edge to edge
+            let fromPoint: {x: number; y: number};
+            let toPoint: {x: number; y: number};
 
-            // Skip if edge points are invalid
-            if (!isFinite(fromEdge.x) || !isFinite(fromEdge.y) ||
-                !isFinite(toEdge.x) || !isFinite(toEdge.y)) {
+            if (this.dotsMode) {
+                fromPoint = fromCenter;
+                toPoint = toCenter;
+            } else {
+                fromPoint = this.getEdgePoint(fromNode, toCenter);
+                toPoint = this.getEdgePoint(toNode, fromCenter);
+            }
+
+            // Skip if points are invalid
+            if (!isFinite(fromPoint.x) || !isFinite(fromPoint.y) ||
+                !isFinite(toPoint.x) || !isFinite(toPoint.y)) {
                 continue;
             }
 
+            const lineColor = this.dotsMode ? "#ffffff" : AreaMapSettings.connectionColor;
+            const lineWidth = this.dotsMode ? 1 : Math.min(AreaMapSettings.connectionLineWidth, 1 + group.connections.length * 0.5);
+
             const line = new Konva.Line({
-                points: [fromEdge.x, fromEdge.y, toEdge.x, toEdge.y],
-                stroke: AreaMapSettings.connectionColor,
-                strokeWidth: Math.min(AreaMapSettings.connectionLineWidth, 1 + group.connections.length * 0.5),
+                points: [fromPoint.x, fromPoint.y, toPoint.x, toPoint.y],
+                stroke: lineColor,
+                strokeWidth: lineWidth,
                 lineCap: "round",
                 listening: false,
             });
@@ -1371,84 +1457,153 @@ export class AreaMapRenderer {
                 continue;
             }
 
-            const group = new Konva.Group({
-                x: node.x,
-                y: node.y,
-                draggable: true,
-            });
-
             const isHighlighted = node.areaId === this.highlightedArea;
 
-            const rect = new Konva.Rect({
-                width: node.width,
-                height: node.height,
-                fill: AreaMapSettings.areaFillColor,
-                stroke: isHighlighted ? AreaMapSettings.highlightColor : AreaMapSettings.areaStrokeColor,
-                strokeWidth: isHighlighted ? 3 : 2,
-                cornerRadius: 8,
-            });
+            if (this.dotsMode) {
+                // Dots mode: small circle with text label
+                const dotRadius = 6;
+                const centerX = node.x + node.width / 2;
+                const centerY = node.y + node.height / 2;
 
-            const name = new Konva.Text({
-                text: node.name,
-                fontSize: AreaMapSettings.fontSize,
-                fill: AreaMapSettings.textColor,
-                width: node.width - 10,
-                height: node.height - 20,
-                x: 5,
-                y: 10,
-                align: "center",
-                verticalAlign: "middle",
-                ellipsis: true,
-                wrap: "word",
-            });
+                const group = new Konva.Group({
+                    x: centerX,
+                    y: centerY,
+                    draggable: true,
+                });
 
-            const roomCount = new Konva.Text({
-                text: `${node.roomCount} rooms`,
-                fontSize: 10,
-                fill: AreaMapSettings.connectionColor,
-                width: node.width - 10,
-                x: 5,
-                y: node.height - 18,
-                align: "center",
-            });
+                const dot = new Konva.Circle({
+                    radius: dotRadius,
+                    fill: isHighlighted ? AreaMapSettings.highlightColor : "#ffffff",
+                    stroke: isHighlighted ? AreaMapSettings.highlightColor : "#ffffff",
+                    strokeWidth: 1,
+                });
 
-            group.add(rect);
-            group.add(name);
-            group.add(roomCount);
+                const label = new Konva.Text({
+                    text: node.name,
+                    fontSize: 10,
+                    fill: "#ffffff",
+                    x: dotRadius + 4,
+                    y: -5,
+                });
 
-            // Add click handler
-            group.on("click tap", () => {
-                this.emitAreaClickEvent(node.areaId);
-            });
+                group.add(dot);
+                group.add(label);
 
-            group.on("mouseenter", () => {
-                this.stage.container().style.cursor = "pointer";
-                rect.stroke(AreaMapSettings.highlightColor);
-                this.areaLayer.batchDraw();
-            });
+                // Add click handler
+                group.on("click tap", () => {
+                    this.emitAreaClickEvent(node.areaId);
+                });
 
-            group.on("mouseleave", () => {
-                this.stage.container().style.cursor = "auto";
-                rect.stroke(isHighlighted ? AreaMapSettings.highlightColor : AreaMapSettings.areaStrokeColor);
-                this.areaLayer.batchDraw();
-            });
+                group.on("mouseenter", () => {
+                    this.stage.container().style.cursor = "pointer";
+                    dot.fill(AreaMapSettings.highlightColor);
+                    dot.stroke(AreaMapSettings.highlightColor);
+                    this.areaLayer.batchDraw();
+                });
 
-            group.on("dragmove", () => {
-                node.x = group.x();
-                node.y = group.y();
-                this.drawConnections();
-                this.connectionLayer.batchDraw();
-            });
+                group.on("mouseleave", () => {
+                    this.stage.container().style.cursor = "auto";
+                    dot.fill(isHighlighted ? AreaMapSettings.highlightColor : "#ffffff");
+                    dot.stroke(isHighlighted ? AreaMapSettings.highlightColor : "#ffffff");
+                    this.areaLayer.batchDraw();
+                });
 
-            group.on("dragstart", () => {
-                this.stage.container().style.cursor = "grabbing";
-            });
+                group.on("dragmove", () => {
+                    // Update node position (offset by center)
+                    node.x = group.x() - node.width / 2;
+                    node.y = group.y() - node.height / 2;
+                    this.drawConnections();
+                    this.connectionLayer.batchDraw();
+                });
 
-            group.on("dragend", () => {
-                this.stage.container().style.cursor = "pointer";
-            });
+                group.on("dragstart", () => {
+                    this.stage.container().style.cursor = "grabbing";
+                });
 
-            this.areaLayer.add(group);
+                group.on("dragend", () => {
+                    this.stage.container().style.cursor = "pointer";
+                });
+
+                this.areaLayer.add(group);
+            } else {
+                // Normal mode: rectangle with text
+                const group = new Konva.Group({
+                    x: node.x,
+                    y: node.y,
+                    draggable: true,
+                });
+
+                const rect = new Konva.Rect({
+                    width: node.width,
+                    height: node.height,
+                    fill: AreaMapSettings.areaFillColor,
+                    stroke: isHighlighted ? AreaMapSettings.highlightColor : AreaMapSettings.areaStrokeColor,
+                    strokeWidth: isHighlighted ? 3 : 2,
+                    cornerRadius: 8,
+                });
+
+                const name = new Konva.Text({
+                    text: node.name,
+                    fontSize: AreaMapSettings.fontSize,
+                    fill: AreaMapSettings.textColor,
+                    width: node.width - 10,
+                    height: node.height - 20,
+                    x: 5,
+                    y: 10,
+                    align: "center",
+                    verticalAlign: "middle",
+                    ellipsis: true,
+                    wrap: "word",
+                });
+
+                const roomCount = new Konva.Text({
+                    text: `${node.roomCount} rooms`,
+                    fontSize: 10,
+                    fill: AreaMapSettings.connectionColor,
+                    width: node.width - 10,
+                    x: 5,
+                    y: node.height - 18,
+                    align: "center",
+                });
+
+                group.add(rect);
+                group.add(name);
+                group.add(roomCount);
+
+                // Add click handler
+                group.on("click tap", () => {
+                    this.emitAreaClickEvent(node.areaId);
+                });
+
+                group.on("mouseenter", () => {
+                    this.stage.container().style.cursor = "pointer";
+                    rect.stroke(AreaMapSettings.highlightColor);
+                    this.areaLayer.batchDraw();
+                });
+
+                group.on("mouseleave", () => {
+                    this.stage.container().style.cursor = "auto";
+                    rect.stroke(isHighlighted ? AreaMapSettings.highlightColor : AreaMapSettings.areaStrokeColor);
+                    this.areaLayer.batchDraw();
+                });
+
+                group.on("dragmove", () => {
+                    node.x = group.x();
+                    node.y = group.y();
+                    this.drawConnections();
+                    this.connectionLayer.batchDraw();
+                });
+
+                group.on("dragstart", () => {
+                    this.stage.container().style.cursor = "grabbing";
+                });
+
+                group.on("dragend", () => {
+                    this.stage.container().style.cursor = "pointer";
+                });
+
+                this.areaLayer.add(group);
+            }
         }
     }
 

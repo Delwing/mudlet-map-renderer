@@ -65,7 +65,7 @@ export default class ExitRenderer {
     }
 
     renderWithColor(exit: Exit, color: string, zIndex: number) {
-        if (exit.aDir && exit.bDir) {
+        if (exit.aDir && exit.bDir && (regularExits.includes(exit.aDir) && regularExits.includes(exit.bDir))) {
             return this.renderTwoWayExit(exit, color, zIndex);
         } else {
             return this.renderOneWayExit(exit, color);
@@ -120,7 +120,7 @@ export default class ExitRenderer {
         const targetRoom = exit.aDir ? this.mapReader.getRoom(exit.b) : this.mapReader.getRoom(exit.a)
         const dir = exit.aDir ? exit.aDir : exit.bDir;
 
-        if (!dir || !sourceRoom || !targetRoom || sourceRoom.customLines[longToShort[dir] || dir]) {
+        if (!dir || !sourceRoom || !targetRoom || !regularExits.includes(dir) || sourceRoom.customLines[longToShort[dir] || dir]) {
             return;
         }
 

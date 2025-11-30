@@ -144,6 +144,26 @@
                 <option value="interdomain">Interdomain (neutral)</option>
             </select>
         </label>
+        <label>
+            <input type="checkbox" id="dots-mode-toggle">
+            Dots mode (white lines, small dots)
+        </label>
+        <label class="select-label">
+            <span>Background scale: <span id="bg-scale-value">1.0</span></span>
+            <input type="range" id="bg-scale-slider" min="0.1" max="3.0" step="0.1" value="1.0">
+        </label>
+        <label class="select-label">
+            <span>Background X: <span id="bg-x-value">-400</span></span>
+            <input type="range" id="bg-x-slider" min="-1000" max="1000" step="10" value="-400">
+        </label>
+        <label class="select-label">
+            <span>Background Y: <span id="bg-y-value">-300</span></span>
+            <input type="range" id="bg-y-slider" min="-1000" max="1000" step="10" value="-300">
+        </label>
+        <label class="select-label">
+            <span>Background opacity: <span id="bg-opacity-value">0.25</span></span>
+            <input type="range" id="bg-opacity-slider" min="0.05" max="1.0" step="0.05" value="0.25">
+        </label>
         <button type="button" id="fit-view">Fit to View</button>
         <button type="button" id="reset-zoom">Reset Zoom</button>
     </div>

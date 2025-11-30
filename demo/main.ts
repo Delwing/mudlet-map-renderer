@@ -38,7 +38,7 @@ const playerMarkerSize = document.getElementById("player-marker-size") as HTMLIn
 const playerMarkerSizeValue = document.getElementById("player-marker-size-value") as HTMLSpanElement | null;
 const playerMarkerDashEnabled = document.getElementById("player-marker-dash-enabled") as HTMLInputElement | null;
 
-const DEFAULT_STARTING_ROOM_ID = 21461;
+const DEFAULT_STARTING_ROOM_ID = 8008;
 
 const mapDataUrl = new URL("./mapExport.json", import.meta.url).href;
 const colorDataUrl = new URL("./colors.json", import.meta.url).href;

@@ -7,6 +7,15 @@ const areaInfoElement = document.getElementById("area-info") as HTMLDivElement;
 const fitViewButton = document.getElementById("fit-view") as HTMLButtonElement;
 const resetZoomButton = document.getElementById("reset-zoom") as HTMLButtonElement;
 const domainSelect = document.getElementById("domain-select") as HTMLSelectElement;
+const bgScaleSlider = document.getElementById("bg-scale-slider") as HTMLInputElement;
+const bgScaleValue = document.getElementById("bg-scale-value") as HTMLSpanElement;
+const bgXSlider = document.getElementById("bg-x-slider") as HTMLInputElement;
+const bgXValue = document.getElementById("bg-x-value") as HTMLSpanElement;
+const bgYSlider = document.getElementById("bg-y-slider") as HTMLInputElement;
+const bgYValue = document.getElementById("bg-y-value") as HTMLSpanElement;
+const bgOpacitySlider = document.getElementById("bg-opacity-slider") as HTMLInputElement;
+const bgOpacityValue = document.getElementById("bg-opacity-value") as HTMLSpanElement;
+const dotsModeToggle = document.getElementById("dots-mode-toggle") as HTMLInputElement;
 
 const mapDataUrl = new URL("./mapExport.json", import.meta.url).href;
 const colorDataUrl = new URL("./colors.json", import.meta.url).href;
@@ -86,6 +95,41 @@ async function loadJson<T>(url: string, label: string): Promise<T> {
     return (await response.json()) as T;
 }
 
+// Empire background map configuration
+const empireBackgroundUrl = new URL("./empire.png", import.meta.url).href;
+
+// Background config state
+const bgConfig = {
+    baseWidth: 1600,
+    baseHeight: 1200,
+    scale: 1.0,
+    x: -400,
+    y: -300,
+    opacity: 0.25,
+};
+
+function applyBackgroundConfig() {
+    if (areaRenderer.getDomainFilter() !== "empire") return;
+
+    areaRenderer.setBackgroundImage({
+        url: empireBackgroundUrl,
+        x: bgConfig.x,
+        y: bgConfig.y,
+        width: bgConfig.baseWidth * bgConfig.scale,
+        height: bgConfig.baseHeight * bgConfig.scale,
+        opacity: bgConfig.opacity,
+    });
+    areaRenderer.redrawBackground();
+}
+
+function updateBackgroundForDomain(filter: DomainFilter) {
+    if (filter === "empire") {
+        applyBackgroundConfig();
+    } else {
+        areaRenderer.clearBackgroundImage();
+    }
+}
+
 async function initialize() {
     try {
         const [mapData, colorData] = await Promise.all([
@@ -101,8 +145,14 @@ async function initialize() {
 
     areaRenderer = new AreaMapRenderer(stageElement, mapReader);
     areaRenderer.setDomainInfo(areaDomains);
-    areaRenderer.setDomainFilter("ishtar"); // Default to Ishtar
+    areaRenderer.setDomainFilter("empire"); // Default to Empire
+    updateBackgroundForDomain("empire");
     areaRenderer.render();
+
+    // Set the select element to match
+    if (domainSelect) {
+        domainSelect.value = "empire";
+    }
 
     updateStatus();
     attachEventListeners();
@@ -154,10 +204,41 @@ function attachEventListeners() {
     domainSelect?.addEventListener("change", () => {
         const filter = domainSelect.value as DomainFilter;
         areaRenderer.setDomainFilter(filter);
+        updateBackgroundForDomain(filter);
         areaRenderer.render();
         selectedAreaId = undefined;
         updateAreaInfo(undefined);
         updateStatus();
+    });
+
+    // Background control sliders
+    bgScaleSlider?.addEventListener("input", () => {
+        bgConfig.scale = parseFloat(bgScaleSlider.value);
+        bgScaleValue.textContent = bgConfig.scale.toFixed(1);
+        applyBackgroundConfig();
+    });
+
+    bgXSlider?.addEventListener("input", () => {
+        bgConfig.x = parseInt(bgXSlider.value);
+        bgXValue.textContent = bgConfig.x.toString();
+        applyBackgroundConfig();
+    });
+
+    bgYSlider?.addEventListener("input", () => {
+        bgConfig.y = parseInt(bgYSlider.value);
+        bgYValue.textContent = bgConfig.y.toString();
+        applyBackgroundConfig();
+    });
+
+    bgOpacitySlider?.addEventListener("input", () => {
+        bgConfig.opacity = parseFloat(bgOpacitySlider.value);
+        bgOpacityValue.textContent = bgConfig.opacity.toFixed(2);
+        applyBackgroundConfig();
+    });
+
+    dotsModeToggle?.addEventListener("change", () => {
+        areaRenderer.setDotsMode(dotsModeToggle.checked);
+        areaRenderer.redraw();
     });
 }
 
