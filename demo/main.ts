@@ -16,6 +16,9 @@ const cullingModeSelect = document.getElementById("culling-mode") as HTMLSelectE
 const roomForm = document.getElementById("room-form") as HTMLFormElement | null;
 const roomInput = document.getElementById("room-input") as HTMLInputElement | null;
 const roomStatusElement = document.getElementById("room-status") as HTMLDivElement | null;
+const lookForm = document.getElementById("look-form") as HTMLFormElement | null;
+const lookInput = document.getElementById("look-input") as HTMLInputElement | null;
+const lookStatusElement = document.getElementById("look-status") as HTMLDivElement | null;
 const destinationForm = document.getElementById("destination-form") as HTMLFormElement | null;
 const destinationInput = document.getElementById("destination-input") as HTMLInputElement | null;
 const destinationClearButton = document.getElementById("destination-clear") as HTMLButtonElement | null;
@@ -227,6 +230,28 @@ function attachEventListeners() {
         } else {
             walkerStatusElement.textContent = `Moved to room ${room.id}.`;
         }
+    });
+
+    lookForm?.addEventListener("submit", event => {
+        event.preventDefault();
+        if (!lookInput) {
+            return;
+        }
+
+        const roomId = parseRoomId(lookInput.value);
+        if (roomId === undefined) {
+            updateLookStatus("Enter a valid room id.");
+            return;
+        }
+
+        const room = mapReader.getRoom(roomId);
+        if (!room) {
+            updateLookStatus(`Room ${roomId} not found.`);
+            return;
+        }
+
+        renderer.centerOn(roomId);
+        updateLookStatus(`Looking at room ${room.id}.`);
     });
 
     walkerToggleButton?.addEventListener("click", () => {
@@ -808,6 +833,13 @@ function updateRoomStatus(message: string) {
         return;
     }
     roomStatusElement.textContent = message;
+}
+
+function updateLookStatus(message: string) {
+    if (!lookStatusElement) {
+        return;
+    }
+    lookStatusElement.textContent = message;
 }
 
 function updateRoomInput(roomId: number) {

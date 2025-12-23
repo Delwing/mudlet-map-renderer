@@ -493,6 +493,23 @@ export class Renderer {
         this.updateCurrentRoomOverlay(room);
     }
 
+    centerOn(roomId: number) {
+        const room = this.mapReader.getRoom(roomId);
+        if (!room) return;
+        const area = this.mapReader.getArea(room.area);
+        const areaVersion = area?.getVersion();
+        let instant = this.currentArea !== room.area || this.currentZIndex !== room.z
+        if (
+            this.currentArea !== room.area ||
+            this.currentZIndex !== room.z ||
+            (areaVersion !== undefined && this.currentAreaVersion !== areaVersion) ||
+            (area !== undefined && this.currentAreaInstance !== area)
+        ) {
+            this.drawArea(room.area, room.z);
+        }
+        this.centerOnRoomView(room, instant);
+    }
+
     renderPath(locations: number[], color?: string) {
         return this.pathRenderer.renderPath(locations, this.currentArea, this.currentZIndex, color);
     }
@@ -576,6 +593,46 @@ export class Renderer {
         const roomCenter = {x: room.x, y: room.y};
 
         this.positionRender?.position(room)
+
+        const abs = this.stage.getAbsoluteTransform()
+        const screenPoint = abs.point(roomCenter);
+
+        const target = {
+            x: this.stage.width() / 2,
+            y: this.stage.height() / 2,
+        };
+
+        const dx = target.x - screenPoint.x;
+        const dy = target.y - screenPoint.y;
+
+        if (this.currentTransition) {
+            this.currentTransition.pause()
+            this.currentTransition.destroy()
+            delete this.currentTransition;
+        }
+
+        if (instant || Settings.instantMapMove) {
+            this.stage.position({
+                x: this.stage.x() + dx,
+                y: this.stage.y() + dy,
+            })
+            this.scheduleRoomCulling();
+        } else {
+            this.currentTransition = new Konva.Tween({
+                node: this.stage,
+                x: this.stage.x() + dx,
+                y: this.stage.y() + dy,
+                duration: 0.2,
+                easing: Konva.Easings.EaseInOut,
+                onUpdate: () => this.scheduleRoomCulling(),
+                onFinish: () => this.scheduleRoomCulling(),
+            })
+            this.currentTransition.play()
+        }
+    }
+
+    private centerOnRoomView(room: MapData.Room, instant: boolean = false) {
+        const roomCenter = {x: room.x, y: room.y};
 
         const abs = this.stage.getAbsoluteTransform()
         const screenPoint = abs.point(roomCenter);
