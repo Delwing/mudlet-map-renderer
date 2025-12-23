@@ -86,7 +86,7 @@ export default class PathRenderer {
             .map(points => new Konva.Line({
                 points,
                 stroke: color,
-                strokeWidth: 0.1
+                strokeWidth: Settings.lineWidth * 4
             }));
 
         paths.forEach(path => {
