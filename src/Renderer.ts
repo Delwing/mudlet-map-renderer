@@ -229,6 +229,9 @@ export class Renderer {
     private currentZoom: number = 1;
     private currentRoomOverlay: Konva.Node[] = [];
     private roomNodes: Map<number, RoomNodeEntry> = new Map();
+
+    /** When true, resizing the container will center on the current room. Set to false for static map views. */
+    public centerOnResize: boolean = true;
     private standaloneExitNodes: StandaloneExitEntry[] = [];
     private spatialBucketSize = 5;
     private roomSpatialIndex: Map<string, Set<RoomNodeEntry>> = new Map();
@@ -279,7 +282,7 @@ export class Renderer {
     private onResize(container: HTMLDivElement) {
         this.stage.width(container.clientWidth);
         this.stage.height(container.clientHeight);
-        if (this.currentRoomId) {
+        if (this.centerOnResize && this.currentRoomId) {
             this.centerOnRoom(this.mapReader.getRoom(this.currentRoomId)!, false);
         }
         this.stage.batchDraw();
@@ -606,6 +609,47 @@ export class Renderer {
         return true;
     }
 
+    /**
+     * Zooms relative to the center of the viewport.
+     * Use this for UI controls (buttons, menus) where there's no mouse position.
+     */
+    zoomToCenter(zoom: number): boolean {
+        if (this.currentZoom === zoom) {
+            return false;
+        }
+
+        const oldScale = this.stage.scaleX();
+        const stageWidth = this.stage.width();
+        const stageHeight = this.stage.height();
+
+        // Center point in screen coordinates
+        const centerX = stageWidth / 2;
+        const centerY = stageHeight / 2;
+
+        // Convert center to map coordinates using old scale
+        const centerMapPoint = {
+            x: (centerX - this.stage.x()) / oldScale,
+            y: (centerY - this.stage.y()) / oldScale,
+        };
+
+        // Apply new zoom
+        this.currentZoom = zoom;
+        const newScale = defaultZoom * zoom;
+        this.stage.scale({ x: newScale, y: newScale });
+
+        // Calculate new position to keep center point at center
+        const newPos = {
+            x: centerX - centerMapPoint.x * newScale,
+            y: centerY - centerMapPoint.y * newScale,
+        };
+
+        this.stage.position(newPos);
+        this.stage.batchDraw();
+        this.scheduleRoomCulling();
+
+        return true;
+    }
+
     getZoom() {
         return this.currentZoom;
     }
@@ -655,7 +699,57 @@ export class Renderer {
         }
     }
 
-    setPosition(roomId: number) {
+    /**
+     * Updates the player position marker without centering the view.
+     * Use this when you want to show where the player is without moving the viewport.
+     */
+    updatePositionMarker(roomId: number) {
+        const room = this.mapReader.getRoom(roomId);
+        if (!room) return;
+
+        // Only show marker if player is in the currently displayed area/level
+        if (room.area !== this.currentArea || room.z !== this.currentZIndex) {
+            // Hide the marker if player is not on current area/level
+            if (this.positionRender) {
+                this.positionRender.hide();
+                this.positionLayer.batchDraw();
+            }
+            return;
+        }
+
+        this.currentRoomId = roomId;
+        this.updateCurrentRoomOverlay(room);
+
+        const strokeColor = hexToRgba(Settings.playerMarker.strokeColor, Settings.playerMarker.strokeAlpha);
+        const fillColor = hexToRgba(Settings.playerMarker.fillColor, Settings.playerMarker.fillAlpha);
+        const markerRadius = (Settings.roomSize / 2) * Settings.playerMarker.sizeFactor;
+
+        if (!this.positionRender) {
+            this.positionRender = new Konva.Circle({
+                x: room.x,
+                y: room.y,
+                radius: markerRadius,
+                stroke: strokeColor,
+                fill: fillColor,
+                strokeWidth: Settings.playerMarker.strokeWidth,
+                dash: Settings.playerMarker.dash,
+                dashEnabled: Settings.playerMarker.dashEnabled,
+            })
+            this.positionLayer.add(this.positionRender);
+        } else {
+            this.positionRender.position({ x: room.x, y: room.y });
+            this.positionRender.radius(markerRadius);
+            this.positionRender.stroke(strokeColor);
+            this.positionRender.fill(fillColor);
+            this.positionRender.strokeWidth(Settings.playerMarker.strokeWidth);
+            this.positionRender.dash(Settings.playerMarker.dash ?? []);
+            this.positionRender.dashEnabled(Settings.playerMarker.dashEnabled);
+            this.positionRender.show();
+        }
+        this.positionLayer.batchDraw();
+    }
+
+    setPosition(roomId: number, center: boolean = true) {
         const room = this.mapReader.getRoom(roomId);
         if (!room) return;
         const area = this.mapReader.getArea(room.area);
@@ -669,7 +763,11 @@ export class Renderer {
         ) {
             this.drawArea(room.area, room.z);
         }
-        this.centerOnRoom(room, instant);
+        if (center) {
+            this.centerOnRoom(room, instant);
+        } else {
+            this.currentRoomId = roomId;
+        }
         this.updateCurrentRoomOverlay(room);
 
         const strokeColor = hexToRgba(Settings.playerMarker.strokeColor, Settings.playerMarker.strokeAlpha);
