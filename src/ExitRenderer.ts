@@ -65,18 +65,23 @@ export default class ExitRenderer {
     }
 
     renderWithColor(exit: Exit, color: string, zIndex: number) {
-        if (exit.aDir && exit.bDir) {
+        const aIsRegular = exit.aDir && regularExits.includes(exit.aDir);
+        const bIsRegular = exit.bDir && regularExits.includes(exit.bDir);
+
+        if (aIsRegular && bIsRegular) {
             return this.renderTwoWayExit(exit, color, zIndex);
-        } else {
-            return this.renderOneWayExit(exit, color);
+        } else if (aIsRegular || bIsRegular) {
+            const regularDir = aIsRegular ? 'a' : 'b';
+            return this.renderOneWayExit(exit, color, regularDir);
         }
+        return;
     }
 
     private renderTwoWayExit(exit: Exit, color: string, zIndex: number) {
         const sourceRoom = this.mapReader.getRoom(exit.a)
         const targetRoom = this.mapReader.getRoom(exit.b);
 
-        if (!sourceRoom || !targetRoom || !exit.aDir || !exit.bDir || !regularExits.includes(exit.aDir) || !regularExits.includes(exit.bDir)) {
+        if (!sourceRoom || !targetRoom || !exit.aDir || !exit.bDir) {
             return;
         }
 
@@ -115,10 +120,12 @@ export default class ExitRenderer {
         return exitRender;
     }
 
-    private renderOneWayExit(exit: Exit, color: string) {
-        const sourceRoom = exit.aDir ? this.mapReader.getRoom(exit.a) : this.mapReader.getRoom(exit.b)
-        const targetRoom = exit.aDir ? this.mapReader.getRoom(exit.b) : this.mapReader.getRoom(exit.a)
-        const dir = exit.aDir ? exit.aDir : exit.bDir;
+    private renderOneWayExit(exit: Exit, color: string, fromSide?: 'a' | 'b') {
+        // Determine which side is the source based on fromSide parameter or which dir exists
+        const useA = fromSide === 'a' || (!fromSide && exit.aDir);
+        const sourceRoom = useA ? this.mapReader.getRoom(exit.a) : this.mapReader.getRoom(exit.b);
+        const targetRoom = useA ? this.mapReader.getRoom(exit.b) : this.mapReader.getRoom(exit.a);
+        const dir = useA ? exit.aDir : exit.bDir;
 
         if (!dir || !sourceRoom || !targetRoom || sourceRoom.customLines[longToShort[dir] || dir]) {
             return;
