@@ -18,7 +18,7 @@ export const shortTolong: Record<string, MapData.direction> = {
     "ne": "northeast",
     "nw": "northwest",
     "se": "southeast",
-    "sw": "southwest",
+    "sw": "southwest"
 }
 export const longToShort: Record<MapData.direction, string> = {
     "north": "n",

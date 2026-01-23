@@ -127,12 +127,13 @@ export default class ExitRenderer {
         const targetRoom = useA ? this.mapReader.getRoom(exit.b) : this.mapReader.getRoom(exit.a);
         const dir = useA ? exit.aDir : exit.bDir;
 
-        if (!dir || !sourceRoom || !targetRoom || sourceRoom.customLines[longToShort[dir] || dir]) {
+        if (!dir || !sourceRoom || !targetRoom || !regularExits.includes(dir) || sourceRoom.customLines[longToShort[dir] || dir]) {
             return;
         }
 
         if (sourceRoom.area != targetRoom.area && dir) {
-            return this.renderAreaExit(sourceRoom, dir, color);
+            const targetEnvColor = this.mapReader.getColorValue(targetRoom.env);
+            return this.renderAreaExit(sourceRoom, dir, targetEnvColor);
         }
 
         let targetPoint = {x: targetRoom.x, y: targetRoom.y};
