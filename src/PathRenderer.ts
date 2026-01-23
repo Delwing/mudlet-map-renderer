@@ -132,7 +132,7 @@ export default class PathRenderer {
         group.add(new Konva.Line({
             points,
             stroke: 'black',
-            strokeWidth: Settings.lineWidth * 4,
+            strokeWidth: Settings.lineWidth * 8,
             lineCap: 'round',
             lineJoin: 'round',
         }));
@@ -141,7 +141,7 @@ export default class PathRenderer {
         group.add(new Konva.Line({
             points,
             stroke: color,
-            strokeWidth: Settings.lineWidth * 2,
+            strokeWidth: Settings.lineWidth * 4,
             lineCap: 'round',
             lineJoin: 'round',
         }));
