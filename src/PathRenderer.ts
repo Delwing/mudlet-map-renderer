@@ -1,7 +1,7 @@
 import Konva from "konva";
 import MapReader from "./reader/MapReader";
 import {Settings} from "./Renderer";
-import {movePoint, movePointCircle, PlanarDirection, planarDirections, oppositeDirections} from "./directions";
+import {movePoint, movePointCircle, movePointRoundedRect, PlanarDirection, planarDirections, oppositeDirections} from "./directions";
 import {longToShort, regularExits} from "./reader/Exit";
 
 type ConnectionType = 'regular' | 'special' | 'inner' | 'none';
@@ -30,6 +30,8 @@ export default class PathRenderer {
     private getRoomEdgePoint(x: number, y: number, direction: MapData.direction, distance: number) {
         if (Settings.roomShape === "circle") {
             return movePointCircle(x, y, direction, distance);
+        } else if (Settings.roomShape === "roundedRectangle") {
+            return movePointRoundedRect(x, y, direction, distance, Settings.roomSize * 0.2);
         } else {
             return movePoint(x, y, direction, distance);
         }

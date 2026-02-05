@@ -23,7 +23,7 @@ export type LabelRenderMode = "image" | "data";
 
 export type CullingMode = "none" | "basic" | "indexed";
 
-export type RoomShape = "rectangle" | "circle";
+export type RoomShape = "rectangle" | "circle" | "roundedRectangle";
 
 export type RoomContextMenuEventDetail = {
     roomId: number;
@@ -219,6 +219,7 @@ export class Settings {
      * Default: 0.02
      */
     static gridLineWidth: number = 0.02;
+
 }
 
 type HighlightData = {
@@ -930,6 +931,7 @@ export class Renderer {
                 strokeWidth: 0.1,
                 dash: [0.05, 0.05],
                 dashEnabled: true,
+                cornerRadius: Settings.roomShape === "roundedRectangle" ? Settings.roomSize * highlightFactor * 0.2 : 0,
                 listening: false,
             });
     }
@@ -1045,6 +1047,7 @@ export class Renderer {
                     fill: fillColor,
                     strokeWidth: Settings.lineWidth,
                     stroke: strokeColor,
+                    cornerRadius: Settings.roomShape === "roundedRectangle" ? Settings.roomSize * 0.2 : 0,
                     perfectDrawEnabled: false,
                 });
             const roomRect = roomShape;
@@ -1125,6 +1128,7 @@ export class Renderer {
             roomRender.on('touchcancel', clearLongPressTimeout);
 
             roomRender.add(roomRect);
+
             this.renderSymbol(room, roomRender);
             this.roomLayer.add(roomRender);
 
@@ -1582,6 +1586,7 @@ export class Renderer {
                 fill: fillColor,
                 stroke: strokeColor,
                 strokeWidth: Settings.lineWidth,
+                cornerRadius: Settings.roomShape === "roundedRectangle" ? Settings.roomSize * 0.2 : 0,
             });
 
         roomGroup.add(roomShape);

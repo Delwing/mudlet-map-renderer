@@ -2,7 +2,7 @@ import Exit, {longToShort, regularExits} from "./reader/Exit";
 import MapReader from "./reader/MapReader";
 import Konva from "konva";
 import {Renderer, Settings} from "./Renderer";
-import {movePoint, movePointCircle} from "./directions";
+import {movePoint, movePointCircle, movePointRoundedRect} from "./directions";
 
 const Colors = {
     OPEN_DOOR: 'rgb(10, 155, 10)',
@@ -55,6 +55,8 @@ export default class ExitRenderer {
     private getRoomEdgePoint(x: number, y: number, direction: MapData.direction, distance: number) {
         if (Settings.roomShape === "circle") {
             return movePointCircle(x, y, direction, distance);
+        } else if (Settings.roomShape === "roundedRectangle") {
+            return movePointRoundedRect(x, y, direction, distance, Settings.roomSize * 0.2);
         } else {
             return movePoint(x, y, direction, distance);
         }
