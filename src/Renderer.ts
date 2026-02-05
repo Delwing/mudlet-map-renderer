@@ -195,6 +195,30 @@ export class Settings {
         dash: [0.05, 0.05],
         dashEnabled: true,
     };
+
+    /**
+     * Whether to render a subtle background grid behind the map.
+     * Default: false
+     */
+    static gridEnabled: boolean = false;
+
+    /**
+     * Grid line spacing in map units (1 = every integer coordinate).
+     * Default: 1
+     */
+    static gridSize: number = 1;
+
+    /**
+     * Color of the grid lines as a CSS color string.
+     * Default: 'rgba(255, 255, 255, 0.07)' (very subtle white)
+     */
+    static gridColor: string = 'rgba(255, 255, 255, 0.07)';
+
+    /**
+     * Width of grid lines in map units.
+     * Default: 0.02
+     */
+    static gridLineWidth: number = 0.02;
 }
 
 type HighlightData = {
@@ -211,6 +235,7 @@ type StandaloneExitEntry = { node: Konva.Node; bounds: Bounds };
 export class Renderer {
 
     private readonly stage: Konva.Stage;
+    private readonly gridLayer: Konva.Layer;
     private readonly roomLayer: Konva.Layer;
     private readonly linkLayer: Konva.Layer;
     private readonly overlayLayer: Konva.Layer;
@@ -254,6 +279,8 @@ export class Renderer {
         container.addEventListener('resize', () => {
             this.onResize(container);
         })
+        this.gridLayer = new Konva.Layer({ listening: false });
+        this.stage.add(this.gridLayer);
         this.linkLayer = new Konva.Layer({
             listening: false,
         });
@@ -464,6 +491,7 @@ export class Renderer {
         this.currentZIndex = zIndex;
         this.currentAreaVersion = area.getVersion();
         this.clearCurrentRoomOverlay();
+        this.gridLayer.destroyChildren();
         this.roomLayer.destroyChildren();
         this.linkLayer.destroyChildren();
         this.roomNodes.clear();
@@ -477,6 +505,7 @@ export class Renderer {
 
         this.stage.scale({x: defaultZoom * this.currentZoom, y: defaultZoom * this.currentZoom});
 
+        this.renderGrid();
         this.renderLabels(plane.getLabels());
         this.renderExits(area.getLinkExits(zIndex));
         this.renderRooms(plane.getRooms() ?? []);
@@ -1371,6 +1400,63 @@ export class Renderer {
         if (linkLayerNeedsDraw) {
             this.linkLayer.batchDraw();
         }
+
+        this.renderGrid();
+    }
+
+    private renderGrid() {
+        this.gridLayer.destroyChildren();
+
+        if (!Settings.gridEnabled) {
+            this.gridLayer.batchDraw();
+            return;
+        }
+
+        const scale = this.stage.scaleX();
+        if (!scale) {
+            return;
+        }
+
+        const stagePosition = this.stage.position();
+        const stageWidth = this.stage.width();
+        const stageHeight = this.stage.height();
+
+        // Calculate visible bounds in map coordinates
+        const minX = (0 - stagePosition.x) / scale;
+        const maxX = (stageWidth - stagePosition.x) / scale;
+        const minY = (0 - stagePosition.y) / scale;
+        const maxY = (stageHeight - stagePosition.y) / scale;
+
+        // Expand bounds slightly for buffer
+        const buffer = Settings.gridSize * 2;
+        const left = Math.floor((Math.min(minX, maxX) - buffer) / Settings.gridSize) * Settings.gridSize;
+        const right = Math.ceil((Math.max(minX, maxX) + buffer) / Settings.gridSize) * Settings.gridSize;
+        const top = Math.floor((Math.min(minY, maxY) - buffer) / Settings.gridSize) * Settings.gridSize;
+        const bottom = Math.ceil((Math.max(minY, maxY) + buffer) / Settings.gridSize) * Settings.gridSize;
+
+        // Draw vertical lines
+        for (let x = left; x <= right; x += Settings.gridSize) {
+            this.gridLayer.add(new Konva.Line({
+                points: [x, top, x, bottom],
+                stroke: Settings.gridColor,
+                strokeWidth: Settings.gridLineWidth,
+                listening: false,
+                perfectDrawEnabled: false,
+            }));
+        }
+
+        // Draw horizontal lines
+        for (let y = top; y <= bottom; y += Settings.gridSize) {
+            this.gridLayer.add(new Konva.Line({
+                points: [left, y, right, y],
+                stroke: Settings.gridColor,
+                strokeWidth: Settings.gridLineWidth,
+                listening: false,
+                perfectDrawEnabled: false,
+            }));
+        }
+
+        this.gridLayer.batchDraw();
     }
 
     private clearCurrentRoomOverlay() {

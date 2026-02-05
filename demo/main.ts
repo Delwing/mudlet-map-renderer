@@ -12,6 +12,7 @@ const walkerToggleButton = document.getElementById("walker-toggle") as HTMLButto
 const explorationToggle = document.getElementById("exploration-toggle") as HTMLInputElement | null;
 const instantMoveToggle = document.getElementById("instant-move-toggle") as HTMLInputElement | null;
 const highlightToggle = document.getElementById("highlight-toggle") as HTMLInputElement | null;
+const gridToggle = document.getElementById("grid-toggle") as HTMLInputElement | null;
 const roomShapeSelect = document.getElementById("room-shape") as HTMLSelectElement | null;
 const cullingModeSelect = document.getElementById("culling-mode") as HTMLSelectElement | null;
 const roomSizeSlider = document.getElementById("room-size-slider") as HTMLInputElement | null;
@@ -159,6 +160,10 @@ async function initialize() {
         highlightToggle.checked = Settings.highlightCurrentRoom;
     }
 
+    if (gridToggle) {
+        gridToggle.checked = Settings.gridEnabled;
+    }
+
     if (roomSizeSlider && roomSizeValue) {
         roomSizeSlider.value = Settings.roomSize.toString();
         roomSizeValue.textContent = Settings.roomSize.toFixed(1);
@@ -227,6 +232,11 @@ function attachEventListeners() {
     highlightToggle?.addEventListener("change", () => {
         Settings.highlightCurrentRoom = highlightToggle.checked;
         renderer.setPosition(currentRoomId);
+    });
+
+    gridToggle?.addEventListener("change", () => {
+        Settings.gridEnabled = gridToggle.checked;
+        renderer.refresh();
     });
 
     roomShapeSelect?.addEventListener("change", () => {
