@@ -65,33 +65,74 @@ export default class Area {
         );
     }
 
-    private createExits() {
-        this.area.rooms.forEach(room => {
-            Object.entries(room.specialExits)
-                .forEach(([direction, targetRoomId]) => this.createHalfExit(room.id, targetRoomId, room.z, direction as MapData.direction))
-            Object.entries(room.exits)
-                .forEach(([direction, targetRoomId]) => this.createHalfExit(room.id, targetRoomId, room.z, direction as MapData.direction))
-        })
-    }
+    private static readonly oppositeDir: Partial<Record<MapData.direction, MapData.direction>> = {
+        "north": "south", "south": "north",
+        "east": "west", "west": "east",
+        "northeast": "southwest", "southwest": "northeast",
+        "northwest": "southeast", "southeast": "northwest",
+        "up": "down", "down": "up",
+        "in": "out", "out": "in",
+    };
 
-    private createHalfExit(originRoom: number, targetRoom: number, zIndex: number, direction: MapData.direction) {
-        if (originRoom === targetRoom) {
-            return
+    private createExits() {
+        type HalfExit = { origin: number, target: number, z: number, dir: MapData.direction };
+        const halfExitsByPair = new Map<string, HalfExit[]>();
+
+        this.area.rooms.forEach(room => {
+            Object.entries(room.exits).forEach(([direction, targetRoomId]) => {
+                if (room.id === targetRoomId) return;
+                const a = Math.min(room.id, targetRoomId);
+                const b = Math.max(room.id, targetRoomId);
+                const key = `${a}-${b}`;
+                if (!halfExitsByPair.has(key)) halfExitsByPair.set(key, []);
+                halfExitsByPair.get(key)!.push({
+                    origin: room.id, target: targetRoomId, z: room.z, dir: direction as MapData.direction
+                });
+            });
+        });
+
+        for (const [pairKey, halves] of halfExitsByPair) {
+            const [aStr, bStr] = pairKey.split('-');
+            const a = parseInt(aStr), b = parseInt(bStr);
+
+            const aSide = halves.filter(h => h.origin === a);
+            const bSide = halves.filter(h => h.origin === b);
+
+            const usedB = new Set<number>();
+
+            for (const aHalf of aSide) {
+                let bestIdx = -1;
+                for (let i = 0; i < bSide.length; i++) {
+                    if (usedB.has(i)) continue;
+                    if (bSide[i].dir === Area.oppositeDir[aHalf.dir]) {
+                        bestIdx = i;
+                        break;
+                    }
+                    if (bestIdx === -1) bestIdx = i;
+                }
+
+                if (bestIdx !== -1) {
+                    usedB.add(bestIdx);
+                    const bHalf = bSide[bestIdx];
+                    this.exits.set(`${pairKey}-${aHalf.dir}`, {
+                        a, b, aDir: aHalf.dir, bDir: bHalf.dir, zIndex: [aHalf.z, bHalf.z]
+                    });
+                } else {
+                    this.exits.set(`${pairKey}-a:${aHalf.dir}`, {
+                        a, b, aDir: aHalf.dir, zIndex: [aHalf.z]
+                    });
+                }
+            }
+
+            for (let i = 0; i < bSide.length; i++) {
+                if (!usedB.has(i)) {
+                    const bHalf = bSide[i];
+                    this.exits.set(`${pairKey}-b:${bHalf.dir}`, {
+                        a, b, bDir: bHalf.dir, zIndex: [bHalf.z]
+                    });
+                }
+            }
         }
-        const a = Math.min(originRoom, targetRoom);
-        const b = Math.max(originRoom, targetRoom);
-        const key = `${a}-${b}`;
-        let edge = this.exits.get(key);
-        if (!edge) {
-            edge = {a: a, b: b, zIndex: [zIndex]};
-        }
-        if (a == originRoom) {
-            edge.aDir = direction;
-        } else {
-            edge.bDir = direction;
-        }
-        edge.zIndex.push(zIndex);
-        this.exits.set(key, edge);
     }
 
 }

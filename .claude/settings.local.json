@@ -6,7 +6,9 @@
       "Bash(npm run demo:dev:*)",
       "Bash(npx tsc:*)",
       "Bash(git add:*)",
-      "Bash(npx vite build)"
+      "Bash(npx vite build)",
+      "Bash(node -e:*)",
+      "Bash(node:*)"
     ],
     "deny": [],
     "ask": []
