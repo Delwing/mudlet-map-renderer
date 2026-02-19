@@ -1,5 +1,5 @@
 import {Renderer, Settings, CullingMode, RoomShape} from "@src";
-import type {RoomContextMenuEventDetail} from "@src";
+import type {RoomContextMenuEventDetail, PerfSnapshot} from "@src";
 import MapReader from "@src/reader/MapReader";
 
 const stageElement = document.getElementById("stage") as HTMLDivElement;
@@ -15,6 +15,7 @@ const highlightToggle = document.getElementById("highlight-toggle") as HTMLInput
 const gridToggle = document.getElementById("grid-toggle") as HTMLInputElement | null;
 const roomShapeSelect = document.getElementById("room-shape") as HTMLSelectElement | null;
 const cullingModeSelect = document.getElementById("culling-mode") as HTMLSelectElement | null;
+const areaSelect = document.getElementById("area-select") as HTMLSelectElement | null;
 const roomSizeSlider = document.getElementById("room-size-slider") as HTMLInputElement | null;
 const roomSizeValue = document.getElementById("room-size-value") as HTMLSpanElement | null;
 const lineWidthSlider = document.getElementById("line-width-slider") as HTMLInputElement | null;
@@ -30,6 +31,7 @@ const destinationInput = document.getElementById("destination-input") as HTMLInp
 const destinationClearButton = document.getElementById("destination-clear") as HTMLButtonElement | null;
 const destinationStatusElement = document.getElementById("destination-status") as HTMLDivElement | null;
 const cullingStatusElement = document.getElementById("culling-status") as HTMLDivElement | null;
+const perfStatsElement = document.getElementById("perf-stats") as HTMLDivElement | null;
 const playerMarkerStrokeColor = document.getElementById("player-marker-stroke-color") as HTMLInputElement | null;
 const playerMarkerStrokeAlpha = document.getElementById("player-marker-stroke-alpha") as HTMLInputElement | null;
 const playerMarkerStrokeAlphaValue = document.getElementById("player-marker-stroke-alpha-value") as HTMLSpanElement | null;
@@ -114,6 +116,7 @@ async function initialize() {
 
     renderer = new Renderer(stageElement, mapReader);
     startFpsCounter();
+    startPerfMonitor();
 
     const {roomId: startingRoomId, status: initialRoomStatus} = getStartingRoomId();
     const startingRoom = mapReader.getRoom(startingRoomId);
@@ -206,11 +209,58 @@ async function initialize() {
         playerMarkerDashEnabled.checked = Settings.playerMarker.dashEnabled;
     }
 
+    populateAreaSelector();
     updateCullingStatus();
     attachEventListeners();
 }
 
+function populateAreaSelector() {
+    if (!areaSelect) return;
+    const areas = mapReader.getAreas()
+        .map(a => ({ id: a.getAreaId(), name: a.getAreaName() ?? `Area ${a.getAreaId()}` }))
+        .filter(a => !isNaN(a.id))
+        .sort((a, b) => a.name.localeCompare(b.name));
+
+    areaSelect.innerHTML = "";
+    for (const area of areas) {
+        const option = document.createElement("option");
+        option.value = area.id.toString();
+        option.textContent = `${area.name} (${area.id})`;
+        areaSelect.appendChild(option);
+    }
+
+    // Select the current area
+    const currentRoom = mapReader.getRoom(currentRoomId);
+    if (currentRoom) {
+        areaSelect.value = currentRoom.area.toString();
+    }
+}
+
+function updateAreaSelector() {
+    if (!areaSelect) return;
+    const currentRoom = mapReader.getRoom(currentRoomId);
+    if (currentRoom) {
+        areaSelect.value = currentRoom.area.toString();
+    }
+}
+
 function attachEventListeners() {
+    areaSelect?.addEventListener("change", () => {
+        const areaId = parseInt(areaSelect.value, 10);
+        if (isNaN(areaId)) return;
+        const area = mapReader.getArea(areaId);
+        if (!area) return;
+
+        // Find the first room in this area to navigate to
+        const rooms = area.getRooms();
+        if (!rooms || rooms.length === 0) return;
+
+        // Pick first room on z-index 0, or just the first room
+        const targetRoom = rooms.find(r => r.z === 0) ?? rooms[0];
+        moveToRoom(targetRoom);
+        updateRoomStatus(`Switched to area: ${area.getAreaName()}`);
+    });
+
     explorationToggle?.addEventListener("change", () => {
         if (explorationToggle.checked) {
             mapReader.decorateWithExploration();
@@ -442,7 +492,33 @@ if (contextMenuElement && contextMenuContent) {
     stageElement.addEventListener("roomcontextmenu", event => {
         const contextEvent = event as CustomEvent<RoomContextMenuEventDetail>;
         const {roomId, position} = contextEvent.detail;
-        contextMenuContent.textContent = `Room ${roomId}`;
+
+        contextMenuContent.innerHTML = "";
+        const title = document.createElement("div");
+        title.className = "ctx-title";
+        title.textContent = `Room ${roomId}`;
+        contextMenuContent.appendChild(title);
+
+        const setCurrentBtn = document.createElement("button");
+        setCurrentBtn.textContent = "Set as current room";
+        setCurrentBtn.addEventListener("click", () => {
+            const room = mapReader.getRoom(roomId);
+            if (room) {
+                moveToRoom(room);
+                updateRoomStatus(`Set room ${roomId} as current.`);
+            }
+            hideContextMenu();
+        });
+        contextMenuContent.appendChild(setCurrentBtn);
+
+        const lookBtn = document.createElement("button");
+        lookBtn.textContent = "Center on room";
+        lookBtn.addEventListener("click", () => {
+            renderer.centerOn(roomId);
+            hideContextMenu();
+        });
+        contextMenuContent.appendChild(lookBtn);
+
         contextMenuElement.style.left = `${position.x}px`;
         contextMenuElement.style.top = `${position.y}px`;
         contextMenuElement.hidden = false;
@@ -499,6 +575,17 @@ function startFpsCounter() {
     };
 
     requestAnimationFrame(updateFps);
+}
+
+function startPerfMonitor() {
+    if (!perfStatsElement) {
+        return;
+    }
+    Settings.perfCallback = (stats: PerfSnapshot) => {
+        perfStatsElement.textContent =
+            `cull: ${stats.cullingMs.toFixed(2)}ms  grid: ${stats.gridMs.toFixed(2)}ms\n` +
+            `rooms: ${stats.visibleRooms}/${stats.totalRooms}  exits: ${stats.visibleExits}`;
+    };
 }
 
 function describeCullingMode(mode: CullingMode) {
@@ -640,6 +727,7 @@ function moveToRoom(room: MapData.Room) {
     currentRoomId = room.id;
     renderer.setPosition(room.id);
     updateAreaStatus(room.area);
+    updateAreaSelector();
     updateDestinationGuidance();
 }
 

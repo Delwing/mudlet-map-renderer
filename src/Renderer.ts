@@ -1,5 +1,6 @@
 import Konva from "konva";
 import ExitRenderer from "./ExitRenderer";
+import type {ExitDrawData, ExitDrawLine, ExitDrawArrow, ExitDrawDoor} from "./ExitRenderer";
 import MapReader from "./reader/MapReader";
 import Exit from "./reader/Exit";
 import Area from "./reader/Area";
@@ -11,6 +12,82 @@ const defaultZoom = 75
 const defaultLineWidth = 0.025;
 const lineColor = 'rgb(225, 255, 225)';
 const currentRoomColor = 'rgb(120, 72, 0)';
+
+export type PerfSnapshot = {
+    /** Total updateRoomCulling time in ms */
+    cullingMs: number;
+    /** renderGrid time in ms (subset of culling) */
+    gridMs: number;
+    /** Number of visible rooms after culling */
+    visibleRooms: number;
+    /** Total room count */
+    totalRooms: number;
+    /** Number of visible standalone exits */
+    visibleExits: number;
+    /** Estimated FPS based on time between culling calls */
+    fps: number;
+};
+
+class PerfMonitor {
+    private samples: PerfSnapshot[] = [];
+    private lastCullingTime = 0;
+    private readonly windowSize: number;
+    private callback: ((avg: PerfSnapshot) => void) | null = null;
+
+    constructor(windowSize = 60) {
+        this.windowSize = windowSize;
+    }
+
+    setCallback(cb: ((avg: PerfSnapshot) => void) | null) {
+        if (cb === this.callback) return;
+        this.callback = cb;
+        this.samples = [];
+    }
+
+    record(snapshot: PerfSnapshot) {
+        if (!this.callback) return;
+        this.samples.push(snapshot);
+        if (this.samples.length >= this.windowSize) {
+            this.flush();
+        }
+    }
+
+    computeFps(): number {
+        const now = performance.now();
+        const dt = now - this.lastCullingTime;
+        this.lastCullingTime = now;
+        return dt > 0 ? 1000 / dt : 0;
+    }
+
+    private flush() {
+        const n = this.samples.length;
+        if (n === 0) return;
+        const avg: PerfSnapshot = {
+            cullingMs: 0,
+            gridMs: 0,
+            visibleRooms: 0,
+            totalRooms: 0,
+            visibleExits: 0,
+            fps: 0,
+        };
+        for (const s of this.samples) {
+            avg.cullingMs += s.cullingMs;
+            avg.gridMs += s.gridMs;
+            avg.visibleRooms += s.visibleRooms;
+            avg.totalRooms += s.totalRooms;
+            avg.visibleExits += s.visibleExits;
+            avg.fps += s.fps;
+        }
+        avg.cullingMs /= n;
+        avg.gridMs /= n;
+        avg.visibleRooms = Math.round(avg.visibleRooms / n);
+        avg.totalRooms = Math.round(avg.totalRooms / n);
+        avg.visibleExits = Math.round(avg.visibleExits / n);
+        avg.fps = Math.round(avg.fps);
+        this.callback!(avg);
+        this.samples = [];
+    }
+}
 
 function hexToRgba(hex: string, alpha: number): string {
     const r = parseInt(hex.slice(1, 3), 16);
@@ -220,6 +297,14 @@ export class Settings {
      */
     static gridLineWidth: number = 0.02;
 
+    /**
+     * Performance monitoring callback. When set, receives averaged PerfSnapshot
+     * every 60 culling frames (~1 second at 60fps) with timing breakdowns.
+     *
+     * Set to a function to enable, null to disable.
+     * Example: Settings.perfCallback = (stats) => console.log(stats);
+     */
+    static perfCallback: ((stats: PerfSnapshot) => void) | null = null;
 }
 
 type HighlightData = {
@@ -229,9 +314,9 @@ type HighlightData = {
     shape?: Konva.Shape;
 };
 
-type RoomNodeEntry = { room: MapData.Room; group: Konva.Group; linkNodes: Konva.Node[] };
+type RoomNodeEntry = { room: MapData.Room; group: Konva.Group };
 type Bounds = { x: number; y: number; width: number; height: number };
-type StandaloneExitEntry = { node: Konva.Node; bounds: Bounds };
+type StandaloneExitEntry = { data: ExitDrawData; bounds: Bounds };
 
 export class Renderer {
 
@@ -260,12 +345,21 @@ export class Renderer {
     public centerOnResize: boolean = true;
     private standaloneExitNodes: StandaloneExitEntry[] = [];
     private spatialBucketSize = 5;
-    private roomSpatialIndex: Map<string, Set<RoomNodeEntry>> = new Map();
-    private exitSpatialIndex: Map<string, Set<StandaloneExitEntry>> = new Map();
+    private roomSpatialIndex: Map<number, Set<RoomNodeEntry>> = new Map();
+    private exitSpatialIndex: Map<number, Set<StandaloneExitEntry>> = new Map();
     private visibleRooms: Set<RoomNodeEntry> = new Set();
     private visibleStandaloneExitNodes: Set<StandaloneExitEntry> = new Set();
+    // Reusable buffer Sets to avoid per-frame allocation in culling loop
+    private bufferRoomSet: Set<RoomNodeEntry> = new Set();
+    private bufferExitSet: Set<StandaloneExitEntry> = new Set();
+    private bufferRoomCandidates: Set<RoomNodeEntry> = new Set();
+    private bufferExitCandidates: Set<StandaloneExitEntry> = new Set();
     private standaloneExitBoundsRoomSize?: number;
     private cullingScheduled = false;
+    private perfMonitor = new PerfMonitor();
+    private exitBatchShape?: Konva.Shape;
+    private visibleExitDrawData: ExitDrawData[] = [];
+    private cachedGridBounds: { left: number; right: number; top: number; bottom: number } | null = null;
 
     constructor(container: HTMLDivElement, mapReader: MapReader) {
         this.stage = new Konva.Stage({
@@ -280,20 +374,23 @@ export class Renderer {
         container.addEventListener('resize', () => {
             this.onResize(container);
         })
-        this.gridLayer = new Konva.Layer({ listening: false });
+        this.gridLayer = new Konva.Layer({ listening: false, hitGraphEnabled: false });
         this.stage.add(this.gridLayer);
         this.linkLayer = new Konva.Layer({
             listening: false,
+            hitGraphEnabled: false,
         });
         this.stage.add(this.linkLayer);
-        this.roomLayer = new Konva.Layer();
+        this.roomLayer = new Konva.Layer({ hitGraphEnabled: false });
         this.stage.add(this.roomLayer);
         this.positionLayer = new Konva.Layer({
             listening: false,
+            hitGraphEnabled: false,
         });
         this.stage.add(this.positionLayer);
         this.overlayLayer = new Konva.Layer({
             listening: false,
+            hitGraphEnabled: false,
         })
         this.stage.add(this.overlayLayer);
         this.mapReader = mapReader;
@@ -305,6 +402,131 @@ export class Renderer {
 
         this.stage.on('dragmove', () => this.scheduleRoomCulling());
         this.stage.on('dragend', () => this.scheduleRoomCulling());
+        this.initRoomHitDetection();
+    }
+
+    private clientToMapPoint(clientX: number, clientY: number) {
+        const container = this.stage.container();
+        const rect = container.getBoundingClientRect();
+        const stageX = clientX - rect.left;
+        const stageY = clientY - rect.top;
+        const scale = this.stage.scaleX();
+        if (!scale) return null;
+        const pos = this.stage.position();
+        return {
+            x: (stageX - pos.x) / scale,
+            y: (stageY - pos.y) / scale,
+        };
+    }
+
+    private findRoomAtClientPoint(clientX: number, clientY: number): MapData.Room | null {
+        const mapPoint = this.clientToMapPoint(clientX, clientY);
+        if (!mapPoint) return null;
+        const halfSize = Settings.roomSize / 2;
+        // Check the single bucket at this point
+        const key = this.getBucketKey(
+            Math.floor(mapPoint.x / this.spatialBucketSize),
+            Math.floor(mapPoint.y / this.spatialBucketSize),
+        );
+        const bucket = this.roomSpatialIndex.get(key);
+        if (!bucket) return null;
+        for (const entry of bucket) {
+            const dx = mapPoint.x - entry.room.x;
+            const dy = mapPoint.y - entry.room.y;
+            if (dx >= -halfSize && dx <= halfSize && dy >= -halfSize && dy <= halfSize) {
+                return entry.room;
+            }
+        }
+        return null;
+    }
+
+    private initRoomHitDetection() {
+        const container = this.stage.container();
+        let hoveredRoom: MapData.Room | null = null;
+
+        container.addEventListener('mousemove', (e) => {
+            const room = this.findRoomAtClientPoint(e.clientX, e.clientY);
+            if (room !== hoveredRoom) {
+                hoveredRoom = room;
+                container.style.cursor = room ? 'pointer' : 'auto';
+            }
+        });
+
+        container.addEventListener('mouseleave', () => {
+            hoveredRoom = null;
+            container.style.cursor = 'auto';
+        });
+
+        container.addEventListener('contextmenu', (e) => {
+            const room = this.findRoomAtClientPoint(e.clientX, e.clientY);
+            if (room) {
+                e.preventDefault();
+                this.emitRoomContextEvent(room.id, e.clientX, e.clientY);
+            }
+        });
+
+        // Long-press support for touch
+        let longPressTimeout: number | undefined;
+        let longPressStart: { clientX: number; clientY: number } | undefined;
+        let stageDraggableBeforeLongPress: boolean | undefined;
+
+        const restoreStageDraggable = () => {
+            if (stageDraggableBeforeLongPress !== undefined) {
+                this.stage.draggable(stageDraggableBeforeLongPress);
+                stageDraggableBeforeLongPress = undefined;
+            }
+        };
+
+        const clearLongPress = () => {
+            if (longPressTimeout !== undefined) {
+                window.clearTimeout(longPressTimeout);
+                longPressTimeout = undefined;
+            }
+            longPressStart = undefined;
+            restoreStageDraggable();
+        };
+
+        container.addEventListener('touchstart', (e) => {
+            clearLongPress();
+            if (e.touches.length > 1) return;
+            const touch = e.touches[0];
+            if (!touch) return;
+            const room = this.findRoomAtClientPoint(touch.clientX, touch.clientY);
+            if (!room) return;
+            longPressStart = { clientX: touch.clientX, clientY: touch.clientY };
+            stageDraggableBeforeLongPress = this.stage.draggable();
+            this.stage.draggable(false);
+            longPressTimeout = window.setTimeout(() => {
+                if (longPressStart) {
+                    const roomAtPoint = this.findRoomAtClientPoint(longPressStart.clientX, longPressStart.clientY);
+                    if (roomAtPoint) {
+                        this.emitRoomContextEvent(roomAtPoint.id, longPressStart.clientX, longPressStart.clientY);
+                    }
+                }
+                clearLongPress();
+            }, 500);
+        }, { passive: true });
+
+        container.addEventListener('touchend', () => clearLongPress(), { passive: true });
+        container.addEventListener('touchcancel', () => clearLongPress(), { passive: true });
+
+        container.addEventListener('touchmove', (e) => {
+            if (!longPressStart) return;
+            const touch = e.touches[0];
+            if (!touch) {
+                clearLongPress();
+                return;
+            }
+            const dx = touch.clientX - longPressStart.clientX;
+            const dy = touch.clientY - longPressStart.clientY;
+            if (dx * dx + dy * dy > 100) {
+                const wasDraggable = stageDraggableBeforeLongPress;
+                clearLongPress();
+                if (wasDraggable) {
+                    this.stage.startDrag();
+                }
+            }
+        }, { passive: true });
     }
 
     private onResize(container: HTMLDivElement) {
@@ -318,8 +540,6 @@ export class Renderer {
     }
 
     private initScaling(scaleBy: number) {
-        Konva.hitOnDragEnabled = true;
-
         let lastPinchDistance: number | undefined;
         let dragStopped = false;
         let multiTouchActive = false;
@@ -493,6 +713,7 @@ export class Renderer {
         this.currentAreaVersion = area.getVersion();
         this.clearCurrentRoomOverlay();
         this.gridLayer.destroyChildren();
+        this.invalidateGridCache();
         this.roomLayer.destroyChildren();
         this.linkLayer.destroyChildren();
         this.roomNodes.clear();
@@ -502,6 +723,8 @@ export class Renderer {
         this.exitSpatialIndex.clear();
         this.visibleRooms.clear();
         this.visibleStandaloneExitNodes.clear();
+        this.visibleExitDrawData.length = 0;
+        this.exitBatchShape = undefined;
         this.spatialBucketSize = this.computeSpatialBucketSize();
 
         this.stage.scale({x: defaultZoom * this.currentZoom, y: defaultZoom * this.currentZoom});
@@ -520,10 +743,11 @@ export class Renderer {
     }
 
     private getBucketKey(bucketX: number, bucketY: number) {
-        return `${bucketX},${bucketY}`;
+        // Numeric hash avoids string allocation. Uses a large prime to separate axes.
+        return bucketX * 1000003 + bucketY;
     }
 
-    private forEachBucket(minX: number, minY: number, maxX: number, maxY: number, callback: (key: string) => void) {
+    private forEachBucket(minX: number, minY: number, maxX: number, maxY: number, callback: (key: number) => void) {
         const bucketSize = this.spatialBucketSize;
         const safeMinX = Math.min(minX, maxX);
         const safeMaxX = Math.max(minX, maxX);
@@ -576,7 +800,8 @@ export class Renderer {
     }
 
     private collectRoomCandidates(minX: number, minY: number, maxX: number, maxY: number) {
-        const result = new Set<RoomNodeEntry>();
+        const result = this.bufferRoomCandidates;
+        result.clear();
         this.forEachBucket(minX, minY, maxX, maxY, key => {
             const bucket = this.roomSpatialIndex.get(key);
             bucket?.forEach(entry => result.add(entry));
@@ -585,7 +810,8 @@ export class Renderer {
     }
 
     private collectStandaloneExitCandidates(minX: number, minY: number, maxX: number, maxY: number) {
-        const result = new Set<StandaloneExitEntry>();
+        const result = this.bufferExitCandidates;
+        result.clear();
         this.forEachBucket(minX, minY, maxX, maxY, key => {
             const bucket = this.exitSpatialIndex.get(key);
             bucket?.forEach(entry => result.add(entry));
@@ -598,9 +824,9 @@ export class Renderer {
             return;
         }
 
+        // Rebuild spatial index from stored bounds
         this.exitSpatialIndex.clear();
         this.standaloneExitNodes.forEach(entry => {
-            entry.bounds = entry.node.getClientRect({relativeTo: this.linkLayer});
             this.addStandaloneExitToSpatialIndex(entry);
         });
         this.standaloneExitBoundsRoomSize = Settings.roomSize;
@@ -1024,6 +1250,7 @@ export class Renderer {
             const roomRender = new Konva.Group({
                 x: room.x - Settings.roomSize / 2,
                 y: room.y - Settings.roomSize / 2,
+                listening: false,
             });
 
             const fillColor = this.mapReader.getColorValue(room.env);
@@ -1038,6 +1265,7 @@ export class Renderer {
                     strokeWidth: Settings.lineWidth,
                     stroke: strokeColor,
                     perfectDrawEnabled: false,
+                    listening: false,
                 })
                 : new Konva.Rect({
                     x: 0,
@@ -1049,107 +1277,37 @@ export class Renderer {
                     stroke: strokeColor,
                     cornerRadius: Settings.roomShape === "roundedRectangle" ? Settings.roomSize * 0.2 : 0,
                     perfectDrawEnabled: false,
+                    listening: false,
                 });
-            const roomRect = roomShape;
-            const emitContextEvent = (clientX: number, clientY: number) => this.emitRoomContextEvent(room.id, clientX, clientY);
 
-            roomRender.on('mouseenter', () => {
-                this.stage.container().style.cursor = 'pointer';
-            })
-            roomRender.on('mouseleave', () => {
-                this.stage.container().style.cursor = 'auto';
-            })
-            roomRender.on('contextmenu', (event) => {
-                event.evt.preventDefault();
-                const pointerEvent = event.evt as MouseEvent;
-                emitContextEvent(pointerEvent.clientX, pointerEvent.clientY);
-            })
-
-            let longPressTimeout: number | undefined;
-            let longPressStart: { clientX: number; clientY: number } | undefined;
-            let stageDraggableBeforeLongPress: boolean | undefined;
-            const restoreStageDraggable = () => {
-                if (stageDraggableBeforeLongPress !== undefined) {
-                    this.stage.draggable(stageDraggableBeforeLongPress);
-                    stageDraggableBeforeLongPress = undefined;
-                }
-            };
-            const clearLongPressTimeout = () => {
-                if (longPressTimeout !== undefined) {
-                    window.clearTimeout(longPressTimeout);
-                    longPressTimeout = undefined;
-                }
-                longPressStart = undefined;
-                restoreStageDraggable();
-            };
-
-            roomRender.on('touchstart', (event) => {
-                clearLongPressTimeout();
-                if (event.evt.touches && event.evt.touches.length > 1) {
-                    return;
-                }
-                const touch = event.evt.touches?.[0];
-                if (!touch) {
-                    return;
-                }
-                longPressStart = {clientX: touch.clientX, clientY: touch.clientY};
-                stageDraggableBeforeLongPress = this.stage.draggable();
-                this.stage.draggable(false);
-                longPressTimeout = window.setTimeout(() => {
-                    if (longPressStart) {
-                        emitContextEvent(longPressStart.clientX, longPressStart.clientY);
-                    }
-                    clearLongPressTimeout();
-                }, 500);
-            });
-
-            roomRender.on('touchend', clearLongPressTimeout);
-            roomRender.on('touchmove', (event) => {
-                if (!longPressStart) {
-                    return;
-                }
-                const touch = event.evt.touches?.[0];
-                if (!touch) {
-                    clearLongPressTimeout();
-                    return;
-                }
-                const dx = touch.clientX - longPressStart.clientX;
-                const dy = touch.clientY - longPressStart.clientY;
-                const distanceSquared = dx * dx + dy * dy;
-                const movementThreshold = 10;
-                if (distanceSquared > movementThreshold * movementThreshold) {
-                    const wasDraggable = stageDraggableBeforeLongPress;
-                    clearLongPressTimeout();
-                    if (wasDraggable) {
-                        this.stage.startDrag();
-                    }
-                }
-            });
-            roomRender.on('touchcancel', clearLongPressTimeout);
-
-            roomRender.add(roomRect);
+            roomRender.add(roomShape);
 
             this.renderSymbol(room, roomRender);
             this.roomLayer.add(roomRender);
 
-            const linkNodes: Konva.Node[] = [];
-            // Special exits are added as standalone nodes for independent culling
+            // Special exits stored as draw data for batch rendering
             this.exitRenderer.renderSpecialExits(room).forEach(render => {
                 this.linkLayer.add(render);
-                const bounds = render.getClientRect({relativeTo: this.linkLayer});
-                const entry: StandaloneExitEntry = {node: render, bounds};
-                this.standaloneExitNodes.push(entry);
-                this.addStandaloneExitToSpatialIndex(entry);
             })
+            // Stubs and inner exits nested in room group for automatic culling
+            const gx = room.x - Settings.roomSize / 2;
+            const gy = room.y - Settings.roomSize / 2;
             this.exitRenderer.renderStubs(room).forEach(render => {
-                this.linkLayer.add(render)
-                linkNodes.push(render);
+                // Offset absolute points to group-relative coordinates
+                const pts = render.points();
+                for (let i = 0; i < pts.length; i += 2) {
+                    pts[i] -= gx;
+                    pts[i + 1] -= gy;
+                }
+                render.points(pts);
+                roomRender.add(render);
             })
             this.exitRenderer.renderInnerExits(room).forEach(render => {
-                this.roomLayer.add(render)
+                render.position({ x: -gx, y: -gy });
+                roomRender.add(render);
             })
 
-            const entry: RoomNodeEntry = {room, group: roomRender, linkNodes};
+            const entry: RoomNodeEntry = {room, group: roomRender};
             this.roomNodes.set(room.id, entry);
             this.addRoomToSpatialIndex(entry);
         })
@@ -1175,6 +1333,9 @@ export class Renderer {
         if (!scale) {
             return;
         }
+
+        this.syncPerfMonitor();
+        const perfStart = Settings.perfCallback ? performance.now() : 0;
 
         const stagePosition = this.stage.position();
         const halfSize = Settings.roomSize / 2;
@@ -1209,21 +1370,16 @@ export class Renderer {
                     entry.group.visible(true);
                     roomLayerNeedsDraw = true;
                 }
-                entry.linkNodes.forEach(node => {
-                    if (!node.visible()) {
-                        node.visible(true);
-                        linkLayerNeedsDraw = true;
-                    }
-                });
             });
 
-            this.standaloneExitNodes.forEach(entry => {
-                const {node} = entry;
-                if (!node.visible()) {
-                    linkLayerNeedsDraw = true;
-                    node.visible(true);
+            // All exits visible in "none" mode
+            if (this.visibleExitDrawData.length !== this.standaloneExitNodes.length) {
+                this.visibleExitDrawData.length = 0;
+                for (const entry of this.standaloneExitNodes) {
+                    this.visibleExitDrawData.push(entry.data);
                 }
-            });
+                linkLayerNeedsDraw = true;
+            }
 
             if (roomLayerNeedsDraw) {
                 this.roomLayer.batchDraw();
@@ -1232,13 +1388,16 @@ export class Renderer {
                 this.linkLayer.batchDraw();
             }
 
-            this.visibleRooms = new Set(this.roomNodes.values());
-            this.visibleStandaloneExitNodes = new Set(this.standaloneExitNodes);
+            this.visibleRooms.clear();
+            this.roomNodes.forEach(entry => this.visibleRooms.add(entry));
+            this.visibleStandaloneExitNodes.clear();
+            this.standaloneExitNodes.forEach(entry => this.visibleStandaloneExitNodes.add(entry));
             return;
         }
 
         if (mode === "basic") {
-            const nextVisibleRooms = new Set<RoomNodeEntry>();
+            const nextVisibleRooms = this.bufferRoomSet;
+            nextVisibleRooms.clear();
 
             this.roomNodes.forEach(entry => {
                 const roomMinX = entry.room.x - halfSize;
@@ -1257,22 +1416,17 @@ export class Renderer {
                     roomLayerNeedsDraw = true;
                 }
 
-                entry.linkNodes.forEach(node => {
-                    if (node.visible() !== isVisible) {
-                        node.visible(isVisible);
-                        linkLayerNeedsDraw = true;
-                    }
-                });
-
                 if (isVisible) {
                     nextVisibleRooms.add(entry);
                 }
             });
 
-            const nextVisibleStandaloneExitNodes = new Set<StandaloneExitEntry>();
+            const nextVisibleStandaloneExitNodes = this.bufferExitSet;
+            nextVisibleStandaloneExitNodes.clear();
+            let exitSetChanged = false;
 
             this.standaloneExitNodes.forEach(entry => {
-                const {node, bounds} = entry;
+                const {bounds} = entry;
                 const nodeMinX = bounds.x;
                 const nodeMaxX = bounds.x + bounds.width;
                 const nodeMinY = bounds.y;
@@ -1284,18 +1438,27 @@ export class Renderer {
                     nodeMaxY >= minY &&
                     nodeMinY <= maxY;
 
-                if (node.visible() !== isVisible) {
-                    node.visible(isVisible);
-                    linkLayerNeedsDraw = true;
-                }
-
                 if (isVisible) {
                     nextVisibleStandaloneExitNodes.add(entry);
+                    if (!this.visibleStandaloneExitNodes.has(entry)) exitSetChanged = true;
                 }
             });
 
+            if (!exitSetChanged && nextVisibleStandaloneExitNodes.size !== this.visibleStandaloneExitNodes.size) {
+                exitSetChanged = true;
+            }
+
+            // Swap buffers
+            this.bufferRoomSet = this.visibleRooms;
             this.visibleRooms = nextVisibleRooms;
+            this.bufferExitSet = this.visibleStandaloneExitNodes;
             this.visibleStandaloneExitNodes = nextVisibleStandaloneExitNodes;
+
+            if (exitSetChanged) {
+                this.visibleExitDrawData.length = 0;
+                this.visibleStandaloneExitNodes.forEach(e => this.visibleExitDrawData.push(e.data));
+                linkLayerNeedsDraw = true;
+            }
 
             if (roomLayerNeedsDraw) {
                 this.roomLayer.batchDraw();
@@ -1307,13 +1470,12 @@ export class Renderer {
             return;
         }
 
+        // "indexed" mode: use spatial index to find candidates
         const roomCandidates = this.collectRoomCandidates(searchMinX, searchMinY, searchMaxX, searchMaxY);
-        const processedRooms = new Set<RoomNodeEntry>();
-        const nextVisibleRooms = new Set<RoomNodeEntry>();
+        const nextVisibleRooms = this.bufferRoomSet;
+        nextVisibleRooms.clear();
 
         roomCandidates.forEach(entry => {
-            processedRooms.add(entry);
-
             const roomMinX = entry.room.x - halfSize;
             const roomMaxX = entry.room.x + halfSize;
             const roomMinY = entry.room.y - halfSize;
@@ -1330,43 +1492,32 @@ export class Renderer {
                 roomLayerNeedsDraw = true;
             }
 
-            entry.linkNodes.forEach(node => {
-                if (node.visible() !== isVisible) {
-                    node.visible(isVisible);
-                    linkLayerNeedsDraw = true;
-                }
-            });
-
             if (isVisible) {
                 nextVisibleRooms.add(entry);
             }
         });
 
+        // Hide rooms that were visible but are no longer candidates
         this.visibleRooms.forEach(entry => {
-            if (!processedRooms.has(entry)) {
+            if (!roomCandidates.has(entry)) {
                 if (entry.group.visible()) {
                     entry.group.visible(false);
                     roomLayerNeedsDraw = true;
                 }
-                entry.linkNodes.forEach(node => {
-                    if (node.visible()) {
-                        node.visible(false);
-                        linkLayerNeedsDraw = true;
-                    }
-                });
             }
         });
 
+        // Swap room buffers
+        this.bufferRoomSet = this.visibleRooms;
         this.visibleRooms = nextVisibleRooms;
 
         const exitCandidates = this.collectStandaloneExitCandidates(searchMinX, searchMinY, searchMaxX, searchMaxY);
-        const processedExits = new Set<StandaloneExitEntry>();
-        const nextVisibleStandaloneExitNodes = new Set<StandaloneExitEntry>();
+        const nextVisibleStandaloneExitNodes = this.bufferExitSet;
+        nextVisibleStandaloneExitNodes.clear();
+        let exitSetChanged = false;
 
         exitCandidates.forEach(entry => {
-            processedExits.add(entry);
-
-            const {node, bounds} = entry;
+            const {bounds} = entry;
             const nodeMinX = bounds.x;
             const nodeMaxX = bounds.x + bounds.width;
             const nodeMinY = bounds.y;
@@ -1378,25 +1529,25 @@ export class Renderer {
                 nodeMaxY >= minY &&
                 nodeMinY <= maxY;
 
-            if (node.visible() !== isVisible) {
-                node.visible(isVisible);
-                linkLayerNeedsDraw = true;
-            }
-
             if (isVisible) {
                 nextVisibleStandaloneExitNodes.add(entry);
+                if (!this.visibleStandaloneExitNodes.has(entry)) exitSetChanged = true;
             }
         });
 
-        this.visibleStandaloneExitNodes.forEach(entry => {
-            const {node} = entry;
-            if (!processedExits.has(entry) && node.visible()) {
-                node.visible(false);
-                linkLayerNeedsDraw = true;
-            }
-        });
+        if (!exitSetChanged && nextVisibleStandaloneExitNodes.size !== this.visibleStandaloneExitNodes.size) {
+            exitSetChanged = true;
+        }
 
+        // Swap exit buffers
+        this.bufferExitSet = this.visibleStandaloneExitNodes;
         this.visibleStandaloneExitNodes = nextVisibleStandaloneExitNodes;
+
+        if (exitSetChanged) {
+            this.visibleExitDrawData.length = 0;
+            this.visibleStandaloneExitNodes.forEach(e => this.visibleExitDrawData.push(e.data));
+            linkLayerNeedsDraw = true;
+        }
 
         if (roomLayerNeedsDraw) {
             this.roomLayer.batchDraw();
@@ -1405,14 +1556,37 @@ export class Renderer {
             this.linkLayer.batchDraw();
         }
 
+        const gridStart = Settings.perfCallback ? performance.now() : 0;
         this.renderGrid();
+        if (Settings.perfCallback) {
+            const gridMs = performance.now() - gridStart;
+            const cullingMs = performance.now() - perfStart;
+            this.perfMonitor.record({
+                cullingMs,
+                gridMs,
+                visibleRooms: this.visibleRooms.size,
+                totalRooms: this.roomNodes.size,
+                visibleExits: this.visibleStandaloneExitNodes.size,
+                fps: this.perfMonitor.computeFps(),
+            });
+        }
+    }
+
+    private syncPerfMonitor() {
+        this.perfMonitor.setCallback(Settings.perfCallback);
+    }
+
+    private invalidateGridCache() {
+        this.cachedGridBounds = null;
     }
 
     private renderGrid() {
-        this.gridLayer.destroyChildren();
-
         if (!Settings.gridEnabled) {
-            this.gridLayer.batchDraw();
+            if (this.cachedGridBounds !== null) {
+                this.gridLayer.destroyChildren();
+                this.gridLayer.batchDraw();
+                this.cachedGridBounds = null;
+            }
             return;
         }
 
@@ -1438,6 +1612,14 @@ export class Renderer {
         const top = Math.floor((Math.min(minY, maxY) - buffer) / Settings.gridSize) * Settings.gridSize;
         const bottom = Math.ceil((Math.max(minY, maxY) + buffer) / Settings.gridSize) * Settings.gridSize;
 
+        // Skip recreation if grid bounds haven't changed
+        const cached = this.cachedGridBounds;
+        if (cached && cached.left === left && cached.right === right && cached.top === top && cached.bottom === bottom) {
+            return;
+        }
+
+        this.gridLayer.destroyChildren();
+
         // Draw vertical lines
         for (let x = left; x <= right; x += Settings.gridSize) {
             this.gridLayer.add(new Konva.Line({
@@ -1460,6 +1642,7 @@ export class Renderer {
             }));
         }
 
+        this.cachedGridBounds = { left, right, top, bottom };
         this.gridLayer.batchDraw();
     }
 
@@ -1610,6 +1793,8 @@ export class Renderer {
                 verticalAlign: "middle",
                 width: Settings.roomSize,
                 height: Settings.roomSize,
+                perfectDrawEnabled: false,
+                listening: false,
             })
             roomRender.add(roomChar);
         }
@@ -1617,18 +1802,91 @@ export class Renderer {
 
     private renderExits(exits: Exit[]) {
         exits.forEach(exit => {
-            const render = this.exitRenderer.render(exit, this.currentZIndex!);
-            if (!render) {
+            const data = this.exitRenderer.renderData(exit, this.currentZIndex!);
+            if (!data) {
                 return;
             }
-            this.linkLayer.add(render);
-            const bounds = render.getClientRect({relativeTo: this.linkLayer});
-            const entry: StandaloneExitEntry = {node: render, bounds};
+            const entry: StandaloneExitEntry = { data, bounds: data.bounds };
             this.standaloneExitNodes.push(entry);
             this.addStandaloneExitToSpatialIndex(entry);
         });
 
         this.standaloneExitBoundsRoomSize = Settings.roomSize;
+
+        // Create a single batched shape for drawing all visible exits
+        this.exitBatchShape = new Konva.Shape({
+            listening: false,
+            perfectDrawEnabled: false,
+            sceneFunc: (context) => {
+                const ctx = context._context;
+                for (const data of this.visibleExitDrawData) {
+                    this.drawExitData(ctx, data);
+                }
+            },
+        });
+        this.linkLayer.add(this.exitBatchShape);
+    }
+
+    private drawExitData(ctx: CanvasRenderingContext2D, data: ExitDrawData) {
+        for (const line of data.lines) {
+            ctx.beginPath();
+            ctx.moveTo(line.points[0], line.points[1]);
+            for (let i = 2; i < line.points.length; i += 2) {
+                ctx.lineTo(line.points[i], line.points[i + 1]);
+            }
+            ctx.strokeStyle = line.stroke;
+            ctx.lineWidth = line.strokeWidth;
+            if (line.dash) {
+                ctx.setLineDash(line.dash);
+            } else {
+                ctx.setLineDash([]);
+            }
+            ctx.stroke();
+        }
+
+        for (const arrow of data.arrows) {
+            // Draw the line part
+            ctx.beginPath();
+            ctx.moveTo(arrow.points[0], arrow.points[1]);
+            for (let i = 2; i < arrow.points.length; i += 2) {
+                ctx.lineTo(arrow.points[i], arrow.points[i + 1]);
+            }
+            ctx.strokeStyle = arrow.stroke;
+            ctx.lineWidth = arrow.strokeWidth;
+            if (arrow.dash) {
+                ctx.setLineDash(arrow.dash);
+            } else {
+                ctx.setLineDash([]);
+            }
+            ctx.stroke();
+
+            // Draw the arrowhead
+            const lastIdx = arrow.points.length - 2;
+            const tipX = arrow.points[lastIdx];
+            const tipY = arrow.points[lastIdx + 1];
+            const prevX = arrow.points[lastIdx - 2];
+            const prevY = arrow.points[lastIdx - 1];
+            const angle = Math.atan2(tipY - prevY, tipX - prevX);
+            const pl = arrow.pointerLength;
+            const pw = arrow.pointerWidth / 2;
+            ctx.beginPath();
+            ctx.setLineDash([]);
+            ctx.moveTo(tipX, tipY);
+            ctx.lineTo(tipX - pl * Math.cos(angle - Math.atan2(pw, pl)), tipY - pl * Math.sin(angle - Math.atan2(pw, pl)));
+            ctx.lineTo(tipX - pl * Math.cos(angle + Math.atan2(pw, pl)), tipY - pl * Math.sin(angle + Math.atan2(pw, pl)));
+            ctx.closePath();
+            ctx.fillStyle = arrow.fill;
+            ctx.fill();
+        }
+
+        for (const door of data.doors) {
+            ctx.beginPath();
+            ctx.rect(door.x, door.y, door.width, door.height);
+            ctx.strokeStyle = door.stroke;
+            ctx.lineWidth = door.strokeWidth;
+            ctx.setLineDash([]);
+            ctx.stroke();
+        }
     }
 
     private renderLabels(Labels: MapData.Label[]) {

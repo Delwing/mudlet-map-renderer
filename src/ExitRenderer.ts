@@ -11,6 +11,39 @@ const Colors = {
     ONE_WAY_FILL: 'rgb(155, 10, 10)'
 }
 
+export type ExitDrawLine = {
+    points: number[];
+    stroke: string;
+    strokeWidth: number;
+    dash?: number[];
+};
+
+export type ExitDrawArrow = {
+    points: number[];
+    pointerLength: number;
+    pointerWidth: number;
+    stroke: string;
+    strokeWidth: number;
+    fill: string;
+    dash?: number[];
+};
+
+export type ExitDrawDoor = {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    stroke: string;
+    strokeWidth: number;
+};
+
+export type ExitDrawData = {
+    lines: ExitDrawLine[];
+    arrows: ExitDrawArrow[];
+    doors: ExitDrawDoor[];
+    bounds: { x: number; y: number; width: number; height: number };
+};
+
 const dirNumbers: Record<number, MapData.direction> = {
     1: "north",
     2: "northeast",
@@ -62,6 +95,117 @@ export default class ExitRenderer {
         }
     }
 
+    renderData(exit: Exit, zIndex: number): ExitDrawData | undefined {
+        return this.renderDataWithColor(exit, Settings.lineColor, zIndex);
+    }
+
+    renderDataWithColor(exit: Exit, color: string, zIndex: number): ExitDrawData | undefined {
+        const aIsRegular = exit.aDir && regularExits.includes(exit.aDir);
+        const bIsRegular = exit.bDir && regularExits.includes(exit.bDir);
+
+        if (aIsRegular && bIsRegular) {
+            return this.renderTwoWayExitData(exit, color, zIndex);
+        } else if (aIsRegular || bIsRegular) {
+            const regularDir = aIsRegular ? 'a' : 'b';
+            return this.renderOneWayExitData(exit, color, regularDir);
+        }
+        return;
+    }
+
+    private renderTwoWayExitData(exit: Exit, color: string, zIndex: number): ExitDrawData | undefined {
+        const sourceRoom = this.mapReader.getRoom(exit.a);
+        const targetRoom = this.mapReader.getRoom(exit.b);
+        if (!sourceRoom || !targetRoom || !exit.aDir || !exit.bDir) return;
+        if (sourceRoom.customLines[longToShort[exit.aDir]] && targetRoom.customLines[longToShort[exit.bDir]]) return;
+        if (sourceRoom.z !== targetRoom.z) {
+            if (zIndex !== targetRoom.z && sourceRoom.customLines[longToShort[exit.aDir]]) return;
+            if (zIndex !== sourceRoom.z && targetRoom.customLines[longToShort[exit.bDir]]) return;
+        }
+
+        const p1 = this.getRoomEdgePoint(sourceRoom.x, sourceRoom.y, exit.aDir, Settings.roomSize / 2);
+        const p2 = this.getRoomEdgePoint(targetRoom.x, targetRoom.y, exit.bDir, Settings.roomSize / 2);
+        const points = [p1.x, p1.y, p2.x, p2.y];
+
+        const lines: ExitDrawLine[] = [{ points, stroke: color, strokeWidth: Settings.lineWidth }];
+        const doors: ExitDrawDoor[] = [];
+        const doorType = sourceRoom.doors[longToShort[exit.aDir]] ?? targetRoom.doors[longToShort[exit.bDir]];
+        if (doorType) {
+            const dx = points[0] + (points[2] - points[0]) / 2;
+            const dy = points[1] + (points[3] - points[1]) / 2;
+            doors.push({
+                x: dx - Settings.roomSize / 4,
+                y: dy - Settings.roomSize / 4,
+                width: Settings.roomSize / 2,
+                height: Settings.roomSize / 2,
+                stroke: getDoorColor(doorType),
+                strokeWidth: Settings.lineWidth,
+            });
+        }
+
+        const minX = Math.min(points[0], points[2]);
+        const maxX = Math.max(points[0], points[2]);
+        const minY = Math.min(points[1], points[3]);
+        const maxY = Math.max(points[1], points[3]);
+        return { lines, arrows: [], doors, bounds: { x: minX, y: minY, width: maxX - minX, height: maxY - minY } };
+    }
+
+    private renderOneWayExitData(exit: Exit, color: string, fromSide?: 'a' | 'b'): ExitDrawData | undefined {
+        const useA = fromSide === 'a' || (!fromSide && exit.aDir);
+        const sourceRoom = useA ? this.mapReader.getRoom(exit.a) : this.mapReader.getRoom(exit.b);
+        const targetRoom = useA ? this.mapReader.getRoom(exit.b) : this.mapReader.getRoom(exit.a);
+        const dir = useA ? exit.aDir : exit.bDir;
+        if (!dir || !sourceRoom || !targetRoom || !regularExits.includes(dir) || sourceRoom.customLines[longToShort[dir] || dir]) return;
+
+        if (sourceRoom.area != targetRoom.area && dir) {
+            const targetEnvColor = this.mapReader.getColorValue(targetRoom.env);
+            const start = this.getRoomEdgePoint(sourceRoom.x, sourceRoom.y, dir, Settings.roomSize / 2);
+            const end = movePoint(sourceRoom.x, sourceRoom.y, dir, Settings.roomSize * 1.5);
+            const stroke = targetEnvColor;
+            return {
+                lines: [],
+                arrows: [{
+                    points: [start.x, start.y, end.x, end.y],
+                    pointerLength: 0.3, pointerWidth: 0.3,
+                    strokeWidth: Settings.lineWidth * 1.4,
+                    stroke, fill: stroke,
+                }],
+                doors: [],
+                bounds: { x: Math.min(start.x, end.x), y: Math.min(start.y, end.y), width: Math.abs(end.x - start.x), height: Math.abs(end.y - start.y) },
+            };
+        }
+
+        let targetPoint = { x: targetRoom.x, y: targetRoom.y };
+        if (targetRoom.area !== sourceRoom.area || targetRoom.z !== sourceRoom.z) {
+            targetPoint = movePoint(sourceRoom.x, sourceRoom.y, dir, Settings.roomSize / 2);
+        }
+
+        const startPoint = movePoint(sourceRoom.x, sourceRoom.y, dir, 0.3);
+        const midX = startPoint.x - (startPoint.x - targetPoint.x) / 2;
+        const midY = startPoint.y - (startPoint.y - targetPoint.y) / 2;
+        const edgePoint = this.getRoomEdgePoint(sourceRoom.x, sourceRoom.y, dir, Settings.roomSize / 2);
+        const linePoints = [edgePoint.x, edgePoint.y, targetPoint.x, targetPoint.y];
+
+        const allX = [edgePoint.x, targetPoint.x, midX];
+        const allY = [edgePoint.y, targetPoint.y, midY];
+        const minX = Math.min(...allX);
+        const maxX = Math.max(...allX);
+        const minY = Math.min(...allY);
+        const maxY = Math.max(...allY);
+
+        return {
+            lines: [{ points: linePoints, stroke: color, strokeWidth: Settings.lineWidth, dash: [0.1, 0.05] }],
+            arrows: [{
+                points: [linePoints[0], linePoints[1], midX, midY],
+                pointerLength: 0.5, pointerWidth: 0.35,
+                strokeWidth: Settings.lineWidth * 1.4,
+                stroke: color, fill: Colors.ONE_WAY_FILL,
+                dash: [0.1, 0.05],
+            }],
+            doors: [],
+            bounds: { x: minX, y: minY, width: maxX - minX, height: maxY - minY },
+        };
+    }
+
     render(exit: Exit, zIndex: number) {
         return this.renderWithColor(exit, Settings.lineColor, zIndex);
     }
@@ -100,7 +244,7 @@ export default class ExitRenderer {
             }
         }
 
-        const exitRender = new Konva.Group();
+        const exitRender = new Konva.Group({ listening: false });
 
         const points = []
         points.push(...Object.values(this.getRoomEdgePoint(sourceRoom.x, sourceRoom.y, exit.aDir, Settings.roomSize / 2)));
@@ -116,6 +260,7 @@ export default class ExitRenderer {
             stroke: color,
             strokeWidth: Settings.lineWidth,
             perfectDrawEnabled: false,
+            listening: false,
         });
         exitRender.add(link);
 
@@ -148,7 +293,7 @@ export default class ExitRenderer {
         const middlePointX = startPoint.x - (startPoint.x - targetPoint.x) / 2;
         const middlePointY = startPoint.y - (startPoint.y - targetPoint.y) / 2;
 
-        const group = new Konva.Group();
+        const group = new Konva.Group({ listening: false });
         const points = []
         points.push(...Object.values(this.getRoomEdgePoint(sourceRoom.x, sourceRoom.y, dir, Settings.roomSize / 2)));
         points.push(targetPoint.x, targetPoint.y);
@@ -159,6 +304,7 @@ export default class ExitRenderer {
             dashEnabled: true,
             dash: [0.1, 0.05],
             perfectDrawEnabled: false,
+            listening: false,
         });
         group.add(link)
 
@@ -171,6 +317,8 @@ export default class ExitRenderer {
             fill: Colors.ONE_WAY_FILL,
             dashEnabled: true,
             dash: [0.1, 0.05],
+            perfectDrawEnabled: false,
+            listening: false,
         })
 
         group.add(arrow)
@@ -189,6 +337,8 @@ export default class ExitRenderer {
             strokeWidth: Settings.lineWidth * 1.4,
             stroke,
             fill: stroke,
+            perfectDrawEnabled: false,
+            listening: false,
         })
     }
 
@@ -210,7 +360,7 @@ export default class ExitRenderer {
                 pointerLength: 0.3,
                 pointerWidth: 0.2,
                 perfectDrawEnabled: false,
-
+                listening: false,
             })
 
             let style = line.attributes.style;
@@ -238,6 +388,8 @@ export default class ExitRenderer {
                 points,
                 stroke: color,
                 strokeWidth: Settings.lineWidth,
+                perfectDrawEnabled: false,
+                listening: false,
             });
         })
     }
@@ -245,7 +397,7 @@ export default class ExitRenderer {
     renderInnerExits(room: MapData.Room) {
         return innerExits.map(exit => {
             if (room.exits[exit]) {
-                const render = new Konva.Group();
+                const render = new Konva.Group({ listening: false });
                 const triangle = new Konva.RegularPolygon({
                     x: room.x,
                     y: room.y,
@@ -257,6 +409,7 @@ export default class ExitRenderer {
                     scaleX: 1.4,
                     scaleY: 0.8,
                     perfectDrawEnabled: false,
+                    listening: false,
                 })
                 render.add(triangle);
 
@@ -274,6 +427,7 @@ export default class ExitRenderer {
                     }
                 }
 
+                const triangleStroke = triangle.stroke();
                 switch (exit) {
                     case "up":
                         triangle.position(movePoint(room.x, room.y, "south", Settings.roomSize / 4));
@@ -282,22 +436,46 @@ export default class ExitRenderer {
                         triangle.rotation(180);
                         triangle.position(movePoint(room.x, room.y, "north", Settings.roomSize / 4));
                         break;
-                    case "in":
-                        const inRender = triangle.clone()
-                        inRender.rotation(-90);
-                        inRender.position(movePoint(room.x, room.y, "east", Settings.roomSize / 4));
-                        render.add(inRender);
+                    case "in": {
                         triangle.rotation(90);
                         triangle.position(movePoint(room.x, room.y, "west", Settings.roomSize / 4));
+                        const eastPos = movePoint(room.x, room.y, "east", Settings.roomSize / 4);
+                        render.add(new Konva.RegularPolygon({
+                            x: eastPos.x,
+                            y: eastPos.y,
+                            sides: 3,
+                            fill: triangle.fill(),
+                            stroke: triangleStroke,
+                            strokeWidth: Settings.lineWidth,
+                            radius: Settings.roomSize / 5,
+                            scaleX: 1.4,
+                            scaleY: 0.8,
+                            rotation: -90,
+                            perfectDrawEnabled: false,
+                            listening: false,
+                        }));
                         break;
-                    case "out":
-                        const outRender = triangle.clone()
-                        outRender.rotation(90);
-                        outRender.position(movePoint(room.x, room.y, "east", Settings.roomSize / 4));
-                        render.add(outRender);
+                    }
+                    case "out": {
                         triangle.rotation(-90);
                         triangle.position(movePoint(room.x, room.y, "west", Settings.roomSize / 4));
+                        const eastPos = movePoint(room.x, room.y, "east", Settings.roomSize / 4);
+                        render.add(new Konva.RegularPolygon({
+                            x: eastPos.x,
+                            y: eastPos.y,
+                            sides: 3,
+                            fill: triangle.fill(),
+                            stroke: triangleStroke,
+                            strokeWidth: Settings.lineWidth,
+                            radius: Settings.roomSize / 5,
+                            scaleX: 1.4,
+                            scaleY: 0.8,
+                            rotation: 90,
+                            perfectDrawEnabled: false,
+                            listening: false,
+                        }));
                         break;
+                    }
                 }
                 return render
             }
@@ -315,7 +493,9 @@ export default class ExitRenderer {
             width: Settings.roomSize / 2,
             height: Settings.roomSize / 2,
             stroke: getDoorColor(type),
-            strokeWidth: Settings.lineWidth
+            strokeWidth: Settings.lineWidth,
+            perfectDrawEnabled: false,
+            listening: false,
         })
     }
 
