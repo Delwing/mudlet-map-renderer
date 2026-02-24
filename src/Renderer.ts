@@ -1877,6 +1877,9 @@ export class Renderer {
             ctx.closePath();
             ctx.fillStyle = arrow.fill;
             ctx.fill();
+            ctx.strokeStyle = arrow.stroke;
+            ctx.lineWidth = arrow.strokeWidth;
+            ctx.stroke();
         }
 
         for (const door of data.doors) {

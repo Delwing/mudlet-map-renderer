@@ -343,7 +343,7 @@ export default class ExitRenderer {
     }
 
     renderSpecialExits(room: MapData.Room, overrideColor?: string) {
-        return Object.entries(room.customLines).map(([_, line]) => {
+        return Object.entries(room.customLines).flatMap(([dir, line]) => {
             const points = [room.x, room.y]
             line.points.reduce((acc, point) => {
                 acc.push(point.x, -point.y);
@@ -374,7 +374,14 @@ export default class ExitRenderer {
                 console.log("Brak opisu stylu: " + style);
             }
 
-            return lineRender;
+            const result: (Konva.Line | Konva.Arrow | Konva.Rect)[] = [lineRender];
+
+            const doorType = room.doors[dir];
+            if (doorType && points.length >= 4) {
+                result.push(this.renderDoor(points, doorType));
+            }
+
+            return result;
         })
     }
 
