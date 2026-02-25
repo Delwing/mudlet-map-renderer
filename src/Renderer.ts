@@ -657,7 +657,8 @@ export class Renderer {
                 return;
             }
 
-            if (lastPinchDistance === 0) {
+            if (lastPinchDistance === 0 || distance === 0) {
+                lastPinchDistance = distance;
                 return;
             }
 
@@ -858,8 +859,8 @@ export class Renderer {
             return false;
         }
 
-        this.currentZoom = zoom;
-        this.stage.scale({x: defaultZoom * zoom, y: defaultZoom * zoom});
+        this.currentZoom = Math.max(0.1, Math.min(5, zoom));
+        this.stage.scale({x: defaultZoom * this.currentZoom, y: defaultZoom * this.currentZoom});
         this.scheduleRoomCulling();
 
         return true;
