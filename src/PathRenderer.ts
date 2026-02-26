@@ -1,6 +1,6 @@
 import Konva from "konva";
 import MapReader from "./reader/MapReader";
-import {Settings} from "./Renderer";
+import type {Settings} from "./Renderer";
 import {movePoint, movePointCircle, movePointRoundedRect, PlanarDirection, planarDirections, oppositeDirections} from "./directions";
 import {longToShort, regularExits} from "./reader/Exit";
 
@@ -20,18 +20,20 @@ const innerExits: MapData.direction[] = ["up", "down", "in", "out"];
 export default class PathRenderer {
     private readonly mapReader: MapReader;
     private readonly overlayLayer: Konva.Layer;
+    private readonly settings: Settings;
     private paths: (Konva.Shape | Konva.Group)[] = [];
 
-    constructor(mapReader: MapReader, overlayLayer: Konva.Layer) {
+    constructor(mapReader: MapReader, overlayLayer: Konva.Layer, settings: Settings) {
         this.mapReader = mapReader;
         this.overlayLayer = overlayLayer;
+        this.settings = settings;
     }
 
     private getRoomEdgePoint(x: number, y: number, direction: MapData.direction, distance: number) {
-        if (Settings.roomShape === "circle") {
+        if (this.settings.roomShape === "circle") {
             return movePointCircle(x, y, direction, distance);
-        } else if (Settings.roomShape === "roundedRectangle") {
-            return movePointRoundedRect(x, y, direction, distance, Settings.roomSize * 0.2);
+        } else if (this.settings.roomShape === "roundedRectangle") {
+            return movePointRoundedRect(x, y, direction, distance, this.settings.roomSize * 0.2);
         } else {
             return movePoint(x, y, direction, distance);
         }
@@ -134,7 +136,7 @@ export default class PathRenderer {
         group.add(new Konva.Line({
             points,
             stroke: 'black',
-            strokeWidth: Settings.lineWidth * 8,
+            strokeWidth: this.settings.lineWidth * 8,
             lineCap: 'round',
             lineJoin: 'round',
         }));
@@ -143,7 +145,7 @@ export default class PathRenderer {
         group.add(new Konva.Line({
             points,
             stroke: color,
-            strokeWidth: Settings.lineWidth * 4,
+            strokeWidth: this.settings.lineWidth * 4,
             lineCap: 'round',
             lineJoin: 'round',
         }));
@@ -162,8 +164,8 @@ export default class PathRenderer {
             sides: 3,
             fill: color,
             stroke: 'black',
-            strokeWidth: Settings.lineWidth * 2,
-            radius: Settings.roomSize / 5,
+            strokeWidth: this.settings.lineWidth * 2,
+            radius: this.settings.roomSize / 5,
             scaleX: 1.4,
             scaleY: 0.8,
         });
@@ -171,27 +173,27 @@ export default class PathRenderer {
         // Position based on direction
         switch (direction) {
             case "up":
-                triangle.position(movePoint(room.x, room.y, "south", Settings.roomSize / 4));
+                triangle.position(movePoint(room.x, room.y, "south", this.settings.roomSize / 4));
                 break;
             case "down":
                 triangle.rotation(180);
-                triangle.position(movePoint(room.x, room.y, "north", Settings.roomSize / 4));
+                triangle.position(movePoint(room.x, room.y, "north", this.settings.roomSize / 4));
                 break;
             case "in":
                 const inTriangle = triangle.clone();
                 inTriangle.rotation(-90);
-                inTriangle.position(movePoint(room.x, room.y, "east", Settings.roomSize / 4));
+                inTriangle.position(movePoint(room.x, room.y, "east", this.settings.roomSize / 4));
                 group.add(inTriangle);
                 triangle.rotation(90);
-                triangle.position(movePoint(room.x, room.y, "west", Settings.roomSize / 4));
+                triangle.position(movePoint(room.x, room.y, "west", this.settings.roomSize / 4));
                 break;
             case "out":
                 const outTriangle = triangle.clone();
                 outTriangle.rotation(90);
-                outTriangle.position(movePoint(room.x, room.y, "east", Settings.roomSize / 4));
+                outTriangle.position(movePoint(room.x, room.y, "east", this.settings.roomSize / 4));
                 group.add(outTriangle);
                 triangle.rotation(-90);
-                triangle.position(movePoint(room.x, room.y, "west", Settings.roomSize / 4));
+                triangle.position(movePoint(room.x, room.y, "west", this.settings.roomSize / 4));
                 break;
         }
 
@@ -276,8 +278,8 @@ export default class PathRenderer {
                         if (currentSegmentPoints.length === 0) {
                             currentSegmentPoints.push(visibleRoom.x, visibleRoom.y);
                         }
-                        const edgePoint = this.getRoomEdgePoint(visibleRoom.x, visibleRoom.y, exitInfo.direction, Settings.roomSize / 2);
-                        const stubEnd = movePoint(visibleRoom.x, visibleRoom.y, exitInfo.direction, Settings.roomSize);
+                        const edgePoint = this.getRoomEdgePoint(visibleRoom.x, visibleRoom.y, exitInfo.direction, this.settings.roomSize / 2);
+                        const stubEnd = movePoint(visibleRoom.x, visibleRoom.y, exitInfo.direction, this.settings.roomSize);
                         currentSegmentPoints.push(edgePoint.x, edgePoint.y, stubEnd.x, stubEnd.y);
                         flushSegment();
                     }
@@ -288,8 +290,8 @@ export default class PathRenderer {
                         if (currentSegmentPoints.length === 0) {
                             currentSegmentPoints.push(visibleRoom.x, visibleRoom.y);
                         }
-                        const edgePoint = this.getRoomEdgePoint(visibleRoom.x, visibleRoom.y, dir, Settings.roomSize / 2);
-                        const stubEnd = movePoint(visibleRoom.x, visibleRoom.y, dir, Settings.roomSize);
+                        const edgePoint = this.getRoomEdgePoint(visibleRoom.x, visibleRoom.y, dir, this.settings.roomSize / 2);
+                        const stubEnd = movePoint(visibleRoom.x, visibleRoom.y, dir, this.settings.roomSize);
                         currentSegmentPoints.push(edgePoint.x, edgePoint.y, stubEnd.x, stubEnd.y);
                         flushSegment();
                     }
@@ -312,13 +314,13 @@ export default class PathRenderer {
 
         // Add fromRoom exit edge
         if (fromDir && regularExits.includes(fromDir)) {
-            const fromEdge = this.getRoomEdgePoint(fromRoom.x, fromRoom.y, fromDir, Settings.roomSize / 2);
+            const fromEdge = this.getRoomEdgePoint(fromRoom.x, fromRoom.y, fromDir, this.settings.roomSize / 2);
             points.push(fromEdge.x, fromEdge.y);
         }
 
         // Add toRoom exit edge
         if (toDir && regularExits.includes(toDir)) {
-            const toEdge = this.getRoomEdgePoint(toRoom.x, toRoom.y, toDir, Settings.roomSize / 2);
+            const toEdge = this.getRoomEdgePoint(toRoom.x, toRoom.y, toDir, this.settings.roomSize / 2);
             points.push(toEdge.x, toEdge.y);
         }
 

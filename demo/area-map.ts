@@ -1,4 +1,4 @@
-import {AreaMapRenderer, AreaMapSettings, DomainFilter, AreaDomainInfo} from "@src";
+import {AreaMapRenderer, DomainFilter, AreaDomainInfo} from "@src";
 import MapReader from "@src/reader/MapReader";
 
 const stageElement = document.getElementById("stage") as HTMLDivElement;
@@ -160,7 +160,6 @@ async function initialize() {
 
 function updateStatus() {
     const connectionGroups = areaRenderer.getConnectionGroups();
-    const areaCount = Array.from((areaRenderer as any).areaNodes?.size ?? 0);
     const totalConnections = connectionGroups.reduce((sum, g) => sum + g.connections.length, 0);
     const filter = areaRenderer.getDomainFilter();
     const domainName = filter === "ishtar" ? "Ishtar" : filter === "empire" ? "Empire" : "Interdomain";

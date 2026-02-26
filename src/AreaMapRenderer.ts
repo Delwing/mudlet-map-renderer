@@ -56,17 +56,32 @@ export type AreaDomainInfo = {
 
 export type DomainFilter = "ishtar" | "empire" | "interdomain" | "all";
 
-export class AreaMapSettings {
-    static areaWidth = 150;
-    static areaHeight = 80;
-    static areaSpacing = 50;
-    static fontSize = 14;
-    static connectionLineWidth = 2;
-    static areaFillColor = "#2a2a3e";
-    static areaStrokeColor = "#4a4a6e";
-    static textColor = "#e0e0e0";
-    static connectionColor = "#6a6a8e";
-    static highlightColor = "#ff9900";
+export type AreaMapSettings = {
+    areaWidth: number;
+    areaHeight: number;
+    areaSpacing: number;
+    fontSize: number;
+    connectionLineWidth: number;
+    areaFillColor: string;
+    areaStrokeColor: string;
+    textColor: string;
+    connectionColor: string;
+    highlightColor: string;
+};
+
+export function createAreaMapSettings(): AreaMapSettings {
+    return {
+        areaWidth: 150,
+        areaHeight: 80,
+        areaSpacing: 50,
+        fontSize: 14,
+        connectionLineWidth: 2,
+        areaFillColor: "#2a2a3e",
+        areaStrokeColor: "#4a4a6e",
+        textColor: "#e0e0e0",
+        connectionColor: "#6a6a8e",
+        highlightColor: "#ff9900",
+    };
 }
 
 export class AreaMapRenderer {
@@ -75,6 +90,7 @@ export class AreaMapRenderer {
     private readonly areaLayer: Konva.Layer;
     private readonly connectionLayer: Konva.Layer;
     private readonly mapReader: MapReader;
+    private readonly settings: AreaMapSettings;
     private areaNodes: Map<number, AreaNode> = new Map();
     private connectionGroups: ConnectionGroup[] = [];
     private currentZoom = 1;
@@ -85,7 +101,8 @@ export class AreaMapRenderer {
     private backgroundConfig?: {url: string; x: number; y: number; width: number; height: number; opacity: number};
     private dotsMode = false;
 
-    constructor(container: HTMLDivElement, mapReader: MapReader) {
+    constructor(container: HTMLDivElement, mapReader: MapReader, settings?: AreaMapSettings) {
+        this.settings = settings ?? createAreaMapSettings();
         this.stage = new Konva.Stage({
             container: container,
             width: container.clientWidth,
@@ -241,9 +258,7 @@ export class AreaMapRenderer {
         // Both in Empire
         if (info1.isEmpire && info2.isEmpire) return true;
         // Both interdomain (neither Ishtar nor Empire)
-        if (!info1.isIshtar && !info1.isEmpire && !info2.isIshtar && !info2.isEmpire) return true;
-
-        return false;
+        return !info1.isIshtar && !info1.isEmpire && !info2.isIshtar && !info2.isEmpire;
     }
 
     render() {
@@ -579,7 +594,7 @@ export class AreaMapRenderer {
 
         // Layout each component separately
         let componentOffsetX = 0;
-        const componentGap = AreaMapSettings.areaWidth * 3;
+        const componentGap = this.settings.areaWidth * 3;
 
         for (const component of components) {
             if (component.length === 1) {
@@ -589,7 +604,7 @@ export class AreaMapRenderer {
                     node.x = componentOffsetX;
                     node.y = 0;
                 }
-                componentOffsetX += AreaMapSettings.areaWidth + componentGap;
+                componentOffsetX += this.settings.areaWidth + componentGap;
             } else {
                 // Use force-directed layout for connected areas
                 const bounds = this.forceDirectedLayout(component);
@@ -604,7 +619,7 @@ export class AreaMapRenderer {
                     }
                 }
 
-                const width = isFinite(bounds.maxX - bounds.minX) ? bounds.maxX - bounds.minX : AreaMapSettings.areaWidth;
+                const width = isFinite(bounds.maxX - bounds.minX) ? bounds.maxX - bounds.minX : this.settings.areaWidth;
                 componentOffsetX += width + componentGap;
             }
         }
@@ -856,8 +871,8 @@ export class AreaMapRenderer {
                     }
                 });
 
-                const baseSpacingX = AreaMapSettings.areaWidth + AreaMapSettings.areaSpacing;
-                const baseSpacingY = AreaMapSettings.areaHeight + AreaMapSettings.areaSpacing;
+                const baseSpacingX = this.settings.areaWidth + this.settings.areaSpacing;
+                const baseSpacingY = this.settings.areaHeight + this.settings.areaSpacing;
 
                 // Position each target with offset for multiple in same direction
                 targets.forEach((target, index) => {
@@ -890,8 +905,8 @@ export class AreaMapRenderer {
 
         // Position chain nodes with appropriate distance based on direction
         // Add extra spacing to avoid overlaps with connection lines
-        const horizontalDistance = AreaMapSettings.areaWidth + AreaMapSettings.areaSpacing + 30; // For east/west (230px)
-        const verticalDistance = AreaMapSettings.areaHeight + AreaMapSettings.areaSpacing + 30; // For north/south (160px)
+        const horizontalDistance = this.settings.areaWidth + this.settings.areaSpacing + 30; // For east/west (230px)
+        const verticalDistance = this.settings.areaHeight + this.settings.areaSpacing + 30; // For north/south (160px)
 
         // Store chain offsets relative to hub so we can reposition after hub moves
         const chainOffsets = new Map<number, {dx: number; dy: number; hubId: number}>();
@@ -1119,7 +1134,6 @@ export class AreaMapRenderer {
 
                     const dx = cx1 - cx2;
                     const dy = cy1 - cy2;
-                    const dist = Math.sqrt(dx * dx + dy * dy) || 1;
 
                     // Required distance based on actual rectangles (half-widths and half-heights)
                     const hw1 = (bounds.maxX - bounds.minX) / 2;
@@ -1156,7 +1170,7 @@ export class AreaMapRenderer {
                     const dy = other.y - node.y;
                     const dist = Math.sqrt(dx * dx + dy * dy) || 1;
 
-                    const idealDistance = AreaMapSettings.areaWidth + AreaMapSettings.areaSpacing + 50;
+                    const idealDistance = this.settings.areaWidth + this.settings.areaSpacing + 50;
                     const displacement = dist - idealDistance;
                     const springForce = displacement * 0.015;
                     vel.vx += (dx / dist) * springForce;
@@ -1182,8 +1196,8 @@ export class AreaMapRenderer {
     private applyForces(areaIds: number[], iterations: number) {
         const damping = 0.8;
         const padding = 20; // Minimum gap between areas
-        const idealDistance = AreaMapSettings.areaWidth + AreaMapSettings.areaSpacing; // 200px - same as chain spacing
-        const lineAvoidanceDistance = AreaMapSettings.areaWidth / 2 + 60; // Increased to push nodes further from lines
+        const idealDistance = this.settings.areaWidth + this.settings.areaSpacing; // 200px - same as chain spacing
+        const lineAvoidanceDistance = this.settings.areaWidth / 2 + 60; // Increased to push nodes further from lines
 
         // Build list of edges for line avoidance (only between nodes in areaIds)
         const areaIdSet = new Set(areaIds);
@@ -1402,8 +1416,8 @@ export class AreaMapRenderer {
                 continue;
             }
 
-            const lineColor = this.dotsMode ? "#ffffff" : AreaMapSettings.connectionColor;
-            const lineWidth = this.dotsMode ? 1 : Math.min(AreaMapSettings.connectionLineWidth, 1 + group.connections.length * 0.5);
+            const lineColor = this.dotsMode ? "#ffffff" : this.settings.connectionColor;
+            const lineWidth = this.dotsMode ? 1 : Math.min(this.settings.connectionLineWidth, 1 + group.connections.length * 0.5);
 
             const line = new Konva.Line({
                 points: [fromPoint.x, fromPoint.y, toPoint.x, toPoint.y],
@@ -1473,8 +1487,8 @@ export class AreaMapRenderer {
 
                 const dot = new Konva.Circle({
                     radius: dotRadius,
-                    fill: isHighlighted ? AreaMapSettings.highlightColor : "#ffffff",
-                    stroke: isHighlighted ? AreaMapSettings.highlightColor : "#ffffff",
+                    fill: isHighlighted ? this.settings.highlightColor : "#ffffff",
+                    stroke: isHighlighted ? this.settings.highlightColor : "#ffffff",
                     strokeWidth: 1,
                 });
 
@@ -1496,15 +1510,15 @@ export class AreaMapRenderer {
 
                 group.on("mouseenter", () => {
                     this.stage.container().style.cursor = "pointer";
-                    dot.fill(AreaMapSettings.highlightColor);
-                    dot.stroke(AreaMapSettings.highlightColor);
+                    dot.fill(this.settings.highlightColor);
+                    dot.stroke(this.settings.highlightColor);
                     this.areaLayer.batchDraw();
                 });
 
                 group.on("mouseleave", () => {
                     this.stage.container().style.cursor = "auto";
-                    dot.fill(isHighlighted ? AreaMapSettings.highlightColor : "#ffffff");
-                    dot.stroke(isHighlighted ? AreaMapSettings.highlightColor : "#ffffff");
+                    dot.fill(isHighlighted ? this.settings.highlightColor : "#ffffff");
+                    dot.stroke(isHighlighted ? this.settings.highlightColor : "#ffffff");
                     this.areaLayer.batchDraw();
                 });
 
@@ -1536,16 +1550,16 @@ export class AreaMapRenderer {
                 const rect = new Konva.Rect({
                     width: node.width,
                     height: node.height,
-                    fill: AreaMapSettings.areaFillColor,
-                    stroke: isHighlighted ? AreaMapSettings.highlightColor : AreaMapSettings.areaStrokeColor,
+                    fill: this.settings.areaFillColor,
+                    stroke: isHighlighted ? this.settings.highlightColor : this.settings.areaStrokeColor,
                     strokeWidth: isHighlighted ? 3 : 2,
                     cornerRadius: 8,
                 });
 
                 const name = new Konva.Text({
                     text: node.name,
-                    fontSize: AreaMapSettings.fontSize,
-                    fill: AreaMapSettings.textColor,
+                    fontSize: this.settings.fontSize,
+                    fill: this.settings.textColor,
                     width: node.width - 10,
                     height: node.height - 20,
                     x: 5,
@@ -1559,7 +1573,7 @@ export class AreaMapRenderer {
                 const roomCount = new Konva.Text({
                     text: `${node.roomCount} rooms`,
                     fontSize: 10,
-                    fill: AreaMapSettings.connectionColor,
+                    fill: this.settings.connectionColor,
                     width: node.width - 10,
                     x: 5,
                     y: node.height - 18,
@@ -1577,13 +1591,13 @@ export class AreaMapRenderer {
 
                 group.on("mouseenter", () => {
                     this.stage.container().style.cursor = "pointer";
-                    rect.stroke(AreaMapSettings.highlightColor);
+                    rect.stroke(this.settings.highlightColor);
                     this.areaLayer.batchDraw();
                 });
 
                 group.on("mouseleave", () => {
                     this.stage.container().style.cursor = "auto";
-                    rect.stroke(isHighlighted ? AreaMapSettings.highlightColor : AreaMapSettings.areaStrokeColor);
+                    rect.stroke(isHighlighted ? this.settings.highlightColor : this.settings.areaStrokeColor);
                     this.areaLayer.batchDraw();
                 });
 

@@ -1,6 +1,6 @@
 import Konva from "konva";
 import ExitRenderer from "./ExitRenderer";
-import type {ExitDrawData, ExitDrawLine, ExitDrawArrow, ExitDrawDoor} from "./ExitRenderer";
+import type {ExitDrawData} from "./ExitRenderer";
 import MapReader from "./reader/MapReader";
 import Exit from "./reader/Exit";
 import Area from "./reader/Area";
@@ -107,6 +107,11 @@ export type RoomContextMenuEventDetail = {
     position: { x: number; y: number };
 };
 
+export type RoomClickEventDetail = {
+    roomId: number;
+    position: { x: number; y: number };
+};
+
 export type ZoomChangeEventDetail = {
     zoom: number;
 };
@@ -167,144 +172,81 @@ export type PlayerMarkerStyle = {
 };
 
 /**
- * Global settings for map rendering.
- * All properties are static and can be modified at runtime to change the map's appearance and behavior.
+ * Settings for map rendering.
+ * All properties can be modified at runtime to change the map's appearance and behavior.
+ * Create with {@link createSettings} and pass to the {@link Renderer} constructor.
+ * Multiple renderers can share the same settings object for synchronized configuration.
  */
-export class Settings {
-    /**
-     * Size of each room in map units (width/height for rectangles, diameter for circles).
-     * Typical values: 0.2 - 1.5
-     * Default: 0.6
-     */
-    static roomSize = defaultRoomSize;
+export type Settings = {
+    /** Size of each room in map units (width/height for rectangles, diameter for circles). Default: 0.6 */
+    roomSize: number;
+    /** Width of lines (exit connections, room borders) in map units. Default: 0.025 */
+    lineWidth: number;
+    /** Color of exit connection lines as RGB string. Default: 'rgb(225, 255, 225)' */
+    lineColor: string;
+    /** Background color of the map container. Default: '#000000' */
+    backgroundColor: string;
+    /** When true, map instantly jumps to new position on room change. Default: false */
+    instantMapMove: boolean;
+    /** When true, highlights the current room and its exits with an overlay. Default: true */
+    highlightCurrentRoom: boolean;
+    /** Legacy flag for enabling/disabling culling (prefer cullingMode). Default: true */
+    cullingEnabled: boolean;
+    /** How off-screen elements are culled: "none" | "basic" | "indexed". Default: "indexed" */
+    cullingMode: CullingMode;
+    /** Custom culling bounds in map coordinates, or null for viewport bounds. Default: null */
+    cullingBounds: { x: number; y: number; width: number; height: number } | null;
+    /** How to render room labels: "image" | "data". Default: "image" */
+    labelRenderMode: LabelRenderMode;
+    /** When true, room labels have transparent backgrounds. Default: false */
+    transparentLabels: boolean;
+    /** Shape used to render rooms: "rectangle" | "circle" | "roundedRectangle". Default: "rectangle" */
+    roomShape: RoomShape;
+    /** Style configuration for the player position marker. */
+    playerMarker: PlayerMarkerStyle;
+    /** Whether to render a background grid. Default: false */
+    gridEnabled: boolean;
+    /** Grid line spacing in map units. Default: 1 */
+    gridSize: number;
+    /** Color of grid lines as CSS color string. Default: 'rgba(255, 255, 255, 0.07)' */
+    gridColor: string;
+    /** Width of grid lines in map units. Default: 0.02 */
+    gridLineWidth: number;
+    /** Performance monitoring callback, or null to disable. */
+    perfCallback: ((stats: PerfSnapshot) => void) | null;
+};
 
-    /**
-     * Width of lines (exit connections, room borders) in map units.
-     * Typical values: 0.01 - 0.1
-     * Default: 0.025
-     */
-    static lineWidth = defaultLineWidth;
-
-    /**
-     * Color of exit connection lines as RGB string.
-     * Example: 'rgb(225, 255, 225)' for light green
-     */
-    static lineColor = lineColor;
-
-    /**
-     * When true, map instantly jumps to the new position when the current room changes.
-     * When false, the map smoothly animates/pans to the new position.
-     * Default: false (animated movement)
-     */
-    static instantMapMove = false;
-
-    /**
-     * When true, highlights the current room and its exits with an overlay.
-     * The overlay uses a semi-transparent color to emphasize the current position.
-     * Default: true
-     */
-    static highlightCurrentRoom = true;
-
-    /**
-     * Legacy flag for enabling/disabling culling (prefer using cullingMode instead).
-     * Default: true
-     */
-    static cullingEnabled = true;
-
-    /**
-     * Determines how off-screen elements are culled to improve performance:
-     * - "none": No culling, render everything (worst performance, best accuracy)
-     * - "basic": Classic viewport-based culling (good performance)
-     * - "indexed": Spatial index culling using R-tree (best performance)
-     *
-     * Default: "indexed"
-     */
-    static cullingMode: CullingMode = "indexed";
-
-    /**
-     * Custom culling bounds for manually specifying the visible area.
-     * When set, only elements within these bounds are rendered.
-     * Format: { x, y, width, height } in map coordinates.
-     * Default: null (uses viewport bounds)
-     */
-    static cullingBounds: { x: number; y: number; width: number; height: number } | null = null;
-
-    /**
-     * How to render room labels:
-     * - "image": Render labels as images (better performance for many labels)
-     * - "data": Render labels as text data (better for dynamic content)
-     *
-     * Default: "image"
-     */
-    static labelRenderMode: LabelRenderMode = "image";
-
-    /**
-     * When true, room labels have transparent backgrounds.
-     * When false, labels have opaque backgrounds for better readability.
-     */
-    static transparentLabels: boolean;
-
-    /**
-     * Shape used to render rooms:
-     * - "rectangle": Rooms are drawn as squares/rectangles
-     * - "circle": Rooms are drawn as circles
-     *
-     * Default: "rectangle"
-     *
-     * Note: Exit line calculations automatically adjust based on room shape.
-     * Circle mode calculates exact tangent points on the circle's edge.
-     */
-    static roomShape: RoomShape = "rectangle";
-
-    /**
-     * Style configuration for the player position marker.
-     * See PlayerMarkerStyle type for details on individual properties.
-     *
-     * Default configuration creates a cyan-green dashed circle that's 1.7x the room size.
-     */
-    static playerMarker: PlayerMarkerStyle = {
-        strokeColor: "#00e5b2",
-        strokeAlpha: 1.0,
-        fillColor: "#00e5b2",
-        fillAlpha: 0.0,
-        strokeWidth: 0.1,
-        sizeFactor: 1.7,
-        dash: [0.05, 0.05],
-        dashEnabled: true,
+/** Creates a new Settings object with default values. */
+export function createSettings(): Settings {
+    return {
+        roomSize: defaultRoomSize,
+        lineWidth: defaultLineWidth,
+        lineColor: lineColor,
+        backgroundColor: '#000000',
+        instantMapMove: false,
+        highlightCurrentRoom: true,
+        cullingEnabled: true,
+        cullingMode: "indexed",
+        cullingBounds: null,
+        labelRenderMode: "image",
+        transparentLabels: false,
+        roomShape: "rectangle",
+        playerMarker: {
+            strokeColor: "#00e5b2",
+            strokeAlpha: 1.0,
+            fillColor: "#00e5b2",
+            fillAlpha: 0.0,
+            strokeWidth: 0.1,
+            sizeFactor: 1.7,
+            dash: [0.05, 0.05],
+            dashEnabled: true,
+        },
+        gridEnabled: false,
+        gridSize: 1,
+        gridColor: 'rgba(255, 255, 255, 0.07)',
+        gridLineWidth: 0.02,
+        perfCallback: null,
     };
-
-    /**
-     * Whether to render a subtle background grid behind the map.
-     * Default: false
-     */
-    static gridEnabled: boolean = false;
-
-    /**
-     * Grid line spacing in map units (1 = every integer coordinate).
-     * Default: 1
-     */
-    static gridSize: number = 1;
-
-    /**
-     * Color of the grid lines as a CSS color string.
-     * Default: 'rgba(255, 255, 255, 0.07)' (very subtle white)
-     */
-    static gridColor: string = 'rgba(255, 255, 255, 0.07)';
-
-    /**
-     * Width of grid lines in map units.
-     * Default: 0.02
-     */
-    static gridLineWidth: number = 0.02;
-
-    /**
-     * Performance monitoring callback. When set, receives averaged PerfSnapshot
-     * every 60 culling frames (~1 second at 60fps) with timing breakdowns.
-     *
-     * Set to a function to enable, null to disable.
-     * Example: Settings.perfCallback = (stats) => console.log(stats);
-     */
-    static perfCallback: ((stats: PerfSnapshot) => void) | null = null;
 }
 
 type HighlightData = {
@@ -327,6 +269,7 @@ export class Renderer {
     private readonly overlayLayer: Konva.Layer;
     private readonly positionLayer: Konva.Layer;
     private mapReader: MapReader;
+    private readonly settings: Settings;
     private exitRenderer: ExitRenderer;
     private pathRenderer: PathRenderer;
     private highlights: Map<number, HighlightData> = new Map();
@@ -361,13 +304,15 @@ export class Renderer {
     private visibleExitDrawData: ExitDrawData[] = [];
     private cachedGridBounds: { left: number; right: number; top: number; bottom: number } | null = null;
 
-    constructor(container: HTMLDivElement, mapReader: MapReader) {
+    constructor(container: HTMLDivElement, mapReader: MapReader, settings?: Settings) {
+        this.settings = settings ?? createSettings();
         this.stage = new Konva.Stage({
             container: container,
             width: container.clientWidth,
             height: container.clientHeight,
             draggable: true
         });
+        container.style.backgroundColor = this.settings.backgroundColor;
         window.addEventListener('resize', () => {
             this.onResize(container);
         })
@@ -394,8 +339,8 @@ export class Renderer {
         })
         this.stage.add(this.overlayLayer);
         this.mapReader = mapReader;
-        this.exitRenderer = new ExitRenderer(mapReader, this);
-        this.pathRenderer = new PathRenderer(mapReader, this.overlayLayer);
+        this.exitRenderer = new ExitRenderer(mapReader, this, this.settings);
+        this.pathRenderer = new PathRenderer(mapReader, this.overlayLayer, this.settings);
 
         const scaleBy = 1.1;
         this.initScaling(scaleBy);
@@ -422,7 +367,7 @@ export class Renderer {
     private findRoomAtClientPoint(clientX: number, clientY: number): MapData.Room | null {
         const mapPoint = this.clientToMapPoint(clientX, clientY);
         if (!mapPoint) return null;
-        const halfSize = Settings.roomSize / 2;
+        const halfSize = this.settings.roomSize / 2;
         // Check the single bucket at this point
         const key = this.getBucketKey(
             Math.floor(mapPoint.x / this.spatialBucketSize),
@@ -455,6 +400,26 @@ export class Renderer {
         container.addEventListener('mouseleave', () => {
             hoveredRoom = null;
             container.style.cursor = 'auto';
+        });
+
+        let clickStart: { x: number; y: number } | null = null;
+
+        container.addEventListener('mousedown', (e) => {
+            if (e.button === 0) {
+                clickStart = { x: e.clientX, y: e.clientY };
+            }
+        });
+
+        container.addEventListener('mouseup', (e) => {
+            if (e.button !== 0 || !clickStart) return;
+            const dx = e.clientX - clickStart.x;
+            const dy = e.clientY - clickStart.y;
+            clickStart = null;
+            if (dx * dx + dy * dy > 25) return;
+            const room = this.findRoomAtClientPoint(e.clientX, e.clientY);
+            if (room) {
+                this.emitRoomClickEvent(room.id, e.clientX, e.clientY);
+            }
         });
 
         container.addEventListener('contextmenu', (e) => {
@@ -740,7 +705,7 @@ export class Renderer {
     }
 
     private computeSpatialBucketSize() {
-        return Math.max(Settings.roomSize * 10, 5);
+        return Math.max(this.settings.roomSize * 10, 5);
     }
 
     private getBucketKey(bucketX: number, bucketY: number) {
@@ -767,7 +732,7 @@ export class Renderer {
     }
 
     private addRoomToSpatialIndex(entry: RoomNodeEntry) {
-        const halfSize = Settings.roomSize / 2;
+        const halfSize = this.settings.roomSize / 2;
         const minX = entry.room.x - halfSize;
         const maxX = entry.room.x + halfSize;
         const minY = entry.room.y - halfSize;
@@ -821,7 +786,7 @@ export class Renderer {
     }
 
     private refreshStandaloneExitBoundsIfNeeded() {
-        if (this.standaloneExitBoundsRoomSize === Settings.roomSize) {
+        if (this.standaloneExitBoundsRoomSize === this.settings.roomSize) {
             return;
         }
 
@@ -830,7 +795,7 @@ export class Renderer {
         this.standaloneExitNodes.forEach(entry => {
             this.addStandaloneExitToSpatialIndex(entry);
         });
-        this.standaloneExitBoundsRoomSize = Settings.roomSize;
+        this.standaloneExitBoundsRoomSize = this.settings.roomSize;
     }
 
     private emitRoomContextEvent(roomId: number, clientX: number, clientY: number) {
@@ -844,6 +809,20 @@ export class Renderer {
             },
         };
         const event = new CustomEvent<RoomContextMenuEventDetail>('roomcontextmenu', {detail});
+        container.dispatchEvent(event);
+    }
+
+    private emitRoomClickEvent(roomId: number, clientX: number, clientY: number) {
+        const container = this.stage.container();
+        const bounds = container.getBoundingClientRect();
+        const detail: RoomClickEventDetail = {
+            roomId,
+            position: {
+                x: clientX - bounds.left,
+                y: clientY - bounds.top,
+            },
+        };
+        const event = new CustomEvent<RoomClickEventDetail>('roomclick', {detail});
         container.dispatchEvent(event);
     }
 
@@ -912,13 +891,13 @@ export class Renderer {
     }
 
     setCullingMode(mode: CullingMode) {
-        Settings.cullingMode = mode;
-        Settings.cullingEnabled = mode !== "none";
+        this.settings.cullingMode = mode;
+        this.settings.cullingEnabled = mode !== "none";
         this.scheduleRoomCulling();
     }
 
     getCullingMode() {
-        return Settings.cullingMode;
+        return this.settings.cullingMode;
     }
 
     getCurrentArea() {
@@ -926,7 +905,7 @@ export class Renderer {
     }
 
     /**
-     * Refreshes the current room overlay to reflect any changes to Settings.
+     * Refreshes the current room overlay to reflect any changes to settings.
      * Call this after modifying Settings properties (like roomSize, roomShape, lineWidth, etc.)
      * to update the visual appearance of the current room and its exits without changing position.
      */
@@ -940,13 +919,18 @@ export class Renderer {
     }
 
     /**
-     * Completely refreshes the map to reflect changes to Settings.
+     * Completely refreshes the map to reflect changes to settings.
      * This re-renders the entire current area and updates the player position marker.
      * Call this after changing Settings properties like roomSize, roomShape, lineWidth, etc.
      *
      * Note: This is more expensive than refreshCurrentRoomOverlay() but ensures everything is updated.
      */
+    updateBackground() {
+        this.stage.container().style.backgroundColor = this.settings.backgroundColor;
+    }
+
     refresh() {
+        this.updateBackground();
         if (this.currentRoomId !== undefined && this.currentArea !== undefined && this.currentZIndex !== undefined) {
             // Re-render the current area
             this.drawArea(this.currentArea, this.currentZIndex);
@@ -977,9 +961,9 @@ export class Renderer {
         this.currentRoomId = roomId;
         this.updateCurrentRoomOverlay(room);
 
-        const strokeColor = hexToRgba(Settings.playerMarker.strokeColor, Settings.playerMarker.strokeAlpha);
-        const fillColor = hexToRgba(Settings.playerMarker.fillColor, Settings.playerMarker.fillAlpha);
-        const markerRadius = (Settings.roomSize / 2) * Settings.playerMarker.sizeFactor;
+        const strokeColor = hexToRgba(this.settings.playerMarker.strokeColor, this.settings.playerMarker.strokeAlpha);
+        const fillColor = hexToRgba(this.settings.playerMarker.fillColor, this.settings.playerMarker.fillAlpha);
+        const markerRadius = (this.settings.roomSize / 2) * this.settings.playerMarker.sizeFactor;
 
         if (!this.positionRender) {
             this.positionRender = new Konva.Circle({
@@ -988,9 +972,9 @@ export class Renderer {
                 radius: markerRadius,
                 stroke: strokeColor,
                 fill: fillColor,
-                strokeWidth: Settings.playerMarker.strokeWidth,
-                dash: Settings.playerMarker.dash,
-                dashEnabled: Settings.playerMarker.dashEnabled,
+                strokeWidth: this.settings.playerMarker.strokeWidth,
+                dash: this.settings.playerMarker.dash,
+                dashEnabled: this.settings.playerMarker.dashEnabled,
             })
             this.positionLayer.add(this.positionRender);
         } else {
@@ -998,9 +982,9 @@ export class Renderer {
             this.positionRender.radius(markerRadius);
             this.positionRender.stroke(strokeColor);
             this.positionRender.fill(fillColor);
-            this.positionRender.strokeWidth(Settings.playerMarker.strokeWidth);
-            this.positionRender.dash(Settings.playerMarker.dash ?? []);
-            this.positionRender.dashEnabled(Settings.playerMarker.dashEnabled);
+            this.positionRender.strokeWidth(this.settings.playerMarker.strokeWidth);
+            this.positionRender.dash(this.settings.playerMarker.dash ?? []);
+            this.positionRender.dashEnabled(this.settings.playerMarker.dashEnabled);
             this.positionRender.show();
         }
         this.positionLayer.batchDraw();
@@ -1027,11 +1011,11 @@ export class Renderer {
         }
         this.updateCurrentRoomOverlay(room);
 
-        const strokeColor = hexToRgba(Settings.playerMarker.strokeColor, Settings.playerMarker.strokeAlpha);
-        const fillColor = hexToRgba(Settings.playerMarker.fillColor, Settings.playerMarker.fillAlpha);
+        const strokeColor = hexToRgba(this.settings.playerMarker.strokeColor, this.settings.playerMarker.strokeAlpha);
+        const fillColor = hexToRgba(this.settings.playerMarker.fillColor, this.settings.playerMarker.fillAlpha);
         // Player marker radius: at sizeFactor 1.0, it should match room size
         // Room circles have radius = roomSize / 2, so we use (roomSize / 2) * sizeFactor
-        const markerRadius = (Settings.roomSize / 2) * Settings.playerMarker.sizeFactor;
+        const markerRadius = (this.settings.roomSize / 2) * this.settings.playerMarker.sizeFactor;
 
         if (!this.positionRender) {
             this.positionRender = new Konva.Circle({
@@ -1040,9 +1024,9 @@ export class Renderer {
                 radius: markerRadius,
                 stroke: strokeColor,
                 fill: fillColor,
-                strokeWidth: Settings.playerMarker.strokeWidth,
-                dash: Settings.playerMarker.dash,
-                dashEnabled: Settings.playerMarker.dashEnabled,
+                strokeWidth: this.settings.playerMarker.strokeWidth,
+                dash: this.settings.playerMarker.dash,
+                dashEnabled: this.settings.playerMarker.dashEnabled,
             })
             this.positionLayer.add(this.positionRender);
         } else {
@@ -1050,9 +1034,9 @@ export class Renderer {
             this.positionRender.radius(markerRadius);
             this.positionRender.stroke(strokeColor);
             this.positionRender.fill(fillColor);
-            this.positionRender.strokeWidth(Settings.playerMarker.strokeWidth);
-            this.positionRender.dash(Settings.playerMarker.dash ?? []);
-            this.positionRender.dashEnabled(Settings.playerMarker.dashEnabled);
+            this.positionRender.strokeWidth(this.settings.playerMarker.strokeWidth);
+            this.positionRender.dash(this.settings.playerMarker.dash ?? []);
+            this.positionRender.dashEnabled(this.settings.playerMarker.dashEnabled);
         }
     }
 
@@ -1108,6 +1092,18 @@ export class Renderer {
         return highlightData.shape;
     }
 
+    removeHighlight(roomId: number) {
+        const existing = this.highlights.get(roomId);
+        if (!existing) return;
+        existing.shape?.destroy();
+        this.highlights.delete(roomId);
+        this.overlayLayer.batchDraw();
+    }
+
+    hasHighlight(roomId: number) {
+        return this.highlights.has(roomId);
+    }
+
     clearHighlights() {
         this.highlights.forEach(({shape}) => shape?.destroy());
         this.highlights.clear();
@@ -1138,11 +1134,11 @@ export class Renderer {
 
     private createHighlightShape(room: MapData.Room, color: string) {
         const highlightFactor = 1.5;
-        return Settings.roomShape === "circle"
+        return this.settings.roomShape === "circle"
             ? new Konva.Circle({
                 x: room.x,
                 y: room.y,
-                radius: Settings.roomSize / 2 * highlightFactor,
+                radius: this.settings.roomSize / 2 * highlightFactor,
                 stroke: color,
                 strokeWidth: 0.1,
                 dash: [0.05, 0.05],
@@ -1150,15 +1146,15 @@ export class Renderer {
                 listening: false,
             })
             : new Konva.Rect({
-                x: room.x - Settings.roomSize / 2 * highlightFactor,
-                y: room.y - Settings.roomSize / 2 * highlightFactor,
-                width: Settings.roomSize * highlightFactor,
-                height: Settings.roomSize * highlightFactor,
+                x: room.x - this.settings.roomSize / 2 * highlightFactor,
+                y: room.y - this.settings.roomSize / 2 * highlightFactor,
+                width: this.settings.roomSize * highlightFactor,
+                height: this.settings.roomSize * highlightFactor,
                 stroke: color,
                 strokeWidth: 0.1,
                 dash: [0.05, 0.05],
                 dashEnabled: true,
-                cornerRadius: Settings.roomShape === "roundedRectangle" ? Settings.roomSize * highlightFactor * 0.2 : 0,
+                cornerRadius: this.settings.roomShape === "roundedRectangle" ? this.settings.roomSize * highlightFactor * 0.2 : 0,
                 listening: false,
             });
     }
@@ -1186,7 +1182,7 @@ export class Renderer {
             delete this.currentTransition;
         }
 
-        if (instant || Settings.instantMapMove) {
+        if (instant || this.settings.instantMapMove) {
             this.stage.position({
                 x: this.stage.x() + dx,
                 y: this.stage.y() + dy,
@@ -1226,7 +1222,7 @@ export class Renderer {
             delete this.currentTransition;
         }
 
-        if (instant || Settings.instantMapMove) {
+        if (instant || this.settings.instantMapMove) {
             this.stage.position({
                 x: this.stage.x() + dx,
                 y: this.stage.y() + dy,
@@ -1249,21 +1245,21 @@ export class Renderer {
     private renderRooms(rooms: MapData.Room[]) {
         rooms.forEach(room => {
             const roomRender = new Konva.Group({
-                x: room.x - Settings.roomSize / 2,
-                y: room.y - Settings.roomSize / 2,
+                x: room.x - this.settings.roomSize / 2,
+                y: room.y - this.settings.roomSize / 2,
                 listening: false,
             });
 
             const fillColor = this.mapReader.getColorValue(room.env);
-            const strokeColor = Settings.lineColor;
+            const strokeColor = this.settings.lineColor;
 
-            const roomShape = Settings.roomShape === "circle"
+            const roomShape = this.settings.roomShape === "circle"
                 ? new Konva.Circle({
-                    x: Settings.roomSize / 2,
-                    y: Settings.roomSize / 2,
-                    radius: Settings.roomSize / 2,
+                    x: this.settings.roomSize / 2,
+                    y: this.settings.roomSize / 2,
+                    radius: this.settings.roomSize / 2,
                     fill: fillColor,
-                    strokeWidth: Settings.lineWidth,
+                    strokeWidth: this.settings.lineWidth,
                     stroke: strokeColor,
                     perfectDrawEnabled: false,
                     listening: false,
@@ -1271,12 +1267,12 @@ export class Renderer {
                 : new Konva.Rect({
                     x: 0,
                     y: 0,
-                    width: Settings.roomSize,
-                    height: Settings.roomSize,
+                    width: this.settings.roomSize,
+                    height: this.settings.roomSize,
                     fill: fillColor,
-                    strokeWidth: Settings.lineWidth,
+                    strokeWidth: this.settings.lineWidth,
                     stroke: strokeColor,
-                    cornerRadius: Settings.roomShape === "roundedRectangle" ? Settings.roomSize * 0.2 : 0,
+                    cornerRadius: this.settings.roomShape === "roundedRectangle" ? this.settings.roomSize * 0.2 : 0,
                     perfectDrawEnabled: false,
                     listening: false,
                 });
@@ -1291,8 +1287,8 @@ export class Renderer {
                 this.linkLayer.add(render);
             })
             // Stubs and inner exits nested in room group for automatic culling
-            const gx = room.x - Settings.roomSize / 2;
-            const gy = room.y - Settings.roomSize / 2;
+            const gx = room.x - this.settings.roomSize / 2;
+            const gy = room.y - this.settings.roomSize / 2;
             this.exitRenderer.renderStubs(room).forEach(render => {
                 // Offset absolute points to group-relative coordinates
                 const pts = render.points();
@@ -1336,11 +1332,11 @@ export class Renderer {
         }
 
         this.syncPerfMonitor();
-        const perfStart = Settings.perfCallback ? performance.now() : 0;
+        const perfStart = this.settings.perfCallback ? performance.now() : 0;
 
         const stagePosition = this.stage.position();
-        const halfSize = Settings.roomSize / 2;
-        const bounds = Settings.cullingBounds;
+        const halfSize = this.settings.roomSize / 2;
+        const bounds = this.settings.cullingBounds;
         const viewportMinX = bounds ? bounds.x : 0;
         const viewportMaxX = bounds ? bounds.x + bounds.width : this.stage.width();
         const viewportMinY = bounds ? bounds.y : 0;
@@ -1357,7 +1353,7 @@ export class Renderer {
         let roomLayerNeedsDraw = false;
         let linkLayerNeedsDraw = false;
 
-        const mode: CullingMode = Settings.cullingEnabled ? Settings.cullingMode ?? "indexed" : "none";
+        const mode: CullingMode = this.settings.cullingEnabled ? this.settings.cullingMode ?? "indexed" : "none";
         const searchMinX = minX - halfSize;
         const searchMaxX = maxX + halfSize;
         const searchMinY = minY - halfSize;
@@ -1557,9 +1553,9 @@ export class Renderer {
             this.linkLayer.batchDraw();
         }
 
-        const gridStart = Settings.perfCallback ? performance.now() : 0;
+        const gridStart = this.settings.perfCallback ? performance.now() : 0;
         this.renderGrid();
-        if (Settings.perfCallback) {
+        if (this.settings.perfCallback) {
             const gridMs = performance.now() - gridStart;
             const cullingMs = performance.now() - perfStart;
             this.perfMonitor.record({
@@ -1574,7 +1570,7 @@ export class Renderer {
     }
 
     private syncPerfMonitor() {
-        this.perfMonitor.setCallback(Settings.perfCallback);
+        this.perfMonitor.setCallback(this.settings.perfCallback);
     }
 
     private invalidateGridCache() {
@@ -1582,7 +1578,7 @@ export class Renderer {
     }
 
     private renderGrid() {
-        if (!Settings.gridEnabled) {
+        if (!this.settings.gridEnabled) {
             if (this.cachedGridBounds !== null) {
                 this.gridLayer.destroyChildren();
                 this.gridLayer.batchDraw();
@@ -1607,11 +1603,11 @@ export class Renderer {
         const maxY = (stageHeight - stagePosition.y) / scale;
 
         // Expand bounds slightly for buffer
-        const buffer = Settings.gridSize * 2;
-        const left = Math.floor((Math.min(minX, maxX) - buffer) / Settings.gridSize) * Settings.gridSize;
-        const right = Math.ceil((Math.max(minX, maxX) + buffer) / Settings.gridSize) * Settings.gridSize;
-        const top = Math.floor((Math.min(minY, maxY) - buffer) / Settings.gridSize) * Settings.gridSize;
-        const bottom = Math.ceil((Math.max(minY, maxY) + buffer) / Settings.gridSize) * Settings.gridSize;
+        const buffer = this.settings.gridSize * 2;
+        const left = Math.floor((Math.min(minX, maxX) - buffer) / this.settings.gridSize) * this.settings.gridSize;
+        const right = Math.ceil((Math.max(minX, maxX) + buffer) / this.settings.gridSize) * this.settings.gridSize;
+        const top = Math.floor((Math.min(minY, maxY) - buffer) / this.settings.gridSize) * this.settings.gridSize;
+        const bottom = Math.ceil((Math.max(minY, maxY) + buffer) / this.settings.gridSize) * this.settings.gridSize;
 
         // Skip recreation if grid bounds haven't changed
         const cached = this.cachedGridBounds;
@@ -1622,22 +1618,22 @@ export class Renderer {
         this.gridLayer.destroyChildren();
 
         // Draw vertical lines
-        for (let x = left; x <= right; x += Settings.gridSize) {
+        for (let x = left; x <= right; x += this.settings.gridSize) {
             this.gridLayer.add(new Konva.Line({
                 points: [x, top, x, bottom],
-                stroke: Settings.gridColor,
-                strokeWidth: Settings.gridLineWidth,
+                stroke: this.settings.gridColor,
+                strokeWidth: this.settings.gridLineWidth,
                 listening: false,
                 perfectDrawEnabled: false,
             }));
         }
 
         // Draw horizontal lines
-        for (let y = top; y <= bottom; y += Settings.gridSize) {
+        for (let y = top; y <= bottom; y += this.settings.gridSize) {
             this.gridLayer.add(new Konva.Line({
                 points: [left, y, right, y],
-                stroke: Settings.gridColor,
-                strokeWidth: Settings.gridLineWidth,
+                stroke: this.settings.gridColor,
+                strokeWidth: this.settings.gridLineWidth,
                 listening: false,
                 perfectDrawEnabled: false,
             }));
@@ -1674,7 +1670,7 @@ export class Renderer {
                 .getLinkExits(this.currentZIndex)
                 .filter(exit => exit.a === room.id || exit.b === room.id);
             exits.forEach(exit => {
-                const render = Settings.highlightCurrentRoom
+                const render = this.settings.highlightCurrentRoom
                     ? this.exitRenderer.renderWithColor(exit, currentRoomColor, this.currentZIndex!)
                     : this.exitRenderer.render(exit, this.currentZIndex!);
                 if (render) {
@@ -1683,14 +1679,14 @@ export class Renderer {
             });
         }
 
-        const highlightColor = Settings.highlightCurrentRoom ? currentRoomColor : undefined;
+        const highlightColor = this.settings.highlightCurrentRoom ? currentRoomColor : undefined;
 
 
         this.exitRenderer.renderSpecialExits(room, highlightColor).forEach(render => {
             preRoomNodes.push(render);
         });
 
-        const stubs = Settings.highlightCurrentRoom
+        const stubs = this.settings.highlightCurrentRoom
             ? this.exitRenderer.renderStubs(room, currentRoomColor)
             : this.exitRenderer.renderStubs(room);
         stubs.forEach(render => {
@@ -1721,7 +1717,7 @@ export class Renderer {
             const overlayRoom = this.createOverlayRoomGroup(
                 roomToRedraw,
                 {
-                    stroke: isCurrent && Settings.highlightCurrentRoom ? currentRoomColor : Settings.lineColor,
+                    stroke: isCurrent && this.settings.highlightCurrentRoom ? currentRoomColor : this.settings.lineColor,
                 }
             );
             this.positionLayer.add(overlayRoom);
@@ -1745,32 +1741,32 @@ export class Renderer {
         stroke: string;
     }) {
         const roomGroup = new Konva.Group({
-            x: room.x - Settings.roomSize / 2,
-            y: room.y - Settings.roomSize / 2,
+            x: room.x - this.settings.roomSize / 2,
+            y: room.y - this.settings.roomSize / 2,
             listening: false,
         });
 
         const fillColor = this.mapReader.getColorValue(room.env);
         const strokeColor = options.stroke;
 
-        const roomShape = Settings.roomShape === "circle"
+        const roomShape = this.settings.roomShape === "circle"
             ? new Konva.Circle({
-                x: Settings.roomSize / 2,
-                y: Settings.roomSize / 2,
-                radius: Settings.roomSize / 2,
+                x: this.settings.roomSize / 2,
+                y: this.settings.roomSize / 2,
+                radius: this.settings.roomSize / 2,
                 fill: fillColor,
                 stroke: strokeColor,
-                strokeWidth: Settings.lineWidth,
+                strokeWidth: this.settings.lineWidth,
             })
             : new Konva.Rect({
                 x: 0,
                 y: 0,
-                width: Settings.roomSize,
-                height: Settings.roomSize,
+                width: this.settings.roomSize,
+                height: this.settings.roomSize,
                 fill: fillColor,
                 stroke: strokeColor,
-                strokeWidth: Settings.lineWidth,
-                cornerRadius: Settings.roomShape === "roundedRectangle" ? Settings.roomSize * 0.2 : 0,
+                strokeWidth: this.settings.lineWidth,
+                cornerRadius: this.settings.roomShape === "roundedRectangle" ? this.settings.roomSize * 0.2 : 0,
             });
 
         roomGroup.add(roomShape);
@@ -1782,7 +1778,7 @@ export class Renderer {
     private renderSymbol(room: MapData.Room, roomRender: Konva.Group) {
         if (room.roomChar !== undefined) {
             // Font size scales with room size: 0.75 is the ratio (at default roomSize 0.6, fontSize is 0.45)
-            const fontSize = Settings.roomSize * 0.75;
+            const fontSize = this.settings.roomSize * 0.75;
             const roomChar = new Konva.Text({
                 x: 0,
                 y: 0,
@@ -1792,8 +1788,8 @@ export class Renderer {
                 fill: this.mapReader.getSymbolColor(room.env),
                 align: "center",
                 verticalAlign: "middle",
-                width: Settings.roomSize,
-                height: Settings.roomSize,
+                width: this.settings.roomSize,
+                height: this.settings.roomSize,
                 perfectDrawEnabled: false,
                 listening: false,
             })
@@ -1812,7 +1808,7 @@ export class Renderer {
             this.addStandaloneExitToSpatialIndex(entry);
         });
 
-        this.standaloneExitBoundsRoomSize = Settings.roomSize;
+        this.standaloneExitBoundsRoomSize = this.settings.roomSize;
 
         // Create a single batched shape for drawing all visible exits
         this.exitBatchShape = new Konva.Shape({
@@ -1895,7 +1891,7 @@ export class Renderer {
 
     private renderLabels(Labels: MapData.Label[]) {
         Labels.forEach(label => {
-            if (Settings.labelRenderMode === "image") {
+            if (this.settings.labelRenderMode === "image") {
                 if (!label.pixMap) {
                     return;
                 }
@@ -1931,7 +1927,7 @@ export class Renderer {
             listening: false,
         });
 
-        if ((label.BgColor?.alpha ?? 0) > 0 && !Settings.transparentLabels) {
+        if ((label.BgColor?.alpha ?? 0) > 0 && !this.settings.transparentLabels) {
             background.fill(this.getLabelColor(label.BgColor));
         } else {
             background.fillEnabled(false);
