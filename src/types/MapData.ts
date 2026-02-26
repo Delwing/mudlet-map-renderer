@@ -56,6 +56,7 @@ declare namespace MapData {
         doors: Record<string, 1 | 2 | 3>;
         specialExits: Record<string, number>;
         exitLocks?: number[];
+        exitWeights?: Record<string, number>;
         mSpecialExitLocks?: number[];
     }
 

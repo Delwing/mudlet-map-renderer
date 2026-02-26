@@ -1,4 +1,4 @@
-import {Renderer, createSettings} from "@src";
+import {Renderer, createSettings, PathFinder} from "@src";
 import type {Settings} from "@src";
 import MapReader from "@src/reader/MapReader";
 import {initControls, initPerfMonitor} from "./controls";
@@ -8,7 +8,6 @@ import {
     getDirectionFromKeyboardEvent,
     getDirectionalExitTarget,
     isEditableElement,
-    findPathBetweenRooms,
 } from "./navigation";
 
 const stageElement = document.getElementById("stage") as HTMLDivElement;
@@ -33,6 +32,7 @@ const colorDataUrl = new URL("./colors.json", import.meta.url).href;
 
 let mapReader!: MapReader;
 let renderer!: Renderer;
+let pathFinder!: PathFinder;
 const settings: Settings = createSettings();
 let currentRoomId!: number;
 let destinationRoomId: number | undefined;
@@ -110,7 +110,7 @@ function updateDestinationGuidance() {
         return;
     }
 
-    const path = findPathBetweenRooms(currentRoomId, destinationRoomId, mapReader);
+    const path = pathFinder.findPath(currentRoomId, destinationRoomId) ?? undefined;
     if (path) renderer.renderPath(path, 'green');
     renderer.clearPaths();
 
@@ -148,15 +148,16 @@ async function initialize() {
         return;
     }
 
+    pathFinder = new PathFinder(mapReader);
     renderer = new Renderer(stageElement, mapReader, settings);
 
     // Controls & perf
-    const {explorationToggle} = initControls(settings, renderer, () => currentRoomId);
+    const {explorationToggle} = initControls(settings, renderer, () => currentRoomId, pathFinder, updateDestinationGuidance);
     initPerfMonitor(settings);
     initContextMenu(stageElement, renderer, mapReader, moveToRoom, (msg) => updateStatus(roomStatusElement, msg));
 
     // Walker
-    walker = new Walker(mapReader, walkerStatusElement, walkerToggleButton, {
+    walker = new Walker(mapReader, pathFinder, walkerStatusElement, walkerToggleButton, {
         getCurrentRoomId: () => currentRoomId,
         moveToRoom,
         getDestinationRoomId: () => destinationRoomId,

@@ -10,7 +10,9 @@
       "Bash(node -e:*)",
       "Bash(node:*)",
       "mcp__ide__getDiagnostics",
-      "Bash(npx vite build:*)"
+      "Bash(npx vite build:*)",
+      "Bash(xargs grep:*)",
+      "Bash(python3:*)"
     ],
     "deny": [],
     "ask": []

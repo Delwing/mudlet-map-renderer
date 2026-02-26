@@ -1,5 +1,5 @@
-import {Renderer, CullingMode, RoomShape} from "@src";
-import type {Settings, LabelRenderMode, PerfSnapshot} from "@src";
+import {Renderer, CullingMode, RoomShape, PathFinder} from "@src";
+import type {Settings, LabelRenderMode, PerfSnapshot, PathFindingAlgorithm} from "@src";
 
 function rgbToHex(rgb: string): string {
     const match = rgb.match(/(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
@@ -19,7 +19,7 @@ function describeCullingMode(mode: CullingMode) {
     }
 }
 
-export function initControls(settings: Settings, renderer: Renderer, getCurrentRoomId: () => number) {
+export function initControls(settings: Settings, renderer: Renderer, getCurrentRoomId: () => number, pathFinder?: PathFinder, onAlgorithmChange?: () => void) {
     const explorationToggle = document.getElementById("exploration-toggle") as HTMLInputElement | null;
     const instantMoveToggle = document.getElementById("instant-move-toggle") as HTMLInputElement | null;
     const highlightToggle = document.getElementById("highlight-toggle") as HTMLInputElement | null;
@@ -45,6 +45,7 @@ export function initControls(settings: Settings, renderer: Renderer, getCurrentR
     const playerMarkerStrokeWidthValue = document.getElementById("player-marker-stroke-width-value") as HTMLSpanElement | null;
     const playerMarkerSize = document.getElementById("player-marker-size") as HTMLInputElement | null;
     const playerMarkerSizeValue = document.getElementById("player-marker-size-value") as HTMLSpanElement | null;
+    const pathfindingAlgorithmSelect = document.getElementById("pathfinding-algorithm") as HTMLSelectElement | null;
     const playerMarkerDashEnabled = document.getElementById("player-marker-dash-enabled") as HTMLInputElement | null;
 
     const updateCullingStatus = () => {
@@ -91,6 +92,7 @@ export function initControls(settings: Settings, renderer: Renderer, getCurrentR
         playerMarkerSizeValue.textContent = settings.playerMarker.sizeFactor.toFixed(2);
     }
     if (playerMarkerDashEnabled) playerMarkerDashEnabled.checked = settings.playerMarker.dashEnabled;
+    if (pathfindingAlgorithmSelect && pathFinder) pathfindingAlgorithmSelect.value = pathFinder.algorithm;
 
     updateCullingStatus();
 
@@ -118,6 +120,13 @@ export function initControls(settings: Settings, renderer: Renderer, getCurrentR
     cullingModeSelect?.addEventListener("change", () => {
         renderer.setCullingMode((cullingModeSelect.value ?? "indexed") as CullingMode);
         updateCullingStatus();
+    });
+
+    pathfindingAlgorithmSelect?.addEventListener("change", () => {
+        if (pathFinder) {
+            pathFinder.setAlgorithm((pathfindingAlgorithmSelect.value ?? "bfs") as PathFindingAlgorithm);
+            onAlgorithmChange?.();
+        }
     });
 
     backgroundColorInput?.addEventListener("input", () => {

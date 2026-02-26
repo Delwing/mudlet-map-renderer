@@ -1,5 +1,6 @@
 import MapReader from "@src/reader/MapReader";
-import {getRoomExits, findPathBetweenRooms} from "./navigation";
+import PathFinder from "@src/PathFinder";
+import {getRoomExits} from "./navigation";
 
 const PREFERRED_PATH_PROBABILITY = 0.7;
 
@@ -13,6 +14,7 @@ export type WalkerCallbacks = {
 
 export class Walker {
     private readonly mapReader: MapReader;
+    private readonly pathFinder: PathFinder;
     private readonly walkerStatusElement: HTMLDivElement;
     private readonly walkerToggleButton: HTMLButtonElement | null;
     private readonly callbacks: WalkerCallbacks;
@@ -21,11 +23,13 @@ export class Walker {
 
     constructor(
         mapReader: MapReader,
+        pathFinder: PathFinder,
         walkerStatusElement: HTMLDivElement,
         walkerToggleButton: HTMLButtonElement | null,
         callbacks: WalkerCallbacks,
     ) {
         this.mapReader = mapReader;
+        this.pathFinder = pathFinder;
         this.walkerStatusElement = walkerStatusElement;
         this.walkerToggleButton = walkerToggleButton;
         this.callbacks = callbacks;
@@ -166,7 +170,7 @@ export class Walker {
             return undefined;
         }
 
-        const path = findPathBetweenRooms(fromRoomId, destinationRoomId, this.mapReader);
+        const path = this.pathFinder.findPath(fromRoomId, destinationRoomId);
         if (!path || path.length < 2) return undefined;
         this.callbacks.setDestinationPath(path);
         return path[1];
