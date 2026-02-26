@@ -700,8 +700,10 @@ export class Renderer {
         this.renderExits(area.getLinkExits(zIndex));
         this.renderRooms(plane.getRooms() ?? []);
         this.refreshHighlights();
+        // Run culling synchronously so visibleExitDrawData is populated
+        // before the first paint, preventing a 1-frame blink.
+        this.updateRoomCulling();
         this.stage.batchDraw();
-        this.scheduleRoomCulling();
     }
 
     private computeSpatialBucketSize() {
