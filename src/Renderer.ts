@@ -554,19 +554,17 @@ export class Renderer {
             }
 
             const newZoom = direction > 0 ? this.currentZoom * scaleBy : this.currentZoom / scaleBy;
-            const newScale = newZoom * defaultZoom;
             const zoomChanged = this.setZoom(newZoom);
 
-            const newPos = {
-                x: pointer.x - mousePointTo.x * newScale,
-                y: pointer.y - mousePointTo.y * newScale,
-            };
-
-            this.stage.position(newPos);
-
-            this.scheduleRoomCulling();
-
             if (zoomChanged) {
+                const newScale = this.stage.scaleX();
+                const newPos = {
+                    x: pointer.x - mousePointTo.x * newScale,
+                    y: pointer.y - mousePointTo.y * newScale,
+                };
+
+                this.stage.position(newPos);
+                this.scheduleRoomCulling();
                 this.emitZoomChangeEvent();
             }
         });
@@ -645,22 +643,20 @@ export class Renderer {
 
             const zoomChanged = this.setZoom(newZoom);
 
-            const newScale = this.stage.scaleX();
-            const newPos = {
-                x: centerPointer.x - centerMapPoint.x * newScale,
-                y: centerPointer.y - centerMapPoint.y * newScale,
-            };
-
-            this.stage.position(newPos);
-            this.stage.batchDraw();
-
-            this.scheduleRoomCulling();
-
-            lastPinchDistance = distance;
-
             if (zoomChanged) {
+                const newScale = this.stage.scaleX();
+                const newPos = {
+                    x: centerPointer.x - centerMapPoint.x * newScale,
+                    y: centerPointer.y - centerMapPoint.y * newScale,
+                };
+
+                this.stage.position(newPos);
+                this.stage.batchDraw();
+                this.scheduleRoomCulling();
                 this.emitZoomChangeEvent();
             }
+
+            lastPinchDistance = distance;
         });
     }
 
@@ -836,11 +832,12 @@ export class Renderer {
     }
 
     setZoom(zoom: number): boolean {
-        if (this.currentZoom === zoom) {
+        const clamped = Math.max(0.05, Math.min(5, zoom));
+        if (this.currentZoom === clamped) {
             return false;
         }
 
-        this.currentZoom = Math.max(0.1, Math.min(5, zoom));
+        this.currentZoom = clamped;
         this.stage.scale({x: defaultZoom * this.currentZoom, y: defaultZoom * this.currentZoom});
         this.scheduleRoomCulling();
 
@@ -852,7 +849,8 @@ export class Renderer {
      * Use this for UI controls (buttons, menus) where there's no mouse position.
      */
     zoomToCenter(zoom: number): boolean {
-        if (this.currentZoom === zoom) {
+        const clamped = Math.max(0.1, Math.min(5, zoom));
+        if (this.currentZoom === clamped) {
             return false;
         }
 
@@ -871,8 +869,8 @@ export class Renderer {
         };
 
         // Apply new zoom
-        this.currentZoom = zoom;
-        const newScale = defaultZoom * zoom;
+        this.currentZoom = clamped;
+        const newScale = defaultZoom * clamped;
         this.stage.scale({ x: newScale, y: newScale });
 
         // Calculate new position to keep center point at center

@@ -152,22 +152,27 @@ export class AreaMapRenderer {
             const direction = e.evt.deltaY > 0 ? -1 : 1;
             const newZoom = direction > 0 ? this.currentZoom * scaleBy : this.currentZoom / scaleBy;
 
-            this.setZoom(newZoom);
+            if (this.setZoom(newZoom)) {
+                const newScale = this.stage.scaleX();
+                const newPos = {
+                    x: pointer.x - mousePointTo.x * newScale,
+                    y: pointer.y - mousePointTo.y * newScale,
+                };
 
-            const newScale = this.stage.scaleX();
-            const newPos = {
-                x: pointer.x - mousePointTo.x * newScale,
-                y: pointer.y - mousePointTo.y * newScale,
-            };
-
-            this.stage.position(newPos);
-            this.stage.batchDraw();
+                this.stage.position(newPos);
+                this.stage.batchDraw();
+            }
         });
     }
 
-    setZoom(zoom: number) {
-        this.currentZoom = Math.max(0.1, Math.min(5, zoom));
+    setZoom(zoom: number): boolean {
+        const clamped = Math.max(0.1, Math.min(5, zoom));
+        if (this.currentZoom === clamped) {
+            return false;
+        }
+        this.currentZoom = clamped;
         this.stage.scale({x: this.currentZoom, y: this.currentZoom});
+        return true;
     }
 
     getZoom() {
