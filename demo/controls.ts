@@ -19,7 +19,7 @@ function describeCullingMode(mode: CullingMode) {
     }
 }
 
-export function initControls(settings: Settings, renderer: Renderer, getCurrentRoomId: () => number, pathFinder?: PathFinder, onAlgorithmChange?: () => void) {
+export function initControls(settings: Settings, renderer: Renderer, getCurrentRoomId: () => number, pathFinder?: PathFinder, onAlgorithmChange?: () => void, onPathColorChange?: (color: string) => void) {
     const explorationToggle = document.getElementById("exploration-toggle") as HTMLInputElement | null;
     const instantMoveToggle = document.getElementById("instant-move-toggle") as HTMLInputElement | null;
     const highlightToggle = document.getElementById("highlight-toggle") as HTMLInputElement | null;
@@ -46,6 +46,7 @@ export function initControls(settings: Settings, renderer: Renderer, getCurrentR
     const playerMarkerSize = document.getElementById("player-marker-size") as HTMLInputElement | null;
     const playerMarkerSizeValue = document.getElementById("player-marker-size-value") as HTMLSpanElement | null;
     const pathfindingAlgorithmSelect = document.getElementById("pathfinding-algorithm") as HTMLSelectElement | null;
+    const pathColorInput = document.getElementById("path-color") as HTMLInputElement | null;
     const playerMarkerDashEnabled = document.getElementById("player-marker-dash-enabled") as HTMLInputElement | null;
 
     const updateCullingStatus = () => {
@@ -204,6 +205,10 @@ export function initControls(settings: Settings, renderer: Renderer, getCurrentR
     playerMarkerDashEnabled?.addEventListener("change", () => {
         settings.playerMarker.dashEnabled = playerMarkerDashEnabled.checked;
         renderer.setPosition(getCurrentRoomId());
+    });
+
+    pathColorInput?.addEventListener("input", () => {
+        onPathColorChange?.(pathColorInput.value);
     });
 
     return { explorationToggle, updateCullingStatus };

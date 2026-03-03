@@ -37,6 +37,7 @@ const settings: Settings = createSettings();
 let currentRoomId!: number;
 let destinationRoomId: number | undefined;
 let currentDestinationPath: number[] | undefined;
+let pathColor = '#66E64D';
 let walker!: Walker;
 
 // --- Helpers ---
@@ -126,7 +127,7 @@ function updateDestinationGuidance() {
         return;
     }
 
-    renderer.renderPath(path);
+    renderer.renderPath(path, pathColor);
     updateStatus(destinationStatusElement, `Biasing towards room ${destinationRoomId} (${path.length - 1} steps away).`);
     currentDestinationPath = path;
 }
@@ -152,7 +153,13 @@ async function initialize() {
     renderer = new Renderer(stageElement, mapReader, settings);
 
     // Controls & perf
-    const {explorationToggle} = initControls(settings, renderer, () => currentRoomId, pathFinder, updateDestinationGuidance);
+    const {explorationToggle} = initControls(settings, renderer, () => currentRoomId, pathFinder, updateDestinationGuidance, (color) => {
+        pathColor = color;
+        if (currentDestinationPath) {
+            renderer.clearPaths();
+            renderer.renderPath(currentDestinationPath, pathColor);
+        }
+    });
     initPerfMonitor(settings);
     initContextMenu(stageElement, renderer, mapReader, moveToRoom, (msg) => updateStatus(roomStatusElement, msg));
 
