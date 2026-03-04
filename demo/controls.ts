@@ -48,6 +48,12 @@ export function initControls(settings: Settings, renderer: Renderer, getCurrentR
     const pathfindingAlgorithmSelect = document.getElementById("pathfinding-algorithm") as HTMLSelectElement | null;
     const pathColorInput = document.getElementById("path-color") as HTMLInputElement | null;
     const playerMarkerDashEnabled = document.getElementById("player-marker-dash-enabled") as HTMLInputElement | null;
+    const frameModeToggle = document.getElementById("frame-mode-toggle") as HTMLInputElement | null;
+    const embossToggle = document.getElementById("emboss-toggle") as HTMLInputElement | null;
+    const areaNameToggle = document.getElementById("area-name-toggle") as HTMLInputElement | null;
+    const uniformLevelSizeToggle = document.getElementById("uniform-level-size-toggle") as HTMLInputElement | null;
+    const savePngBtn = document.getElementById("save-png-btn") as HTMLButtonElement | null;
+    const saveSvgBtn = document.getElementById("save-svg-btn") as HTMLButtonElement | null;
 
     const updateCullingStatus = () => {
         if (!cullingStatusElement) return;
@@ -94,6 +100,10 @@ export function initControls(settings: Settings, renderer: Renderer, getCurrentR
     }
     if (playerMarkerDashEnabled) playerMarkerDashEnabled.checked = settings.playerMarker.dashEnabled;
     if (pathfindingAlgorithmSelect && pathFinder) pathfindingAlgorithmSelect.value = pathFinder.algorithm;
+    if (frameModeToggle) frameModeToggle.checked = settings.frameMode;
+    if (embossToggle) embossToggle.checked = settings.emboss;
+    if (areaNameToggle) areaNameToggle.checked = settings.areaName;
+    if (uniformLevelSizeToggle) uniformLevelSizeToggle.checked = settings.uniformLevelSize;
 
     updateCullingStatus();
 
@@ -209,6 +219,50 @@ export function initControls(settings: Settings, renderer: Renderer, getCurrentR
 
     pathColorInput?.addEventListener("input", () => {
         onPathColorChange?.(pathColorInput.value);
+    });
+
+    frameModeToggle?.addEventListener("change", () => {
+        settings.frameMode = frameModeToggle.checked;
+        renderer.refresh();
+    });
+
+    embossToggle?.addEventListener("change", () => {
+        settings.emboss = embossToggle.checked;
+        renderer.refresh();
+    });
+
+    areaNameToggle?.addEventListener("change", () => {
+        settings.areaName = areaNameToggle.checked;
+        renderer.refresh();
+    });
+
+    uniformLevelSizeToggle?.addEventListener("change", () => {
+        settings.uniformLevelSize = uniformLevelSizeToggle.checked;
+        renderer.refresh();
+    });
+
+    savePngBtn?.addEventListener("click", async () => {
+        const blob = renderer.exportPngBlob({ pixelRatio: 2 });
+        if (!blob) return;
+        const resolved = await blob;
+        const url = URL.createObjectURL(resolved);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `map-${Date.now()}.png`;
+        a.click();
+        URL.revokeObjectURL(url);
+    });
+
+    saveSvgBtn?.addEventListener("click", () => {
+        const svg = renderer.exportSvg();
+        if (!svg) return;
+        const blob = new Blob([svg], { type: "image/svg+xml" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `map-${Date.now()}.svg`;
+        a.click();
+        URL.revokeObjectURL(url);
     });
 
     return { explorationToggle, updateCullingStatus };

@@ -39,8 +39,27 @@ export default class Area {
         return Object.values(this.planes);
     }
 
+    getZLevels(): number[] {
+        return Object.keys(this.planes).map(Number).sort((a, b) => a - b);
+    }
+
     getRooms() {
         return this.area.rooms
+    }
+
+    getFullBounds(): { minX: number; maxX: number; minY: number; maxY: number } {
+        return this.getPlanes().reduce(
+            (acc, plane) => {
+                const b = plane.getBounds();
+                return {
+                    minX: Math.min(acc.minX, b.minX),
+                    maxX: Math.max(acc.maxX, b.maxX),
+                    minY: Math.min(acc.minY, b.minY),
+                    maxY: Math.max(acc.maxY, b.maxY),
+                };
+            },
+            { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity }
+        );
     }
 
     getLinkExits(zIndex: number) {

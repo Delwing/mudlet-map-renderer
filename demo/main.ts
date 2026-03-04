@@ -15,6 +15,7 @@ const statusElement = document.getElementById("status") as HTMLDivElement;
 const walkerStatusElement = document.getElementById("walker-status") as HTMLDivElement;
 const walkerToggleButton = document.getElementById("walker-toggle") as HTMLButtonElement | null;
 const areaSelect = document.getElementById("area-select") as HTMLSelectElement | null;
+const levelSelect = document.getElementById("level-select") as HTMLSelectElement | null;
 const roomForm = document.getElementById("room-form") as HTMLFormElement | null;
 const roomInput = document.getElementById("room-input") as HTMLInputElement | null;
 const roomStatusElement = document.getElementById("room-status") as HTMLDivElement | null;
@@ -61,6 +62,7 @@ function moveToRoom(room: MapData.Room) {
     renderer.setPosition(room.id);
     updateAreaStatus(room.area);
     updateAreaSelector();
+    populateLevelSelector(room.area, room.z);
     updateDestinationGuidance();
 }
 
@@ -102,6 +104,22 @@ function updateAreaSelector() {
     if (!areaSelect) return;
     const currentRoom = mapReader.getRoom(currentRoomId);
     if (currentRoom) areaSelect.value = currentRoom.area.toString();
+}
+
+function populateLevelSelector(areaId: number, selectedZ?: number) {
+    if (!levelSelect) return;
+    const area = mapReader.getArea(areaId);
+    if (!area) return;
+    const levels = area.getZLevels();
+    levelSelect.innerHTML = "";
+    for (const z of levels) {
+        const option = document.createElement("option");
+        option.value = z.toString();
+        option.textContent = `Z: ${z}`;
+        levelSelect.appendChild(option);
+    }
+    const target = selectedZ ?? (levels.includes(0) ? 0 : levels[0]);
+    if (target !== undefined) levelSelect.value = target.toString();
 }
 
 function updateDestinationGuidance() {
@@ -216,11 +234,24 @@ async function initialize() {
         if (isNaN(areaId)) return;
         const area = mapReader.getArea(areaId);
         if (!area) return;
-        const rooms = area.getRooms();
-        if (!rooms || rooms.length === 0) return;
-        const targetRoom = rooms.find(r => r.z === 0) ?? rooms[0];
-        moveToRoom(targetRoom);
+        const levels = area.getZLevels();
+        const z = levels.includes(0) ? 0 : levels[0] ?? 0;
+        populateLevelSelector(areaId, z);
+        renderer.clearPosition();
+        renderer.drawArea(areaId, z);
+        renderer.fitArea();
+        updateAreaStatus(areaId);
         updateStatus(roomStatusElement, `Switched to area: ${area.getAreaName()}`);
+    });
+
+    levelSelect?.addEventListener("change", () => {
+        const z = parseInt(levelSelect.value, 10);
+        if (isNaN(z)) return;
+        const areaId = parseInt(areaSelect?.value ?? "", 10);
+        if (isNaN(areaId)) return;
+        renderer.clearPosition();
+        renderer.drawArea(areaId, z);
+        renderer.fitArea();
     });
 
     explorationToggle?.addEventListener("change", () => {
@@ -307,6 +338,26 @@ async function initialize() {
             ? `Manual move ${direction} to room ${nextRoom.id}. Walker continues.`
             : `Moved ${direction} to room ${nextRoom.id}.`;
     });
+
+    // Area exit arrow click → navigate to the target room's area
+    stageElement.addEventListener("areaexitclick", ((event: CustomEvent) => {
+        const targetRoomId = event.detail?.targetRoomId;
+        if (typeof targetRoomId !== 'number') return;
+        const room = mapReader.getRoom(targetRoomId);
+        if (!room) {
+            updateStatus(roomStatusElement, `Target room ${targetRoomId} not found.`);
+            return;
+        }
+        const area = mapReader.getArea(room.area);
+        if (!area) return;
+        populateLevelSelector(room.area, room.z);
+        renderer.clearPosition();
+        renderer.centerOn(targetRoomId);
+        if (areaSelect) areaSelect.value = room.area.toString();
+        if (levelSelect) levelSelect.value = room.z.toString();
+        updateAreaStatus(room.area);
+        updateStatus(roomStatusElement, `Navigated to area: ${area.getAreaName()}`);
+    }) as EventListener);
 }
 
 void initialize();

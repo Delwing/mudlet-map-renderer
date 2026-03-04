@@ -5,9 +5,9 @@ export default class Plane {
     private readonly labels: MapData.Label[] = [];
 
     constructor(rooms: MapData.Room[], labels: MapData.Label[]) {
-        this.rooms = rooms
+        this.rooms = rooms;
+        this.labels = labels;
         this.bounds = this.createBounds();
-        this.labels = labels
     }
 
     getRooms() {
@@ -23,7 +23,7 @@ export default class Plane {
     }
 
     private createBounds() {
-        return this.rooms.reduce(
+        const b = this.rooms.reduce(
             (acc, r) => ({
                 minX: Math.min(acc.minX, r.x),
                 maxX: Math.max(acc.maxX, r.x),
@@ -37,6 +37,15 @@ export default class Plane {
                 maxY: Number.NEGATIVE_INFINITY,
             }
         );
+        for (const label of this.labels) {
+            const lx = label.X;
+            const ly = -label.Y;
+            b.minX = Math.min(b.minX, lx);
+            b.maxX = Math.max(b.maxX, lx + label.Width);
+            b.minY = Math.min(b.minY, ly);
+            b.maxY = Math.max(b.maxY, ly + label.Height);
+        }
+        return b;
     }
 
 }

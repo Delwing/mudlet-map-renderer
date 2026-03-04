@@ -1,4 +1,4 @@
-import Exit, {longToShort, regularExits} from "./reader/Exit";
+import Exit, {longToShort, shortTolong, regularExits} from "./reader/Exit";
 import MapReader from "./reader/MapReader";
 import Konva from "konva";
 import type {Settings} from "./Renderer";
@@ -43,6 +43,8 @@ export type ExitDrawData = {
     arrows: ExitDrawArrow[];
     doors: ExitDrawDoor[];
     bounds: { x: number; y: number; width: number; height: number };
+    /** Set when this exit leads to a room in a different area (cross-area exit). */
+    targetRoomId?: number;
 };
 
 const dirNumbers: Record<number, MapData.direction> = {
@@ -76,10 +78,10 @@ function getDoorColor(doorType: 1 | 2 | 3) {
 export default class ExitRenderer {
 
     private mapReader: MapReader;
-    private mapRenderer: Renderer;
+    private mapRenderer: Renderer | null;
     private readonly settings: Settings;
 
-    constructor(mapReader: MapReader, mapRenderer: Renderer, settings: Settings) {
+    constructor(mapReader: MapReader, mapRenderer: Renderer | null, settings: Settings) {
         this.mapReader = mapReader;
         this.mapRenderer = mapRenderer;
         this.settings = settings;
@@ -149,7 +151,11 @@ export default class ExitRenderer {
         const maxX = Math.max(points[0], points[2]);
         const minY = Math.min(points[1], points[3]);
         const maxY = Math.max(points[1], points[3]);
-        return { lines, arrows: [], doors, bounds: { x: minX, y: minY, width: maxX - minX, height: maxY - minY } };
+        // If rooms are on different z-levels, make the exit clickable to navigate to the other z
+        const crossZTarget = sourceRoom.z !== targetRoom.z
+            ? (sourceRoom.z === zIndex ? targetRoom.id : sourceRoom.id)
+            : undefined;
+        return { lines, arrows: [], doors, bounds: { x: minX, y: minY, width: maxX - minX, height: maxY - minY }, targetRoomId: crossZTarget };
     }
 
     private renderOneWayExitData(exit: Exit, color: string, fromSide?: 'a' | 'b'): ExitDrawData | undefined {
@@ -174,11 +180,13 @@ export default class ExitRenderer {
                 }],
                 doors: [],
                 bounds: { x: Math.min(start.x, end.x), y: Math.min(start.y, end.y), width: Math.abs(end.x - start.x), height: Math.abs(end.y - start.y) },
+                targetRoomId: targetRoom.id,
             };
         }
 
+        const isCrossZone = targetRoom.area !== sourceRoom.area || targetRoom.z !== sourceRoom.z;
         let targetPoint = { x: targetRoom.x, y: targetRoom.y };
-        if (targetRoom.area !== sourceRoom.area || targetRoom.z !== sourceRoom.z) {
+        if (isCrossZone) {
             targetPoint = movePoint(sourceRoom.x, sourceRoom.y, dir, this.settings.roomSize / 2);
         }
 
@@ -206,6 +214,7 @@ export default class ExitRenderer {
             }],
             doors: [],
             bounds: { x: minX, y: minY, width: maxX - minX, height: maxY - minY },
+            ...(isCrossZone ? { targetRoomId: targetRoom.id } : {}),
         };
     }
 
@@ -388,6 +397,37 @@ export default class ExitRenderer {
         })
     }
 
+    /**
+     * Returns hit-zone bounds for special exits (custom lines) that lead to rooms in another area.
+     */
+    getSpecialExitAreaTargets(room: MapData.Room): { bounds: { x: number; y: number; width: number; height: number }; targetRoomId: number }[] {
+        const results: { bounds: { x: number; y: number; width: number; height: number }; targetRoomId: number }[] = [];
+        for (const [dir, line] of Object.entries(room.customLines)) {
+            // customLines keys can be short direction codes ("n","ne") or arbitrary special exit names ("portal_1")
+            let targetId: number | undefined = room.specialExits[dir];
+            if (targetId === undefined) {
+                const longDir = shortTolong[dir];
+                if (longDir) {
+                    targetId = room.exits[longDir] ?? room.specialExits[longDir];
+                }
+            }
+            if (targetId === undefined) continue;
+            const targetRoom = this.mapReader.getRoom(targetId);
+            if (!targetRoom || (targetRoom.area === room.area && targetRoom.z === room.z)) continue;
+            const points = [room.x, room.y];
+            line.points.reduce((acc, point) => { acc.push(point.x, -point.y); return acc; }, points);
+            let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+            for (let i = 0; i < points.length; i += 2) {
+                minX = Math.min(minX, points[i]);
+                maxX = Math.max(maxX, points[i]);
+                minY = Math.min(minY, points[i + 1]);
+                maxY = Math.max(maxY, points[i + 1]);
+            }
+            results.push({ bounds: { x: minX, y: minY, width: maxX - minX, height: maxY - minY }, targetRoomId: targetId });
+        }
+        return results;
+    }
+
     renderStubs(room: MapData.Room, color: string = this.settings.lineColor) {
         return room.stubs.map(stub => {
             const direction = dirNumbers[stub];
@@ -404,6 +444,13 @@ export default class ExitRenderer {
         })
     }
 
+    private getSymbolColor(envId: number, opacity?: number): string {
+        if (this.settings.frameMode) {
+            return this.mapReader.getColorValue(envId);
+        }
+        return this.mapReader.getSymbolColor(envId, opacity);
+    }
+
     renderInnerExits(room: MapData.Room) {
         return innerExits.map(exit => {
             if (room.exits[exit]) {
@@ -412,8 +459,8 @@ export default class ExitRenderer {
                     x: room.x,
                     y: room.y,
                     sides: 3,
-                    fill: this.mapReader.getSymbolColor(room.env, 0.6),
-                    stroke: this.mapReader.getSymbolColor(room.env),
+                    fill: this.getSymbolColor(room.env, 0.6),
+                    stroke: this.getSymbolColor(room.env),
                     strokeWidth: this.settings.lineWidth,
                     radius: this.settings.roomSize / 5,
                     scaleX: 1.4,

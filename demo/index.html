@@ -217,6 +217,10 @@
             <select id="area-select"></select>
         </label>
         <label class="select-label">
+            <span>Level (Z)</span>
+            <select id="level-select"></select>
+        </label>
+        <label class="select-label">
             <span>Room shape</span>
             <select id="room-shape">
                 <option value="rectangle">Rectangle</option>
@@ -270,6 +274,26 @@
             <input type="checkbox" id="transparent-labels-toggle">
             Transparent label backgrounds
         </label>
+        <label>
+            <input type="checkbox" id="frame-mode-toggle">
+            Frame mode
+        </label>
+        <label>
+            <input type="checkbox" id="emboss-toggle">
+            Emboss effect
+        </label>
+        <label>
+            <input type="checkbox" id="area-name-toggle">
+            Area name header
+        </label>
+        <label>
+            <input type="checkbox" id="uniform-level-size-toggle">
+            Uniform level size
+        </label>
+        <div style="display: flex; gap: 0.35rem; margin-top: 0.25rem;">
+            <button type="button" id="save-png-btn">Save PNG</button>
+            <button type="button" id="save-svg-btn">Save SVG</button>
+        </div>
         <details>
             <summary style="cursor: pointer; font-weight: 600; margin-top: 0.5rem;">Player Marker</summary>
             <div style="margin-top: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">

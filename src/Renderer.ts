@@ -4,14 +4,35 @@ import type {ExitDrawData} from "./ExitRenderer";
 import MapReader from "./reader/MapReader";
 import Exit from "./reader/Exit";
 import Area from "./reader/Area";
+import Plane from "./reader/Plane";
 import ExplorationArea from "./reader/ExplorationArea";
 import PathRenderer from "./PathRenderer";
+import {SvgExporter} from "./SvgExporter";
+import type {SvgExportOptions} from "./SvgExporter";
+import type {MapRenderer} from "./MapRenderer";
 
 const defaultRoomSize = 0.6;
 const defaultZoom = 75
 const defaultLineWidth = 0.025;
 const lineColor = 'rgb(225, 255, 225)';
 const currentRoomColor = 'rgb(120, 72, 0)';
+
+export function colorLightness(color: string): number {
+    let r: number, g: number, b: number;
+    const rgbMatch = color.match(/(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
+    if (rgbMatch) {
+        r = parseInt(rgbMatch[1]) / 255;
+        g = parseInt(rgbMatch[2]) / 255;
+        b = parseInt(rgbMatch[3]) / 255;
+    } else if (color.startsWith('#') && color.length >= 7) {
+        r = parseInt(color.slice(1, 3), 16) / 255;
+        g = parseInt(color.slice(3, 5), 16) / 255;
+        b = parseInt(color.slice(5, 7), 16) / 255;
+    } else {
+        return 0.5;
+    }
+    return (Math.max(r, g, b) + Math.min(r, g, b)) / 2;
+}
 
 export type PerfSnapshot = {
     /** Total updateRoomCulling time in ms */
@@ -96,7 +117,7 @@ function hexToRgba(hex: string, alpha: number): string {
     return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
-export type LabelRenderMode = "image" | "data";
+export type LabelRenderMode = "image" | "data" | "none";
 
 export type CullingMode = "none" | "basic" | "indexed";
 
@@ -115,6 +136,20 @@ export type RoomClickEventDetail = {
 export type ZoomChangeEventDetail = {
     zoom: number;
 };
+
+export type AreaExitClickEventDetail = {
+    targetRoomId: number;
+    position: { x: number; y: number };
+};
+
+export type ViewportBounds = {
+    minX: number;
+    maxX: number;
+    minY: number;
+    maxY: number;
+};
+
+export type PanEventDetail = ViewportBounds;
 
 /**
  * Style configuration for the player position marker.
@@ -214,6 +249,18 @@ export type Settings = {
     gridLineWidth: number;
     /** Performance monitoring callback, or null to disable. */
     perfCallback: ((stats: PerfSnapshot) => void) | null;
+    /** Whether to draw borders (strokes) on rooms. Default: true */
+    borders: boolean;
+    /** When true, rooms use frame rendering: fill=backgroundColor, stroke=envColor. Default: false */
+    frameMode: boolean;
+    /** When true, rooms display a 3D emboss effect (rectangle/roundedRectangle only). Default: false */
+    emboss: boolean;
+    /** When true, displays the area name as a header text on the map. Default: false */
+    areaName: boolean;
+    /** Font family for the area name header. Default: 'sans-serif' */
+    fontFamily: string;
+    /** When true, uses bounds from all z-levels for viewport sizing, not just the current level. Default: false */
+    uniformLevelSize: boolean;
 };
 
 /** Creates a new Settings object with default values. */
@@ -243,9 +290,15 @@ export function createSettings(): Settings {
         },
         gridEnabled: false,
         gridSize: 1,
-        gridColor: 'rgba(255, 255, 255, 0.07)',
-        gridLineWidth: 0.02,
+        gridColor: 'rgba(200, 200, 200, 0.15)',
+        gridLineWidth: 0.03,
         perfCallback: null,
+        borders: true,
+        frameMode: false,
+        emboss: false,
+        areaName: true,
+        fontFamily: 'sans-serif',
+        uniformLevelSize: false,
     };
 }
 
@@ -258,9 +311,10 @@ type HighlightData = {
 
 type RoomNodeEntry = { room: MapData.Room; group: Konva.Group };
 type Bounds = { x: number; y: number; width: number; height: number };
-type StandaloneExitEntry = { data: ExitDrawData; bounds: Bounds };
+type StandaloneExitEntry = { data: ExitDrawData; bounds: Bounds; targetRoomId?: number };
+type AreaExitHitZone = { bounds: Bounds; targetRoomId: number };
 
-export class Renderer {
+export class Renderer implements MapRenderer {
 
     private readonly stage: Konva.Stage;
     private readonly gridLayer: Konva.Layer;
@@ -269,7 +323,7 @@ export class Renderer {
     private readonly overlayLayer: Konva.Layer;
     private readonly positionLayer: Konva.Layer;
     private mapReader: MapReader;
-    private readonly settings: Settings;
+    readonly settings: Settings;
     private exitRenderer: ExitRenderer;
     private pathRenderer: PathRenderer;
     private highlights: Map<number, HighlightData> = new Map();
@@ -286,6 +340,8 @@ export class Renderer {
 
     /** When true, resizing the container will center on the current room. Set to false for static map views. */
     public centerOnResize: boolean = true;
+    /** Minimum zoom level, updated by fitArea() to prevent zooming out beyond the full area view. */
+    public minZoom: number = 0.05;
     private standaloneExitNodes: StandaloneExitEntry[] = [];
     private spatialBucketSize = 5;
     private roomSpatialIndex: Map<number, Set<RoomNodeEntry>> = new Map();
@@ -301,6 +357,7 @@ export class Renderer {
     private cullingScheduled = false;
     private perfMonitor = new PerfMonitor();
     private exitBatchShape?: Konva.Shape;
+    private areaExitHitZones: AreaExitHitZone[] = [];
     private visibleExitDrawData: ExitDrawData[] = [];
     private cachedGridBounds: { left: number; right: number; top: number; bottom: number } | null = null;
 
@@ -345,8 +402,14 @@ export class Renderer {
         const scaleBy = 1.1;
         this.initScaling(scaleBy);
 
-        this.stage.on('dragmove', () => this.scheduleRoomCulling());
-        this.stage.on('dragend', () => this.scheduleRoomCulling());
+        this.stage.on('dragmove', () => {
+            this.scheduleRoomCulling();
+            this.emitPanEvent();
+        });
+        this.stage.on('dragend', () => {
+            this.scheduleRoomCulling();
+            this.emitPanEvent();
+        });
         this.initRoomHitDetection();
     }
 
@@ -389,16 +452,29 @@ export class Renderer {
         const container = this.stage.container();
         let hoveredRoom: MapData.Room | null = null;
 
+        let hoveredAreaExit = false;
+
         container.addEventListener('mousemove', (e) => {
             const room = this.findRoomAtClientPoint(e.clientX, e.clientY);
             if (room !== hoveredRoom) {
                 hoveredRoom = room;
-                container.style.cursor = room ? 'pointer' : 'auto';
+                if (room) {
+                    hoveredAreaExit = false;
+                    container.style.cursor = 'pointer';
+                    return;
+                }
+            }
+            if (!hoveredRoom) {
+                const exitZone = this.findAreaExitAtClientPoint(e.clientX, e.clientY);
+                const overExit = exitZone !== null;
+                hoveredAreaExit = overExit;
+                container.style.cursor = overExit ? 'pointer' : 'auto';
             }
         });
 
         container.addEventListener('mouseleave', () => {
             hoveredRoom = null;
+            hoveredAreaExit = false;
             container.style.cursor = 'auto';
         });
 
@@ -419,7 +495,14 @@ export class Renderer {
             const room = this.findRoomAtClientPoint(e.clientX, e.clientY);
             if (room) {
                 this.emitRoomClickEvent(room.id, e.clientX, e.clientY);
+                return;
             }
+            const exitZone = this.findAreaExitAtClientPoint(e.clientX, e.clientY);
+            if (exitZone) {
+                this.emitAreaExitClickEvent(exitZone.targetRoomId, e.clientX, e.clientY);
+                return;
+            }
+            this.emitMapClickEvent();
         });
 
         container.addEventListener('contextmenu', (e) => {
@@ -674,12 +757,18 @@ export class Renderer {
         this.currentZIndex = zIndex;
         this.currentAreaVersion = area.getVersion();
         this.clearCurrentRoomOverlay();
+        if (this.positionRender) {
+            this.positionRender.destroy();
+            this.positionRender = undefined;
+        }
+        this.positionLayer.destroyChildren();
         this.gridLayer.destroyChildren();
         this.invalidateGridCache();
         this.roomLayer.destroyChildren();
         this.linkLayer.destroyChildren();
         this.roomNodes.clear();
         this.standaloneExitNodes = [];
+        this.areaExitHitZones = [];
         this.standaloneExitBoundsRoomSize = undefined;
         this.roomSpatialIndex.clear();
         this.exitSpatialIndex.clear();
@@ -695,11 +784,63 @@ export class Renderer {
         this.renderLabels(plane.getLabels());
         this.renderExits(area.getLinkExits(zIndex));
         this.renderRooms(plane.getRooms() ?? []);
+        this.renderAreaName(area, plane);
         this.refreshHighlights();
         // Run culling synchronously so visibleExitDrawData is populated
         // before the first paint, preventing a 1-frame blink.
         this.updateRoomCulling();
         this.stage.batchDraw();
+    }
+
+    /**
+     * Export the currently displayed area as an SVG string.
+     * @param options - Optional room focus and padding
+     * @returns SVG string, or undefined if no area is displayed
+     */
+    exportSvg(options?: SvgExportOptions): string | undefined {
+        if (this.currentArea === undefined || this.currentZIndex === undefined) return;
+        const exporter = new SvgExporter(this.mapReader, this.settings);
+        return exporter.export(this.currentArea, this.currentZIndex, options);
+    }
+
+    /**
+     * Export the currently displayed canvas as a PNG data URL.
+     * @param options - pixelRatio for resolution (default 1), mimeType override
+     * @returns data URL string, or undefined if no area is displayed
+     */
+    exportPng(options?: { pixelRatio?: number }): string | undefined {
+        if (this.currentArea === undefined || this.currentZIndex === undefined) return;
+        const pixelRatio = options?.pixelRatio ?? 1;
+        const stageCanvas = this.stage.toCanvas({pixelRatio});
+        const composite = document.createElement('canvas');
+        composite.width = stageCanvas.width;
+        composite.height = stageCanvas.height;
+        const ctx = composite.getContext('2d')!;
+        ctx.fillStyle = this.settings.backgroundColor;
+        ctx.fillRect(0, 0, composite.width, composite.height);
+        ctx.drawImage(stageCanvas, 0, 0);
+        return composite.toDataURL('image/png');
+    }
+
+    /**
+     * Export the currently displayed canvas as a PNG Blob.
+     * @param options - pixelRatio for resolution (default 1)
+     * @returns Promise resolving to a Blob, or undefined if no area is displayed
+     */
+    exportPngBlob(options?: { pixelRatio?: number }): Promise<Blob> | undefined {
+        if (this.currentArea === undefined || this.currentZIndex === undefined) return;
+        const pixelRatio = options?.pixelRatio ?? 1;
+        const stageCanvas = this.stage.toCanvas({pixelRatio});
+        const composite = document.createElement('canvas');
+        composite.width = stageCanvas.width;
+        composite.height = stageCanvas.height;
+        const ctx = composite.getContext('2d')!;
+        ctx.fillStyle = this.settings.backgroundColor;
+        ctx.fillRect(0, 0, composite.width, composite.height);
+        ctx.drawImage(stageCanvas, 0, 0);
+        return new Promise<Blob>((resolve) => {
+            composite.toBlob((blob: Blob | null) => { if (blob) resolve(blob); }, 'image/png');
+        });
     }
 
     private computeSpatialBucketSize() {
@@ -824,6 +965,35 @@ export class Renderer {
         container.dispatchEvent(event);
     }
 
+    private findAreaExitAtClientPoint(clientX: number, clientY: number): AreaExitHitZone | null {
+        const mapPoint = this.clientToMapPoint(clientX, clientY);
+        if (!mapPoint) return null;
+        for (const zone of this.areaExitHitZones) {
+            const b = zone.bounds;
+            // Expand hit zone for easier clicking on thin arrows
+            const pad = this.settings.roomSize * 0.5;
+            if (mapPoint.x >= b.x - pad && mapPoint.x <= b.x + b.width + pad &&
+                mapPoint.y >= b.y - pad && mapPoint.y <= b.y + b.height + pad) {
+                return zone;
+            }
+        }
+        return null;
+    }
+
+    private emitAreaExitClickEvent(targetRoomId: number, clientX: number, clientY: number) {
+        const container = this.stage.container();
+        const bounds = container.getBoundingClientRect();
+        const detail: AreaExitClickEventDetail = {
+            targetRoomId,
+            position: {
+                x: clientX - bounds.left,
+                y: clientY - bounds.top,
+            },
+        };
+        const event = new CustomEvent<AreaExitClickEventDetail>('areaexitclick', {detail});
+        container.dispatchEvent(event);
+    }
+
     private emitZoomChangeEvent() {
         const event = new CustomEvent<ZoomChangeEventDetail>('zoom', {
             detail: {zoom: this.currentZoom},
@@ -831,8 +1001,20 @@ export class Renderer {
         this.stage.container().dispatchEvent(event);
     }
 
+    private emitPanEvent() {
+        const event = new CustomEvent<PanEventDetail>('pan', {
+            detail: this.getViewportBounds(),
+        });
+        this.stage.container().dispatchEvent(event);
+    }
+
+    private emitMapClickEvent() {
+        const event = new CustomEvent('mapclick');
+        this.stage.container().dispatchEvent(event);
+    }
+
     setZoom(zoom: number): boolean {
-        const clamped = Math.max(0.05, Math.min(5, zoom));
+        const clamped = Math.max(this.minZoom, Math.min(5, zoom));
         if (this.currentZoom === clamped) {
             return false;
         }
@@ -840,6 +1022,7 @@ export class Renderer {
         this.currentZoom = clamped;
         this.stage.scale({x: defaultZoom * this.currentZoom, y: defaultZoom * this.currentZoom});
         this.scheduleRoomCulling();
+        this.emitPanEvent();
 
         return true;
     }
@@ -849,7 +1032,7 @@ export class Renderer {
      * Use this for UI controls (buttons, menus) where there's no mouse position.
      */
     zoomToCenter(zoom: number): boolean {
-        const clamped = Math.max(0.1, Math.min(5, zoom));
+        const clamped = Math.max(this.minZoom, Math.min(5, zoom));
         if (this.currentZoom === clamped) {
             return false;
         }
@@ -882,12 +1065,91 @@ export class Renderer {
         this.stage.position(newPos);
         this.stage.batchDraw();
         this.scheduleRoomCulling();
+        this.emitZoomChangeEvent();
+        this.emitPanEvent();
 
         return true;
     }
 
     getZoom() {
         return this.currentZoom;
+    }
+
+    /**
+     * Returns the current viewport bounds in map coordinates.
+     */
+    getViewportBounds(): ViewportBounds {
+        const scale = this.stage.scaleX();
+        const pos = this.stage.position();
+        return {
+            minX: (0 - pos.x) / scale,
+            maxX: (this.stage.width() - pos.x) / scale,
+            minY: (0 - pos.y) / scale,
+            maxY: (this.stage.height() - pos.y) / scale,
+        };
+    }
+
+    /**
+     * Returns the bounds of the current area in map coordinates.
+     * Accounts for area name overhead if enabled.
+     */
+    getAreaBounds(): ViewportBounds | null {
+        if (!this.currentAreaInstance || this.currentZIndex === undefined) return null;
+        const plane = this.currentAreaInstance.getPlane(this.currentZIndex);
+        if (!plane) return null;
+        const b = this.getEffectiveBounds(this.currentAreaInstance, plane);
+        const hasAreaName = this.settings.areaName && this.currentAreaInstance.getAreaName();
+        return {
+            minX: hasAreaName ? b.minX - 4 : b.minX,
+            maxX: b.maxX,
+            minY: hasAreaName ? b.minY - 7 : b.minY,
+            maxY: b.maxY,
+        };
+    }
+
+    /**
+     * Fit the entire current area into the viewport.
+     * Calculates the zoom level needed to show all rooms (and labels) and centers the view.
+     * Call after drawArea() to show the whole area without needing a position room.
+     */
+    fitArea() {
+        if (this.currentArea === undefined || this.currentZIndex === undefined || !this.currentAreaInstance) return;
+        const plane = this.currentAreaInstance.getPlane(this.currentZIndex);
+        if (!plane) return;
+
+        const b = this.getEffectiveBounds(this.currentAreaInstance, plane);
+        // Account for area name header above and left of the bounds
+        const hasAreaName = this.settings.areaName && this.currentAreaInstance.getAreaName();
+        const minY = hasAreaName ? b.minY - 7 : b.minY;
+        const minX = hasAreaName ? b.minX - 4 : b.minX;
+        const mapW = b.maxX - minX;
+        const mapH = b.maxY - minY;
+        if (mapW <= 0 || mapH <= 0) return;
+
+        const stageW = this.stage.width();
+        const stageH = this.stage.height();
+        const padding = 2;
+
+        // Compute zoom so the area fits with some padding
+        const zoomX = stageW / ((mapW + padding * 2) * defaultZoom);
+        const zoomY = stageH / ((mapH + padding * 2) * defaultZoom);
+        const fitZoom = Math.min(zoomX, zoomY);
+
+        this.currentZoom = Math.max(0.05, Math.min(5, fitZoom));
+        this.minZoom = this.currentZoom;
+        const scale = defaultZoom * this.currentZoom;
+        this.stage.scale({x: scale, y: scale});
+
+        // Center the area bounds in the viewport
+        const centerMapX = (minX + b.maxX) / 2;
+        const centerMapY = (minY + b.maxY) / 2;
+        this.stage.position({
+            x: stageW / 2 - centerMapX * scale,
+            y: stageH / 2 - centerMapY * scale,
+        });
+
+        this.stage.batchDraw();
+        this.scheduleRoomCulling();
     }
 
     setCullingMode(mode: CullingMode) {
@@ -931,12 +1193,12 @@ export class Renderer {
 
     refresh() {
         this.updateBackground();
-        if (this.currentRoomId !== undefined && this.currentArea !== undefined && this.currentZIndex !== undefined) {
-            // Re-render the current area
+        if (this.currentArea !== undefined && this.currentZIndex !== undefined) {
             this.drawArea(this.currentArea, this.currentZIndex);
 
-            // Update the player position (which also updates the overlay)
-            this.setPosition(this.currentRoomId);
+            if (this.currentRoomId !== undefined) {
+                this.setPosition(this.currentRoomId);
+            }
         }
     }
 
@@ -1040,21 +1302,32 @@ export class Renderer {
         }
     }
 
-    centerOn(roomId: number) {
+    clearPosition() {
+        this.currentRoomId = undefined;
+        if (this.positionRender) {
+            this.positionRender.destroy();
+            this.positionRender = undefined;
+        }
+        this.positionLayer.batchDraw();
+        this.currentRoomOverlay.forEach(node => node.destroy());
+        this.currentRoomOverlay = [];
+        this.overlayLayer.batchDraw();
+    }
+
+    centerOn(roomId: number, instant?: boolean) {
         const room = this.mapReader.getRoom(roomId);
         if (!room) return;
         const area = this.mapReader.getArea(room.area);
         const areaVersion = area?.getVersion();
-        let instant = this.currentArea !== room.area || this.currentZIndex !== room.z
+        const areaChanged = this.currentArea !== room.area || this.currentZIndex !== room.z;
         if (
-            this.currentArea !== room.area ||
-            this.currentZIndex !== room.z ||
+            areaChanged ||
             (areaVersion !== undefined && this.currentAreaVersion !== areaVersion) ||
             (area !== undefined && this.currentAreaInstance !== area)
         ) {
             this.drawArea(room.area, room.z);
         }
-        this.centerOnRoomView(room, instant);
+        this.centerOnRoomView(room, instant ?? areaChanged);
     }
 
     renderPath(locations: number[], color?: string) {
@@ -1228,6 +1501,7 @@ export class Renderer {
                 y: this.stage.y() + dy,
             })
             this.scheduleRoomCulling();
+            this.emitPanEvent();
         } else {
             this.currentTransition = new Konva.Tween({
                 node: this.stage,
@@ -1236,10 +1510,31 @@ export class Renderer {
                 duration: 0.2,
                 easing: Konva.Easings.EaseInOut,
                 onUpdate: () => this.scheduleRoomCulling(),
-                onFinish: () => this.scheduleRoomCulling(),
+                onFinish: () => { this.scheduleRoomCulling(); this.emitPanEvent(); },
             })
             this.currentTransition.play()
         }
+    }
+
+    private getEffectiveBounds(area: Area, plane: Plane) {
+        return this.settings.uniformLevelSize ? area.getFullBounds() : plane.getBounds();
+    }
+
+    private renderAreaName(area: Area, plane: Plane) {
+        if (!this.settings.areaName) return;
+        const name = area.getAreaName();
+        if (!name) return;
+        const bounds = this.getEffectiveBounds(area, plane);
+        this.roomLayer.add(new Konva.Text({
+            x: bounds.minX - 3.5,
+            y: bounds.minY - 4.5,
+            text: name,
+            fontSize: 2.5,
+            fontFamily: this.settings.fontFamily,
+            fill: 'white',
+            listening: false,
+            perfectDrawEnabled: false,
+        }));
     }
 
     private renderRooms(rooms: MapData.Room[]) {
@@ -1250,8 +1545,10 @@ export class Renderer {
                 listening: false,
             });
 
-            const fillColor = this.mapReader.getColorValue(room.env);
-            const strokeColor = this.settings.lineColor;
+            const envColor = this.mapReader.getColorValue(room.env);
+            const fillColor = this.settings.frameMode ? this.settings.backgroundColor : envColor;
+            const strokeColor = this.settings.frameMode ? envColor : this.settings.lineColor;
+            const borderWidth = this.settings.borders ? this.settings.lineWidth : 0;
 
             const roomShape = this.settings.roomShape === "circle"
                 ? new Konva.Circle({
@@ -1259,7 +1556,7 @@ export class Renderer {
                     y: this.settings.roomSize / 2,
                     radius: this.settings.roomSize / 2,
                     fill: fillColor,
-                    strokeWidth: this.settings.lineWidth,
+                    strokeWidth: borderWidth,
                     stroke: strokeColor,
                     perfectDrawEnabled: false,
                     listening: false,
@@ -1270,7 +1567,7 @@ export class Renderer {
                     width: this.settings.roomSize,
                     height: this.settings.roomSize,
                     fill: fillColor,
-                    strokeWidth: this.settings.lineWidth,
+                    strokeWidth: borderWidth,
                     stroke: strokeColor,
                     cornerRadius: this.settings.roomShape === "roundedRectangle" ? this.settings.roomSize * 0.2 : 0,
                     perfectDrawEnabled: false,
@@ -1279,6 +1576,18 @@ export class Renderer {
 
             roomRender.add(roomShape);
 
+            if (this.settings.emboss && this.settings.roomShape !== "circle") {
+                const rs = this.settings.roomSize;
+                const isLight = colorLightness(this.settings.lineColor) > 0.41;
+                roomRender.add(new Konva.Line({
+                    points: isLight ? [0, 0, rs, 0, rs, rs] : [0, 0, 0, rs, rs, rs],
+                    stroke: isLight ? '#000000' : '#ffffff',
+                    strokeWidth: this.settings.lineWidth,
+                    perfectDrawEnabled: false,
+                    listening: false,
+                }));
+            }
+
             this.renderSymbol(room, roomRender);
             this.roomLayer.add(roomRender);
 
@@ -1286,6 +1595,10 @@ export class Renderer {
             this.exitRenderer.renderSpecialExits(room).forEach(render => {
                 this.linkLayer.add(render);
             })
+            // Track cross-area custom line hit zones
+            this.exitRenderer.getSpecialExitAreaTargets(room).forEach(zone => {
+                this.areaExitHitZones.push(zone);
+            });
             // Stubs and inner exits nested in room group for automatic culling
             const gx = room.x - this.settings.roomSize / 2;
             const gy = room.y - this.settings.roomSize / 2;
@@ -1746,8 +2059,10 @@ export class Renderer {
             listening: false,
         });
 
-        const fillColor = this.mapReader.getColorValue(room.env);
-        const strokeColor = options.stroke;
+        const envColor = this.mapReader.getColorValue(room.env);
+        const fillColor = this.settings.frameMode ? this.settings.backgroundColor : envColor;
+        const strokeColor = this.settings.frameMode ? envColor : options.stroke;
+        const borderWidth = this.settings.borders ? this.settings.lineWidth : 0;
 
         const roomShape = this.settings.roomShape === "circle"
             ? new Konva.Circle({
@@ -1756,7 +2071,7 @@ export class Renderer {
                 radius: this.settings.roomSize / 2,
                 fill: fillColor,
                 stroke: strokeColor,
-                strokeWidth: this.settings.lineWidth,
+                strokeWidth: borderWidth,
             })
             : new Konva.Rect({
                 x: 0,
@@ -1765,14 +2080,34 @@ export class Renderer {
                 height: this.settings.roomSize,
                 fill: fillColor,
                 stroke: strokeColor,
-                strokeWidth: this.settings.lineWidth,
+                strokeWidth: borderWidth,
                 cornerRadius: this.settings.roomShape === "roundedRectangle" ? this.settings.roomSize * 0.2 : 0,
             });
 
         roomGroup.add(roomShape);
+
+        if (this.settings.emboss && this.settings.roomShape !== "circle") {
+            const rs = this.settings.roomSize;
+            const isLight = colorLightness(this.settings.lineColor) > 0.41;
+            roomGroup.add(new Konva.Line({
+                points: isLight ? [0, 0, rs, 0, rs, rs] : [0, 0, 0, rs, rs, rs],
+                stroke: isLight ? '#000000' : '#ffffff',
+                strokeWidth: this.settings.lineWidth,
+                perfectDrawEnabled: false,
+                listening: false,
+            }));
+        }
+
         this.renderSymbol(room, roomGroup);
 
         return roomGroup;
+    }
+
+    private getSymbolColor(envId: number, opacity?: number): string {
+        if (this.settings.frameMode) {
+            return this.mapReader.getColorValue(envId);
+        }
+        return this.mapReader.getSymbolColor(envId, opacity);
     }
 
     private renderSymbol(room: MapData.Room, roomRender: Konva.Group) {
@@ -1785,7 +2120,7 @@ export class Renderer {
                 text: room.roomChar,
                 fontSize: fontSize,
                 fontStyle: "bold",
-                fill: this.mapReader.getSymbolColor(room.env),
+                fill: this.getSymbolColor(room.env),
                 align: "center",
                 verticalAlign: "middle",
                 width: this.settings.roomSize,
@@ -1803,9 +2138,12 @@ export class Renderer {
             if (!data) {
                 return;
             }
-            const entry: StandaloneExitEntry = { data, bounds: data.bounds };
+            const entry: StandaloneExitEntry = { data, bounds: data.bounds, targetRoomId: data.targetRoomId };
             this.standaloneExitNodes.push(entry);
             this.addStandaloneExitToSpatialIndex(entry);
+            if (data.targetRoomId !== undefined) {
+                this.areaExitHitZones.push({ bounds: data.bounds, targetRoomId: data.targetRoomId });
+            }
         });
 
         this.standaloneExitBoundsRoomSize = this.settings.roomSize;
@@ -1890,6 +2228,7 @@ export class Renderer {
     }
 
     private renderLabels(Labels: MapData.Label[]) {
+        if (this.settings.labelRenderMode === "none") return;
         Labels.forEach(label => {
             if (this.settings.labelRenderMode === "image") {
                 if (!label.pixMap) {
