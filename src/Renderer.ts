@@ -376,24 +376,15 @@ export class Renderer implements MapRenderer {
         container.addEventListener('resize', () => {
             this.onResize(container);
         })
-        this.gridLayer = new Konva.Layer({ listening: false, hitGraphEnabled: false });
+        this.gridLayer = new Konva.Layer({ listening: false });
         this.stage.add(this.gridLayer);
-        this.linkLayer = new Konva.Layer({
-            listening: false,
-            hitGraphEnabled: false,
-        });
+        this.linkLayer = new Konva.Layer({ listening: false });
         this.stage.add(this.linkLayer);
-        this.roomLayer = new Konva.Layer({ hitGraphEnabled: false });
+        this.roomLayer = new Konva.Layer();
         this.stage.add(this.roomLayer);
-        this.positionLayer = new Konva.Layer({
-            listening: false,
-            hitGraphEnabled: false,
-        });
+        this.positionLayer = new Konva.Layer({ listening: false });
         this.stage.add(this.positionLayer);
-        this.overlayLayer = new Konva.Layer({
-            listening: false,
-            hitGraphEnabled: false,
-        })
+        this.overlayLayer = new Konva.Layer({ listening: false })
         this.stage.add(this.overlayLayer);
         this.mapReader = mapReader;
         this.exitRenderer = new ExitRenderer(mapReader, this, this.settings);
