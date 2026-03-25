@@ -4,7 +4,7 @@ import Plane from "./reader/Plane";
 import ExitRenderer from "./ExitRenderer";
 import type {ExitDrawData, ExitDrawLine, ExitDrawArrow, ExitDrawDoor} from "./ExitRenderer";
 import type {Settings} from "./Renderer";
-import {colorLightness} from "./Renderer";
+import {darkenColor, colorLightness} from "./Renderer";
 import {movePoint, movePointCircle, movePointRoundedRect} from "./directions";
 import {computePathData} from "./PathData";
 
@@ -361,8 +361,9 @@ export class SvgExporter {
 
         for (const room of rooms) {
             const envColor = this.mapReader.getColorValue(room.env);
-            const fillColor = this.settings.frameMode ? this.settings.backgroundColor : envColor;
-            const strokeColor = this.settings.frameMode ? envColor : this.settings.lineColor;
+            const fillColor = this.settings.coloredMode ? darkenColor(envColor, 0.5)
+                : this.settings.frameMode ? this.settings.backgroundColor : envColor;
+            const strokeColor = (this.settings.frameMode || this.settings.coloredMode) ? envColor : this.settings.lineColor;
 
             if (this.settings.roomShape === "circle") {
                 lines.push(`<circle cx="${room.x}" cy="${room.y}" r="${halfRs}" fill="${escapeXml(fillColor)}" stroke="${escapeXml(strokeColor)}" stroke-width="${this.settings.lineWidth}"/>`);
@@ -521,11 +522,19 @@ export class SvgExporter {
         const room = this.mapReader.getRoom(roomId);
         if (!room) return;
         const pm = this.settings.playerMarker;
-        const rs = this.settings.roomSize;
-        const size = rs * pm.sizeFactor;
+        const size = this.settings.roomSize * pm.sizeFactor;
         const dashAttr = pm.dashEnabled && pm.dash ? ` stroke-dasharray="${pm.dash.join(' ')}"` : '';
         const fillOpacity = pm.fillAlpha > 0 ? ` fill="${pm.fillColor}" fill-opacity="${pm.fillAlpha}"` : ' fill="none"';
+        const strokeAttrs = `stroke="${pm.strokeColor}" stroke-width="${pm.strokeWidth}" stroke-opacity="${pm.strokeAlpha}"${dashAttr}${fillOpacity}`;
 
-        lines.push(`<circle cx="${room.x}" cy="${room.y}" r="${size / 2}" stroke="${pm.strokeColor}" stroke-width="${pm.strokeWidth}" stroke-opacity="${pm.strokeAlpha}"${dashAttr}${fillOpacity}/>`);
+        const useRoomShape = pm.matchRoomShape && this.settings.roomShape !== "circle";
+        if (useRoomShape) {
+            const halfSize = size / 2;
+            const cr = this.settings.roomShape === "roundedRectangle" ? size * 0.2 : 0;
+            const crAttr = cr > 0 ? ` rx="${cr}" ry="${cr}"` : '';
+            lines.push(`<rect x="${room.x - halfSize}" y="${room.y - halfSize}" width="${size}" height="${size}" ${strokeAttrs}${crAttr}/>`);
+        } else {
+            lines.push(`<circle cx="${room.x}" cy="${room.y}" r="${size / 2}" ${strokeAttrs}/>`);
+        }
     }
 }

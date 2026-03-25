@@ -34,6 +34,8 @@
             font-size: 0.9rem;
             line-height: 1.4;
             pointer-events: auto;
+            max-height: calc(100vh - 2rem);
+            overflow-y: auto;
         }
 
         #context-menu {
@@ -279,6 +281,10 @@
             Frame mode
         </label>
         <label>
+            <input type="checkbox" id="colored-mode-toggle">
+            Colored mode
+        </label>
+        <label>
             <input type="checkbox" id="emboss-toggle">
             Emboss effect
         </label>
@@ -324,6 +330,10 @@
                 <label>
                     <input type="checkbox" id="player-marker-dash-enabled" checked>
                     Dashed line
+                </label>
+                <label>
+                    <input type="checkbox" id="player-marker-match-shape">
+                    Match room shape
                 </label>
             </div>
         </details>

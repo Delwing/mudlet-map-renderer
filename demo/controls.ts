@@ -49,6 +49,8 @@ export function initControls(settings: Settings, renderer: Renderer, getCurrentR
     const pathColorInput = document.getElementById("path-color") as HTMLInputElement | null;
     const playerMarkerDashEnabled = document.getElementById("player-marker-dash-enabled") as HTMLInputElement | null;
     const frameModeToggle = document.getElementById("frame-mode-toggle") as HTMLInputElement | null;
+    const coloredModeToggle = document.getElementById("colored-mode-toggle") as HTMLInputElement | null;
+    const playerMarkerMatchShape = document.getElementById("player-marker-match-shape") as HTMLInputElement | null;
     const embossToggle = document.getElementById("emboss-toggle") as HTMLInputElement | null;
     const areaNameToggle = document.getElementById("area-name-toggle") as HTMLInputElement | null;
     const uniformLevelSizeToggle = document.getElementById("uniform-level-size-toggle") as HTMLInputElement | null;
@@ -99,8 +101,10 @@ export function initControls(settings: Settings, renderer: Renderer, getCurrentR
         playerMarkerSizeValue.textContent = settings.playerMarker.sizeFactor.toFixed(2);
     }
     if (playerMarkerDashEnabled) playerMarkerDashEnabled.checked = settings.playerMarker.dashEnabled;
+    if (playerMarkerMatchShape) playerMarkerMatchShape.checked = settings.playerMarker.matchRoomShape;
     if (pathfindingAlgorithmSelect && pathFinder) pathfindingAlgorithmSelect.value = pathFinder.algorithm;
     if (frameModeToggle) frameModeToggle.checked = settings.frameMode;
+    if (coloredModeToggle) coloredModeToggle.checked = settings.coloredMode;
     if (embossToggle) embossToggle.checked = settings.emboss;
     if (areaNameToggle) areaNameToggle.checked = settings.areaName;
     if (uniformLevelSizeToggle) uniformLevelSizeToggle.checked = settings.uniformLevelSize;
@@ -217,12 +221,22 @@ export function initControls(settings: Settings, renderer: Renderer, getCurrentR
         renderer.setPosition(getCurrentRoomId());
     });
 
+    playerMarkerMatchShape?.addEventListener("change", () => {
+        settings.playerMarker.matchRoomShape = playerMarkerMatchShape.checked;
+        renderer.setPosition(getCurrentRoomId());
+    });
+
     pathColorInput?.addEventListener("input", () => {
         onPathColorChange?.(pathColorInput.value);
     });
 
     frameModeToggle?.addEventListener("change", () => {
         settings.frameMode = frameModeToggle.checked;
+        renderer.refresh();
+    });
+
+    coloredModeToggle?.addEventListener("change", () => {
+        settings.coloredMode = coloredModeToggle.checked;
         renderer.refresh();
     });
 

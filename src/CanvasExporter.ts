@@ -4,7 +4,7 @@ import Plane from "./reader/Plane";
 import ExitRenderer from "./ExitRenderer";
 import type {ExitDrawData, ExitDrawLine, ExitDrawArrow, ExitDrawDoor} from "./ExitRenderer";
 import type {Settings} from "./Renderer";
-import {colorLightness} from "./Renderer";
+import {darkenColor, colorLightness} from "./Renderer";
 import {movePoint, movePointCircle, movePointRoundedRect} from "./directions";
 import {computePathData} from "./PathData";
 
@@ -406,8 +406,9 @@ export class CanvasExporter {
 
         for (const room of rooms) {
             const envColor = this.mapReader.getColorValue(room.env);
-            const fillColor = this.settings.frameMode ? this.settings.backgroundColor : envColor;
-            const strokeColor = this.settings.frameMode ? envColor : this.settings.lineColor;
+            const fillColor = this.settings.coloredMode ? darkenColor(envColor, 0.5)
+                : this.settings.frameMode ? this.settings.backgroundColor : envColor;
+            const strokeColor = (this.settings.frameMode || this.settings.coloredMode) ? envColor : this.settings.lineColor;
 
             ctx.fillStyle = fillColor;
             ctx.strokeStyle = strokeColor;
@@ -625,8 +626,20 @@ export class CanvasExporter {
         ctx.lineWidth = pm.strokeWidth;
         ctx.setLineDash(pm.dashEnabled && pm.dash ? pm.dash : []);
 
-        ctx.beginPath();
-        ctx.arc(room.x, room.y, size / 2, 0, Math.PI * 2);
+        const useRoomShape = pm.matchRoomShape && this.settings.roomShape !== "circle";
+        if (useRoomShape) {
+            const halfSize = size / 2;
+            const cr = this.settings.roomShape === "roundedRectangle" ? size * 0.2 : 0;
+            if (cr > 0) {
+                this.roundRect(ctx, room.x - halfSize, room.y - halfSize, size, size, cr);
+            } else {
+                ctx.beginPath();
+                ctx.rect(room.x - halfSize, room.y - halfSize, size, size);
+            }
+        } else {
+            ctx.beginPath();
+            ctx.arc(room.x, room.y, size / 2, 0, Math.PI * 2);
+        }
         ctx.stroke();
 
         if (pm.fillAlpha > 0) {

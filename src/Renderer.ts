@@ -34,6 +34,26 @@ export function colorLightness(color: string): number {
     return (Math.max(r, g, b) + Math.min(r, g, b)) / 2;
 }
 
+export function darkenColor(color: string, factor: number): string {
+    let r: number, g: number, b: number;
+    const rgbMatch = color.match(/(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
+    if (rgbMatch) {
+        r = parseInt(rgbMatch[1]);
+        g = parseInt(rgbMatch[2]);
+        b = parseInt(rgbMatch[3]);
+    } else if (color.startsWith('#') && color.length >= 7) {
+        r = parseInt(color.slice(1, 3), 16);
+        g = parseInt(color.slice(3, 5), 16);
+        b = parseInt(color.slice(5, 7), 16);
+    } else {
+        return color;
+    }
+    r = Math.round(r * (1 - factor));
+    g = Math.round(g * (1 - factor));
+    b = Math.round(b * (1 - factor));
+    return `rgb(${r}, ${g}, ${b})`;
+}
+
 export type PerfSnapshot = {
     /** Total updateRoomCulling time in ms */
     cullingMs: number;
@@ -204,6 +224,12 @@ export type PlayerMarkerStyle = {
      * When false, the stroke is solid regardless of the dash property.
      */
     dashEnabled: boolean;
+
+    /**
+     * When true, the marker shape matches the current roomShape setting
+     * (rectangle, circle, or roundedRectangle) instead of always being a circle.
+     */
+    matchRoomShape: boolean;
 };
 
 /**
@@ -253,6 +279,8 @@ export type Settings = {
     borders: boolean;
     /** When true, rooms use frame rendering: fill=backgroundColor, stroke=envColor. Default: false */
     frameMode: boolean;
+    /** When true, rooms use colored rendering: fill=envColor darkened 30%, stroke=envColor. Default: false */
+    coloredMode: boolean;
     /** When true, rooms display a 3D emboss effect (rectangle/roundedRectangle only). Default: false */
     emboss: boolean;
     /** When true, displays the area name as a header text on the map. Default: false */
@@ -287,6 +315,7 @@ export function createSettings(): Settings {
             sizeFactor: 1.7,
             dash: [0.05, 0.05],
             dashEnabled: true,
+            matchRoomShape: false,
         },
         gridEnabled: false,
         gridSize: 1,
@@ -295,6 +324,7 @@ export function createSettings(): Settings {
         perfCallback: null,
         borders: true,
         frameMode: false,
+        coloredMode: false,
         emboss: false,
         areaName: true,
         fontFamily: 'sans-serif',
@@ -332,7 +362,7 @@ export class Renderer implements MapRenderer {
     private currentZIndex?: number;
     private currentAreaVersion?: number;
     private currentRoomId?: number;
-    private positionRender?: Konva.Circle;
+    private positionRender?: Konva.Shape;
     private currentTransition?: Konva.Tween;
     private currentZoom: number = 1;
     private currentRoomOverlay: Konva.Node[] = [];
@@ -1213,33 +1243,7 @@ export class Renderer implements MapRenderer {
 
         this.currentRoomId = roomId;
         this.updateCurrentRoomOverlay(room);
-
-        const strokeColor = hexToRgba(this.settings.playerMarker.strokeColor, this.settings.playerMarker.strokeAlpha);
-        const fillColor = hexToRgba(this.settings.playerMarker.fillColor, this.settings.playerMarker.fillAlpha);
-        const markerRadius = (this.settings.roomSize / 2) * this.settings.playerMarker.sizeFactor;
-
-        if (!this.positionRender) {
-            this.positionRender = new Konva.Circle({
-                x: room.x,
-                y: room.y,
-                radius: markerRadius,
-                stroke: strokeColor,
-                fill: fillColor,
-                strokeWidth: this.settings.playerMarker.strokeWidth,
-                dash: this.settings.playerMarker.dash,
-                dashEnabled: this.settings.playerMarker.dashEnabled,
-            })
-            this.positionLayer.add(this.positionRender);
-        } else {
-            this.positionRender.position({ x: room.x, y: room.y });
-            this.positionRender.radius(markerRadius);
-            this.positionRender.stroke(strokeColor);
-            this.positionRender.fill(fillColor);
-            this.positionRender.strokeWidth(this.settings.playerMarker.strokeWidth);
-            this.positionRender.dash(this.settings.playerMarker.dash ?? []);
-            this.positionRender.dashEnabled(this.settings.playerMarker.dashEnabled);
-            this.positionRender.show();
-        }
+        this.applyPositionMarker(room);
         this.positionLayer.batchDraw();
     }
 
@@ -1263,34 +1267,48 @@ export class Renderer implements MapRenderer {
             this.currentRoomId = roomId;
         }
         this.updateCurrentRoomOverlay(room);
+        this.applyPositionMarker(room);
+    }
 
-        const strokeColor = hexToRgba(this.settings.playerMarker.strokeColor, this.settings.playerMarker.strokeAlpha);
-        const fillColor = hexToRgba(this.settings.playerMarker.fillColor, this.settings.playerMarker.fillAlpha);
-        // Player marker radius: at sizeFactor 1.0, it should match room size
-        // Room circles have radius = roomSize / 2, so we use (roomSize / 2) * sizeFactor
-        const markerRadius = (this.settings.roomSize / 2) * this.settings.playerMarker.sizeFactor;
+    private applyPositionMarker(room: MapData.Room) {
+        const pm = this.settings.playerMarker;
+        const strokeColor = hexToRgba(pm.strokeColor, pm.strokeAlpha);
+        const fillColor = hexToRgba(pm.fillColor, pm.fillAlpha);
+        const markerSize = this.settings.roomSize * pm.sizeFactor;
+        const halfSize = markerSize / 2;
 
-        if (!this.positionRender) {
+        if (this.positionRender) {
+            this.positionRender.destroy();
+        }
+
+        const useRoomShape = pm.matchRoomShape && this.settings.roomShape !== "circle";
+        if (useRoomShape) {
+            const cr = this.settings.roomShape === "roundedRectangle" ? markerSize * 0.2 : 0;
+            this.positionRender = new Konva.Rect({
+                x: room.x - halfSize,
+                y: room.y - halfSize,
+                width: markerSize,
+                height: markerSize,
+                stroke: strokeColor,
+                fill: fillColor,
+                strokeWidth: pm.strokeWidth,
+                dash: pm.dash,
+                dashEnabled: pm.dashEnabled,
+                cornerRadius: cr,
+            });
+        } else {
             this.positionRender = new Konva.Circle({
                 x: room.x,
                 y: room.y,
-                radius: markerRadius,
+                radius: halfSize,
                 stroke: strokeColor,
                 fill: fillColor,
-                strokeWidth: this.settings.playerMarker.strokeWidth,
-                dash: this.settings.playerMarker.dash,
-                dashEnabled: this.settings.playerMarker.dashEnabled,
-            })
-            this.positionLayer.add(this.positionRender);
-        } else {
-            // Update the marker style when settings change
-            this.positionRender.radius(markerRadius);
-            this.positionRender.stroke(strokeColor);
-            this.positionRender.fill(fillColor);
-            this.positionRender.strokeWidth(this.settings.playerMarker.strokeWidth);
-            this.positionRender.dash(this.settings.playerMarker.dash ?? []);
-            this.positionRender.dashEnabled(this.settings.playerMarker.dashEnabled);
+                strokeWidth: pm.strokeWidth,
+                dash: pm.dash,
+                dashEnabled: pm.dashEnabled,
+            });
         }
+        this.positionLayer.add(this.positionRender);
     }
 
     clearPosition() {
@@ -1427,7 +1445,14 @@ export class Renderer implements MapRenderer {
         this.currentRoomId = room.id;
         const roomCenter = {x: room.x, y: room.y};
 
-        this.positionRender?.position(room)
+        if (this.positionRender) {
+            if (this.positionRender instanceof Konva.Rect) {
+                const halfSize = this.positionRender.width() / 2;
+                this.positionRender.position({ x: room.x - halfSize, y: room.y - halfSize });
+            } else {
+                this.positionRender.position(room);
+            }
+        }
 
         const abs = this.stage.getAbsoluteTransform()
         const screenPoint = abs.point(roomCenter);
@@ -1537,8 +1562,9 @@ export class Renderer implements MapRenderer {
             });
 
             const envColor = this.mapReader.getColorValue(room.env);
-            const fillColor = this.settings.frameMode ? this.settings.backgroundColor : envColor;
-            const strokeColor = this.settings.frameMode ? envColor : this.settings.lineColor;
+            const fillColor = this.settings.coloredMode ? darkenColor(envColor, 0.7)
+                : this.settings.frameMode ? this.settings.backgroundColor : envColor;
+            const strokeColor = (this.settings.frameMode || this.settings.coloredMode) ? envColor : this.settings.lineColor;
             const borderWidth = this.settings.borders ? this.settings.lineWidth : 0;
 
             const roomShape = this.settings.roomShape === "circle"
@@ -2051,8 +2077,9 @@ export class Renderer implements MapRenderer {
         });
 
         const envColor = this.mapReader.getColorValue(room.env);
-        const fillColor = this.settings.frameMode ? this.settings.backgroundColor : envColor;
-        const strokeColor = this.settings.frameMode ? envColor : options.stroke;
+        const fillColor = this.settings.coloredMode ? darkenColor(envColor, 0.5)
+            : this.settings.frameMode ? this.settings.backgroundColor : envColor;
+        const strokeColor = (this.settings.frameMode || this.settings.coloredMode) ? envColor : options.stroke;
         const borderWidth = this.settings.borders ? this.settings.lineWidth : 0;
 
         const roomShape = this.settings.roomShape === "circle"
