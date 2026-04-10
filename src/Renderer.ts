@@ -10,6 +10,7 @@ import PathRenderer from "./PathRenderer";
 import {SvgExporter} from "./SvgExporter";
 import type {SvgExportOptions} from "./SvgExporter";
 import type {MapRenderer} from "./MapRenderer";
+import {measureTextBaselineOffset} from "./utils/textMeasure";
 
 const defaultRoomSize = 0.6;
 const defaultZoom = 75
@@ -2132,6 +2133,13 @@ export class Renderer implements MapRenderer {
         if (room.roomChar !== undefined) {
             // Font size scales with room size: 0.75 is the ratio (at default roomSize 0.6, fontSize is 0.45)
             const fontSize = this.settings.roomSize * 0.75;
+            // Konva's verticalAlign:'middle' already positions a typical uppercase letter
+            // correctly. For glyphs whose visual centre deviates from that (e.g. "[]" which
+            // extends below the baseline) we apply a relative correction: how much this glyph's
+            // ideal baseline differs from a reference uppercase character's baseline.
+            // Positive offsetY shifts the node upward in Konva.
+            const baselineRatio = measureTextBaselineOffset(room.roomChar, this.settings.fontFamily);
+            const refBaselineRatio = measureTextBaselineOffset("M", this.settings.fontFamily);
             const roomChar = new Konva.Text({
                 x: 0,
                 y: 0,
@@ -2143,6 +2151,7 @@ export class Renderer implements MapRenderer {
                 verticalAlign: "middle",
                 width: this.settings.roomSize,
                 height: this.settings.roomSize,
+                offsetY: (refBaselineRatio - baselineRatio) * fontSize,
                 perfectDrawEnabled: false,
                 listening: false,
             })

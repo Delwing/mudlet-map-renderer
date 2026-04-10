@@ -27,7 +27,7 @@ const destinationInput = document.getElementById("destination-input") as HTMLInp
 const destinationClearButton = document.getElementById("destination-clear") as HTMLButtonElement | null;
 const destinationStatusElement = document.getElementById("destination-status") as HTMLDivElement | null;
 
-const DEFAULT_STARTING_ROOM_ID = 3287;
+const DEFAULT_STARTING_ROOM_ID = 5468;
 const mapDataUrl = new URL("./mapExport.json", import.meta.url).href;
 const colorDataUrl = new URL("./colors.json", import.meta.url).href;
 

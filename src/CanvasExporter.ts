@@ -2,11 +2,12 @@ import MapReader from "./reader/MapReader";
 import Area from "./reader/Area";
 import Plane from "./reader/Plane";
 import ExitRenderer from "./ExitRenderer";
-import type {ExitDrawData, ExitDrawLine, ExitDrawArrow, ExitDrawDoor} from "./ExitRenderer";
+import type {ExitDrawData} from "./ExitRenderer";
 import type {Settings} from "./Renderer";
 import {darkenColor, colorLightness} from "./Renderer";
 import {movePoint, movePointCircle, movePointRoundedRect} from "./directions";
 import {computePathData} from "./PathData";
+import {measureTextBaselineOffset} from "./utils/textMeasure";
 
 const dirNumbers: Record<number, MapData.direction> = {
     1: "north", 2: "northeast", 3: "northwest", 4: "east", 5: "west",
@@ -458,10 +459,10 @@ export class CanvasExporter {
                 const fontSize = rs * 0.75;
                 ctx.fillStyle = symbolColor;
                 ctx.font = `bold ${fontSize}px ${this.settings.fontFamily}`;
-                ctx.textAlign = 'left';
+                ctx.textAlign = 'center';
                 ctx.textBaseline = 'alphabetic';
-                const metrics = ctx.measureText(room.roomChar);
-                ctx.fillText(room.roomChar, room.x - metrics.width / 2, room.y + fontSize * 0.35);
+                const baselineRatio = measureTextBaselineOffset(room.roomChar, this.settings.fontFamily);
+                ctx.fillText(room.roomChar, room.x, room.y + baselineRatio * fontSize);
             }
         }
     }
