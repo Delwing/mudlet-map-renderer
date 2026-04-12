@@ -671,6 +671,7 @@ export class Renderer implements MapRenderer {
                 this.stage.position(newPos);
                 this.scheduleRoomCulling();
                 this.emitZoomChangeEvent();
+                this.emitPanEvent();
             }
         });
 
@@ -759,6 +760,7 @@ export class Renderer implements MapRenderer {
                 this.stage.batchDraw();
                 this.scheduleRoomCulling();
                 this.emitZoomChangeEvent();
+                this.emitPanEvent();
             }
 
             lastPinchDistance = distance;
@@ -1044,7 +1046,6 @@ export class Renderer implements MapRenderer {
         this.currentZoom = clamped;
         this.stage.scale({x: defaultZoom * this.currentZoom, y: defaultZoom * this.currentZoom});
         this.scheduleRoomCulling();
-        this.emitPanEvent();
 
         return true;
     }
