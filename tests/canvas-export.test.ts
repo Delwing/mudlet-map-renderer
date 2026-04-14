@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { createCanvas } from 'canvas';
-import { CanvasExporter } from '../src/CanvasExporter';
+import { HeadlessRenderer } from '../src/HeadlessRenderer';
 import { createSettings } from '../src/Renderer';
 import { createTestMapReader } from './helpers';
 
@@ -10,30 +9,27 @@ const HEIGHT = 300;
 function exportArea(settingsOverrides?: Partial<ReturnType<typeof createSettings>>) {
     const reader = createTestMapReader();
     const settings = { ...createSettings(), ...settingsOverrides };
-    const exporter = new CanvasExporter(reader, settings);
-    const canvas = createCanvas(WIDTH, HEIGHT);
-    const ctx = canvas.getContext('2d');
-    exporter.render(ctx as unknown as CanvasRenderingContext2D, 1, 0, { width: WIDTH, height: HEIGHT });
+    const renderer = new HeadlessRenderer(reader, settings);
+    renderer.drawArea(1, 0);
+    const canvas = renderer.renderToCanvas({ width: WIDTH, height: HEIGHT });
     return canvas.toBuffer('image/png');
 }
 
 function renderWithOverlays(overlays: any) {
     const reader = createTestMapReader();
     const settings = createSettings();
-    const exporter = new CanvasExporter(reader, settings);
-    const canvas = createCanvas(WIDTH, HEIGHT);
-    const ctx = canvas.getContext('2d');
-    exporter.render(ctx as unknown as CanvasRenderingContext2D, 1, 0, { width: WIDTH, height: HEIGHT, overlays });
+    const renderer = new HeadlessRenderer(reader, settings);
+    renderer.drawArea(1, 0);
+    const canvas = renderer.renderToCanvas({ width: WIDTH, height: HEIGHT, overlays });
     return canvas.toBuffer('image/png');
 }
 
 function renderArea(areaId: number, zIndex: number, opts?: any) {
     const reader = createTestMapReader();
     const settings = createSettings();
-    const exporter = new CanvasExporter(reader, settings);
-    const canvas = createCanvas(WIDTH, HEIGHT);
-    const ctx = canvas.getContext('2d');
-    exporter.render(ctx as unknown as CanvasRenderingContext2D, areaId, zIndex, { width: WIDTH, height: HEIGHT, ...opts });
+    const renderer = new HeadlessRenderer(reader, settings);
+    renderer.drawArea(areaId, zIndex);
+    const canvas = renderer.renderToCanvas({ width: WIDTH, height: HEIGHT, ...opts });
     return canvas.toBuffer('image/png');
 }
 
@@ -41,7 +37,7 @@ describe('CanvasExporter', () => {
     describe('basic export', () => {
         it('produces a valid PNG buffer', () => {
             const buffer = exportArea();
-            expect(buffer).toBeInstanceOf(Buffer);
+            expect(buffer).toBeInstanceOf(Uint8Array);
             expect(buffer.length).toBeGreaterThan(0);
             expect(buffer[0]).toBe(0x89);
             expect(buffer[1]).toBe(0x50);
@@ -146,22 +142,11 @@ describe('CanvasExporter', () => {
     });
 
     describe('error handling', () => {
-        it('throws for nonexistent area', () => {
+        it('returns undefined before drawArea', () => {
             const reader = createTestMapReader();
             const settings = createSettings();
-            const exporter = new CanvasExporter(reader, settings);
-            const canvas = createCanvas(WIDTH, HEIGHT);
-            const ctx = canvas.getContext('2d');
-            expect(() => exporter.render(ctx as unknown as CanvasRenderingContext2D, 999, 0, { width: WIDTH, height: HEIGHT })).toThrow();
-        });
-
-        it('throws for nonexistent z-level', () => {
-            const reader = createTestMapReader();
-            const settings = createSettings();
-            const exporter = new CanvasExporter(reader, settings);
-            const canvas = createCanvas(WIDTH, HEIGHT);
-            const ctx = canvas.getContext('2d');
-            expect(() => exporter.render(ctx as unknown as CanvasRenderingContext2D, 1, 99, { width: WIDTH, height: HEIGHT })).toThrow();
+            const renderer = new HeadlessRenderer(reader, settings);
+            expect(renderer.renderToCanvas({ width: WIDTH, height: HEIGHT })).toBeUndefined();
         });
     });
 });

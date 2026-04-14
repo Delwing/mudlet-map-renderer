@@ -2,7 +2,7 @@ import type {ExitDrawData, ExitDrawLine, ExitDrawArrow, ExitDrawDoor} from "../E
 
 /**
  * Render ExitDrawData to a Canvas2D context.
- * Shared by the Konva batch shape sceneFunc and the CanvasExporter.
+ * Used by the Konva batch shape sceneFunc for exit rendering.
  */
 export function drawExitDataToCanvas(ctx: CanvasRenderingContext2D, data: ExitDrawData) {
     for (const line of data.lines) {

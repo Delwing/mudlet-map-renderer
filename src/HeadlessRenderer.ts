@@ -1,3 +1,5 @@
+import "konva/canvas-backend";
+import Konva from "konva";
 import MapReader from "./reader/MapReader";
 import Area from "./reader/Area";
 import {createSettings} from "./Renderer";
@@ -5,32 +7,48 @@ import type {Settings} from "./Renderer";
 import type {MapRenderer} from "./MapRenderer";
 import {SvgExporter} from "./SvgExporter";
 import type {SvgExportOptions, SvgOverlays} from "./SvgExporter";
-import {CanvasExporter} from "./CanvasExporter";
-import type {CanvasExportOptions, CanvasExportOverlays} from "./CanvasExporter";
+import {SceneBuilder, buildPositionMarker, buildHighlight, buildPathOverlay} from "./SceneBuilder";
+
+export type CanvasExportOptions = {
+    /** Width of the output image in pixels. */
+    width: number;
+    /** Height of the output image in pixels. */
+    height: number;
+    /** Room ID to center the export on. If omitted, exports the full area. */
+    roomId?: number;
+    /** Padding in map units around the exported region. Default: 3 */
+    padding?: number;
+};
+
+export type CanvasExportOverlays = {
+    position?: { roomId: number };
+    highlights?: Array<{ roomId: number; color: string }>;
+    paths?: Array<{ locations: number[]; color: string }>;
+};
 
 type HighlightEntry = { color: string; area: number; z: number };
 type PathEntry = { locations: number[]; color: string };
 
 /**
- * A headless (no DOM / no Konva) renderer for server-side and backend use.
- * Provides the same stateful API as the browser Renderer for area display,
- * position tracking, path rendering, and highlights — then exports to SVG or
- * renders to a caller-provided Canvas2D context for PNG output.
+ * A headless renderer that uses Konva with the canvas backend for server-side
+ * and Node.js rendering. Provides the same stateful API as the browser Renderer
+ * for area display, position tracking, path rendering, and highlights.
+ *
+ * Exports to SVG (via SvgExporter) or PNG (via headless Konva stage).
  *
  * Usage:
  * ```
+ * import { HeadlessRenderer } from 'mudlet-map-renderer';
+ *
  * const renderer = new HeadlessRenderer(mapReader, settings);
  * renderer.drawArea(areaId, 0);
  * renderer.setPosition(playerRoomId);
- * renderer.renderPath([roomA, roomB, roomC], '#ff0000');
  *
- * // SVG export (always available)
+ * // SVG export
  * const svg = renderer.exportSvg({ padding: 5 });
  *
- * // PNG export (Node.js with 'canvas' package)
- * import { createCanvas } from 'canvas';
- * const canvas = createCanvas(1920, 1080);
- * renderer.renderToCanvas(canvas.getContext('2d'), { width: 1920, height: 1080 });
+ * // PNG export
+ * const canvas = renderer.renderToCanvas({ width: 1920, height: 1080 });
  * fs.writeFileSync('map.png', canvas.toBuffer('image/png'));
  * ```
  */
@@ -114,20 +132,123 @@ export class HeadlessRenderer implements MapRenderer {
     }
 
     /**
-     * Render the current area to a Canvas2D context (for PNG export).
-     * The caller provides the canvas and context — works with `canvas` npm package (Node.js)
-     * or OffscreenCanvas (browser).
+     * Render the current area to a canvas using headless Konva.
+     * Returns the canvas object (node-canvas Canvas in Node.js) for PNG export.
      */
-    renderToCanvas(ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D, options: Omit<CanvasExportOptions, 'overlays'> & { overlays?: CanvasExportOverlays }) {
+    renderToCanvas(options: CanvasExportOptions & { overlays?: CanvasExportOverlays }): any {
         if (this.currentArea === undefined || this.currentZIndex === undefined) return;
 
-        const canvasOptions: CanvasExportOptions = {
-            ...options,
-            overlays: this.buildOverlays(options?.overlays),
+        const area = this.mapReader.getArea(this.currentArea);
+        if (!area) return;
+        const plane = area.getPlane(this.currentZIndex);
+        if (!plane) return;
+
+        const {width, height} = options;
+        const padding = options.padding ?? 3;
+        const overlays = this.buildOverlays(options.overlays);
+
+        // Compute map bounds
+        const bounds = this.computeBounds(area, plane, options.roomId, padding);
+
+        // Compute scale to fit map in canvas
+        const scaleX = width / bounds.w;
+        const scaleY = height / bounds.h;
+        const scale = Math.min(scaleX, scaleY);
+        const mapPixelW = bounds.w * scale;
+        const mapPixelH = bounds.h * scale;
+        const offsetX = (width - mapPixelW) / 2;
+        const offsetY = (height - mapPixelH) / 2;
+
+        // Create headless Konva stage
+        const stage = new Konva.Stage({ width, height });
+
+        // Background layer
+        const bgLayer = new Konva.Layer({ listening: false });
+        stage.add(bgLayer);
+        bgLayer.add(new Konva.Rect({
+            x: 0, y: 0, width, height,
+            fill: this.settings.backgroundColor,
+        }));
+
+        // Scene layers
+        const gridLayer = new Konva.Layer({ listening: false });
+        const linkLayer = new Konva.Layer({ listening: false });
+        const roomLayer = new Konva.Layer({ listening: false });
+        const overlayLayer = new Konva.Layer({ listening: false });
+
+        stage.add(gridLayer);
+        stage.add(linkLayer);
+        stage.add(roomLayer);
+        stage.add(overlayLayer);
+
+        // Apply transform to scene layers
+        for (const layer of [gridLayer, linkLayer, roomLayer, overlayLayer]) {
+            layer.scaleX(scale);
+            layer.scaleY(scale);
+            layer.x(offsetX - bounds.x * scale);
+            layer.y(offsetY - bounds.y * scale);
+        }
+
+        // Build scene
+        const sceneBuilder = new SceneBuilder(this.mapReader, this.settings, {
+            gridLayer, linkLayer, roomLayer,
+        });
+
+        // Compute viewport bounds in map coords for grid rendering
+        const viewportBounds = {
+            minX: bounds.x - offsetX / scale,
+            maxX: bounds.x - offsetX / scale + width / scale,
+            minY: bounds.y - offsetY / scale,
+            maxY: bounds.y - offsetY / scale + height / scale,
         };
 
-        const exporter = new CanvasExporter(this.mapReader, this.settings);
-        exporter.render(ctx, this.currentArea, this.currentZIndex, canvasOptions);
+        sceneBuilder.buildScene(area, plane, this.currentZIndex, viewportBounds);
+
+        // Overlays
+        if (overlays.paths) {
+            for (const path of overlays.paths) {
+                overlayLayer.add(buildPathOverlay(
+                    this.mapReader, this.settings,
+                    path.locations, path.color,
+                    this.currentArea, this.currentZIndex,
+                ));
+            }
+        }
+        if (overlays.highlights) {
+            for (const hl of overlays.highlights) {
+                const room = this.mapReader.getRoom(hl.roomId);
+                if (room) {
+                    overlayLayer.add(buildHighlight(room, hl.color, this.settings));
+                }
+            }
+        }
+        if (overlays.position) {
+            const room = this.mapReader.getRoom(overlays.position.roomId);
+            if (room) {
+                overlayLayer.add(buildPositionMarker(room, this.settings));
+            }
+        }
+
+        // Render and return canvas
+        stage.draw();
+        return stage.toCanvas({ width, height });
+    }
+
+    private computeBounds(area: Area, plane: any, roomId: number | undefined, padding: number) {
+        if (roomId !== undefined) {
+            const room = this.mapReader.getRoom(roomId);
+            if (!room) throw new Error(`Room ${roomId} not found`);
+            return { x: room.x - padding, y: room.y - padding, w: padding * 2, h: padding * 2 };
+        }
+        const b = this.settings.uniformLevelSize ? area.getFullBounds() : plane.getBounds();
+        const areaName = this.settings.areaName ? area.getAreaName() : undefined;
+        const nameOverhead = areaName ? 7 : 0;
+        const nameLeftOffset = areaName ? 3.5 : 0;
+        const minX = b.minX - nameLeftOffset;
+        const minY = b.minY - nameOverhead;
+        const nameRight = areaName ? (b.minX - 3.5 + areaName.length * 2.5 * 0.6) : -Infinity;
+        const maxX = Math.max(b.maxX, nameRight);
+        return { x: minX - padding, y: minY - padding, w: (maxX - minX) + padding * 2, h: (b.maxY - minY) + padding * 2 };
     }
 
     private buildOverlays(extra?: SvgOverlays | CanvasExportOverlays): SvgOverlays {

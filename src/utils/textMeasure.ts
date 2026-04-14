@@ -21,13 +21,15 @@ const MEASURE_PX = 72;       // large enough for sub-pixel accuracy
 const CANVAS_PX  = 200;
 const BASELINE_Y = 120;      // baseline well below mid so ascenders always fit
 
+import Konva from "konva";
+
 const cache = new Map<string, number>();
 
-let _canvas: HTMLCanvasElement | null = null;
+let _canvas: any = null;
 
-function getCanvas(): HTMLCanvasElement {
+function getCanvas(): any {
     if (!_canvas) {
-        _canvas = document.createElement('canvas');
+        _canvas = Konva.Util.createCanvasElement();
         _canvas.width  = CANVAS_PX;
         _canvas.height = CANVAS_PX;
     }

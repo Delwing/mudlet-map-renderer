@@ -1,24 +1,19 @@
 import Konva from "konva";
-import ExitRenderer from "./ExitRenderer";
 import MapReader from "./reader/MapReader";
-import Exit from "./reader/Exit";
 import Area from "./reader/Area";
-import Plane from "./reader/Plane";
 import ExplorationArea from "./reader/ExplorationArea";
 import PathRenderer from "./PathRenderer";
 import {SvgExporter} from "./SvgExporter";
 import type {SvgExportOptions} from "./SvgExporter";
 import type {MapRenderer} from "./MapRenderer";
 import {ViewportManager} from "./ViewportManager";
-import {RoomShapeRenderer} from "./RoomShapeRenderer";
-import {GridRenderer} from "./GridRenderer";
 import {InteractionHandler} from "./InteractionHandler";
 import {CullingManager} from "./CullingManager";
-import type {RoomNodeEntry, StandaloneExitEntry} from "./CullingManager";
 import {TypedEventEmitter} from "./TypedEventEmitter";
-import {drawExitDataToCanvas} from "./scene/ExitDataRenderer";
-import {KonvaBackend, KonvaGroupNode, KonvaLayerNode} from "./backend/KonvaBackend";
+import {KonvaGroupNode, KonvaLayerNode} from "./backend/KonvaBackend";
 import type {GroupNode} from "./backend/DrawingBackend";
+import {SceneBuilder, buildPositionMarker, buildHighlight} from "./SceneBuilder";
+import type {AreaExitHitZone} from "./SceneBuilder";
 
 const defaultRoomSize = 0.6;
 const defaultLineWidth = 0.025;
@@ -295,8 +290,6 @@ type HighlightData = {
     shape?: Konva.Shape;
 };
 
-type AreaExitHitZone = { bounds: { x: number; y: number; width: number; height: number }; targetRoomId: number };
-
 export class Renderer implements MapRenderer {
 
     private readonly events: TypedEventEmitter<RendererEventMap>;
@@ -308,7 +301,7 @@ export class Renderer implements MapRenderer {
     private readonly positionLayer: Konva.Layer;
     private mapReader: MapReader;
     readonly settings: Settings;
-    private exitRenderer: ExitRenderer;
+    private readonly sceneBuilder: SceneBuilder;
     private pathRenderer: PathRenderer;
     private highlights: Map<number, HighlightData> = new Map();
     private currentArea?: number;
@@ -320,8 +313,6 @@ export class Renderer implements MapRenderer {
     private currentRoomOverlay: Konva.Node[] = [];
 
     private readonly viewport: ViewportManager;
-    private readonly roomShapeRenderer: RoomShapeRenderer;
-    private readonly gridRenderer: GridRenderer;
     private readonly culling: CullingManager;
     private exitBatchShape?: Konva.Shape;
     private areaExitHitZones: AreaExitHitZone[] = [];
@@ -347,11 +338,12 @@ export class Renderer implements MapRenderer {
         this.overlayLayer = new Konva.Layer({ listening: false })
         this.stage.add(this.overlayLayer);
         this.mapReader = mapReader;
-        this.exitRenderer = new ExitRenderer(mapReader, this.settings);
+        this.sceneBuilder = new SceneBuilder(mapReader, this.settings, {
+            gridLayer: this.gridLayer,
+            linkLayer: this.linkLayer,
+            roomLayer: this.roomLayer,
+        });
         this.pathRenderer = new PathRenderer(mapReader, this.overlayLayer, this.settings);
-        const backend = new KonvaBackend();
-        this.roomShapeRenderer = new RoomShapeRenderer(mapReader, this.settings, backend);
-        this.gridRenderer = new GridRenderer(new KonvaLayerNode(this.gridLayer), this.settings, backend);
 
         this.viewport = new ViewportManager(this.stage, container, this.settings, {
             scheduleCulling: () => this.culling.scheduleCulling(),
@@ -365,7 +357,7 @@ export class Renderer implements MapRenderer {
 
         this.culling = new CullingManager(
             this.stage, new KonvaLayerNode(this.roomLayer), new KonvaLayerNode(this.linkLayer),
-            this.settings, this.gridRenderer, this.viewport,
+            this.settings, this.sceneBuilder.gridRenderer, this.viewport,
         );
 
         new InteractionHandler(this.stage, container, this.settings, {
@@ -395,10 +387,6 @@ export class Renderer implements MapRenderer {
             this.positionRender = undefined;
         }
         this.positionLayer.destroyChildren();
-        this.gridLayer.destroyChildren();
-        this.gridRenderer.invalidateCache();
-        this.roomLayer.destroyChildren();
-        this.linkLayer.destroyChildren();
         this.culling.clear();
         this.areaExitHitZones = [];
         this.exitBatchShape = undefined;
@@ -406,11 +394,24 @@ export class Renderer implements MapRenderer {
 
         this.viewport.applyScale();
 
-        this.gridRenderer.render(this.viewport.getViewportBounds());
-        this.renderLabels(plane.getLabels());
-        this.renderExits(area.getLinkExits(zIndex));
-        this.renderRooms(plane.getRooms() ?? []);
-        this.renderAreaName(area, plane);
+        const result = this.sceneBuilder.buildScene(area, plane, zIndex, this.viewport.getViewportBounds());
+
+        // Wire scene result into culling
+        for (const [id, entry] of result.roomNodes) {
+            this.culling.roomNodes.set(id, entry);
+            this.culling.addRoomToSpatialIndex(entry);
+        }
+        for (const entry of result.standaloneExitNodes) {
+            this.culling.standaloneExitNodes.push(entry);
+            this.culling.addStandaloneExitToSpatialIndex(entry);
+        }
+        this.culling.setExitBoundsRoomSize();
+        // Share the exit draw data array between the sceneFunc closure and culling,
+        // so culling can update which exits are visible by mutating the same array.
+        this.culling.visibleExitDrawData = result.exitDrawData;
+        this.areaExitHitZones = result.areaExitHitZones;
+        this.exitBatchShape = result.exitBatchShape;
+
         this.refreshHighlights();
         // Run culling synchronously so visibleExitDrawData is populated
         // before the first paint, preventing a 1-frame blink.
@@ -489,7 +490,7 @@ export class Renderer implements MapRenderer {
         if (!this.currentAreaInstance || this.currentZIndex === undefined) return null;
         const plane = this.currentAreaInstance.getPlane(this.currentZIndex);
         if (!plane) return null;
-        const b = this.getEffectiveBounds(this.currentAreaInstance, plane);
+        const b = this.sceneBuilder.getEffectiveBounds(this.currentAreaInstance, plane);
         const hasAreaName = this.settings.areaName && this.currentAreaInstance.getAreaName();
         return {
             minX: hasAreaName ? b.minX - 4 : b.minX,
@@ -561,6 +562,10 @@ export class Renderer implements MapRenderer {
         }
     }
 
+   updateBackground() {
+        this.stage.container().style.backgroundColor = this.settings.backgroundColor;
+    }
+
     /**
      * Completely refreshes the map to reflect changes to settings.
      * This re-renders the entire current area and updates the player position marker.
@@ -568,10 +573,6 @@ export class Renderer implements MapRenderer {
      *
      * Note: This is more expensive than refreshCurrentRoomOverlay() but ensures everything is updated.
      */
-    updateBackground() {
-        this.stage.container().style.backgroundColor = this.settings.backgroundColor;
-    }
-
     refresh() {
         this.updateBackground();
         if (this.currentArea !== undefined && this.currentZIndex !== undefined) {
@@ -631,43 +632,10 @@ export class Renderer implements MapRenderer {
     }
 
     private applyPositionMarker(room: MapData.Room) {
-        const pm = this.settings.playerMarker;
-        const strokeColor = hexToRgba(pm.strokeColor, pm.strokeAlpha);
-        const fillColor = hexToRgba(pm.fillColor, pm.fillAlpha);
-        const markerSize = this.settings.roomSize * pm.sizeFactor;
-        const halfSize = markerSize / 2;
-
         if (this.positionRender) {
             this.positionRender.destroy();
         }
-
-        const useRoomShape = pm.matchRoomShape && this.settings.roomShape !== "circle";
-        if (useRoomShape) {
-            const cr = this.settings.roomShape === "roundedRectangle" ? markerSize * 0.2 : 0;
-            this.positionRender = new Konva.Rect({
-                x: room.x - halfSize,
-                y: room.y - halfSize,
-                width: markerSize,
-                height: markerSize,
-                stroke: strokeColor,
-                fill: fillColor,
-                strokeWidth: pm.strokeWidth,
-                dash: pm.dash,
-                dashEnabled: pm.dashEnabled,
-                cornerRadius: cr,
-            });
-        } else {
-            this.positionRender = new Konva.Circle({
-                x: room.x,
-                y: room.y,
-                radius: halfSize,
-                stroke: strokeColor,
-                fill: fillColor,
-                strokeWidth: pm.strokeWidth,
-                dash: pm.dash,
-                dashEnabled: pm.dashEnabled,
-            });
-        }
+        this.positionRender = buildPositionMarker(room, this.settings);
         this.positionLayer.add(this.positionRender);
     }
 
@@ -775,30 +743,7 @@ export class Renderer implements MapRenderer {
     }
 
     private createHighlightShape(room: MapData.Room, color: string) {
-        const highlightFactor = 1.5;
-        return this.settings.roomShape === "circle"
-            ? new Konva.Circle({
-                x: room.x,
-                y: room.y,
-                radius: this.settings.roomSize / 2 * highlightFactor,
-                stroke: color,
-                strokeWidth: 0.1,
-                dash: [0.05, 0.05],
-                dashEnabled: true,
-                listening: false,
-            })
-            : new Konva.Rect({
-                x: room.x - this.settings.roomSize / 2 * highlightFactor,
-                y: room.y - this.settings.roomSize / 2 * highlightFactor,
-                width: this.settings.roomSize * highlightFactor,
-                height: this.settings.roomSize * highlightFactor,
-                stroke: color,
-                strokeWidth: 0.1,
-                dash: [0.05, 0.05],
-                dashEnabled: true,
-                cornerRadius: this.settings.roomShape === "roundedRectangle" ? this.settings.roomSize * highlightFactor * 0.2 : 0,
-                listening: false,
-            });
+        return buildHighlight(room, color, this.settings);
     }
 
     private centerOnRoom(room: MapData.Room, instant: boolean = false) {
@@ -820,68 +765,9 @@ export class Renderer implements MapRenderer {
         this.viewport.panToMapPoint(room.x, room.y, instant);
     }
 
-    private getEffectiveBounds(area: Area, plane: Plane) {
-        return this.settings.uniformLevelSize ? area.getFullBounds() : plane.getBounds();
-    }
-
-    private renderAreaName(area: Area, plane: Plane) {
-        if (!this.settings.areaName) return;
-        const name = area.getAreaName();
-        if (!name) return;
-        const bounds = this.getEffectiveBounds(area, plane);
-        this.roomLayer.add(new Konva.Text({
-            x: bounds.minX - 3.5,
-            y: bounds.minY - 4.5,
-            text: name,
-            fontSize: 2.5,
-            fontFamily: this.settings.fontFamily,
-            fill: 'white',
-            listening: false,
-            perfectDrawEnabled: false,
-        }));
-    }
-
     /** Unwrap a GroupNode to Konva.Group for direct Konva layer operations. */
     private toKonvaGroup(node: GroupNode): Konva.Group {
         return (node as KonvaGroupNode).konvaGroup;
-    }
-
-    private renderRooms(rooms: MapData.Room[]) {
-        rooms.forEach(room => {
-            const roomNode = this.roomShapeRenderer.createRoomGroup(room);
-            const roomRender = this.toKonvaGroup(roomNode);
-            this.roomLayer.add(roomRender);
-
-            // Special exits stored as draw data for batch rendering
-            this.exitRenderer.renderSpecialExits(room).forEach(render => {
-                this.linkLayer.add(render);
-            })
-            // Track cross-area custom line hit zones
-            this.exitRenderer.getSpecialExitAreaTargets(room).forEach(zone => {
-                this.areaExitHitZones.push(zone);
-            });
-            // Stubs and inner exits nested in room group for automatic culling
-            const gx = room.x - this.settings.roomSize / 2;
-            const gy = room.y - this.settings.roomSize / 2;
-            this.exitRenderer.renderStubs(room).forEach(render => {
-                // Offset absolute points to group-relative coordinates
-                const pts = render.points();
-                for (let i = 0; i < pts.length; i += 2) {
-                    pts[i] -= gx;
-                    pts[i + 1] -= gy;
-                }
-                render.points(pts);
-                roomRender.add(render);
-            })
-            this.exitRenderer.renderInnerExits(room).forEach(render => {
-                render.position({ x: -gx, y: -gy });
-                roomRender.add(render);
-            })
-
-            const entry: RoomNodeEntry = {room, group: roomNode};
-            this.culling.roomNodes.set(room.id, entry);
-            this.culling.addRoomToSpatialIndex(entry);
-        })
     }
 
     private clearCurrentRoomOverlay() {
@@ -912,8 +798,8 @@ export class Renderer implements MapRenderer {
                 .filter(exit => exit.a === room.id || exit.b === room.id);
             exits.forEach(exit => {
                 const render = this.settings.highlightCurrentRoom
-                    ? this.exitRenderer.renderWithColor(exit, currentRoomColor, this.currentZIndex!)
-                    : this.exitRenderer.render(exit, this.currentZIndex!);
+                    ? this.sceneBuilder.exitRenderer.renderWithColor(exit, currentRoomColor, this.currentZIndex!)
+                    : this.sceneBuilder.exitRenderer.render(exit, this.currentZIndex!);
                 if (render) {
                     preRoomNodes.push(render);
                 }
@@ -923,13 +809,13 @@ export class Renderer implements MapRenderer {
         const highlightColor = this.settings.highlightCurrentRoom ? currentRoomColor : undefined;
 
 
-        this.exitRenderer.renderSpecialExits(room, highlightColor).forEach(render => {
+        this.sceneBuilder.exitRenderer.renderSpecialExits(room, highlightColor).forEach(render => {
             preRoomNodes.push(render);
         });
 
         const stubs = this.settings.highlightCurrentRoom
-            ? this.exitRenderer.renderStubs(room, currentRoomColor)
-            : this.exitRenderer.renderStubs(room);
+            ? this.sceneBuilder.exitRenderer.renderStubs(room, currentRoomColor)
+            : this.sceneBuilder.exitRenderer.renderStubs(room);
         stubs.forEach(render => {
             preRoomNodes.push(render);
         });
@@ -965,7 +851,7 @@ export class Renderer implements MapRenderer {
             this.positionLayer.add(overlayRoom);
             this.currentRoomOverlay.push(overlayRoom);
 
-            this.exitRenderer.renderInnerExits(roomToRedraw).forEach(render => {
+            this.sceneBuilder.exitRenderer.renderInnerExits(roomToRedraw).forEach(render => {
                 this.positionLayer.add(render);
                 this.currentRoomOverlay.push(render);
             });
@@ -982,115 +868,9 @@ export class Renderer implements MapRenderer {
     private createOverlayRoomGroup(room: MapData.Room, options: {
         stroke: string;
     }) {
-        return this.roomShapeRenderer.createRoomGroup(room, {
+        return this.sceneBuilder.roomShapeRenderer.createRoomGroup(room, {
             strokeOverride: options.stroke,
         });
     }
-
-    private renderExits(exits: Exit[]) {
-        exits.forEach(exit => {
-            const data = this.exitRenderer.renderData(exit, this.currentZIndex!);
-            if (!data) {
-                return;
-            }
-            const entry: StandaloneExitEntry = { data, bounds: data.bounds, targetRoomId: data.targetRoomId };
-            this.culling.standaloneExitNodes.push(entry);
-            this.culling.addStandaloneExitToSpatialIndex(entry);
-            if (data.targetRoomId !== undefined) {
-                this.areaExitHitZones.push({ bounds: data.bounds, targetRoomId: data.targetRoomId });
-            }
-        });
-
-        this.culling.setExitBoundsRoomSize();
-
-        // Create a single batched shape for drawing all visible exits
-        this.exitBatchShape = new Konva.Shape({
-            listening: false,
-            perfectDrawEnabled: false,
-            sceneFunc: (context) => {
-                const ctx = context._context;
-                for (const data of this.culling.visibleExitDrawData) {
-                    drawExitDataToCanvas(ctx, data);
-                }
-            },
-        });
-        this.linkLayer.add(this.exitBatchShape);
-    }
-
-    private renderLabels(Labels: MapData.Label[]) {
-        if (this.settings.labelRenderMode === "none") return;
-        Labels.forEach(label => {
-            if (this.settings.labelRenderMode === "image") {
-                if (!label.pixMap) {
-                    return;
-                }
-
-                const image = new Image();
-                image.src = `data:image/png;base64,${label.pixMap}`;
-                const labelRender = new Konva.Image({
-                    x: label.X,
-                    y: -label.Y,
-                    width: label.Width,
-                    height: label.Height,
-                    image: image,
-                    listening: false,
-                });
-                this.linkLayer.add(labelRender);
-                return;
-            }
-
-            this.renderLabelAsData(label);
-        });
-    }
-
-    private renderLabelAsData(label: MapData.Label) {
-        const labelRender = new Konva.Group({
-            listening: false,
-        });
-
-        const background = new Konva.Rect({
-            x: label.X,
-            y: -label.Y,
-            width: label.Width,
-            height: label.Height,
-            listening: false,
-        });
-
-        if ((label.BgColor?.alpha ?? 0) > 0 && !this.settings.transparentLabels) {
-            background.fill(this.getLabelColor(label.BgColor));
-        } else {
-            background.fillEnabled(false);
-        }
-
-        labelRender.add(background);
-
-        const ratio = Math.min(0.75, label.Width / Math.max(label.Text.length / 2, 1));
-        const fontSize = Math.max(0.1, Math.min(ratio, Math.max(label.Height * 0.9, 0.1)));
-
-        const text = new Konva.Text({
-            x: label.X,
-            y: -label.Y,
-            width: label.Width,
-            height: label.Height,
-            text: label.Text,
-            fontSize,
-            fillEnabled: true,
-            fill: this.getLabelColor(label.FgColor),
-            align: "center",
-            verticalAlign: "middle",
-            listening: false,
-        });
-
-        labelRender.add(text);
-
-        this.linkLayer.add(labelRender);
-    }
-
-    private getLabelColor(color: MapData.Color): string {
-        const alpha = (color?.alpha ?? 255) / 255;
-        const clamp = (value: number) => Math.min(255, Math.max(0, value ?? 0));
-        return `rgba(${clamp(color?.r)}, ${clamp(color?.g)}, ${clamp(color?.b)}, ${alpha})`;
-    }
-
 
 }

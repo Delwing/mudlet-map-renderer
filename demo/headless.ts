@@ -1,8 +1,8 @@
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-import { HeadlessRenderer } from "../src/HeadlessRenderer";
-import { createSettings } from "../src/Renderer";
+import { HeadlessRenderer } from "@src";
+import { createSettings } from "@src";
 import MapReader from "../src/reader/MapReader";
 import PathFinder from "../src/PathFinder";
 
@@ -209,14 +209,14 @@ async function main() {
     }
     if (zLevel === undefined) zLevel = 0;
 
-    const area = mapReader.getArea(areaId);
+    const area = mapReader.getArea(areaId!);
     if (!area) {
         console.error(`Area ${areaId} not found.`);
         process.exit(1);
     }
 
     console.log(`Rendering area ${areaId} (${area.getAreaName() ?? "unnamed"}), z=${zLevel}`);
-    renderer.drawArea(areaId, zLevel);
+    renderer.drawArea(areaId!, zLevel);
 
     // Position marker
     if (args.room !== undefined) {
@@ -256,18 +256,12 @@ async function main() {
         fs.writeFileSync(outputPath, svg, "utf-8");
         console.log(`SVG written to ${outputPath}`);
     } else {
-        // PNG via canvas package
-        let createCanvas: (w: number, h: number) => any;
-        try {
-            createCanvas = (await import("canvas")).createCanvas;
-        } catch {
-            console.error("PNG export requires the 'canvas' npm package. Install it with: npm install canvas");
+        // PNG via headless Konva (uses canvas package internally)
+        const canvas = renderer.renderToCanvas({ width: args.width, height: args.height, roomId: args.room, padding: exportPadding });
+        if (!canvas) {
+            console.error("PNG export failed.");
             process.exit(1);
         }
-
-        const canvas = createCanvas(args.width, args.height);
-        const ctx = canvas.getContext("2d");
-        renderer.renderToCanvas(ctx, { width: args.width, height: args.height, roomId: args.room, padding: exportPadding });
 
         const buffer = canvas.toBuffer("image/png");
         fs.writeFileSync(outputPath, buffer);

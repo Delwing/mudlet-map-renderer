@@ -353,6 +353,8 @@ export default class ExitRenderer {
 
     renderSpecialExits(room: MapData.Room, overrideColor?: string) {
         return Object.entries(room.customLines).flatMap(([dir, line]) => {
+            if (line.points.length === 0) return [];
+
             const points = [room.x, room.y]
             line.points.reduce((acc, point) => {
                 acc.push(point.x, -point.y);

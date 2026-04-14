@@ -258,11 +258,11 @@
 <rect x="23.7" y="8.7" width="0.6" height="0.6" fill="rgb(170,139,89)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 <rect x="63.7" y="12.7" width="0.6" height="0.6" fill="rgb(128,128,0)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 <rect x="81.7" y="26.7" width="0.6" height="0.6" fill="rgb(239,176,73)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<text x="82" y="27" dy="0.35em" font-size="0.44999999999999996" font-weight="bold" font-family="sans-serif" fill="rgba(25,25,25)" text-anchor="middle">+</text>
+<text x="82" y="27.14375" font-size="0.44999999999999996" font-weight="bold" font-family="sans-serif" fill="rgba(25,25,25)" text-anchor="middle">+</text>
 <rect x="69.7" y="32.7" width="0.6" height="0.6" fill="rgb(0,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 <rect x="71.7" y="26.7" width="0.6" height="0.6" fill="rgb(0,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 <rect x="69.7" y="28.7" width="0.6" height="0.6" fill="rgb(239,176,73)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<text x="70" y="29" dy="0.35em" font-size="0.44999999999999996" font-weight="bold" font-family="sans-serif" fill="rgba(25,25,25)" text-anchor="middle">T</text>
+<text x="70" y="29.165625" font-size="0.44999999999999996" font-weight="bold" font-family="sans-serif" fill="rgba(25,25,25)" text-anchor="middle">T</text>
 <rect x="60.7" y="5.7" width="0.6" height="0.6" fill="rgb(128,128,0)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 <rect x="25.7" y="12.7" width="0.6" height="0.6" fill="rgb(114, 1, 0)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 <rect x="33.7" y="22.7" width="0.6" height="0.6" fill="rgb(255,255,255)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
@@ -325,13 +325,13 @@
 <rect x="25.7" y="14.7" width="0.6" height="0.6" fill="rgb(170,139,89)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 <rect x="67.7" y="28.7" width="0.6" height="0.6" fill="rgb(0,0,255)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 <rect x="48.7" y="7.7" width="0.6" height="0.6" fill="rgb(239,176,73)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<text x="49" y="8" dy="0.35em" font-size="0.44999999999999996" font-weight="bold" font-family="sans-serif" fill="rgba(25,25,25)" text-anchor="middle">B</text>
+<text x="49" y="8.165625" font-size="0.44999999999999996" font-weight="bold" font-family="sans-serif" fill="rgba(25,25,25)" text-anchor="middle">B</text>
 <rect x="62.7" y="20.7" width="0.6" height="0.6" fill="rgb(114, 1, 0)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 <rect x="75.7" y="24.7" width="0.6" height="0.6" fill="rgb(0,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 <rect x="27.7" y="20.7" width="0.6" height="0.6" fill="rgb(170,139,89)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 <rect x="77.7" y="20.7" width="0.6" height="0.6" fill="rgb(114, 1, 0)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 <rect x="67.7" y="16.7" width="0.6" height="0.6" fill="rgb(239,176,73)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<text x="68" y="17" dy="0.35em" font-size="0.44999999999999996" font-weight="bold" font-family="sans-serif" fill="rgba(25,25,25)" text-anchor="middle">T</text>
+<text x="68" y="17.165625" font-size="0.44999999999999996" font-weight="bold" font-family="sans-serif" fill="rgba(25,25,25)" text-anchor="middle">T</text>
 <rect x="65.7" y="26.7" width="0.6" height="0.6" fill="rgb(255,255,255)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 <rect x="17.7" y="8.7" width="0.6" height="0.6" fill="rgb(239,176,73)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 <rect x="39.7" y="16.7" width="0.6" height="0.6" fill="rgb(128,0,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
@@ -348,12 +348,12 @@
 <rect x="81.7" y="16.7" width="0.6" height="0.6" fill="rgb(114, 1, 0)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 <rect x="21.7" y="12.7" width="0.6" height="0.6" fill="rgb(170,139,89)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 <rect x="65.7" y="16.7" width="0.6" height="0.6" fill="rgb(255,0,255)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<text x="66" y="17" dy="0.35em" font-size="0.44999999999999996" font-weight="bold" font-family="sans-serif" fill="rgba(25,25,25)" text-anchor="middle">P</text>
+<text x="66" y="17.165625" font-size="0.44999999999999996" font-weight="bold" font-family="sans-serif" fill="rgba(25,25,25)" text-anchor="middle">P</text>
 <rect x="71.7" y="20.7" width="0.6" height="0.6" fill="rgb(114, 1, 0)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 <rect x="69.7" y="12.7" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 <rect x="64.7" y="5.7" width="0.6" height="0.6" fill="rgb(128,128,0)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 <rect x="35.7" y="24.7" width="0.6" height="0.6" fill="rgb(239,176,73)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<text x="36" y="25" dy="0.35em" font-size="0.44999999999999996" font-weight="bold" font-family="sans-serif" fill="rgba(25,25,25)" text-anchor="middle">T</text>
+<text x="36" y="25.165625" font-size="0.44999999999999996" font-weight="bold" font-family="sans-serif" fill="rgba(25,25,25)" text-anchor="middle">T</text>
 <rect x="73.7" y="28.7" width="0.6" height="0.6" fill="rgb(0,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 <rect x="67.7" y="6.7" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 <rect x="65.7" y="36.7" width="0.6" height="0.6" fill="rgb(0,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
@@ -364,11 +364,11 @@
 <rect x="60.7" y="18.7" width="0.6" height="0.6" fill="rgb(114, 1, 0)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 <rect x="58.7" y="7.7" width="0.6" height="0.6" fill="rgb(128,128,0)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 <rect x="59.7" y="14.7" width="0.6" height="0.6" fill="rgb(139,69,19)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<text x="60" y="15" dy="0.35em" font-size="0.44999999999999996" font-weight="bold" font-family="sans-serif" fill="rgba(225,255,255)" text-anchor="middle">X</text>
+<text x="60" y="15.165625" font-size="0.44999999999999996" font-weight="bold" font-family="sans-serif" fill="rgba(225,255,255)" text-anchor="middle">X</text>
 <rect x="41.7" y="14.7" width="0.6" height="0.6" fill="rgb(128,0,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 <rect x="67.7" y="38.7" width="0.6" height="0.6" fill="rgb(255,255,0)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 <rect x="71.7" y="10.7" width="0.6" height="0.6" fill="rgb(0,255,0)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<text x="72" y="11" dy="0.35em" font-size="0.44999999999999996" font-weight="bold" font-family="sans-serif" fill="rgba(25,25,25)" text-anchor="middle">K</text>
+<text x="72" y="11.165625" font-size="0.44999999999999996" font-weight="bold" font-family="sans-serif" fill="rgba(25,25,25)" text-anchor="middle">K</text>
 <rect x="27.7" y="28.7" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 <rect x="81.7" y="30.7" width="0.6" height="0.6" fill="rgb(239,176,73)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 <rect x="52.7" y="9.7" width="0.6" height="0.6" fill="rgb(128,128,0)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
@@ -376,12 +376,12 @@
 <rect x="17.7" y="4.7" width="0.6" height="0.6" fill="rgb(114, 1, 0)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 <rect x="27.7" y="14.7" width="0.6" height="0.6" fill="rgb(114, 1, 0)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 <rect x="71.7" y="30.7" width="0.6" height="0.6" fill="rgb(239,176,73)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<text x="72" y="31" dy="0.35em" font-size="0.44999999999999996" font-weight="bold" font-family="sans-serif" fill="rgba(25,25,25)" text-anchor="middle">S</text>
+<text x="72" y="31.16875" font-size="0.44999999999999996" font-weight="bold" font-family="sans-serif" fill="rgba(25,25,25)" text-anchor="middle">S</text>
 <rect x="45.7" y="18.7" width="0.6" height="0.6" fill="rgb(128,128,0)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 <rect x="45.7" y="12.7" width="0.6" height="0.6" fill="rgb(128,0,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 <rect x="64.7" y="7.7" width="0.6" height="0.6" fill="rgb(128,128,0)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 <rect x="75.7" y="12.7" width="0.6" height="0.6" fill="rgb(139,69,19)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<text x="76" y="13" dy="0.35em" font-size="0.44999999999999996" font-weight="bold" font-family="sans-serif" fill="rgba(225,255,255)" text-anchor="middle">X</text>
+<text x="76" y="13.165625" font-size="0.44999999999999996" font-weight="bold" font-family="sans-serif" fill="rgba(225,255,255)" text-anchor="middle">X</text>
 <rect x="73.7" y="10.7" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 <rect x="34.7" y="20.7" width="0.6" height="0.6" fill="rgb(114, 1, 0)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 <rect x="57.7" y="12.7" width="0.6" height="0.6" fill="rgb(128,128,0)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
@@ -406,7 +406,7 @@
 <rect x="50.7" y="24.7" width="0.6" height="0.6" fill="rgb(114, 1, 0)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 <rect x="53.7" y="14.7" width="0.6" height="0.6" fill="rgb(255,0,0)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 <rect x="65.7" y="30.7" width="0.6" height="0.6" fill="rgb(239,176,73)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<text x="66" y="31" dy="0.35em" font-size="0.44999999999999996" font-weight="bold" font-family="sans-serif" fill="rgba(25,25,25)" text-anchor="middle">r</text>
+<text x="66" y="31.125" font-size="0.44999999999999996" font-weight="bold" font-family="sans-serif" fill="rgba(25,25,25)" text-anchor="middle">r</text>
 <polygon points="18,7.054 18.145492267835785,7.198 17.854507732164215,7.198" fill="rgba(25,25,25, 0.6)" stroke="rgba(25,25,25)" stroke-width="0.025"/>
 <polygon points="70,19.054 70.14549226783579,19.197999999999997 69.85450773216421,19.197999999999997" fill="rgba(25,25,25, 0.6)" stroke="rgba(25,25,25)" stroke-width="0.025"/>
 <polygon points="55,7.946 54.854507732164215,7.802 55.145492267835785,7.802" fill="rgba(225,255,255, 0.6)" stroke="rgba(225,255,255)" stroke-width="0.025"/>
