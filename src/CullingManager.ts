@@ -1,0 +1,383 @@
+import Konva from "konva";
+import type {ExitDrawData} from "./ExitRenderer";
+import type {Settings, CullingMode, PerfSnapshot} from "./Renderer";
+import type {GridRenderer} from "./GridRenderer";
+import type {ViewportManager} from "./ViewportManager";
+
+export type RoomNodeEntry = { room: MapData.Room; group: Konva.Group };
+type Bounds = { x: number; y: number; width: number; height: number };
+export type StandaloneExitEntry = { data: ExitDrawData; bounds: Bounds; targetRoomId?: number };
+
+class PerfMonitor {
+    private samples: PerfSnapshot[] = [];
+    private lastCullingTime = 0;
+    private readonly windowSize: number;
+    private callback: ((avg: PerfSnapshot) => void) | null = null;
+
+    constructor(windowSize = 60) {
+        this.windowSize = windowSize;
+    }
+
+    setCallback(cb: ((avg: PerfSnapshot) => void) | null) {
+        if (cb === this.callback) return;
+        this.callback = cb;
+        this.samples = [];
+    }
+
+    record(snapshot: PerfSnapshot) {
+        if (!this.callback) return;
+        this.samples.push(snapshot);
+        if (this.samples.length >= this.windowSize) {
+            this.flush();
+        }
+    }
+
+    computeFps(): number {
+        const now = performance.now();
+        const dt = now - this.lastCullingTime;
+        this.lastCullingTime = now;
+        return dt > 0 ? 1000 / dt : 0;
+    }
+
+    private flush() {
+        const n = this.samples.length;
+        if (n === 0) return;
+        const avg: PerfSnapshot = { cullingMs: 0, gridMs: 0, visibleRooms: 0, totalRooms: 0, visibleExits: 0, fps: 0 };
+        for (const s of this.samples) {
+            avg.cullingMs += s.cullingMs;
+            avg.gridMs += s.gridMs;
+            avg.visibleRooms += s.visibleRooms;
+            avg.totalRooms += s.totalRooms;
+            avg.visibleExits += s.visibleExits;
+            avg.fps += s.fps;
+        }
+        avg.cullingMs /= n;
+        avg.gridMs /= n;
+        avg.visibleRooms = Math.round(avg.visibleRooms / n);
+        avg.totalRooms = Math.round(avg.totalRooms / n);
+        avg.visibleExits = Math.round(avg.visibleExits / n);
+        avg.fps = Math.round(avg.fps);
+        this.callback!(avg);
+        this.samples = [];
+    }
+}
+
+/**
+ * Manages spatial indexing and viewport culling for rooms and exits.
+ * Toggles Konva node visibility based on what's in the viewport.
+ */
+export class CullingManager {
+
+    private readonly stage: Konva.Stage;
+    private readonly roomLayer: Konva.Layer;
+    private readonly linkLayer: Konva.Layer;
+    private readonly settings: Settings;
+    private readonly gridRenderer: GridRenderer;
+    private readonly viewport: ViewportManager;
+
+    // Node collections (owned by Renderer, shared by reference)
+    roomNodes: Map<number, RoomNodeEntry> = new Map();
+    standaloneExitNodes: StandaloneExitEntry[] = [];
+    visibleExitDrawData: ExitDrawData[] = [];
+
+    // Spatial index
+    spatialBucketSize = 5;
+    private roomSpatialIndex: Map<number, Set<RoomNodeEntry>> = new Map();
+    private exitSpatialIndex: Map<number, Set<StandaloneExitEntry>> = new Map();
+    private visibleRooms: Set<RoomNodeEntry> = new Set();
+    private visibleStandaloneExitNodes: Set<StandaloneExitEntry> = new Set();
+    private bufferRoomSet: Set<RoomNodeEntry> = new Set();
+    private bufferExitSet: Set<StandaloneExitEntry> = new Set();
+    private bufferRoomCandidates: Set<RoomNodeEntry> = new Set();
+    private bufferExitCandidates: Set<StandaloneExitEntry> = new Set();
+    private standaloneExitBoundsRoomSize?: number;
+    private cullingScheduled = false;
+    private perfMonitor = new PerfMonitor();
+
+    constructor(
+        stage: Konva.Stage,
+        roomLayer: Konva.Layer,
+        linkLayer: Konva.Layer,
+        settings: Settings,
+        gridRenderer: GridRenderer,
+        viewport: ViewportManager,
+    ) {
+        this.stage = stage;
+        this.roomLayer = roomLayer;
+        this.linkLayer = linkLayer;
+        this.settings = settings;
+        this.gridRenderer = gridRenderer;
+        this.viewport = viewport;
+    }
+
+    computeBucketSize() {
+        this.spatialBucketSize = Math.max(this.settings.roomSize * 10, 5);
+    }
+
+    clear() {
+        this.roomNodes.clear();
+        this.standaloneExitNodes = [];
+        this.standaloneExitBoundsRoomSize = undefined;
+        this.roomSpatialIndex.clear();
+        this.exitSpatialIndex.clear();
+        this.visibleRooms.clear();
+        this.visibleStandaloneExitNodes.clear();
+        this.visibleExitDrawData.length = 0;
+    }
+
+    private getBucketKey(bucketX: number, bucketY: number) {
+        return bucketX * 1000003 + bucketY;
+    }
+
+    private forEachBucket(minX: number, minY: number, maxX: number, maxY: number, callback: (key: number) => void) {
+        const bucketSize = this.spatialBucketSize;
+        const safeMinX = Math.min(minX, maxX);
+        const safeMaxX = Math.max(minX, maxX);
+        const safeMinY = Math.min(minY, maxY);
+        const safeMaxY = Math.max(minY, maxY);
+        const minBucketX = Math.floor(safeMinX / bucketSize);
+        const maxBucketX = Math.floor(safeMaxX / bucketSize);
+        const minBucketY = Math.floor(safeMinY / bucketSize);
+        const maxBucketY = Math.floor(safeMaxY / bucketSize);
+
+        for (let bucketX = minBucketX; bucketX <= maxBucketX; bucketX++) {
+            for (let bucketY = minBucketY; bucketY <= maxBucketY; bucketY++) {
+                callback(this.getBucketKey(bucketX, bucketY));
+            }
+        }
+    }
+
+    addRoomToSpatialIndex(entry: RoomNodeEntry) {
+        const halfSize = this.settings.roomSize / 2;
+        this.forEachBucket(
+            entry.room.x - halfSize, entry.room.y - halfSize,
+            entry.room.x + halfSize, entry.room.y + halfSize,
+            key => {
+                let bucket = this.roomSpatialIndex.get(key);
+                if (!bucket) { bucket = new Set(); this.roomSpatialIndex.set(key, bucket); }
+                bucket.add(entry);
+            },
+        );
+    }
+
+    addStandaloneExitToSpatialIndex(entry: StandaloneExitEntry) {
+        const {bounds} = entry;
+        this.forEachBucket(bounds.x, bounds.y, bounds.x + bounds.width, bounds.y + bounds.height, key => {
+            let bucket = this.exitSpatialIndex.get(key);
+            if (!bucket) { bucket = new Set(); this.exitSpatialIndex.set(key, bucket); }
+            bucket.add(entry);
+        });
+    }
+
+    findRoomAtMapPoint(mapX: number, mapY: number): MapData.Room | null {
+        const halfSize = this.settings.roomSize / 2;
+        const key = this.getBucketKey(
+            Math.floor(mapX / this.spatialBucketSize),
+            Math.floor(mapY / this.spatialBucketSize),
+        );
+        const bucket = this.roomSpatialIndex.get(key);
+        if (!bucket) return null;
+        for (const entry of bucket) {
+            const dx = mapX - entry.room.x;
+            const dy = mapY - entry.room.y;
+            if (dx >= -halfSize && dx <= halfSize && dy >= -halfSize && dy <= halfSize) {
+                return entry.room;
+            }
+        }
+        return null;
+    }
+
+    markExitBoundsStale() {
+        this.standaloneExitBoundsRoomSize = undefined;
+    }
+
+    setExitBoundsRoomSize() {
+        this.standaloneExitBoundsRoomSize = this.settings.roomSize;
+    }
+
+    private collectRoomCandidates(minX: number, minY: number, maxX: number, maxY: number) {
+        const result = this.bufferRoomCandidates;
+        result.clear();
+        this.forEachBucket(minX, minY, maxX, maxY, key => {
+            this.roomSpatialIndex.get(key)?.forEach(entry => result.add(entry));
+        });
+        return result;
+    }
+
+    private collectStandaloneExitCandidates(minX: number, minY: number, maxX: number, maxY: number) {
+        const result = this.bufferExitCandidates;
+        result.clear();
+        this.forEachBucket(minX, minY, maxX, maxY, key => {
+            this.exitSpatialIndex.get(key)?.forEach(entry => result.add(entry));
+        });
+        return result;
+    }
+
+    private refreshStandaloneExitBoundsIfNeeded() {
+        if (this.standaloneExitBoundsRoomSize === this.settings.roomSize) return;
+        this.exitSpatialIndex.clear();
+        this.standaloneExitNodes.forEach(entry => this.addStandaloneExitToSpatialIndex(entry));
+        this.standaloneExitBoundsRoomSize = this.settings.roomSize;
+    }
+
+    scheduleCulling() {
+        if (this.cullingScheduled) return;
+        this.cullingScheduled = true;
+        window.requestAnimationFrame(() => {
+            this.cullingScheduled = false;
+            this.updateCulling();
+        });
+    }
+
+    updateCulling() {
+        if (this.roomNodes.size === 0 && this.standaloneExitNodes.length === 0) return;
+
+        const scale = this.stage.scaleX();
+        if (!scale) return;
+
+        this.perfMonitor.setCallback(this.settings.perfCallback);
+        const perfStart = this.settings.perfCallback ? performance.now() : 0;
+
+        const stagePosition = this.stage.position();
+        const halfSize = this.settings.roomSize / 2;
+        const bounds = this.settings.cullingBounds;
+        const viewportMinX = bounds ? bounds.x : 0;
+        const viewportMaxX = bounds ? bounds.x + bounds.width : this.stage.width();
+        const viewportMinY = bounds ? bounds.y : 0;
+        const viewportMaxY = bounds ? bounds.y + bounds.height : this.stage.height();
+        const minX = (Math.min(viewportMinX, viewportMaxX) - stagePosition.x) / scale;
+        const maxX = (Math.max(viewportMinX, viewportMaxX) - stagePosition.x) / scale;
+        const minY = (Math.min(viewportMinY, viewportMaxY) - stagePosition.y) / scale;
+        const maxY = (Math.max(viewportMinY, viewportMaxY) - stagePosition.y) / scale;
+
+        let roomLayerNeedsDraw = false;
+        let linkLayerNeedsDraw = false;
+
+        const mode: CullingMode = this.settings.cullingEnabled ? this.settings.cullingMode ?? "indexed" : "none";
+        const searchMinX = minX - halfSize;
+        const searchMaxX = maxX + halfSize;
+        const searchMinY = minY - halfSize;
+        const searchMaxY = maxY + halfSize;
+
+        this.refreshStandaloneExitBoundsIfNeeded();
+
+        if (mode === "none") {
+            this.roomNodes.forEach(entry => {
+                if (!entry.group.visible()) { entry.group.visible(true); roomLayerNeedsDraw = true; }
+            });
+            if (this.visibleExitDrawData.length !== this.standaloneExitNodes.length) {
+                this.visibleExitDrawData.length = 0;
+                for (const entry of this.standaloneExitNodes) this.visibleExitDrawData.push(entry.data);
+                linkLayerNeedsDraw = true;
+            }
+            if (roomLayerNeedsDraw) this.roomLayer.batchDraw();
+            if (linkLayerNeedsDraw) this.linkLayer.batchDraw();
+            this.visibleRooms.clear();
+            this.roomNodes.forEach(entry => this.visibleRooms.add(entry));
+            this.visibleStandaloneExitNodes.clear();
+            this.standaloneExitNodes.forEach(entry => this.visibleStandaloneExitNodes.add(entry));
+            return;
+        }
+
+        if (mode === "basic") {
+            const nextVisibleRooms = this.bufferRoomSet;
+            nextVisibleRooms.clear();
+            this.roomNodes.forEach(entry => {
+                const isVisible = entry.room.x + halfSize >= minX && entry.room.x - halfSize <= maxX &&
+                    entry.room.y + halfSize >= minY && entry.room.y - halfSize <= maxY;
+                if (entry.group.visible() !== isVisible) { entry.group.visible(isVisible); roomLayerNeedsDraw = true; }
+                if (isVisible) nextVisibleRooms.add(entry);
+            });
+
+            const result = this.cullExits(minX, maxX, minY, maxY);
+            linkLayerNeedsDraw = result.changed;
+
+            this.bufferRoomSet = this.visibleRooms;
+            this.visibleRooms = nextVisibleRooms;
+            if (roomLayerNeedsDraw) this.roomLayer.batchDraw();
+            if (linkLayerNeedsDraw) this.linkLayer.batchDraw();
+            return;
+        }
+
+        // "indexed" mode
+        const roomCandidates = this.collectRoomCandidates(searchMinX, searchMinY, searchMaxX, searchMaxY);
+        const nextVisibleRooms = this.bufferRoomSet;
+        nextVisibleRooms.clear();
+
+        roomCandidates.forEach(entry => {
+            const isVisible = entry.room.x + halfSize >= minX && entry.room.x - halfSize <= maxX &&
+                entry.room.y + halfSize >= minY && entry.room.y - halfSize <= maxY;
+            if (entry.group.visible() !== isVisible) { entry.group.visible(isVisible); roomLayerNeedsDraw = true; }
+            if (isVisible) nextVisibleRooms.add(entry);
+        });
+
+        this.visibleRooms.forEach(entry => {
+            if (!roomCandidates.has(entry) && entry.group.visible()) {
+                entry.group.visible(false);
+                roomLayerNeedsDraw = true;
+            }
+        });
+
+        this.bufferRoomSet = this.visibleRooms;
+        this.visibleRooms = nextVisibleRooms;
+
+        const exitResult = this.cullExits(minX, maxX, minY, maxY, true);
+        linkLayerNeedsDraw = exitResult.changed;
+
+        if (roomLayerNeedsDraw) this.roomLayer.batchDraw();
+        if (linkLayerNeedsDraw) this.linkLayer.batchDraw();
+
+        const gridStart = this.settings.perfCallback ? performance.now() : 0;
+        this.gridRenderer.render(this.viewport.getViewportBounds());
+        if (this.settings.perfCallback) {
+            const gridMs = performance.now() - gridStart;
+            const cullingMs = performance.now() - perfStart;
+            this.perfMonitor.record({
+                cullingMs, gridMs,
+                visibleRooms: this.visibleRooms.size,
+                totalRooms: this.roomNodes.size,
+                visibleExits: this.visibleStandaloneExitNodes.size,
+                fps: this.perfMonitor.computeFps(),
+            });
+        }
+    }
+
+    private cullExits(minX: number, maxX: number, minY: number, maxY: number, useIndex = false): { changed: boolean } {
+        const candidates = useIndex
+            ? this.collectStandaloneExitCandidates(minX - this.settings.roomSize, minY - this.settings.roomSize, maxX + this.settings.roomSize, maxY + this.settings.roomSize)
+            : this.standaloneExitNodes;
+
+        const nextVisible = this.bufferExitSet;
+        nextVisible.clear();
+        let changed = false;
+
+        (candidates as Iterable<StandaloneExitEntry>)[Symbol.iterator]
+            ? (candidates as Set<StandaloneExitEntry>).forEach(check)
+            : (candidates as StandaloneExitEntry[]).forEach(check);
+
+        function check(entry: StandaloneExitEntry) {
+            const b = entry.bounds;
+            const isVisible = b.x + b.width >= minX && b.x <= maxX && b.y + b.height >= minY && b.y <= maxY;
+            if (isVisible) {
+                nextVisible.add(entry);
+            }
+        }
+
+        // Detect changes
+        if (nextVisible.size !== this.visibleStandaloneExitNodes.size) {
+            changed = true;
+        } else {
+            nextVisible.forEach(e => { if (!this.visibleStandaloneExitNodes.has(e)) changed = true; });
+        }
+
+        this.bufferExitSet = this.visibleStandaloneExitNodes;
+        this.visibleStandaloneExitNodes = nextVisible;
+
+        if (changed) {
+            this.visibleExitDrawData.length = 0;
+            this.visibleStandaloneExitNodes.forEach(e => this.visibleExitDrawData.push(e.data));
+        }
+
+        return {changed};
+    }
+}
