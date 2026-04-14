@@ -2,7 +2,6 @@ import Konva from "konva";
 import type Area from "../reader/Area";
 import type Plane from "../reader/Plane";
 import type {RendererEventMap} from "../Renderer";
-import {buildPositionMarker, buildHighlight, buildPathOverlay} from "../SceneBuilder";
 import {ScenePipeline} from "../ScenePipeline";
 import type {SceneBuildResult, AreaExitHitZone} from "../ScenePipeline";
 import type {MapState} from "../MapState";
@@ -10,8 +9,17 @@ import {Viewport} from "../Viewport";
 import {CullingManager} from "../CullingManager";
 import {InteractionHandler} from "../InteractionHandler";
 import {TypedEventEmitter} from "../TypedEventEmitter";
-import {KonvaBackend, KonvaGroupNode, KonvaLayerNode} from "../backend/KonvaBackend";
+import {KonvaBackend, KonvaLayerNode} from "../backend/KonvaBackend";
+import type {DrawingBackend, GroupNode, LayerNode} from "../backend/DrawingBackend";
 import {drawExitDataToCanvas} from "../scene/ExitDataRenderer";
+import {computeHighlight, computePositionMarker, computePathOverlay} from "../scene/OverlayStyle";
+import {computeStubs} from "../scene/StubStyle";
+import {computeSpecialExits} from "../scene/SpecialExitStyle";
+import {computeInnerExits} from "../scene/InnerExitStyle";
+import {
+    renderHighlight, renderPositionMarker, renderPathOverlay,
+    renderExitDrawData, renderSpecialExitGroup, renderStubsGroup, renderInnerExitsGroup,
+} from "../scene/OverlayRenderer";
 import ExplorationArea from "../reader/ExplorationArea";
 
 const currentRoomColor = 'rgb(120, 72, 0)';
@@ -41,13 +49,16 @@ export class KonvaRenderBackend {
 
     private readonly state: MapState;
     private readonly container?: HTMLDivElement;
+    private readonly drawingBackend: DrawingBackend;
+    private readonly positionLayerNode: LayerNode;
+    private readonly overlayLayerNode: LayerNode;
     private pipeline: ScenePipeline;
     private lastBuildResult?: SceneBuildResult;
 
-    private positionMarker?: Konva.Shape;
-    private highlightShapes: Map<number, Konva.Shape> = new Map();
-    private pathShapes: (Konva.Group | Konva.Shape)[] = [];
-    private currentRoomOverlay: Konva.Node[] = [];
+    private positionMarker?: GroupNode;
+    private highlightShapes: Map<number, GroupNode> = new Map();
+    private pathShapes: GroupNode[] = [];
+    private currentRoomOverlay: GroupNode[] = [];
     private areaExitHitZones: AreaExitHitZone[] = [];
 
     constructor(state: MapState, container?: HTMLDivElement) {
@@ -79,8 +90,11 @@ export class KonvaRenderBackend {
         this.overlayLayer = new Konva.Layer({listening: false});
         this.stage.add(this.overlayLayer);
 
-        const konvaBackend = new KonvaBackend();
-        this.pipeline = new ScenePipeline(state.mapReader, state.settings, konvaBackend, {
+        this.drawingBackend = new KonvaBackend();
+        this.positionLayerNode = new KonvaLayerNode(this.positionLayer);
+        this.overlayLayerNode = new KonvaLayerNode(this.overlayLayer);
+
+        this.pipeline = new ScenePipeline(state.mapReader, state.settings, this.drawingBackend, {
             gridLayer: new KonvaLayerNode(this.gridLayer),
             linkLayer: new KonvaLayerNode(this.linkLayer),
             roomLayer: new KonvaLayerNode(this.roomLayer),
@@ -334,9 +348,9 @@ export class KonvaRenderBackend {
                 this.positionMarker.destroy();
                 this.positionMarker = undefined;
             }
-            this.positionLayer.batchDraw();
+            this.positionLayerNode.batchDraw();
             this.clearCurrentRoomOverlay();
-            this.overlayLayer.batchDraw();
+            this.overlayLayerNode.batchDraw();
             return;
         }
 
@@ -356,21 +370,22 @@ export class KonvaRenderBackend {
         if (this.positionMarker) {
             this.positionMarker.destroy();
         }
-        this.positionMarker = buildPositionMarker(room, this.state.settings);
-        this.positionLayer.add(this.positionMarker);
+        const data = computePositionMarker(room, this.state.settings);
+        this.positionMarker = renderPositionMarker(this.drawingBackend, data);
+        this.positionLayerNode.addNode(this.positionMarker);
     }
 
     private clearCurrentRoomOverlay() {
         this.currentRoomOverlay.forEach(node => node.destroy());
         this.currentRoomOverlay = [];
-        this.positionLayer.batchDraw();
+        this.positionLayerNode.batchDraw();
     }
 
     private updateCurrentRoomOverlay(room: MapData.Room) {
         this.clearCurrentRoomOverlay();
 
         if (room.area !== this.state.currentArea || room.z !== this.state.currentZIndex) {
-            this.positionLayer.batchDraw();
+            this.positionLayerNode.batchDraw();
             return;
         }
 
@@ -378,38 +393,42 @@ export class KonvaRenderBackend {
 
         if (!settings.highlightCurrentRoom) {
             if (this.positionMarker) this.positionMarker.moveToTop();
-            this.positionLayer.batchDraw();
+            this.positionLayerNode.batchDraw();
             return;
         }
 
         const roomsToRedraw = new Map<number, MapData.Room>();
         roomsToRedraw.set(room.id, room);
 
-        const preRoomNodes: Array<Konva.Group | Konva.Shape> = [];
+        const preRoomNodes: GroupNode[] = [];
         const exitRenderer = this.pipeline.exitRenderer;
 
         const explorationArea =
             this.state.currentAreaInstance instanceof ExplorationArea ? this.state.currentAreaInstance : undefined;
 
+        // Link exits for this room → rendered as ExitDrawData through DrawingBackend
         if (this.state.currentAreaInstance && this.state.currentZIndex !== undefined) {
             const exits = this.state.currentAreaInstance
                 .getLinkExits(this.state.currentZIndex)
                 .filter(exit => exit.a === room.id || exit.b === room.id);
             exits.forEach(exit => {
-                const render = exitRenderer.renderWithColor(exit, currentRoomColor, this.state.currentZIndex!);
-                if (render) {
-                    preRoomNodes.push(render);
+                const data = exitRenderer.renderDataWithColor(exit, currentRoomColor, this.state.currentZIndex!);
+                if (data) {
+                    preRoomNodes.push(renderExitDrawData(this.drawingBackend, data));
                 }
             });
         }
 
-        exitRenderer.renderSpecialExits(room, currentRoomColor).forEach(render => {
-            preRoomNodes.push(render);
-        });
+        // Special exits
+        for (const se of computeSpecialExits(room, settings, currentRoomColor)) {
+            preRoomNodes.push(renderSpecialExitGroup(this.drawingBackend, se));
+        }
 
-        exitRenderer.renderStubs(room, currentRoomColor).forEach(render => {
-            preRoomNodes.push(render);
-        });
+        // Stubs
+        const stubs = computeStubs(room, settings, currentRoomColor);
+        if (stubs.length > 0) {
+            preRoomNodes.push(renderStubsGroup(this.drawingBackend, stubs));
+        }
 
         [...Object.values(room.exits), ...Object.values(room.specialExits)].forEach(id => {
             const otherRoom = this.state.mapReader.getRoom(id);
@@ -427,7 +446,7 @@ export class KonvaRenderBackend {
         });
 
         preRoomNodes.forEach(node => {
-            this.positionLayer.add(node);
+            this.positionLayerNode.addNode(node);
             this.currentRoomOverlay.push(node);
         });
 
@@ -439,23 +458,24 @@ export class KonvaRenderBackend {
                     strokeOverride: isCurrent ? currentRoomColor : settings.lineColor,
                 },
             );
-            const overlayRoom = (overlayNode as KonvaGroupNode).konvaGroup;
-            this.positionLayer.add(overlayRoom);
-            this.currentRoomOverlay.push(overlayRoom);
+            this.positionLayerNode.addNode(overlayNode);
+            this.currentRoomOverlay.push(overlayNode);
         });
 
         roomsToRedraw.forEach((roomToRedraw) => {
-            exitRenderer.renderInnerExits(roomToRedraw).forEach(render => {
-                this.positionLayer.add(render);
-                this.currentRoomOverlay.push(render);
-            });
+            const {triangles} = computeInnerExits(roomToRedraw, this.state.mapReader, settings);
+            if (triangles.length > 0) {
+                const group = renderInnerExitsGroup(this.drawingBackend, triangles);
+                this.positionLayerNode.addNode(group);
+                this.currentRoomOverlay.push(group);
+            }
         });
 
         if (this.positionMarker) {
             this.positionMarker.moveToTop();
         }
 
-        this.positionLayer.batchDraw();
+        this.positionLayerNode.batchDraw();
     }
 
     // --- Highlight & path sync ---
@@ -469,12 +489,13 @@ export class KonvaRenderBackend {
         if (color !== undefined) {
             const room = this.state.mapReader.getRoom(roomId);
             if (room && room.area === this.state.currentArea && room.z === this.state.currentZIndex) {
-                const shape = buildHighlight(room, color, this.state.settings);
-                this.overlayLayer.add(shape);
+                const data = computeHighlight(room, color, this.state.settings);
+                const shape = renderHighlight(this.drawingBackend, data);
+                this.overlayLayerNode.addNode(shape);
                 this.highlightShapes.set(roomId, shape);
             }
         }
-        this.overlayLayer.batchDraw();
+        this.overlayLayerNode.batchDraw();
     }
 
     syncHighlights() {
@@ -487,11 +508,12 @@ export class KonvaRenderBackend {
             if (entry.area !== this.state.currentArea || entry.z !== this.state.currentZIndex) continue;
             const room = this.state.mapReader.getRoom(roomId);
             if (!room) continue;
-            const shape = buildHighlight(room, entry.color, this.state.settings);
-            this.overlayLayer.add(shape);
+            const data = computeHighlight(room, entry.color, this.state.settings);
+            const shape = renderHighlight(this.drawingBackend, data);
+            this.overlayLayerNode.addNode(shape);
             this.highlightShapes.set(roomId, shape);
         }
-        this.overlayLayer.batchDraw();
+        this.overlayLayerNode.batchDraw();
     }
 
     syncPaths() {
@@ -500,15 +522,16 @@ export class KonvaRenderBackend {
         if (currentArea === undefined || currentZIndex === undefined) return;
 
         for (const path of this.state.paths) {
-            const group = buildPathOverlay(
+            const data = computePathOverlay(
                 this.state.mapReader, this.state.settings,
                 path.locations, path.color,
                 currentArea, currentZIndex,
             );
-            this.overlayLayer.add(group);
+            const group = renderPathOverlay(this.drawingBackend, data);
+            this.overlayLayerNode.addNode(group);
             this.pathShapes.push(group);
         }
-        this.overlayLayer.batchDraw();
+        this.overlayLayerNode.batchDraw();
     }
 
     // --- Private helpers ---

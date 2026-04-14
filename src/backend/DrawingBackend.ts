@@ -50,6 +50,9 @@ export interface LineConfig {
     stroke?: string;
     strokeWidth?: number;
     dash?: number[];
+    lineCap?: string;
+    lineJoin?: string;
+    alpha?: number;
 }
 
 export interface PolygonConfig {

@@ -38,7 +38,7 @@ export type SpecialExitData = {
 /**
  * Compute draw data for all custom lines (special exits) on a room.
  */
-export function computeSpecialExits(room: MapData.Room, settings: Settings): SpecialExitData[] {
+export function computeSpecialExits(room: MapData.Room, settings: Settings, colorOverride?: string): SpecialExitData[] {
     const results: SpecialExitData[] = [];
 
     for (const [dir, line] of Object.entries(room.customLines)) {
@@ -47,7 +47,7 @@ export function computeSpecialExits(room: MapData.Room, settings: Settings): Spe
             points.push(pt.x, -pt.y);
         }
 
-        const strokeColor = `rgb(${line.attributes.color.r}, ${line.attributes.color.g}, ${line.attributes.color.b})`;
+        const strokeColor = colorOverride ?? `rgb(${line.attributes.color.r}, ${line.attributes.color.g}, ${line.attributes.color.b})`;
         let dash: number[] | undefined;
         if (line.attributes.style === "dot line") {
             dash = [0.05, 0.05];

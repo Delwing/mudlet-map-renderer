@@ -23,7 +23,7 @@ function getRoomEdgePoint(settings: Settings, x: number, y: number, direction: M
 /**
  * Compute stub line data for a room's one-way exit indicators.
  */
-export function computeStubs(room: MapData.Room, settings: Settings): StubData[] {
+export function computeStubs(room: MapData.Room, settings: Settings, colorOverride?: string): StubData[] {
     const stubs: StubData[] = [];
     for (const stub of room.stubs) {
         const direction = dirNumbers[stub];
@@ -33,7 +33,7 @@ export function computeStubs(room: MapData.Room, settings: Settings): StubData[]
         stubs.push({
             x1: start.x, y1: start.y,
             x2: end.x, y2: end.y,
-            stroke: settings.lineColor,
+            stroke: colorOverride ?? settings.lineColor,
             strokeWidth: settings.lineWidth,
         });
     }

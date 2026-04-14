@@ -117,6 +117,9 @@ export class KonvaBackend implements DrawingBackend {
             stroke: config.stroke,
             strokeWidth: config.strokeWidth ?? 0,
             dash: config.dash,
+            lineCap: config.lineCap as CanvasLineCap | undefined,
+            lineJoin: config.lineJoin as CanvasLineJoin | undefined,
+            opacity: config.alpha,
             perfectDrawEnabled: false,
             listening: false,
         }));
