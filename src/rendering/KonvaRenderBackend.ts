@@ -2,14 +2,16 @@ import Konva from "konva";
 import type Area from "../reader/Area";
 import type Plane from "../reader/Plane";
 import type {RendererEventMap} from "../Renderer";
-import {SceneBuilder, buildPositionMarker, buildHighlight, buildPathOverlay} from "../SceneBuilder";
-import type {SceneBuildResult, AreaExitHitZone} from "../SceneBuilder";
+import {buildPositionMarker, buildHighlight, buildPathOverlay} from "../SceneBuilder";
+import {ScenePipeline} from "../ScenePipeline";
+import type {SceneBuildResult, AreaExitHitZone} from "../ScenePipeline";
 import type {MapState} from "../MapState";
 import {Viewport} from "../Viewport";
 import {CullingManager} from "../CullingManager";
 import {InteractionHandler} from "../InteractionHandler";
 import {TypedEventEmitter} from "../TypedEventEmitter";
-import {KonvaGroupNode, KonvaLayerNode} from "../backend/KonvaBackend";
+import {KonvaBackend, KonvaGroupNode, KonvaLayerNode} from "../backend/KonvaBackend";
+import {drawExitDataToCanvas} from "../scene/ExitDataRenderer";
 import ExplorationArea from "../reader/ExplorationArea";
 
 const currentRoomColor = 'rgb(120, 72, 0)';
@@ -39,7 +41,7 @@ export class KonvaRenderBackend {
 
     private readonly state: MapState;
     private readonly container?: HTMLDivElement;
-    private sceneBuilder: SceneBuilder;
+    private pipeline: ScenePipeline;
     private lastBuildResult?: SceneBuildResult;
 
     private positionMarker?: Konva.Shape;
@@ -77,10 +79,11 @@ export class KonvaRenderBackend {
         this.overlayLayer = new Konva.Layer({listening: false});
         this.stage.add(this.overlayLayer);
 
-        this.sceneBuilder = new SceneBuilder(state.mapReader, state.settings, {
-            gridLayer: this.gridLayer,
-            linkLayer: this.linkLayer,
-            roomLayer: this.roomLayer,
+        const konvaBackend = new KonvaBackend();
+        this.pipeline = new ScenePipeline(state.mapReader, state.settings, konvaBackend, {
+            gridLayer: new KonvaLayerNode(this.gridLayer),
+            linkLayer: new KonvaLayerNode(this.linkLayer),
+            roomLayer: new KonvaLayerNode(this.roomLayer),
         });
 
         this.events = new TypedEventEmitter<RendererEventMap>(container);
@@ -90,7 +93,7 @@ export class KonvaRenderBackend {
             new KonvaLayerNode(this.roomLayer),
             new KonvaLayerNode(this.linkLayer),
             state.settings,
-            this.sceneBuilder.gridRenderer,
+            this.pipeline.gridRenderer,
             this.viewport,
         );
 
@@ -117,15 +120,15 @@ export class KonvaRenderBackend {
     }
 
     get exitRenderer() {
-        return this.sceneBuilder.exitRenderer;
+        return this.pipeline.exitRenderer;
     }
 
     get roomShapeRenderer() {
-        return this.sceneBuilder.roomShapeRenderer;
+        return this.pipeline.roomShapeRenderer;
     }
 
     get gridRenderer() {
-        return this.sceneBuilder.gridRenderer;
+        return this.pipeline.gridRenderer;
     }
 
     updateBackground() {
@@ -272,7 +275,22 @@ export class KonvaRenderBackend {
         this.clearOverlayShapes();
         this.currentRoomOverlay = [];
 
-        const result = this.sceneBuilder.buildScene(area, plane, zIndex, viewportBounds);
+        const result = this.pipeline.buildScene(area, plane, zIndex, viewportBounds);
+
+        // Konva-specific: batch exit rendering via sceneFunc for performance
+        const visibleExitDrawData = result.exitDrawData;
+        const exitBatchShape = new Konva.Shape({
+            listening: false,
+            perfectDrawEnabled: false,
+            sceneFunc: (context) => {
+                const ctx = context._context;
+                for (const data of visibleExitDrawData) {
+                    drawExitDataToCanvas(ctx, data);
+                }
+            },
+        });
+        this.linkLayer.add(exitBatchShape);
+
         this.lastBuildResult = result;
         return result;
     }
@@ -362,7 +380,7 @@ export class KonvaRenderBackend {
         roomsToRedraw.set(room.id, room);
 
         const preRoomNodes: Array<Konva.Group | Konva.Shape> = [];
-        const exitRenderer = this.sceneBuilder.exitRenderer;
+        const exitRenderer = this.pipeline.exitRenderer;
 
         const explorationArea =
             this.state.currentAreaInstance instanceof ExplorationArea ? this.state.currentAreaInstance : undefined;
@@ -409,7 +427,7 @@ export class KonvaRenderBackend {
 
         roomsToRedraw.forEach((roomToRedraw, id) => {
             const isCurrent = id === room.id;
-            const overlayNode = this.sceneBuilder.roomShapeRenderer.createRoomGroup(
+            const overlayNode = this.pipeline.roomShapeRenderer.createRoomGroup(
                 roomToRedraw,
                 {
                     strokeOverride: isCurrent ? currentRoomColor : settings.lineColor,

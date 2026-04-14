@@ -1,11 +1,6 @@
-import ExitRenderer from "../ExitRenderer";
-import {RoomShapeRenderer} from "../RoomShapeRenderer";
-import {SvgBackend, SvgGroupNode} from "../backend/SvgBackend";
+import {SvgBackend, SvgLayerNode} from "../backend/SvgBackend";
+import {ScenePipeline} from "../ScenePipeline";
 import {drawExitDataToSvgLines} from "../scene/ExitDataRenderer";
-import {computeStubs} from "../scene/StubStyle";
-import {computeSpecialExits} from "../scene/SpecialExitStyle";
-import {computeInnerExits} from "../scene/InnerExitStyle";
-import {computeGrid} from "../scene/GridStyle";
 import {computeHighlight, computePositionMarker, computePathOverlay} from "../scene/OverlayStyle";
 import type {SvgOverlays} from "../SvgExporter";
 import type {MapState} from "../MapState";
@@ -16,28 +11,20 @@ function escapeXml(s: string): string {
 }
 
 /**
- * SVG rendering backend. Builds an SVG string from MapState using the same
- * pure-math scene computation as the Konva backend (scene/*.ts + DrawingBackend).
+ * SVG rendering backend. Uses the shared ScenePipeline with SvgBackend
+ * to produce SVG output through the same DrawingBackend interface as Konva.
  *
- * Rooms and grid go through DrawingBackend (SvgBackend) for engine-agnostic rendering.
- * Exits, labels, and overlays use the existing pure-data functions.
+ * Grid, labels, rooms (with stubs + inner exits), special exits, and area name
+ * all go through ScenePipeline → DrawingBackend. Link exits and overlays are
+ * serialized directly from pure data.
  */
 export class SvgRenderBackend {
     private readonly state: MapState;
-    private readonly backend: SvgBackend;
-    private readonly roomShapeRenderer: RoomShapeRenderer;
-    private readonly exitRenderer: ExitRenderer;
 
     constructor(state: MapState) {
         this.state = state;
-        this.backend = new SvgBackend();
-        this.roomShapeRenderer = new RoomShapeRenderer(state.mapReader, state.settings, this.backend);
-        this.exitRenderer = new ExitRenderer(state.mapReader, state.settings);
     }
 
-    /**
-     * Export the current area as an SVG string.
-     */
     exportSvg(options?: { roomId?: number; padding?: number; overlays?: SvgOverlays }): string | undefined {
         const {currentArea, currentZIndex, currentAreaInstance} = this.state;
         if (currentArea === undefined || currentZIndex === undefined || !currentAreaInstance) return;
@@ -47,40 +34,48 @@ export class SvgRenderBackend {
         if (!plane) return;
 
         const settings = this.state.settings;
-        const mapReader = this.state.mapReader;
         const padding = options?.padding ?? 3;
         const bounds = this.state.computeExportBounds(area, plane, options?.roomId, padding);
 
+        // Set up SVG layers
+        const svgBackend = new SvgBackend();
+        const gridLayer = new SvgLayerNode();
+        const linkLayer = new SvgLayerNode();
+        const roomLayer = new SvgLayerNode();
+
+        // Build scene through shared pipeline
+        const pipeline = new ScenePipeline(this.state.mapReader, settings, svgBackend, {
+            gridLayer, linkLayer, roomLayer,
+        });
+
+        const viewportBounds = {
+            minX: bounds.x, maxX: bounds.x + bounds.w,
+            minY: bounds.y, maxY: bounds.y + bounds.h,
+        };
+
+        const result = pipeline.buildScene(area, plane, currentZIndex, viewportBounds);
+
+        // Assemble SVG
         const lines: string[] = [];
         lines.push(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="${bounds.x} ${bounds.y} ${bounds.w} ${bounds.h}">`);
         lines.push(`<rect x="${bounds.x}" y="${bounds.y}" width="${bounds.w}" height="${bounds.h}" fill="${escapeXml(settings.backgroundColor)}"/>`);
 
-        // Grid
-        if (settings.gridEnabled) {
-            const grid = computeGrid(settings, bounds);
-            const color = escapeXml(grid.stroke);
-            for (const l of grid.lines) {
-                lines.push(`<line x1="${l.x1}" y1="${l.y1}" x2="${l.x2}" y2="${l.y2}" stroke="${color}" stroke-width="${grid.strokeWidth}"/>`);
-            }
-        }
+        // Grid layer
+        const gridSvg = gridLayer.toSvg();
+        if (gridSvg) lines.push(gridSvg);
 
-        // Labels
-        this.renderLabels(lines, plane.getLabels());
+        // Link layer (labels + special exits from pipeline)
+        const linkSvg = linkLayer.toSvg();
+        if (linkSvg) lines.push(linkSvg);
 
-        // Link exits
-        const exits = area.getLinkExits(currentZIndex);
-        for (const exit of exits) {
-            const data = this.exitRenderer.renderData(exit, currentZIndex);
-            if (!data) continue;
+        // Link exits (serialized directly from exit data)
+        for (const data of result.exitDrawData) {
             drawExitDataToSvgLines(lines, data);
         }
 
-        // Special exits, stubs, rooms, inner exits
-        const rooms = plane.getRooms() ?? [];
-        this.renderSpecialExits(lines, rooms);
-        this.renderStubs(lines, rooms);
-        this.renderRooms(lines, rooms);
-        this.renderInnerExits(lines, rooms);
+        // Room layer (rooms with stubs + inner exits + area name)
+        const roomSvg = roomLayer.toSvg();
+        if (roomSvg) lines.push(roomSvg);
 
         // Overlays
         const overlays = options?.overlays;
@@ -100,110 +95,11 @@ export class SvgRenderBackend {
             }
         }
 
-        // Area name
-        if (settings.areaName) {
-            const name = area.getAreaName();
-            if (name) {
-                const eb = this.state.getEffectiveBounds(area, plane);
-                lines.push(`<text x="${eb.minX - 3.5}" y="${eb.minY - 2}" font-size="2.5" font-family="${escapeXml(settings.fontFamily)}" fill="white">${escapeXml(name)}</text>`);
-            }
-        }
-
         lines.push('</svg>');
         return lines.join('\n');
     }
 
-    // --- Rooms (through DrawingBackend) ---
-
-    private renderRooms(lines: string[], rooms: MapData.Room[]) {
-        for (const room of rooms) {
-            const group = this.roomShapeRenderer.createRoomGroup(room) as SvgGroupNode;
-            const svg = group.toSvg();
-            if (svg) lines.push(svg);
-        }
-    }
-
-    // --- Labels ---
-
-    private renderLabels(lines: string[], labels: MapData.Label[]) {
-        const settings = this.state.settings;
-        if (settings.labelRenderMode === "none") return;
-
-        for (const label of labels) {
-            const lx = label.X;
-            const ly = -label.Y;
-
-            if (settings.labelRenderMode === "image" && label.pixMap) {
-                lines.push(`<image x="${lx}" y="${ly}" width="${label.Width}" height="${label.Height}" href="data:image/png;base64,${label.pixMap}"/>`);
-                continue;
-            }
-
-            if ((label.BgColor?.alpha ?? 0) > 0 && !settings.transparentLabels) {
-                const bg = this.labelColor(label.BgColor);
-                lines.push(`<rect x="${lx}" y="${ly}" width="${label.Width}" height="${label.Height}" fill="${bg}"/>`);
-            }
-
-            if (label.Text) {
-                const fg = this.labelColor(label.FgColor);
-                const ratio = Math.min(0.75, label.Width / Math.max(label.Text.length / 2, 1));
-                const fontSize = Math.max(0.1, Math.min(ratio, Math.max(label.Height * 0.9, 0.1)));
-                lines.push(`<text x="${lx + label.Width / 2}" y="${ly + label.Height / 2}" font-size="${fontSize}" font-family="${escapeXml(settings.fontFamily)}" fill="${fg}" text-anchor="middle" dominant-baseline="central">${escapeXml(label.Text)}</text>`);
-            }
-        }
-    }
-
-    private labelColor(color: MapData.Color): string {
-        const alpha = (color?.alpha ?? 255) / 255;
-        const clamp = (v: number) => Math.min(255, Math.max(0, v ?? 0));
-        return `rgba(${clamp(color?.r)}, ${clamp(color?.g)}, ${clamp(color?.b)}, ${alpha})`;
-    }
-
-    // --- Stubs ---
-
-    private renderStubs(lines: string[], rooms: MapData.Room[]) {
-        for (const room of rooms) {
-            for (const stub of computeStubs(room, this.state.settings)) {
-                lines.push(`<line x1="${stub.x1}" y1="${stub.y1}" x2="${stub.x2}" y2="${stub.y2}" stroke="${escapeXml(stub.stroke)}" stroke-width="${stub.strokeWidth}"/>`);
-            }
-        }
-    }
-
-    // --- Special Exits ---
-
-    private renderSpecialExits(lines: string[], rooms: MapData.Room[]) {
-        for (const room of rooms) {
-            for (const se of computeSpecialExits(room, this.state.settings)) {
-                const pts = se.line.points.map(p => p.toString()).join(' ');
-                const dash = se.line.dash ? ` stroke-dasharray="${se.line.dash.join(' ')}"` : '';
-                lines.push(`<polyline points="${pts}" stroke="${escapeXml(se.line.stroke)}" stroke-width="${se.line.strokeWidth}" fill="none"${dash}/>`);
-                if (se.arrow) {
-                    const a = se.arrow;
-                    lines.push(`<polygon points="${a.tipX},${a.tipY} ${a.x1},${a.y1} ${a.x2},${a.y2}" fill="${escapeXml(a.fill)}" stroke="${escapeXml(a.stroke)}" stroke-width="${a.strokeWidth}"/>`);
-                }
-                if (se.door) {
-                    const d = se.door;
-                    lines.push(`<rect x="${d.x}" y="${d.y}" width="${d.width}" height="${d.height}" stroke="${escapeXml(d.stroke)}" stroke-width="${d.strokeWidth}" fill="none"/>`);
-                }
-            }
-        }
-    }
-
-    // --- Inner Exits ---
-
-    private renderInnerExits(lines: string[], rooms: MapData.Room[]) {
-        for (const room of rooms) {
-            const {triangles} = computeInnerExits(room, this.state.mapReader, this.state.settings);
-            for (const tri of triangles) {
-                const points: string[] = [];
-                for (let i = 0; i < tri.vertices.length; i += 2) {
-                    points.push(`${tri.vertices[i]},${tri.vertices[i + 1]}`);
-                }
-                lines.push(`<polygon points="${points.join(' ')}" fill="${escapeXml(tri.fill)}" stroke="${escapeXml(tri.stroke)}" stroke-width="${tri.strokeWidth}"/>`);
-            }
-        }
-    }
-
-    // --- Overlays ---
+    // --- Overlays (not yet in pipeline — use pure-math scene functions) ---
 
     private renderPathOverlay(lines: string[], locations: number[], color: string, areaId: number, zIndex: number) {
         const data = computePathOverlay(this.state.mapReader, this.state.settings, locations, color, areaId, zIndex);
@@ -249,5 +145,4 @@ export class SvgRenderBackend {
             lines.push(`<circle cx="${pm.cx}" cy="${pm.cy}" r="${pm.size}" ${strokeAttrs}/>`);
         }
     }
-
 }
