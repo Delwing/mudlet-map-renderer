@@ -1,0 +1,238 @@
+[
+  {
+    "areaName": "Test Village",
+    "areaId": "1",
+    "rooms": [
+      {
+        "id": 1, "area": 1, "x": 0, "y": 0, "z": 0,
+        "areaId": "1", "weight": 1, "roomChar": "",
+        "name": "Village Center",
+        "userData": {}, "customLines": {}, "stubs": [],
+        "hash": "", "env": 1,
+        "exits": { "north": 2, "east": 3, "south": 5, "west": 4, "up": 10 },
+        "doors": {}, "specialExits": {}
+      },
+      {
+        "id": 2, "area": 1, "x": 0, "y": 2, "z": 0,
+        "areaId": "1", "weight": 1, "roomChar": "",
+        "name": "North Road",
+        "userData": {}, "customLines": {}, "stubs": [2],
+        "hash": "", "env": 1,
+        "exits": { "south": 1, "north": 6 },
+        "doors": { "s": 1 },
+        "specialExits": {}
+      },
+      {
+        "id": 3, "area": 1, "x": 2, "y": 0, "z": 0,
+        "areaId": "1", "weight": 1, "roomChar": "S",
+        "name": "Shop",
+        "userData": {}, "customLines": {}, "stubs": [],
+        "hash": "", "env": 2,
+        "exits": { "west": 1, "northeast": 7, "east": 13 },
+        "doors": { "w": 2 },
+        "specialExits": {}
+      },
+      {
+        "id": 4, "area": 1, "x": -2, "y": 0, "z": 0,
+        "areaId": "1", "weight": 1, "roomChar": "",
+        "name": "West Garden",
+        "userData": {}, "customLines": {}, "stubs": [],
+        "hash": "", "env": 3,
+        "exits": { "east": 1, "southwest": 8 },
+        "doors": {},
+        "specialExits": { "climb tree": 10 }
+      },
+      {
+        "id": 5, "area": 1, "x": 0, "y": -2, "z": 0,
+        "areaId": "1", "weight": 1, "roomChar": "",
+        "name": "South Path",
+        "userData": {}, "customLines": {}, "stubs": [],
+        "hash": "", "env": 1,
+        "exits": { "north": 1, "south": 20 },
+        "doors": {},
+        "specialExits": {}
+      },
+      {
+        "id": 6, "area": 1, "x": 0, "y": 4, "z": 0,
+        "areaId": "1", "weight": 1, "roomChar": "",
+        "name": "North Gate",
+        "userData": {}, "customLines": {}, "stubs": [],
+        "hash": "", "env": 1,
+        "exits": { "south": 2 },
+        "doors": { "s": 3 },
+        "specialExits": {}
+      },
+      {
+        "id": 7, "area": 1, "x": 4, "y": 2, "z": 0,
+        "areaId": "1", "weight": 1, "roomChar": "",
+        "name": "Hill",
+        "userData": {}, "customLines": {}, "stubs": [],
+        "hash": "", "env": 2,
+        "exits": { "southwest": 3, "down": 9 },
+        "doors": {},
+        "specialExits": {}
+      },
+      {
+        "id": 8, "area": 1, "x": -4, "y": -2, "z": 0,
+        "areaId": "1", "weight": 1, "roomChar": "",
+        "name": "Deep Garden",
+        "userData": {}, "customLines": {}, "stubs": [],
+        "hash": "", "env": 3,
+        "exits": { "northeast": 4 },
+        "doors": {},
+        "specialExits": {},
+        "exitWeights": { "ne": 5 }
+      },
+      {
+        "id": 9, "area": 1, "x": 4, "y": 2, "z": -1,
+        "areaId": "1", "weight": 1, "roomChar": "",
+        "name": "Cave Entrance",
+        "userData": {}, "customLines": {}, "stubs": [],
+        "hash": "", "env": 4,
+        "exits": { "up": 7, "south": 11 },
+        "doors": {},
+        "specialExits": {}
+      },
+      {
+        "id": 10, "area": 1, "x": 0, "y": 0, "z": 1,
+        "areaId": "1", "weight": 1, "roomChar": "",
+        "name": "Rooftop",
+        "userData": {}, "customLines": {}, "stubs": [],
+        "hash": "", "env": 1,
+        "exits": { "down": 1 },
+        "doors": {},
+        "specialExits": {}
+      },
+      {
+        "id": 11, "area": 1, "x": 4, "y": 0, "z": -1,
+        "areaId": "1", "weight": 1, "roomChar": "",
+        "name": "Deep Cave",
+        "userData": {}, "customLines": {}, "stubs": [],
+        "hash": "", "env": 4,
+        "exits": { "north": 9 },
+        "doors": {},
+        "specialExits": {}
+      },
+      {
+        "id": 12, "area": 1, "x": 2, "y": -2, "z": 0,
+        "areaId": "1", "weight": 1, "roomChar": "",
+        "name": "Isolated Room",
+        "userData": {}, "customLines": {}, "stubs": [1, 4],
+        "hash": "", "env": 2,
+        "exits": {},
+        "doors": {},
+        "specialExits": {}
+      },
+      {
+        "id": 13, "area": 1, "x": 4, "y": 0, "z": 0,
+        "areaId": "1", "weight": 1, "roomChar": "",
+        "name": "Tavern Entrance",
+        "userData": {}, "customLines": {}, "stubs": [],
+        "hash": "", "env": 1,
+        "exits": { "west": 3, "in": 14 },
+        "doors": { "in": 2 },
+        "specialExits": {}
+      },
+      {
+        "id": 14, "area": 1, "x": 6, "y": 0, "z": 0,
+        "areaId": "1", "weight": 1, "roomChar": "X",
+        "name": "Dark Cellar",
+        "userData": {},
+        "customLines": {
+          "crawl": {
+            "points": [{ "x": 7.0, "y": 0.5 }, { "x": 7.5, "y": -1.0 }],
+            "attributes": { "color": { "alpha": 255, "r": 200, "g": 50, "b": 50 }, "style": "dash line", "arrow": true }
+          }
+        },
+        "stubs": [],
+        "hash": "", "env": 4,
+        "exits": { "out": 13 },
+        "doors": { "out": 1 },
+        "specialExits": { "crawl": 15 }
+      },
+      {
+        "id": 15, "area": 1, "x": 8, "y": -2, "z": 0,
+        "areaId": "1", "weight": 1, "roomChar": "",
+        "name": "Secret Passage",
+        "userData": {},
+        "customLines": {
+          "tunnel": {
+            "points": [{ "x": 7.0, "y": -1.5 }, { "x": 6.5, "y": -0.5 }],
+            "attributes": { "color": { "alpha": 255, "r": 150, "g": 150, "b": 255 }, "style": "dot line", "arrow": false }
+          }
+        },
+        "stubs": [],
+        "hash": "", "env": 4,
+        "exits": { "west": 14 },
+        "doors": { "crawl": 3 },
+        "specialExits": { "tunnel": 14 },
+        "exitLocks": [5],
+        "mSpecialExitLocks": [14]
+      },
+      {
+        "id": 16, "area": 1, "x": -2, "y": 2, "z": 0,
+        "areaId": "1", "weight": 1, "roomChar": "",
+        "name": "Loop Room",
+        "userData": {}, "customLines": {}, "stubs": [],
+        "hash": "", "env": 1,
+        "exits": { "south": 4, "north": 16 },
+        "doors": {},
+        "specialExits": {}
+      }
+    ],
+    "labels": [
+      {
+        "labelId": 1, "areaId": 1,
+        "X": -2, "Y": -2, "Z": 0,
+        "Width": 5, "Height": 0.5,
+        "Text": "Welcome to the Village",
+        "FgColor": { "alpha": 255, "r": 255, "g": 255, "b": 255 },
+        "BgColor": { "alpha": 100, "r": 0, "g": 0, "b": 0 }
+      }
+    ]
+  },
+  {
+    "areaName": "Dark Forest",
+    "areaId": "2",
+    "rooms": [
+      {
+        "id": 20, "area": 2, "x": 0, "y": 0, "z": 0,
+        "areaId": "2", "weight": 1, "roomChar": "",
+        "name": "Forest Edge",
+        "userData": {}, "customLines": {}, "stubs": [],
+        "hash": "", "env": 3,
+        "exits": { "north": 5, "south": 21, "east": 22 },
+        "doors": {},
+        "specialExits": {}
+      },
+      {
+        "id": 21, "area": 2, "x": 0, "y": -2, "z": 0,
+        "areaId": "2", "weight": 1, "roomChar": "T",
+        "name": "Tall Trees",
+        "userData": {}, "customLines": {}, "stubs": [],
+        "hash": "", "env": 3,
+        "exits": { "north": 20, "east": 22 },
+        "doors": {},
+        "specialExits": {}
+      },
+      {
+        "id": 22, "area": 2, "x": 2, "y": 0, "z": 0,
+        "areaId": "2", "weight": 1, "roomChar": "",
+        "name": "Clearing",
+        "userData": {},
+        "customLines": {
+          "w": {
+            "points": [{ "x": 1.0, "y": 0.4 }, { "x": 0.4, "y": -0.2 }],
+            "attributes": { "color": { "alpha": 255, "r": 0, "g": 200, "b": 0 }, "style": "solid line", "arrow": false }
+          }
+        },
+        "stubs": [],
+        "hash": "", "env": 3,
+        "exits": { "west": 20 },
+        "doors": {},
+        "specialExits": {}
+      }
+    ],
+    "labels": []
+  }
+]
