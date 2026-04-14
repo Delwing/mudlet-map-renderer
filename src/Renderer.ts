@@ -11,9 +11,9 @@ import {SvgExporter} from "./SvgExporter";
 import type {SvgExportOptions} from "./SvgExporter";
 import type {MapRenderer} from "./MapRenderer";
 import {measureTextBaselineOffset} from "./utils/textMeasure";
+import {ViewportManager} from "./ViewportManager";
 
 const defaultRoomSize = 0.6;
-const defaultZoom = 75
 const defaultLineWidth = 0.025;
 const lineColor = 'rgb(225, 255, 225)';
 const currentRoomColor = 'rgb(120, 72, 0)';
@@ -364,15 +364,10 @@ export class Renderer implements MapRenderer {
     private currentAreaVersion?: number;
     private currentRoomId?: number;
     private positionRender?: Konva.Shape;
-    private currentTransition?: Konva.Tween;
-    private currentZoom: number = 1;
     private currentRoomOverlay: Konva.Node[] = [];
     private roomNodes: Map<number, RoomNodeEntry> = new Map();
 
-    /** When true, resizing the container will center on the current room. Set to false for static map views. */
-    public centerOnResize: boolean = true;
-    /** Minimum zoom level, updated by fitArea() to prevent zooming out beyond the full area view. */
-    public minZoom: number = 0.05;
+    private readonly viewport: ViewportManager;
     private standaloneExitNodes: StandaloneExitEntry[] = [];
     private spatialBucketSize = 5;
     private roomSpatialIndex: Map<number, Set<RoomNodeEntry>> = new Map();
@@ -401,12 +396,6 @@ export class Renderer implements MapRenderer {
             draggable: true
         });
         container.style.backgroundColor = this.settings.backgroundColor;
-        window.addEventListener('resize', () => {
-            this.onResize(container);
-        })
-        container.addEventListener('resize', () => {
-            this.onResize(container);
-        })
         this.gridLayer = new Konva.Layer({ listening: false });
         this.stage.add(this.gridLayer);
         this.linkLayer = new Konva.Layer({ listening: false });
@@ -421,32 +410,21 @@ export class Renderer implements MapRenderer {
         this.exitRenderer = new ExitRenderer(mapReader, this, this.settings);
         this.pathRenderer = new PathRenderer(mapReader, this.overlayLayer, this.settings);
 
-        const scaleBy = 1.1;
-        this.initScaling(scaleBy);
+        this.viewport = new ViewportManager(this.stage, container, this.settings, {
+            scheduleCulling: () => this.scheduleRoomCulling(),
+            onResize: () => {
+                if (this.currentRoomId) {
+                    const room = this.mapReader.getRoom(this.currentRoomId);
+                    if (room) this.viewport.panToMapPoint(room.x, room.y, false);
+                }
+            },
+        });
 
-        this.stage.on('dragmove', () => {
-            this.scheduleRoomCulling();
-            this.emitPanEvent();
-        });
-        this.stage.on('dragend', () => {
-            this.scheduleRoomCulling();
-            this.emitPanEvent();
-        });
         this.initRoomHitDetection();
     }
 
     private clientToMapPoint(clientX: number, clientY: number) {
-        const container = this.stage.container();
-        const rect = container.getBoundingClientRect();
-        const stageX = clientX - rect.left;
-        const stageY = clientY - rect.top;
-        const scale = this.stage.scaleX();
-        if (!scale) return null;
-        const pos = this.stage.position();
-        return {
-            x: (stageX - pos.x) / scale,
-            y: (stageY - pos.y) / scale,
-        };
+        return this.viewport.clientToMapPoint(clientX, clientY);
     }
 
     private findRoomAtClientPoint(clientX: number, clientY: number): MapData.Room | null {
@@ -599,174 +577,6 @@ export class Renderer implements MapRenderer {
         }, { passive: true });
     }
 
-    private onResize(container: HTMLDivElement) {
-        this.stage.width(container.clientWidth);
-        this.stage.height(container.clientHeight);
-        if (this.centerOnResize && this.currentRoomId) {
-            this.centerOnRoom(this.mapReader.getRoom(this.currentRoomId)!, false);
-        }
-        this.stage.batchDraw();
-        this.scheduleRoomCulling();
-    }
-
-    private initScaling(scaleBy: number) {
-        let lastPinchDistance: number | undefined;
-        let dragStopped = false;
-        let multiTouchActive = false;
-
-        this.stage.on('touchstart', (e) => {
-            const touches = e.evt.touches;
-            if (touches && touches.length > 1) {
-                multiTouchActive = true;
-                if (this.stage.isDragging()) {
-                    this.stage.stopDrag();
-                    dragStopped = true;
-                }
-                this.stage.draggable(false);
-            } else {
-                multiTouchActive = false;
-                this.stage.draggable(true);
-            }
-        });
-
-        this.stage.on('touchend touchcancel', (e) => {
-            lastPinchDistance = undefined;
-            const touches = e.evt.touches;
-            if (!touches || touches.length <= 1) {
-                multiTouchActive = false;
-                this.stage.draggable(true);
-            }
-        });
-
-        this.stage.on('wheel', (e) => {
-            e.evt.preventDefault();
-
-            const oldScale = this.stage.scaleX();
-            const pointer = this.stage.getPointerPosition();
-            if (!pointer) {
-                return;
-            }
-
-            const mousePointTo = {
-                x: (pointer.x - this.stage.x()) / oldScale,
-                y: (pointer.y - this.stage.y()) / oldScale,
-            };
-
-            let direction = e.evt.deltaY > 0 ? -1 : 1;
-
-            if (e.evt.ctrlKey) {
-                direction = -direction;
-            }
-
-            const newZoom = direction > 0 ? this.currentZoom * scaleBy : this.currentZoom / scaleBy;
-            const zoomChanged = this.setZoom(newZoom);
-
-            if (zoomChanged) {
-                const newScale = this.stage.scaleX();
-                const newPos = {
-                    x: pointer.x - mousePointTo.x * newScale,
-                    y: pointer.y - mousePointTo.y * newScale,
-                };
-
-                this.stage.position(newPos);
-                this.scheduleRoomCulling();
-                this.emitZoomChangeEvent();
-                this.emitPanEvent();
-            }
-        });
-
-        this.stage.on('touchmove', (e) => {
-            const touches = e.evt.touches;
-            const touch1 = touches?.[0];
-            const touch2 = touches?.[1];
-
-            if (!touch2) {
-                if (multiTouchActive) {
-                    multiTouchActive = false;
-                    this.stage.draggable(true);
-                }
-            }
-
-            if (touch1 && !touch2 && dragStopped && !this.stage.isDragging()) {
-                this.stage.startDrag();
-                dragStopped = false;
-            }
-
-            if (!touch1 || !touch2) {
-                lastPinchDistance = undefined;
-                return;
-            }
-
-            e.evt.preventDefault();
-
-            if (this.stage.isDragging()) {
-                this.stage.stopDrag();
-                dragStopped = true;
-            }
-
-            if (!multiTouchActive) {
-                multiTouchActive = true;
-                this.stage.draggable(false);
-            }
-
-            const rect = this.stage.container().getBoundingClientRect();
-            const p1 = {
-                x: touch1.clientX - rect.left,
-                y: touch1.clientY - rect.top,
-            };
-            const p2 = {
-                x: touch2.clientX - rect.left,
-                y: touch2.clientY - rect.top,
-            };
-
-            const distance = Math.hypot(p1.x - p2.x, p1.y - p2.y);
-
-            if (lastPinchDistance === undefined) {
-                lastPinchDistance = distance;
-                return;
-            }
-
-            if (lastPinchDistance === 0 || distance === 0) {
-                lastPinchDistance = distance;
-                return;
-            }
-
-            const oldScale = this.stage.scaleX();
-            const stageX = this.stage.x();
-            const stageY = this.stage.y();
-
-            const centerPointer = {
-                x: this.stage.width() / 2,
-                y: this.stage.height() / 2,
-            };
-
-            const centerMapPoint = {
-                x: (centerPointer.x - stageX) / oldScale,
-                y: (centerPointer.y - stageY) / oldScale,
-            };
-
-            const newZoom = this.currentZoom * (distance / lastPinchDistance);
-
-            const zoomChanged = this.setZoom(newZoom);
-
-            if (zoomChanged) {
-                const newScale = this.stage.scaleX();
-                const newPos = {
-                    x: centerPointer.x - centerMapPoint.x * newScale,
-                    y: centerPointer.y - centerMapPoint.y * newScale,
-                };
-
-                this.stage.position(newPos);
-                this.stage.batchDraw();
-                this.scheduleRoomCulling();
-                this.emitZoomChangeEvent();
-                this.emitPanEvent();
-            }
-
-            lastPinchDistance = distance;
-        });
-    }
-
     drawArea(id: number, zIndex: number) {
         const area = this.mapReader.getArea(id);
         if (!area) {
@@ -802,7 +612,7 @@ export class Renderer implements MapRenderer {
         this.exitBatchShape = undefined;
         this.spatialBucketSize = this.computeSpatialBucketSize();
 
-        this.stage.scale({x: defaultZoom * this.currentZoom, y: defaultZoom * this.currentZoom});
+        this.viewport.applyScale();
 
         this.renderGrid();
         this.renderLabels(plane.getLabels());
@@ -1018,104 +828,27 @@ export class Renderer implements MapRenderer {
         container.dispatchEvent(event);
     }
 
-    private emitZoomChangeEvent() {
-        const event = new CustomEvent<ZoomChangeEventDetail>('zoom', {
-            detail: {zoom: this.currentZoom},
-        });
-        this.stage.container().dispatchEvent(event);
-    }
-
-    private emitPanEvent() {
-        const event = new CustomEvent<PanEventDetail>('pan', {
-            detail: this.getViewportBounds(),
-        });
-        this.stage.container().dispatchEvent(event);
-    }
-
     private emitMapClickEvent() {
         const event = new CustomEvent('mapclick');
         this.stage.container().dispatchEvent(event);
     }
 
     setZoom(zoom: number): boolean {
-        const clamped = Math.max(this.minZoom, Math.min(5, zoom));
-        if (this.currentZoom === clamped) {
-            return false;
-        }
-
-        this.currentZoom = clamped;
-        this.stage.scale({x: defaultZoom * this.currentZoom, y: defaultZoom * this.currentZoom});
-        this.scheduleRoomCulling();
-
-        return true;
+        return this.viewport.setZoom(zoom);
     }
 
-    /**
-     * Zooms relative to the center of the viewport.
-     * Use this for UI controls (buttons, menus) where there's no mouse position.
-     */
     zoomToCenter(zoom: number): boolean {
-        const clamped = Math.max(this.minZoom, Math.min(5, zoom));
-        if (this.currentZoom === clamped) {
-            return false;
-        }
-
-        const oldScale = this.stage.scaleX();
-        const stageWidth = this.stage.width();
-        const stageHeight = this.stage.height();
-
-        // Center point in screen coordinates
-        const centerX = stageWidth / 2;
-        const centerY = stageHeight / 2;
-
-        // Convert center to map coordinates using old scale
-        const centerMapPoint = {
-            x: (centerX - this.stage.x()) / oldScale,
-            y: (centerY - this.stage.y()) / oldScale,
-        };
-
-        // Apply new zoom
-        this.currentZoom = clamped;
-        const newScale = defaultZoom * clamped;
-        this.stage.scale({ x: newScale, y: newScale });
-
-        // Calculate new position to keep center point at center
-        const newPos = {
-            x: centerX - centerMapPoint.x * newScale,
-            y: centerY - centerMapPoint.y * newScale,
-        };
-
-        this.stage.position(newPos);
-        this.stage.batchDraw();
-        this.scheduleRoomCulling();
-        this.emitZoomChangeEvent();
-        this.emitPanEvent();
-
-        return true;
+        return this.viewport.zoomToCenter(zoom);
     }
 
     getZoom() {
-        return this.currentZoom;
+        return this.viewport.getZoom();
     }
 
-    /**
-     * Returns the current viewport bounds in map coordinates.
-     */
     getViewportBounds(): ViewportBounds {
-        const scale = this.stage.scaleX();
-        const pos = this.stage.position();
-        return {
-            minX: (0 - pos.x) / scale,
-            maxX: (this.stage.width() - pos.x) / scale,
-            minY: (0 - pos.y) / scale,
-            maxY: (this.stage.height() - pos.y) / scale,
-        };
+        return this.viewport.getViewportBounds();
     }
 
-    /**
-     * Returns the bounds of the current area in map coordinates.
-     * Accounts for area name overhead if enabled.
-     */
     getAreaBounds(): ViewportBounds | null {
         if (!this.currentAreaInstance || this.currentZIndex === undefined) return null;
         const plane = this.currentAreaInstance.getPlane(this.currentZIndex);
@@ -1130,49 +863,26 @@ export class Renderer implements MapRenderer {
         };
     }
 
-    /**
-     * Fit the entire current area into the viewport.
-     * Calculates the zoom level needed to show all rooms (and labels) and centers the view.
-     * Call after drawArea() to show the whole area without needing a position room.
-     */
     fitArea() {
-        if (this.currentArea === undefined || this.currentZIndex === undefined || !this.currentAreaInstance) return;
-        const plane = this.currentAreaInstance.getPlane(this.currentZIndex);
-        if (!plane) return;
+        const bounds = this.getAreaBounds();
+        if (!bounds) return;
+        this.viewport.fitToMapBounds(bounds.minX, bounds.maxX, bounds.minY, bounds.maxY);
+    }
 
-        const b = this.getEffectiveBounds(this.currentAreaInstance, plane);
-        // Account for area name header above and left of the bounds
-        const hasAreaName = this.settings.areaName && this.currentAreaInstance.getAreaName();
-        const minY = hasAreaName ? b.minY - 7 : b.minY;
-        const minX = hasAreaName ? b.minX - 4 : b.minX;
-        const mapW = b.maxX - minX;
-        const mapH = b.maxY - minY;
-        if (mapW <= 0 || mapH <= 0) return;
+    get centerOnResize(): boolean {
+        return this.viewport.centerOnResize;
+    }
 
-        const stageW = this.stage.width();
-        const stageH = this.stage.height();
-        const padding = 2;
+    set centerOnResize(value: boolean) {
+        this.viewport.centerOnResize = value;
+    }
 
-        // Compute zoom so the area fits with some padding
-        const zoomX = stageW / ((mapW + padding * 2) * defaultZoom);
-        const zoomY = stageH / ((mapH + padding * 2) * defaultZoom);
-        const fitZoom = Math.min(zoomX, zoomY);
+    get minZoom(): number {
+        return this.viewport.minZoom;
+    }
 
-        this.currentZoom = Math.max(0.05, Math.min(5, fitZoom));
-        this.minZoom = this.currentZoom;
-        const scale = defaultZoom * this.currentZoom;
-        this.stage.scale({x: scale, y: scale});
-
-        // Center the area bounds in the viewport
-        const centerMapX = (minX + b.maxX) / 2;
-        const centerMapY = (minY + b.maxY) / 2;
-        this.stage.position({
-            x: stageW / 2 - centerMapX * scale,
-            y: stageH / 2 - centerMapY * scale,
-        });
-
-        this.stage.batchDraw();
-        this.scheduleRoomCulling();
+    set minZoom(value: number) {
+        this.viewport.minZoom = value;
     }
 
     setCullingMode(mode: CullingMode) {
@@ -1445,7 +1155,6 @@ export class Renderer implements MapRenderer {
 
     private centerOnRoom(room: MapData.Room, instant: boolean = false) {
         this.currentRoomId = room.id;
-        const roomCenter = {x: room.x, y: room.y};
 
         if (this.positionRender) {
             if (this.positionRender instanceof Konva.Rect) {
@@ -1456,82 +1165,11 @@ export class Renderer implements MapRenderer {
             }
         }
 
-        const abs = this.stage.getAbsoluteTransform()
-        const screenPoint = abs.point(roomCenter);
-
-        const target = {
-            x: this.stage.width() / 2,
-            y: this.stage.height() / 2,
-        };
-
-        const dx = target.x - screenPoint.x;
-        const dy = target.y - screenPoint.y;
-
-        if (this.currentTransition) {
-            this.currentTransition.pause()
-            this.currentTransition.destroy()
-            delete this.currentTransition;
-        }
-
-        if (instant || this.settings.instantMapMove) {
-            this.stage.position({
-                x: this.stage.x() + dx,
-                y: this.stage.y() + dy,
-            })
-            this.scheduleRoomCulling();
-        } else {
-            this.currentTransition = new Konva.Tween({
-                node: this.stage,
-                x: this.stage.x() + dx,
-                y: this.stage.y() + dy,
-                duration: 0.2,
-                easing: Konva.Easings.EaseInOut,
-                onUpdate: () => this.scheduleRoomCulling(),
-                onFinish: () => this.scheduleRoomCulling(),
-            })
-            this.currentTransition.play()
-        }
+        this.viewport.panToMapPoint(room.x, room.y, instant);
     }
 
     private centerOnRoomView(room: MapData.Room, instant: boolean = false) {
-        const roomCenter = {x: room.x, y: room.y};
-
-        const abs = this.stage.getAbsoluteTransform()
-        const screenPoint = abs.point(roomCenter);
-
-        const target = {
-            x: this.stage.width() / 2,
-            y: this.stage.height() / 2,
-        };
-
-        const dx = target.x - screenPoint.x;
-        const dy = target.y - screenPoint.y;
-
-        if (this.currentTransition) {
-            this.currentTransition.pause()
-            this.currentTransition.destroy()
-            delete this.currentTransition;
-        }
-
-        if (instant || this.settings.instantMapMove) {
-            this.stage.position({
-                x: this.stage.x() + dx,
-                y: this.stage.y() + dy,
-            })
-            this.scheduleRoomCulling();
-            this.emitPanEvent();
-        } else {
-            this.currentTransition = new Konva.Tween({
-                node: this.stage,
-                x: this.stage.x() + dx,
-                y: this.stage.y() + dy,
-                duration: 0.2,
-                easing: Konva.Easings.EaseInOut,
-                onUpdate: () => this.scheduleRoomCulling(),
-                onFinish: () => { this.scheduleRoomCulling(); this.emitPanEvent(); },
-            })
-            this.currentTransition.play()
-        }
+        this.viewport.panToMapPoint(room.x, room.y, instant);
     }
 
     private getEffectiveBounds(area: Area, plane: Plane) {

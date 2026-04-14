@@ -36,6 +36,9 @@ const positionId = param('position') ? parseInt(param('position')!) : undefined;
 const highlightsRaw = param('highlights'); // format: "roomId:color,roomId:color"
 const pathRaw = param('path'); // format: "roomId,roomId,roomId"
 const pathColor = param('pathColor') ?? '#66E64D';
+const zoom = param('zoom') ? parseFloat(param('zoom')!) : undefined;
+const fitAreaMode = boolParam('fitArea');
+const centerOnId = param('centerOn') ? parseInt(param('centerOn')!) : undefined;
 
 // Create renderer
 const container = document.getElementById('stage') as HTMLDivElement;
@@ -68,6 +71,19 @@ if (highlightsRaw) {
 if (pathRaw) {
     const locations = pathRaw.split(',').map(Number);
     renderer.renderPath(locations, pathColor);
+}
+
+// Viewport controls
+if (fitAreaMode) {
+    renderer.fitArea();
+}
+
+if (zoom !== undefined) {
+    renderer.zoomToCenter(zoom);
+}
+
+if (centerOnId !== undefined) {
+    renderer.centerOn(centerOnId, true);
 }
 
 // Signal to Playwright that rendering is complete

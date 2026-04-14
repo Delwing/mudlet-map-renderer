@@ -117,3 +117,30 @@ test.describe('overlays', () => {
         await expect(page.locator('#stage')).toHaveScreenshot('combined-overlays.png');
     });
 });
+
+test.describe('viewport', () => {
+    test('fit area', async ({ page }) => {
+        await loadHarness(page, { area: '1', z: '0', fitArea: '1' });
+        await expect(page.locator('#stage')).toHaveScreenshot('fit-area.png');
+    });
+
+    test('zoom in', async ({ page }) => {
+        await loadHarness(page, { area: '1', z: '0', room: '1', zoom: '2' });
+        await expect(page.locator('#stage')).toHaveScreenshot('zoom-in.png');
+    });
+
+    test('zoom out', async ({ page }) => {
+        await loadHarness(page, { area: '1', z: '0', room: '1', zoom: '0.4' });
+        await expect(page.locator('#stage')).toHaveScreenshot('zoom-out.png');
+    });
+
+    test('center on different room', async ({ page }) => {
+        await loadHarness(page, { area: '1', z: '0', room: '1', centerOn: '7' });
+        await expect(page.locator('#stage')).toHaveScreenshot('center-on-room7.png');
+    });
+
+    test('fit area with area name', async ({ page }) => {
+        await loadHarness(page, { area: '1', z: '0', fitArea: '1', areaName: '1' });
+        await expect(page.locator('#stage')).toHaveScreenshot('fit-area-with-name.png');
+    });
+});
