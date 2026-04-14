@@ -12,6 +12,7 @@ import type {SvgExportOptions} from "./SvgExporter";
 import type {MapRenderer} from "./MapRenderer";
 import {ViewportManager} from "./ViewportManager";
 import {RoomShapeRenderer} from "./RoomShapeRenderer";
+import {GridRenderer} from "./GridRenderer";
 
 const defaultRoomSize = 0.6;
 const defaultLineWidth = 0.025;
@@ -369,6 +370,7 @@ export class Renderer implements MapRenderer {
 
     private readonly viewport: ViewportManager;
     private readonly roomShapeRenderer: RoomShapeRenderer;
+    private readonly gridRenderer: GridRenderer;
     private standaloneExitNodes: StandaloneExitEntry[] = [];
     private spatialBucketSize = 5;
     private roomSpatialIndex: Map<number, Set<RoomNodeEntry>> = new Map();
@@ -386,7 +388,6 @@ export class Renderer implements MapRenderer {
     private exitBatchShape?: Konva.Shape;
     private areaExitHitZones: AreaExitHitZone[] = [];
     private visibleExitDrawData: ExitDrawData[] = [];
-    private cachedGridBounds: { left: number; right: number; top: number; bottom: number } | null = null;
 
     constructor(container: HTMLDivElement, mapReader: MapReader, settings?: Settings) {
         this.settings = settings ?? createSettings();
@@ -411,6 +412,7 @@ export class Renderer implements MapRenderer {
         this.exitRenderer = new ExitRenderer(mapReader, this, this.settings);
         this.pathRenderer = new PathRenderer(mapReader, this.overlayLayer, this.settings);
         this.roomShapeRenderer = new RoomShapeRenderer(mapReader, this.settings);
+        this.gridRenderer = new GridRenderer(this.gridLayer, this.settings);
 
         this.viewport = new ViewportManager(this.stage, container, this.settings, {
             scheduleCulling: () => this.scheduleRoomCulling(),
@@ -599,7 +601,7 @@ export class Renderer implements MapRenderer {
         }
         this.positionLayer.destroyChildren();
         this.gridLayer.destroyChildren();
-        this.invalidateGridCache();
+        this.gridRenderer.invalidateCache();
         this.roomLayer.destroyChildren();
         this.linkLayer.destroyChildren();
         this.roomNodes.clear();
@@ -616,7 +618,7 @@ export class Renderer implements MapRenderer {
 
         this.viewport.applyScale();
 
-        this.renderGrid();
+        this.gridRenderer.render(this.viewport.getViewportBounds());
         this.renderLabels(plane.getLabels());
         this.renderExits(area.getLinkExits(zIndex));
         this.renderRooms(plane.getRooms() ?? []);
@@ -1476,7 +1478,7 @@ export class Renderer implements MapRenderer {
         }
 
         const gridStart = this.settings.perfCallback ? performance.now() : 0;
-        this.renderGrid();
+        this.gridRenderer.render(this.viewport.getViewportBounds());
         if (this.settings.perfCallback) {
             const gridMs = performance.now() - gridStart;
             const cullingMs = performance.now() - perfStart;
@@ -1495,75 +1497,6 @@ export class Renderer implements MapRenderer {
         this.perfMonitor.setCallback(this.settings.perfCallback);
     }
 
-    private invalidateGridCache() {
-        this.cachedGridBounds = null;
-    }
-
-    private renderGrid() {
-        if (!this.settings.gridEnabled) {
-            if (this.cachedGridBounds !== null) {
-                this.gridLayer.destroyChildren();
-                this.gridLayer.batchDraw();
-                this.cachedGridBounds = null;
-            }
-            return;
-        }
-
-        const scale = this.stage.scaleX();
-        if (!scale) {
-            return;
-        }
-
-        const stagePosition = this.stage.position();
-        const stageWidth = this.stage.width();
-        const stageHeight = this.stage.height();
-
-        // Calculate visible bounds in map coordinates
-        const minX = (0 - stagePosition.x) / scale;
-        const maxX = (stageWidth - stagePosition.x) / scale;
-        const minY = (0 - stagePosition.y) / scale;
-        const maxY = (stageHeight - stagePosition.y) / scale;
-
-        // Expand bounds slightly for buffer
-        const buffer = this.settings.gridSize * 2;
-        const left = Math.floor((Math.min(minX, maxX) - buffer) / this.settings.gridSize) * this.settings.gridSize;
-        const right = Math.ceil((Math.max(minX, maxX) + buffer) / this.settings.gridSize) * this.settings.gridSize;
-        const top = Math.floor((Math.min(minY, maxY) - buffer) / this.settings.gridSize) * this.settings.gridSize;
-        const bottom = Math.ceil((Math.max(minY, maxY) + buffer) / this.settings.gridSize) * this.settings.gridSize;
-
-        // Skip recreation if grid bounds haven't changed
-        const cached = this.cachedGridBounds;
-        if (cached && cached.left === left && cached.right === right && cached.top === top && cached.bottom === bottom) {
-            return;
-        }
-
-        this.gridLayer.destroyChildren();
-
-        // Draw vertical lines
-        for (let x = left; x <= right; x += this.settings.gridSize) {
-            this.gridLayer.add(new Konva.Line({
-                points: [x, top, x, bottom],
-                stroke: this.settings.gridColor,
-                strokeWidth: this.settings.gridLineWidth,
-                listening: false,
-                perfectDrawEnabled: false,
-            }));
-        }
-
-        // Draw horizontal lines
-        for (let y = top; y <= bottom; y += this.settings.gridSize) {
-            this.gridLayer.add(new Konva.Line({
-                points: [left, y, right, y],
-                stroke: this.settings.gridColor,
-                strokeWidth: this.settings.gridLineWidth,
-                listening: false,
-                perfectDrawEnabled: false,
-            }));
-        }
-
-        this.cachedGridBounds = { left, right, top, bottom };
-        this.gridLayer.batchDraw();
-    }
 
     private clearCurrentRoomOverlay() {
         this.currentRoomOverlay.forEach(node => node.destroy());
