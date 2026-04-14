@@ -2,5 +2,5 @@ import 'konva/canvas-backend';
 import { vi } from 'vitest';
 
 vi.mock('../src/utils/textMeasure', () => ({
-    measureTextBaselineOffset: () => 0.35,
+    measureTextBaselineOffset: () => ({ baselineRatio: 0.35, konvaCorrectionRatio: 0 }),
 }));

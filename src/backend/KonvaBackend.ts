@@ -137,6 +137,10 @@ export class KonvaBackend implements DrawingBackend {
 
     addText(parent: GroupNode, config: TextConfig) {
         if (!(parent instanceof KonvaGroupNode)) return;
+        // Konva centres text using font-wide bounding-box metrics (from 'M').
+        // konvaCorrectionRatio compensates for glyphs whose visual bounds differ.
+        const offsetY = (config.offsetY ?? 0)
+            + (config.konvaCorrectionRatio ?? 0) * config.fontSize;
         parent.konvaGroup.add(new Konva.Text({
             x: config.x,
             y: config.y,
@@ -149,7 +153,7 @@ export class KonvaBackend implements DrawingBackend {
             verticalAlign: config.verticalAlign,
             width: config.width,
             height: config.height,
-            offsetY: config.offsetY,
+            offsetY: offsetY || undefined,
             perfectDrawEnabled: false,
             listening: false,
         }));

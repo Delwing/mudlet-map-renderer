@@ -257,7 +257,7 @@ export class SvgExporter {
 
             if (room.roomChar) {
                 const fontSize = rs * 0.75;
-                const baselineY = room.y + measureTextBaselineOffset(room.roomChar, this.settings.fontFamily) * fontSize;
+                const baselineY = room.y + measureTextBaselineOffset(room.roomChar, this.settings.fontFamily).baselineRatio * fontSize;
                 lines.push(`<text x="${room.x}" y="${baselineY}" font-size="${fontSize}" font-weight="bold" font-family="${escapeXml(this.settings.fontFamily)}" fill="${escapeXml(symbolColor)}" text-anchor="middle">${escapeXml(room.roomChar)}</text>`);
             }
         }

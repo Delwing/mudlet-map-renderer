@@ -74,6 +74,8 @@ export interface TextConfig {
     offsetY?: number;
     /** Baseline offset ratio (0-1) for SVG positioning. Fraction of fontSize from top to baseline. */
     baselineRatio?: number;
+    /** Konva vertical correction: offsetY = ratio * fontSize shifts text up to true visual centre. */
+    konvaCorrectionRatio?: number;
 }
 
 export interface ImageConfig {

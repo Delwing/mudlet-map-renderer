@@ -23,7 +23,19 @@ const BASELINE_Y = 120;      // baseline well below mid so ascenders always fit
 
 import Konva from "konva";
 
-const cache = new Map<string, number>();
+export interface BaselineResult {
+    /** Offset from room-centre to alphabetic baseline, as a ratio of fontSize (for SVG). */
+    baselineRatio: number;
+    /**
+     * Correction for Konva's built-in verticalAlign='middle', as a ratio of fontSize.
+     * Konva centres text using font-wide bounding-box metrics (measured from 'M'),
+     * which is wrong for glyphs whose visual extent differs (e.g. "[]").
+     * Apply as offsetY = konvaCorrectionRatio * fontSize (positive = shift up).
+     */
+    konvaCorrectionRatio: number;
+}
+
+const cache = new Map<string, BaselineResult>();
 
 let _canvas: any = null;
 
@@ -44,15 +56,16 @@ function getCanvas(): any {
  * capHeight/2 ≈ 0.35.  For characters that extend below the baseline the
  * returned value is smaller, which moves the rendered text upward.
  */
-export function measureTextBaselineOffset(text: string, fontFamily: string): number {
+export function measureTextBaselineOffset(text: string, fontFamily: string): BaselineResult {
     const cacheKey = `${text}::${fontFamily}`;
     const cached = cache.get(cacheKey);
     if (cached !== undefined) return cached;
 
     const canvas = getCanvas();
     const ctx = canvas.getContext('2d')!;
+    const font = `bold ${MEASURE_PX}px ${fontFamily}`;
     ctx.clearRect(0, 0, CANVAS_PX, CANVAS_PX);
-    ctx.font          = `bold ${MEASURE_PX}px ${fontFamily}`;
+    ctx.font          = font;
     ctx.textBaseline  = 'alphabetic';
     ctx.textAlign     = 'center';
     ctx.fillStyle     = '#ffffff';
@@ -73,8 +86,9 @@ export function measureTextBaselineOffset(text: string, fontFamily: string): num
 
     if (bottom === -1) {
         // Nothing rendered — fall back to the original magic number
-        cache.set(cacheKey, 0.35);
-        return 0.35;
+        const result: BaselineResult = { baselineRatio: 0.35, konvaCorrectionRatio: 0 };
+        cache.set(cacheKey, result);
+        return result;
     }
 
     // ascent  = pixels above the baseline (always positive)
@@ -87,7 +101,19 @@ export function measureTextBaselineOffset(text: string, fontFamily: string): num
     //                 = baseline - (ascent - descent) / 2
     //   we want visual_centre == room.y
     //   → baseline = room.y + (ascent - descent) / 2
-    const ratio = (ascent - descent) / 2 / MEASURE_PX;
-    cache.set(cacheKey, ratio);
-    return ratio;
+    const baselineRatio = (ascent - descent) / 2 / MEASURE_PX;
+
+    // Konva centres text using font-wide bounding-box metrics (from 'M').
+    // Compute the delta between that and the true visual centre for this glyph.
+    const metrics = ctx.measureText('M');
+    const fontAscent  = (metrics as any).fontBoundingBoxAscent  ?? (metrics as any).actualBoundingBoxAscent  ?? 0;
+    const fontDescent = (metrics as any).fontBoundingBoxDescent ?? (metrics as any).actualBoundingBoxDescent ?? 0;
+    // Konva's centering offset (as a ratio of fontSize):
+    const konvaCenterRatio = (fontAscent - fontDescent) / 2 / MEASURE_PX;
+    // Correction = how much Konva overshoots vs true visual centre
+    const konvaCorrectionRatio = konvaCenterRatio - baselineRatio;
+
+    const result: BaselineResult = { baselineRatio, konvaCorrectionRatio };
+    cache.set(cacheKey, result);
+    return result;
 }
