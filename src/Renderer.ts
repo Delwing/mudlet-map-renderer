@@ -13,6 +13,7 @@ import type {MapRenderer} from "./MapRenderer";
 import {ViewportManager} from "./ViewportManager";
 import {RoomShapeRenderer} from "./RoomShapeRenderer";
 import {GridRenderer} from "./GridRenderer";
+import {InteractionHandler} from "./InteractionHandler";
 
 const defaultRoomSize = 0.6;
 const defaultLineWidth = 0.025;
@@ -424,27 +425,24 @@ export class Renderer implements MapRenderer {
             },
         });
 
-        this.initRoomHitDetection();
+        new InteractionHandler(this.stage, container, this.settings, {
+            clientToMapPoint: (cx, cy) => this.viewport.clientToMapPoint(cx, cy),
+            findRoomAtPoint: (mx, my) => this.findRoomAtMapPoint(mx, my),
+            getAreaExitHitZones: () => this.areaExitHitZones,
+        });
     }
 
-    private clientToMapPoint(clientX: number, clientY: number) {
-        return this.viewport.clientToMapPoint(clientX, clientY);
-    }
-
-    private findRoomAtClientPoint(clientX: number, clientY: number): MapData.Room | null {
-        const mapPoint = this.clientToMapPoint(clientX, clientY);
-        if (!mapPoint) return null;
+    private findRoomAtMapPoint(mapX: number, mapY: number): MapData.Room | null {
         const halfSize = this.settings.roomSize / 2;
-        // Check the single bucket at this point
         const key = this.getBucketKey(
-            Math.floor(mapPoint.x / this.spatialBucketSize),
-            Math.floor(mapPoint.y / this.spatialBucketSize),
+            Math.floor(mapX / this.spatialBucketSize),
+            Math.floor(mapY / this.spatialBucketSize),
         );
         const bucket = this.roomSpatialIndex.get(key);
         if (!bucket) return null;
         for (const entry of bucket) {
-            const dx = mapPoint.x - entry.room.x;
-            const dy = mapPoint.y - entry.room.y;
+            const dx = mapX - entry.room.x;
+            const dy = mapY - entry.room.y;
             if (dx >= -halfSize && dx <= halfSize && dy >= -halfSize && dy <= halfSize) {
                 return entry.room;
             }
@@ -452,134 +450,6 @@ export class Renderer implements MapRenderer {
         return null;
     }
 
-    private initRoomHitDetection() {
-        const container = this.stage.container();
-        let hoveredRoom: MapData.Room | null = null;
-
-        let hoveredAreaExit = false;
-
-        container.addEventListener('mousemove', (e) => {
-            const room = this.findRoomAtClientPoint(e.clientX, e.clientY);
-            if (room !== hoveredRoom) {
-                hoveredRoom = room;
-                if (room) {
-                    hoveredAreaExit = false;
-                    container.style.cursor = 'pointer';
-                    return;
-                }
-            }
-            if (!hoveredRoom) {
-                const exitZone = this.findAreaExitAtClientPoint(e.clientX, e.clientY);
-                const overExit = exitZone !== null;
-                hoveredAreaExit = overExit;
-                container.style.cursor = overExit ? 'pointer' : 'auto';
-            }
-        });
-
-        container.addEventListener('mouseleave', () => {
-            hoveredRoom = null;
-            hoveredAreaExit = false;
-            container.style.cursor = 'auto';
-        });
-
-        let clickStart: { x: number; y: number } | null = null;
-
-        container.addEventListener('mousedown', (e) => {
-            if (e.button === 0) {
-                clickStart = { x: e.clientX, y: e.clientY };
-            }
-        });
-
-        container.addEventListener('mouseup', (e) => {
-            if (e.button !== 0 || !clickStart) return;
-            const dx = e.clientX - clickStart.x;
-            const dy = e.clientY - clickStart.y;
-            clickStart = null;
-            if (dx * dx + dy * dy > 25) return;
-            const room = this.findRoomAtClientPoint(e.clientX, e.clientY);
-            if (room) {
-                this.emitRoomClickEvent(room.id, e.clientX, e.clientY);
-                return;
-            }
-            const exitZone = this.findAreaExitAtClientPoint(e.clientX, e.clientY);
-            if (exitZone) {
-                this.emitAreaExitClickEvent(exitZone.targetRoomId, e.clientX, e.clientY);
-                return;
-            }
-            this.emitMapClickEvent();
-        });
-
-        container.addEventListener('contextmenu', (e) => {
-            const room = this.findRoomAtClientPoint(e.clientX, e.clientY);
-            if (room) {
-                e.preventDefault();
-                this.emitRoomContextEvent(room.id, e.clientX, e.clientY);
-            }
-        });
-
-        // Long-press support for touch
-        let longPressTimeout: number | undefined;
-        let longPressStart: { clientX: number; clientY: number } | undefined;
-        let stageDraggableBeforeLongPress: boolean | undefined;
-
-        const restoreStageDraggable = () => {
-            if (stageDraggableBeforeLongPress !== undefined) {
-                this.stage.draggable(stageDraggableBeforeLongPress);
-                stageDraggableBeforeLongPress = undefined;
-            }
-        };
-
-        const clearLongPress = () => {
-            if (longPressTimeout !== undefined) {
-                window.clearTimeout(longPressTimeout);
-                longPressTimeout = undefined;
-            }
-            longPressStart = undefined;
-            restoreStageDraggable();
-        };
-
-        container.addEventListener('touchstart', (e) => {
-            clearLongPress();
-            if (e.touches.length > 1) return;
-            const touch = e.touches[0];
-            if (!touch) return;
-            const room = this.findRoomAtClientPoint(touch.clientX, touch.clientY);
-            if (!room) return;
-            longPressStart = { clientX: touch.clientX, clientY: touch.clientY };
-            stageDraggableBeforeLongPress = this.stage.draggable();
-            this.stage.draggable(false);
-            longPressTimeout = window.setTimeout(() => {
-                if (longPressStart) {
-                    const roomAtPoint = this.findRoomAtClientPoint(longPressStart.clientX, longPressStart.clientY);
-                    if (roomAtPoint) {
-                        this.emitRoomContextEvent(roomAtPoint.id, longPressStart.clientX, longPressStart.clientY);
-                    }
-                }
-                clearLongPress();
-            }, 500);
-        }, { passive: true });
-
-        container.addEventListener('touchend', () => clearLongPress(), { passive: true });
-        container.addEventListener('touchcancel', () => clearLongPress(), { passive: true });
-
-        container.addEventListener('touchmove', (e) => {
-            if (!longPressStart) return;
-            const touch = e.touches[0];
-            if (!touch) {
-                clearLongPress();
-                return;
-            }
-            const dx = touch.clientX - longPressStart.clientX;
-            const dy = touch.clientY - longPressStart.clientY;
-            if (dx * dx + dy * dy > 100) {
-                const wasDraggable = stageDraggableBeforeLongPress;
-                clearLongPress();
-                if (wasDraggable) {
-                    this.stage.startDrag();
-                }
-            }
-        }, { passive: true });
-    }
 
     drawArea(id: number, zIndex: number) {
         const area = this.mapReader.getArea(id);
@@ -775,67 +645,6 @@ export class Renderer implements MapRenderer {
         this.standaloneExitBoundsRoomSize = this.settings.roomSize;
     }
 
-    private emitRoomContextEvent(roomId: number, clientX: number, clientY: number) {
-        const container = this.stage.container();
-        const bounds = container.getBoundingClientRect();
-        const detail: RoomContextMenuEventDetail = {
-            roomId,
-            position: {
-                x: clientX - bounds.left,
-                y: clientY - bounds.top,
-            },
-        };
-        const event = new CustomEvent<RoomContextMenuEventDetail>('roomcontextmenu', {detail});
-        container.dispatchEvent(event);
-    }
-
-    private emitRoomClickEvent(roomId: number, clientX: number, clientY: number) {
-        const container = this.stage.container();
-        const bounds = container.getBoundingClientRect();
-        const detail: RoomClickEventDetail = {
-            roomId,
-            position: {
-                x: clientX - bounds.left,
-                y: clientY - bounds.top,
-            },
-        };
-        const event = new CustomEvent<RoomClickEventDetail>('roomclick', {detail});
-        container.dispatchEvent(event);
-    }
-
-    private findAreaExitAtClientPoint(clientX: number, clientY: number): AreaExitHitZone | null {
-        const mapPoint = this.clientToMapPoint(clientX, clientY);
-        if (!mapPoint) return null;
-        for (const zone of this.areaExitHitZones) {
-            const b = zone.bounds;
-            // Expand hit zone for easier clicking on thin arrows
-            const pad = this.settings.roomSize * 0.5;
-            if (mapPoint.x >= b.x - pad && mapPoint.x <= b.x + b.width + pad &&
-                mapPoint.y >= b.y - pad && mapPoint.y <= b.y + b.height + pad) {
-                return zone;
-            }
-        }
-        return null;
-    }
-
-    private emitAreaExitClickEvent(targetRoomId: number, clientX: number, clientY: number) {
-        const container = this.stage.container();
-        const bounds = container.getBoundingClientRect();
-        const detail: AreaExitClickEventDetail = {
-            targetRoomId,
-            position: {
-                x: clientX - bounds.left,
-                y: clientY - bounds.top,
-            },
-        };
-        const event = new CustomEvent<AreaExitClickEventDetail>('areaexitclick', {detail});
-        container.dispatchEvent(event);
-    }
-
-    private emitMapClickEvent() {
-        const event = new CustomEvent('mapclick');
-        this.stage.container().dispatchEvent(event);
-    }
 
     setZoom(zoom: number): boolean {
         return this.viewport.setZoom(zoom);
