@@ -345,7 +345,7 @@ export class Renderer implements MapRenderer {
         this.overlayLayer = new Konva.Layer({ listening: false })
         this.stage.add(this.overlayLayer);
         this.mapReader = mapReader;
-        this.exitRenderer = new ExitRenderer(mapReader, this, this.settings);
+        this.exitRenderer = new ExitRenderer(mapReader, this.settings);
         this.pathRenderer = new PathRenderer(mapReader, this.overlayLayer, this.settings);
         this.roomShapeRenderer = new RoomShapeRenderer(mapReader, this.settings);
         this.gridRenderer = new GridRenderer(this.gridLayer, this.settings);

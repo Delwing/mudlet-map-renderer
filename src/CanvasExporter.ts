@@ -60,7 +60,7 @@ export class CanvasExporter {
     constructor(mapReader: MapReader, settings: Settings) {
         this.mapReader = mapReader;
         this.settings = settings;
-        this.exitRenderer = new ExitRenderer(mapReader, null, settings);
+        this.exitRenderer = new ExitRenderer(mapReader, settings);
     }
 
     /**

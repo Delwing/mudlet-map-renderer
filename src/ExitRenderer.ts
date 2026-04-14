@@ -2,7 +2,6 @@ import Exit, {longToShort, shortTolong, regularExits} from "./reader/Exit";
 import MapReader from "./reader/MapReader";
 import Konva from "konva";
 import type {Settings} from "./Renderer";
-import {Renderer} from "./Renderer";
 import {movePoint, movePointCircle, movePointRoundedRect} from "./directions";
 
 const Colors = {
@@ -78,12 +77,10 @@ function getDoorColor(doorType: 1 | 2 | 3) {
 export default class ExitRenderer {
 
     private mapReader: MapReader;
-    private mapRenderer: Renderer | null;
     private readonly settings: Settings;
 
-    constructor(mapReader: MapReader, mapRenderer: Renderer | null, settings: Settings) {
+    constructor(mapReader: MapReader, settings: Settings) {
         this.mapReader = mapReader;
-        this.mapRenderer = mapRenderer;
         this.settings = settings;
     }
 
