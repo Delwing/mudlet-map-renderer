@@ -121,10 +121,6 @@ export class KonvaRenderBackend {
         return this.sceneBuilder.gridRenderer;
     }
 
-    getEffectiveBounds(area: Area, plane: Plane) {
-        return this.sceneBuilder.getEffectiveBounds(area, plane);
-    }
-
     updateBackground() {
         if (this.container) {
             this.container.style.backgroundColor = this.state.settings.backgroundColor;
@@ -332,7 +328,7 @@ export class KonvaRenderBackend {
         this.viewport.onChange = undefined;
 
         // Frame for export
-        const bounds = this.computeExportBounds(area, plane, options.roomId, padding);
+        const bounds = this.state.computeExportBounds(area, plane, options.roomId, padding);
         const scaleX = width / bounds.w;
         const scaleY = height / bounds.h;
         const scale = Math.min(scaleX, scaleY);
@@ -646,23 +642,6 @@ export class KonvaRenderBackend {
     }
 
     // --- Private helpers ---
-
-    private computeExportBounds(area: Area, plane: Plane, roomId: number | undefined, padding: number) {
-        if (roomId !== undefined) {
-            const room = this.state.mapReader.getRoom(roomId);
-            if (!room) throw new Error(`Room ${roomId} not found`);
-            return {x: room.x - padding, y: room.y - padding, w: padding * 2, h: padding * 2};
-        }
-        const b = this.state.settings.uniformLevelSize ? area.getFullBounds() : plane.getBounds();
-        const areaName = this.state.settings.areaName ? area.getAreaName() : undefined;
-        const nameOverhead = areaName ? 7 : 0;
-        const nameLeftOffset = areaName ? 3.5 : 0;
-        const minX = b.minX - nameLeftOffset;
-        const minY = b.minY - nameOverhead;
-        const nameRight = areaName ? (b.minX - 3.5 + areaName.length * 2.5 * 0.6) : -Infinity;
-        const maxX = Math.max(b.maxX, nameRight);
-        return {x: minX - padding, y: minY - padding, w: (maxX - minX) + padding * 2, h: (b.maxY - minY) + padding * 2};
-    }
 
     private clearOverlayShapes() {
         for (const shape of this.highlightShapes.values()) {

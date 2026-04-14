@@ -52,7 +52,7 @@ export class RoomShapeRenderer {
             });
         }
 
-        if (room.roomChar !== undefined) {
+        if (room.roomChar) {
             const fontSize = rs * 0.75;
             const baselineRatio = measureTextBaselineOffset(room.roomChar, this.settings.fontFamily);
             const refBaselineRatio = measureTextBaselineOffset("M", this.settings.fontFamily);
@@ -60,6 +60,7 @@ export class RoomShapeRenderer {
                 x: 0, y: 0,
                 text: room.roomChar,
                 fontSize,
+                fontFamily: this.settings.fontFamily,
                 fontStyle: "bold",
                 fill: symbolColor,
                 align: "center",
@@ -67,6 +68,7 @@ export class RoomShapeRenderer {
                 width: rs,
                 height: rs,
                 offsetY: (refBaselineRatio - baselineRatio) * fontSize,
+                baselineRatio,
             });
         }
 

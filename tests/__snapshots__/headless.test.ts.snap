@@ -30,21 +30,47 @@ exports[`HeadlessRenderer > combined overlays > snapshot - position + highlights
 <line x1="0.3" y1="-2.3" x2="0.8" y2="-2.8" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 <line x1="2" y1="1.7" x2="2" y2="1.2" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 <line x1="2.3" y1="2" x2="2.8" y2="2" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<rect x="-0.3" y="-0.3" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<rect x="-0.3" y="-2.3" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<rect x="1.7" y="-0.3" width="0.6" height="0.6" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<text x="2" y="0.15749999999999997" font-size="0.44999999999999996" font-weight="bold" font-family="sans-serif" fill="rgba(25,25,25)" text-anchor="middle">S</text>
-<rect x="-2.3" y="-0.3" width="0.6" height="0.6" fill="rgb(30,120,30)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<rect x="-0.3" y="1.7" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<rect x="-0.3" y="-4.3" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<rect x="3.7" y="-2.3" width="0.6" height="0.6" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<rect x="-4.3" y="1.7" width="0.6" height="0.6" fill="rgb(30,120,30)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<rect x="1.7" y="1.7" width="0.6" height="0.6" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<rect x="3.7" y="-0.3" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<rect x="5.7" y="-0.3" width="0.6" height="0.6" fill="rgb(80,60,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<text x="6" y="0.15749999999999997" font-size="0.44999999999999996" font-weight="bold" font-family="sans-serif" fill="rgba(225,255,255)" text-anchor="middle">X</text>
-<rect x="7.7" y="1.7" width="0.6" height="0.6" fill="rgb(80,60,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<rect x="-2.3" y="-2.3" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<g transform="translate(-0.3,-0.3)">
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+</g>
+<g transform="translate(-0.3,-2.3)">
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+</g>
+<g transform="translate(1.7,-0.3)">
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<text x="0.3" y="0.45749999999999996" font-size="0.44999999999999996" font-family="sans-serif" font-weight="bold" fill="rgba(25,25,25)" text-anchor="middle" dominant-baseline="auto">S</text>
+</g>
+<g transform="translate(-2.3,-0.3)">
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(30,120,30)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+</g>
+<g transform="translate(-0.3,1.7)">
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+</g>
+<g transform="translate(-0.3,-4.3)">
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+</g>
+<g transform="translate(3.7,-2.3)">
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+</g>
+<g transform="translate(-4.3,1.7)">
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(30,120,30)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+</g>
+<g transform="translate(1.7,1.7)">
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+</g>
+<g transform="translate(3.7,-0.3)">
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+</g>
+<g transform="translate(5.7,-0.3)">
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(80,60,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<text x="0.3" y="0.45749999999999996" font-size="0.44999999999999996" font-family="sans-serif" font-weight="bold" fill="rgba(225,255,255)" text-anchor="middle" dominant-baseline="auto">X</text>
+</g>
+<g transform="translate(7.7,1.7)">
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(80,60,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+</g>
+<g transform="translate(-2.3,-2.3)">
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+</g>
 <polygon points="1.0287033112837766e-17,0.05399999999999999 0.14549226783578567,0.19799999999999998 -0.14549226783578564,0.19800000000000004" fill="rgba(25,25,25, 0.6)" stroke="rgba(25,25,25)" stroke-width="0.025"/>
 <polygon points="4,-2.054 3.8545077321642145,-2.198 4.1454922678357855,-2.198" fill="rgba(25,25,25, 0.6)" stroke="rgba(25,25,25)" stroke-width="0.025"/>
 <polygon points="3.946,4.40872847693047e-18 3.802,0.14549226783578567 3.802,-0.14549226783578564" fill="rgba(25,25,25, 0.6)" stroke="rgb(226, 205, 59)" stroke-width="0.025"/>
@@ -90,21 +116,47 @@ exports[`HeadlessRenderer > drawArea + exportSvg > snapshot - basic area export 
 <line x1="0.3" y1="-2.3" x2="0.8" y2="-2.8" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 <line x1="2" y1="1.7" x2="2" y2="1.2" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 <line x1="2.3" y1="2" x2="2.8" y2="2" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<rect x="-0.3" y="-0.3" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<rect x="-0.3" y="-2.3" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<rect x="1.7" y="-0.3" width="0.6" height="0.6" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<text x="2" y="0.15749999999999997" font-size="0.44999999999999996" font-weight="bold" font-family="sans-serif" fill="rgba(25,25,25)" text-anchor="middle">S</text>
-<rect x="-2.3" y="-0.3" width="0.6" height="0.6" fill="rgb(30,120,30)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<rect x="-0.3" y="1.7" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<rect x="-0.3" y="-4.3" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<rect x="3.7" y="-2.3" width="0.6" height="0.6" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<rect x="-4.3" y="1.7" width="0.6" height="0.6" fill="rgb(30,120,30)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<rect x="1.7" y="1.7" width="0.6" height="0.6" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<rect x="3.7" y="-0.3" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<rect x="5.7" y="-0.3" width="0.6" height="0.6" fill="rgb(80,60,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<text x="6" y="0.15749999999999997" font-size="0.44999999999999996" font-weight="bold" font-family="sans-serif" fill="rgba(225,255,255)" text-anchor="middle">X</text>
-<rect x="7.7" y="1.7" width="0.6" height="0.6" fill="rgb(80,60,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<rect x="-2.3" y="-2.3" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<g transform="translate(-0.3,-0.3)">
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+</g>
+<g transform="translate(-0.3,-2.3)">
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+</g>
+<g transform="translate(1.7,-0.3)">
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<text x="0.3" y="0.45749999999999996" font-size="0.44999999999999996" font-family="sans-serif" font-weight="bold" fill="rgba(25,25,25)" text-anchor="middle" dominant-baseline="auto">S</text>
+</g>
+<g transform="translate(-2.3,-0.3)">
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(30,120,30)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+</g>
+<g transform="translate(-0.3,1.7)">
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+</g>
+<g transform="translate(-0.3,-4.3)">
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+</g>
+<g transform="translate(3.7,-2.3)">
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+</g>
+<g transform="translate(-4.3,1.7)">
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(30,120,30)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+</g>
+<g transform="translate(1.7,1.7)">
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+</g>
+<g transform="translate(3.7,-0.3)">
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+</g>
+<g transform="translate(5.7,-0.3)">
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(80,60,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<text x="0.3" y="0.45749999999999996" font-size="0.44999999999999996" font-family="sans-serif" font-weight="bold" fill="rgba(225,255,255)" text-anchor="middle" dominant-baseline="auto">X</text>
+</g>
+<g transform="translate(7.7,1.7)">
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(80,60,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+</g>
+<g transform="translate(-2.3,-2.3)">
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+</g>
 <polygon points="1.0287033112837766e-17,0.05399999999999999 0.14549226783578567,0.19799999999999998 -0.14549226783578564,0.19800000000000004" fill="rgba(25,25,25, 0.6)" stroke="rgba(25,25,25)" stroke-width="0.025"/>
 <polygon points="4,-2.054 3.8545077321642145,-2.198 4.1454922678357855,-2.198" fill="rgba(25,25,25, 0.6)" stroke="rgba(25,25,25)" stroke-width="0.025"/>
 <polygon points="3.946,4.40872847693047e-18 3.802,0.14549226783578567 3.802,-0.14549226783578564" fill="rgba(25,25,25, 0.6)" stroke="rgb(226, 205, 59)" stroke-width="0.025"/>
@@ -145,21 +197,47 @@ exports[`HeadlessRenderer > highlights > snapshot - multiple highlights 1`] = `
 <line x1="0.3" y1="-2.3" x2="0.8" y2="-2.8" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 <line x1="2" y1="1.7" x2="2" y2="1.2" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 <line x1="2.3" y1="2" x2="2.8" y2="2" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<rect x="-0.3" y="-0.3" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<rect x="-0.3" y="-2.3" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<rect x="1.7" y="-0.3" width="0.6" height="0.6" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<text x="2" y="0.15749999999999997" font-size="0.44999999999999996" font-weight="bold" font-family="sans-serif" fill="rgba(25,25,25)" text-anchor="middle">S</text>
-<rect x="-2.3" y="-0.3" width="0.6" height="0.6" fill="rgb(30,120,30)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<rect x="-0.3" y="1.7" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<rect x="-0.3" y="-4.3" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<rect x="3.7" y="-2.3" width="0.6" height="0.6" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<rect x="-4.3" y="1.7" width="0.6" height="0.6" fill="rgb(30,120,30)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<rect x="1.7" y="1.7" width="0.6" height="0.6" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<rect x="3.7" y="-0.3" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<rect x="5.7" y="-0.3" width="0.6" height="0.6" fill="rgb(80,60,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<text x="6" y="0.15749999999999997" font-size="0.44999999999999996" font-weight="bold" font-family="sans-serif" fill="rgba(225,255,255)" text-anchor="middle">X</text>
-<rect x="7.7" y="1.7" width="0.6" height="0.6" fill="rgb(80,60,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<rect x="-2.3" y="-2.3" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<g transform="translate(-0.3,-0.3)">
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+</g>
+<g transform="translate(-0.3,-2.3)">
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+</g>
+<g transform="translate(1.7,-0.3)">
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<text x="0.3" y="0.45749999999999996" font-size="0.44999999999999996" font-family="sans-serif" font-weight="bold" fill="rgba(25,25,25)" text-anchor="middle" dominant-baseline="auto">S</text>
+</g>
+<g transform="translate(-2.3,-0.3)">
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(30,120,30)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+</g>
+<g transform="translate(-0.3,1.7)">
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+</g>
+<g transform="translate(-0.3,-4.3)">
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+</g>
+<g transform="translate(3.7,-2.3)">
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+</g>
+<g transform="translate(-4.3,1.7)">
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(30,120,30)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+</g>
+<g transform="translate(1.7,1.7)">
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+</g>
+<g transform="translate(3.7,-0.3)">
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+</g>
+<g transform="translate(5.7,-0.3)">
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(80,60,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<text x="0.3" y="0.45749999999999996" font-size="0.44999999999999996" font-family="sans-serif" font-weight="bold" fill="rgba(225,255,255)" text-anchor="middle" dominant-baseline="auto">X</text>
+</g>
+<g transform="translate(7.7,1.7)">
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(80,60,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+</g>
+<g transform="translate(-2.3,-2.3)">
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+</g>
 <polygon points="1.0287033112837766e-17,0.05399999999999999 0.14549226783578567,0.19799999999999998 -0.14549226783578564,0.19800000000000004" fill="rgba(25,25,25, 0.6)" stroke="rgba(25,25,25)" stroke-width="0.025"/>
 <polygon points="4,-2.054 3.8545077321642145,-2.198 4.1454922678357855,-2.198" fill="rgba(25,25,25, 0.6)" stroke="rgba(25,25,25)" stroke-width="0.025"/>
 <polygon points="3.946,4.40872847693047e-18 3.802,0.14549226783578567 3.802,-0.14549226783578564" fill="rgba(25,25,25, 0.6)" stroke="rgb(226, 205, 59)" stroke-width="0.025"/>
@@ -202,21 +280,47 @@ exports[`HeadlessRenderer > highlights > snapshot - single highlight 1`] = `
 <line x1="0.3" y1="-2.3" x2="0.8" y2="-2.8" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 <line x1="2" y1="1.7" x2="2" y2="1.2" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 <line x1="2.3" y1="2" x2="2.8" y2="2" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<rect x="-0.3" y="-0.3" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<rect x="-0.3" y="-2.3" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<rect x="1.7" y="-0.3" width="0.6" height="0.6" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<text x="2" y="0.15749999999999997" font-size="0.44999999999999996" font-weight="bold" font-family="sans-serif" fill="rgba(25,25,25)" text-anchor="middle">S</text>
-<rect x="-2.3" y="-0.3" width="0.6" height="0.6" fill="rgb(30,120,30)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<rect x="-0.3" y="1.7" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<rect x="-0.3" y="-4.3" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<rect x="3.7" y="-2.3" width="0.6" height="0.6" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<rect x="-4.3" y="1.7" width="0.6" height="0.6" fill="rgb(30,120,30)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<rect x="1.7" y="1.7" width="0.6" height="0.6" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<rect x="3.7" y="-0.3" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<rect x="5.7" y="-0.3" width="0.6" height="0.6" fill="rgb(80,60,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<text x="6" y="0.15749999999999997" font-size="0.44999999999999996" font-weight="bold" font-family="sans-serif" fill="rgba(225,255,255)" text-anchor="middle">X</text>
-<rect x="7.7" y="1.7" width="0.6" height="0.6" fill="rgb(80,60,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<rect x="-2.3" y="-2.3" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<g transform="translate(-0.3,-0.3)">
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+</g>
+<g transform="translate(-0.3,-2.3)">
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+</g>
+<g transform="translate(1.7,-0.3)">
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<text x="0.3" y="0.45749999999999996" font-size="0.44999999999999996" font-family="sans-serif" font-weight="bold" fill="rgba(25,25,25)" text-anchor="middle" dominant-baseline="auto">S</text>
+</g>
+<g transform="translate(-2.3,-0.3)">
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(30,120,30)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+</g>
+<g transform="translate(-0.3,1.7)">
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+</g>
+<g transform="translate(-0.3,-4.3)">
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+</g>
+<g transform="translate(3.7,-2.3)">
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+</g>
+<g transform="translate(-4.3,1.7)">
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(30,120,30)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+</g>
+<g transform="translate(1.7,1.7)">
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+</g>
+<g transform="translate(3.7,-0.3)">
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+</g>
+<g transform="translate(5.7,-0.3)">
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(80,60,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<text x="0.3" y="0.45749999999999996" font-size="0.44999999999999996" font-family="sans-serif" font-weight="bold" fill="rgba(225,255,255)" text-anchor="middle" dominant-baseline="auto">X</text>
+</g>
+<g transform="translate(7.7,1.7)">
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(80,60,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+</g>
+<g transform="translate(-2.3,-2.3)">
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+</g>
 <polygon points="1.0287033112837766e-17,0.05399999999999999 0.14549226783578567,0.19799999999999998 -0.14549226783578564,0.19800000000000004" fill="rgba(25,25,25, 0.6)" stroke="rgba(25,25,25)" stroke-width="0.025"/>
 <polygon points="4,-2.054 3.8545077321642145,-2.198 4.1454922678357855,-2.198" fill="rgba(25,25,25, 0.6)" stroke="rgba(25,25,25)" stroke-width="0.025"/>
 <polygon points="3.946,4.40872847693047e-18 3.802,0.14549226783578567 3.802,-0.14549226783578564" fill="rgba(25,25,25, 0.6)" stroke="rgb(226, 205, 59)" stroke-width="0.025"/>
@@ -258,21 +362,47 @@ exports[`HeadlessRenderer > paths > snapshot - path overlay 1`] = `
 <line x1="0.3" y1="-2.3" x2="0.8" y2="-2.8" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 <line x1="2" y1="1.7" x2="2" y2="1.2" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 <line x1="2.3" y1="2" x2="2.8" y2="2" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<rect x="-0.3" y="-0.3" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<rect x="-0.3" y="-2.3" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<rect x="1.7" y="-0.3" width="0.6" height="0.6" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<text x="2" y="0.15749999999999997" font-size="0.44999999999999996" font-weight="bold" font-family="sans-serif" fill="rgba(25,25,25)" text-anchor="middle">S</text>
-<rect x="-2.3" y="-0.3" width="0.6" height="0.6" fill="rgb(30,120,30)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<rect x="-0.3" y="1.7" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<rect x="-0.3" y="-4.3" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<rect x="3.7" y="-2.3" width="0.6" height="0.6" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<rect x="-4.3" y="1.7" width="0.6" height="0.6" fill="rgb(30,120,30)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<rect x="1.7" y="1.7" width="0.6" height="0.6" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<rect x="3.7" y="-0.3" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<rect x="5.7" y="-0.3" width="0.6" height="0.6" fill="rgb(80,60,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<text x="6" y="0.15749999999999997" font-size="0.44999999999999996" font-weight="bold" font-family="sans-serif" fill="rgba(225,255,255)" text-anchor="middle">X</text>
-<rect x="7.7" y="1.7" width="0.6" height="0.6" fill="rgb(80,60,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<rect x="-2.3" y="-2.3" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<g transform="translate(-0.3,-0.3)">
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+</g>
+<g transform="translate(-0.3,-2.3)">
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+</g>
+<g transform="translate(1.7,-0.3)">
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<text x="0.3" y="0.45749999999999996" font-size="0.44999999999999996" font-family="sans-serif" font-weight="bold" fill="rgba(25,25,25)" text-anchor="middle" dominant-baseline="auto">S</text>
+</g>
+<g transform="translate(-2.3,-0.3)">
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(30,120,30)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+</g>
+<g transform="translate(-0.3,1.7)">
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+</g>
+<g transform="translate(-0.3,-4.3)">
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+</g>
+<g transform="translate(3.7,-2.3)">
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+</g>
+<g transform="translate(-4.3,1.7)">
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(30,120,30)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+</g>
+<g transform="translate(1.7,1.7)">
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+</g>
+<g transform="translate(3.7,-0.3)">
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+</g>
+<g transform="translate(5.7,-0.3)">
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(80,60,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<text x="0.3" y="0.45749999999999996" font-size="0.44999999999999996" font-family="sans-serif" font-weight="bold" fill="rgba(225,255,255)" text-anchor="middle" dominant-baseline="auto">X</text>
+</g>
+<g transform="translate(7.7,1.7)">
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(80,60,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+</g>
+<g transform="translate(-2.3,-2.3)">
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+</g>
 <polygon points="1.0287033112837766e-17,0.05399999999999999 0.14549226783578567,0.19799999999999998 -0.14549226783578564,0.19800000000000004" fill="rgba(25,25,25, 0.6)" stroke="rgba(25,25,25)" stroke-width="0.025"/>
 <polygon points="4,-2.054 3.8545077321642145,-2.198 4.1454922678357855,-2.198" fill="rgba(25,25,25, 0.6)" stroke="rgba(25,25,25)" stroke-width="0.025"/>
 <polygon points="3.946,4.40872847693047e-18 3.802,0.14549226783578567 3.802,-0.14549226783578564" fill="rgba(25,25,25, 0.6)" stroke="rgb(226, 205, 59)" stroke-width="0.025"/>
@@ -315,21 +445,47 @@ exports[`HeadlessRenderer > paths > snapshot - path with custom color 1`] = `
 <line x1="0.3" y1="-2.3" x2="0.8" y2="-2.8" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 <line x1="2" y1="1.7" x2="2" y2="1.2" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 <line x1="2.3" y1="2" x2="2.8" y2="2" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<rect x="-0.3" y="-0.3" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<rect x="-0.3" y="-2.3" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<rect x="1.7" y="-0.3" width="0.6" height="0.6" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<text x="2" y="0.15749999999999997" font-size="0.44999999999999996" font-weight="bold" font-family="sans-serif" fill="rgba(25,25,25)" text-anchor="middle">S</text>
-<rect x="-2.3" y="-0.3" width="0.6" height="0.6" fill="rgb(30,120,30)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<rect x="-0.3" y="1.7" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<rect x="-0.3" y="-4.3" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<rect x="3.7" y="-2.3" width="0.6" height="0.6" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<rect x="-4.3" y="1.7" width="0.6" height="0.6" fill="rgb(30,120,30)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<rect x="1.7" y="1.7" width="0.6" height="0.6" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<rect x="3.7" y="-0.3" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<rect x="5.7" y="-0.3" width="0.6" height="0.6" fill="rgb(80,60,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<text x="6" y="0.15749999999999997" font-size="0.44999999999999996" font-weight="bold" font-family="sans-serif" fill="rgba(225,255,255)" text-anchor="middle">X</text>
-<rect x="7.7" y="1.7" width="0.6" height="0.6" fill="rgb(80,60,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<rect x="-2.3" y="-2.3" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<g transform="translate(-0.3,-0.3)">
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+</g>
+<g transform="translate(-0.3,-2.3)">
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+</g>
+<g transform="translate(1.7,-0.3)">
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<text x="0.3" y="0.45749999999999996" font-size="0.44999999999999996" font-family="sans-serif" font-weight="bold" fill="rgba(25,25,25)" text-anchor="middle" dominant-baseline="auto">S</text>
+</g>
+<g transform="translate(-2.3,-0.3)">
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(30,120,30)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+</g>
+<g transform="translate(-0.3,1.7)">
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+</g>
+<g transform="translate(-0.3,-4.3)">
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+</g>
+<g transform="translate(3.7,-2.3)">
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+</g>
+<g transform="translate(-4.3,1.7)">
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(30,120,30)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+</g>
+<g transform="translate(1.7,1.7)">
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+</g>
+<g transform="translate(3.7,-0.3)">
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+</g>
+<g transform="translate(5.7,-0.3)">
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(80,60,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<text x="0.3" y="0.45749999999999996" font-size="0.44999999999999996" font-family="sans-serif" font-weight="bold" fill="rgba(225,255,255)" text-anchor="middle" dominant-baseline="auto">X</text>
+</g>
+<g transform="translate(7.7,1.7)">
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(80,60,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+</g>
+<g transform="translate(-2.3,-2.3)">
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+</g>
 <polygon points="1.0287033112837766e-17,0.05399999999999999 0.14549226783578567,0.19799999999999998 -0.14549226783578564,0.19800000000000004" fill="rgba(25,25,25, 0.6)" stroke="rgba(25,25,25)" stroke-width="0.025"/>
 <polygon points="4,-2.054 3.8545077321642145,-2.198 4.1454922678357855,-2.198" fill="rgba(25,25,25, 0.6)" stroke="rgba(25,25,25)" stroke-width="0.025"/>
 <polygon points="3.946,4.40872847693047e-18 3.802,0.14549226783578567 3.802,-0.14549226783578564" fill="rgba(25,25,25, 0.6)" stroke="rgb(226, 205, 59)" stroke-width="0.025"/>
@@ -372,21 +528,47 @@ exports[`HeadlessRenderer > position > snapshot - with position marker 1`] = `
 <line x1="0.3" y1="-2.3" x2="0.8" y2="-2.8" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 <line x1="2" y1="1.7" x2="2" y2="1.2" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 <line x1="2.3" y1="2" x2="2.8" y2="2" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<rect x="-0.3" y="-0.3" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<rect x="-0.3" y="-2.3" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<rect x="1.7" y="-0.3" width="0.6" height="0.6" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<text x="2" y="0.15749999999999997" font-size="0.44999999999999996" font-weight="bold" font-family="sans-serif" fill="rgba(25,25,25)" text-anchor="middle">S</text>
-<rect x="-2.3" y="-0.3" width="0.6" height="0.6" fill="rgb(30,120,30)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<rect x="-0.3" y="1.7" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<rect x="-0.3" y="-4.3" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<rect x="3.7" y="-2.3" width="0.6" height="0.6" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<rect x="-4.3" y="1.7" width="0.6" height="0.6" fill="rgb(30,120,30)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<rect x="1.7" y="1.7" width="0.6" height="0.6" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<rect x="3.7" y="-0.3" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<rect x="5.7" y="-0.3" width="0.6" height="0.6" fill="rgb(80,60,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<text x="6" y="0.15749999999999997" font-size="0.44999999999999996" font-weight="bold" font-family="sans-serif" fill="rgba(225,255,255)" text-anchor="middle">X</text>
-<rect x="7.7" y="1.7" width="0.6" height="0.6" fill="rgb(80,60,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<rect x="-2.3" y="-2.3" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<g transform="translate(-0.3,-0.3)">
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+</g>
+<g transform="translate(-0.3,-2.3)">
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+</g>
+<g transform="translate(1.7,-0.3)">
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<text x="0.3" y="0.45749999999999996" font-size="0.44999999999999996" font-family="sans-serif" font-weight="bold" fill="rgba(25,25,25)" text-anchor="middle" dominant-baseline="auto">S</text>
+</g>
+<g transform="translate(-2.3,-0.3)">
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(30,120,30)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+</g>
+<g transform="translate(-0.3,1.7)">
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+</g>
+<g transform="translate(-0.3,-4.3)">
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+</g>
+<g transform="translate(3.7,-2.3)">
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+</g>
+<g transform="translate(-4.3,1.7)">
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(30,120,30)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+</g>
+<g transform="translate(1.7,1.7)">
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+</g>
+<g transform="translate(3.7,-0.3)">
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+</g>
+<g transform="translate(5.7,-0.3)">
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(80,60,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<text x="0.3" y="0.45749999999999996" font-size="0.44999999999999996" font-family="sans-serif" font-weight="bold" fill="rgba(225,255,255)" text-anchor="middle" dominant-baseline="auto">X</text>
+</g>
+<g transform="translate(7.7,1.7)">
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(80,60,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+</g>
+<g transform="translate(-2.3,-2.3)">
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+</g>
 <polygon points="1.0287033112837766e-17,0.05399999999999999 0.14549226783578567,0.19799999999999998 -0.14549226783578564,0.19800000000000004" fill="rgba(25,25,25, 0.6)" stroke="rgba(25,25,25)" stroke-width="0.025"/>
 <polygon points="4,-2.054 3.8545077321642145,-2.198 4.1454922678357855,-2.198" fill="rgba(25,25,25, 0.6)" stroke="rgba(25,25,25)" stroke-width="0.025"/>
 <polygon points="3.946,4.40872847693047e-18 3.802,0.14549226783578567 3.802,-0.14549226783578564" fill="rgba(25,25,25, 0.6)" stroke="rgb(226, 205, 59)" stroke-width="0.025"/>

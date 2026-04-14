@@ -5,8 +5,8 @@ import {createSettings} from "../Renderer";
 import type {Settings} from "../Renderer";
 import {MapState} from "../MapState";
 import type {SvgExportOptions} from "../SvgExporter";
-import {SvgExporter} from "../SvgExporter";
 import {KonvaRenderBackend} from "./KonvaRenderBackend";
+import {SvgRenderBackend} from "./SvgRenderBackend";
 import type {CanvasExportOptions, CanvasExportOverlays} from "../HeadlessRenderer";
 
 /**
@@ -100,15 +100,12 @@ export class MapRenderer {
     // --- Export ---
 
     exportSvg(options?: SvgExportOptions): string | undefined {
-        if (this.state.currentArea === undefined || this.state.currentZIndex === undefined) return;
-
         const mergedOptions: SvgExportOptions = {
             ...options,
             overlays: this.state.getOverlaysForArea(options?.overlays),
         };
-
-        const exporter = new SvgExporter(this.state.mapReader, this.state.settings);
-        return exporter.export(this.state.currentArea, this.state.currentZIndex, mergedOptions);
+        const svgBackend = new SvgRenderBackend(this.state);
+        return svgBackend.exportSvg(mergedOptions);
     }
 
     exportPng(options?: { pixelRatio?: number }): string | undefined {
@@ -171,7 +168,7 @@ export class MapRenderer {
         if (!this.state.currentAreaInstance || this.state.currentZIndex === undefined) return null;
         const plane = this.state.currentAreaInstance.getPlane(this.state.currentZIndex);
         if (!plane) return null;
-        const b = this.backend.getEffectiveBounds(this.state.currentAreaInstance, plane);
+        const b = this.state.getEffectiveBounds(this.state.currentAreaInstance, plane);
         const hasAreaName = this.state.settings.areaName && this.state.currentAreaInstance.getAreaName();
         return {
             minX: hasAreaName ? b.minX - 4 : b.minX,

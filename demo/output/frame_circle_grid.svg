@@ -179,71 +179,195 @@
 <polyline points="18 9 17.931319094988325 7.901098572521198 19.03022016221928 7.901098572521198 18.892857528815412 2.8186811365780136" stroke="rgb(170, 255, 0)" stroke-width="0.025" fill="none"/>
 <polygon points="18.892857528815412,2.8186811365780136 18.99538044774142,3.1006191636245446 18.805713047728304,3.105745309570845" fill="rgb(170, 255, 0)" stroke="rgb(170, 255, 0)" stroke-width="0.025"/>
 <polyline points="18 24 15.917240142822266 24.006895065307617" stroke="rgb(255, 0, 0)" stroke-width="0.025" fill="none" stroke-dasharray="0.4 0.2"/>
-<circle cx="14" cy="41" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
-<circle cx="24" cy="39" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
-<circle cx="18" cy="26" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
-<circle cx="22" cy="5" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
-<circle cx="24" cy="35" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
-<circle cx="22" cy="9" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
-<circle cx="14" cy="24" r="0.3" fill="#000000" stroke="rgb(255,255,0)" stroke-width="0.025"/>
-<circle cx="20" cy="33" r="0.3" fill="#000000" stroke="rgb(239,176,73)" stroke-width="0.025"/>
-<text x="20" y="33.165625" font-size="0.44999999999999996" font-weight="bold" font-family="sans-serif" fill="rgb(239,176,73)" text-anchor="middle">T</text>
-<circle cx="20" cy="24" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
-<circle cx="20" cy="13" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
-<circle cx="14" cy="31" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
-<circle cx="14" cy="33" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
-<circle cx="20" cy="7" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
-<circle cx="14" cy="43" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
-<circle cx="16" cy="7" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
-<circle cx="16" cy="5" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
-<circle cx="22" cy="22" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
-<circle cx="16" cy="39" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
-<circle cx="23" cy="-1" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
-<circle cx="20" cy="5" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
-<circle cx="16" cy="35" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
-<circle cx="24" cy="9" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
-<circle cx="16" cy="24" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
-<circle cx="22" cy="11" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
-<circle cx="16" cy="41" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
-<circle cx="18" cy="15" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
-<circle cx="20" cy="11" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
-<circle cx="24" cy="33" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
-<circle cx="18" cy="9" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
-<circle cx="18" cy="5" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
-<circle cx="19" cy="-1" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
-<circle cx="18" cy="11" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
-<circle cx="16" cy="45" r="0.3" fill="#000000" stroke="rgb(22,232,196)" stroke-width="0.025"/>
-<text x="16" y="45.165625" font-size="0.44999999999999996" font-weight="bold" font-family="sans-serif" fill="rgb(22,232,196)" text-anchor="middle">ZD</text>
-<circle cx="20" cy="35" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
-<circle cx="20" cy="26" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
-<circle cx="24" cy="41" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
-<circle cx="19" cy="1" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
-<circle cx="16" cy="33" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
-<circle cx="14" cy="35" r="0.3" fill="#000000" stroke="rgb(255,0,255)" stroke-width="0.025"/>
-<text x="14" y="35.165625" font-size="0.44999999999999996" font-weight="bold" font-family="sans-serif" fill="rgb(255,0,255)" text-anchor="middle">P</text>
-<circle cx="22" cy="31" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
-<circle cx="16" cy="11" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
-<circle cx="18" cy="24" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
-<circle cx="26" cy="9" r="0.3" fill="#000000" stroke="rgb(255,255,0)" stroke-width="0.025"/>
-<circle cx="16" cy="9" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
-<circle cx="18" cy="7" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
-<circle cx="18" cy="39" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
-<circle cx="22" cy="43" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
-<circle cx="23" cy="1" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
-<circle cx="21" cy="3" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
-<circle cx="22" cy="37" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
-<circle cx="14" cy="9" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
-<circle cx="20" cy="37" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
-<circle cx="19" cy="3" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
-<circle cx="22" cy="24" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
-<circle cx="18" cy="41" r="0.3" fill="#000000" stroke="rgb(255,255,0)" stroke-width="0.025"/>
-<circle cx="22" cy="15" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
-<circle cx="18" cy="35" r="0.3" fill="#000000" stroke="rgb(239,176,73)" stroke-width="0.025"/>
-<circle cx="20" cy="43" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
-<circle cx="24" cy="7" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
-<circle cx="18" cy="37" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
-<circle cx="20" cy="39" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
-<circle cx="21" cy="1" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
+<g transform="translate(13.7,40.7)">
+<circle cx="0.3" cy="0.3" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
+</g>
+<g transform="translate(23.7,38.7)">
+<circle cx="0.3" cy="0.3" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
+</g>
+<g transform="translate(17.7,25.7)">
+<circle cx="0.3" cy="0.3" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
+</g>
+<g transform="translate(21.7,4.7)">
+<circle cx="0.3" cy="0.3" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
+</g>
+<g transform="translate(23.7,34.7)">
+<circle cx="0.3" cy="0.3" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
+</g>
+<g transform="translate(21.7,8.7)">
+<circle cx="0.3" cy="0.3" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
+</g>
+<g transform="translate(13.7,23.7)">
+<circle cx="0.3" cy="0.3" r="0.3" fill="#000000" stroke="rgb(255,255,0)" stroke-width="0.025"/>
+</g>
+<g transform="translate(19.7,32.7)">
+<circle cx="0.3" cy="0.3" r="0.3" fill="#000000" stroke="rgb(239,176,73)" stroke-width="0.025"/>
+<text x="0.3" y="0.3" font-size="0.44999999999999996" font-weight="bold" fill="rgb(239,176,73)" text-anchor="middle" dominant-baseline="central">T</text>
+</g>
+<g transform="translate(19.7,23.7)">
+<circle cx="0.3" cy="0.3" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
+</g>
+<g transform="translate(19.7,12.7)">
+<circle cx="0.3" cy="0.3" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
+</g>
+<g transform="translate(13.7,30.7)">
+<circle cx="0.3" cy="0.3" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
+</g>
+<g transform="translate(13.7,32.7)">
+<circle cx="0.3" cy="0.3" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
+</g>
+<g transform="translate(19.7,6.7)">
+<circle cx="0.3" cy="0.3" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
+</g>
+<g transform="translate(13.7,42.7)">
+<circle cx="0.3" cy="0.3" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
+</g>
+<g transform="translate(15.7,6.7)">
+<circle cx="0.3" cy="0.3" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
+</g>
+<g transform="translate(15.7,4.7)">
+<circle cx="0.3" cy="0.3" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
+</g>
+<g transform="translate(21.7,21.7)">
+<circle cx="0.3" cy="0.3" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
+</g>
+<g transform="translate(15.7,38.7)">
+<circle cx="0.3" cy="0.3" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
+</g>
+<g transform="translate(22.7,-1.3)">
+<circle cx="0.3" cy="0.3" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
+</g>
+<g transform="translate(19.7,4.7)">
+<circle cx="0.3" cy="0.3" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
+</g>
+<g transform="translate(15.7,34.7)">
+<circle cx="0.3" cy="0.3" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
+</g>
+<g transform="translate(23.7,8.7)">
+<circle cx="0.3" cy="0.3" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
+</g>
+<g transform="translate(15.7,23.7)">
+<circle cx="0.3" cy="0.3" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
+</g>
+<g transform="translate(21.7,10.7)">
+<circle cx="0.3" cy="0.3" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
+</g>
+<g transform="translate(15.7,40.7)">
+<circle cx="0.3" cy="0.3" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
+</g>
+<g transform="translate(17.7,14.7)">
+<circle cx="0.3" cy="0.3" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
+</g>
+<g transform="translate(19.7,10.7)">
+<circle cx="0.3" cy="0.3" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
+</g>
+<g transform="translate(23.7,32.7)">
+<circle cx="0.3" cy="0.3" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
+</g>
+<g transform="translate(17.7,8.7)">
+<circle cx="0.3" cy="0.3" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
+</g>
+<g transform="translate(17.7,4.7)">
+<circle cx="0.3" cy="0.3" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
+</g>
+<g transform="translate(18.7,-1.3)">
+<circle cx="0.3" cy="0.3" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
+</g>
+<g transform="translate(17.7,10.7)">
+<circle cx="0.3" cy="0.3" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
+</g>
+<g transform="translate(15.7,44.7)">
+<circle cx="0.3" cy="0.3" r="0.3" fill="#000000" stroke="rgb(22,232,196)" stroke-width="0.025"/>
+<text x="0.3" y="0.3" font-size="0.44999999999999996" font-weight="bold" fill="rgb(22,232,196)" text-anchor="middle" dominant-baseline="central">ZD</text>
+</g>
+<g transform="translate(19.7,34.7)">
+<circle cx="0.3" cy="0.3" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
+</g>
+<g transform="translate(19.7,25.7)">
+<circle cx="0.3" cy="0.3" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
+</g>
+<g transform="translate(23.7,40.7)">
+<circle cx="0.3" cy="0.3" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
+</g>
+<g transform="translate(18.7,0.7)">
+<circle cx="0.3" cy="0.3" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
+</g>
+<g transform="translate(15.7,32.7)">
+<circle cx="0.3" cy="0.3" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
+</g>
+<g transform="translate(13.7,34.7)">
+<circle cx="0.3" cy="0.3" r="0.3" fill="#000000" stroke="rgb(255,0,255)" stroke-width="0.025"/>
+<text x="0.3" y="0.3" font-size="0.44999999999999996" font-weight="bold" fill="rgb(255,0,255)" text-anchor="middle" dominant-baseline="central">P</text>
+</g>
+<g transform="translate(21.7,30.7)">
+<circle cx="0.3" cy="0.3" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
+</g>
+<g transform="translate(15.7,10.7)">
+<circle cx="0.3" cy="0.3" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
+</g>
+<g transform="translate(17.7,23.7)">
+<circle cx="0.3" cy="0.3" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
+</g>
+<g transform="translate(25.7,8.7)">
+<circle cx="0.3" cy="0.3" r="0.3" fill="#000000" stroke="rgb(255,255,0)" stroke-width="0.025"/>
+</g>
+<g transform="translate(15.7,8.7)">
+<circle cx="0.3" cy="0.3" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
+</g>
+<g transform="translate(17.7,6.7)">
+<circle cx="0.3" cy="0.3" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
+</g>
+<g transform="translate(17.7,38.7)">
+<circle cx="0.3" cy="0.3" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
+</g>
+<g transform="translate(21.7,42.7)">
+<circle cx="0.3" cy="0.3" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
+</g>
+<g transform="translate(22.7,0.7)">
+<circle cx="0.3" cy="0.3" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
+</g>
+<g transform="translate(20.7,2.7)">
+<circle cx="0.3" cy="0.3" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
+</g>
+<g transform="translate(21.7,36.7)">
+<circle cx="0.3" cy="0.3" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
+</g>
+<g transform="translate(13.7,8.7)">
+<circle cx="0.3" cy="0.3" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
+</g>
+<g transform="translate(19.7,36.7)">
+<circle cx="0.3" cy="0.3" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
+</g>
+<g transform="translate(18.7,2.7)">
+<circle cx="0.3" cy="0.3" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
+</g>
+<g transform="translate(21.7,23.7)">
+<circle cx="0.3" cy="0.3" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
+</g>
+<g transform="translate(17.7,40.7)">
+<circle cx="0.3" cy="0.3" r="0.3" fill="#000000" stroke="rgb(255,255,0)" stroke-width="0.025"/>
+</g>
+<g transform="translate(21.7,14.7)">
+<circle cx="0.3" cy="0.3" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
+</g>
+<g transform="translate(17.7,34.7)">
+<circle cx="0.3" cy="0.3" r="0.3" fill="#000000" stroke="rgb(239,176,73)" stroke-width="0.025"/>
+</g>
+<g transform="translate(19.7,42.7)">
+<circle cx="0.3" cy="0.3" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
+</g>
+<g transform="translate(23.7,6.7)">
+<circle cx="0.3" cy="0.3" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
+</g>
+<g transform="translate(17.7,36.7)">
+<circle cx="0.3" cy="0.3" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
+</g>
+<g transform="translate(19.7,38.7)">
+<circle cx="0.3" cy="0.3" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
+</g>
+<g transform="translate(20.7,0.7)">
+<circle cx="0.3" cy="0.3" r="0.3" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
+</g>
 <polygon points="14,24.054 14.145492267835786,24.197999999999997 13.854507732164214,24.197999999999997" fill="rgb(255,255,0)" stroke="rgb(255,255,0)" stroke-width="0.025"/>
 <polygon points="16,24.054 16.145492267835785,24.197999999999997 15.854507732164214,24.197999999999997" fill="rgb(128,128,128)" stroke="rgb(128,128,128)" stroke-width="0.025"/>
 <polygon points="16,23.946 15.854507732164214,23.802000000000003 16.145492267835785,23.802" fill="rgb(128,128,128)" stroke="rgb(128,128,128)" stroke-width="0.025"/>

@@ -72,6 +72,16 @@ export interface TextConfig {
     width?: number;
     height?: number;
     offsetY?: number;
+    /** Baseline offset ratio (0-1) for SVG positioning. Fraction of fontSize from top to baseline. */
+    baselineRatio?: number;
+}
+
+export interface ImageConfig {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    src: string;
 }
 
 export interface DrawingBackend {
@@ -81,4 +91,5 @@ export interface DrawingBackend {
     addLine(parent: GroupNode, config: LineConfig): void;
     addPolygon(parent: GroupNode, config: PolygonConfig): void;
     addText(parent: GroupNode, config: TextConfig): void;
+    addImage(parent: GroupNode, config: ImageConfig): void;
 }

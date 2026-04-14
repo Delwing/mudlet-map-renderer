@@ -1,5 +1,6 @@
 import MapReader from "./reader/MapReader";
 import Area from "./reader/Area";
+import type Plane from "./reader/Plane";
 import type {Settings} from "./Renderer";
 import type {SvgOverlays} from "./SvgExporter";
 import {TypedEventEmitter} from "./TypedEventEmitter";
@@ -195,5 +196,32 @@ export class MapState {
         if (paths.length > 0) overlays.paths = paths;
 
         return overlays;
+    }
+
+    /**
+     * Get the effective plane bounds (respects uniformLevelSize setting).
+     */
+    getEffectiveBounds(area: Area, plane: Plane) {
+        return this.settings.uniformLevelSize ? area.getFullBounds() : plane.getBounds();
+    }
+
+    /**
+     * Compute export bounds for a given area/plane, optionally centered on a room.
+     */
+    computeExportBounds(area: Area, plane: Plane, roomId: number | undefined, padding: number) {
+        if (roomId !== undefined) {
+            const room = this.mapReader.getRoom(roomId);
+            if (!room) throw new Error(`Room ${roomId} not found`);
+            return {x: room.x - padding, y: room.y - padding, w: padding * 2, h: padding * 2};
+        }
+        const b = this.getEffectiveBounds(area, plane);
+        const areaName = this.settings.areaName ? area.getAreaName() : undefined;
+        const nameOverhead = areaName ? 7 : 0;
+        const nameLeftOffset = areaName ? 3.5 : 0;
+        const minX = b.minX - nameLeftOffset;
+        const minY = b.minY - nameOverhead;
+        const nameRight = areaName ? (b.minX - 3.5 + areaName.length * 2.5 * 0.6) : -Infinity;
+        const maxX = Math.max(b.maxX, nameRight);
+        return {x: minX - padding, y: minY - padding, w: (maxX - minX) + padding * 2, h: (b.maxY - minY) + padding * 2};
     }
 }

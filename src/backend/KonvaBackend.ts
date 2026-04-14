@@ -1,7 +1,7 @@
 import Konva from "konva";
 import type {
     DrawingBackend, GroupNode, LayerNode,
-    RectConfig, CircleConfig, LineConfig, PolygonConfig, TextConfig,
+    RectConfig, CircleConfig, LineConfig, PolygonConfig, TextConfig, ImageConfig,
 } from "./DrawingBackend";
 
 /**
@@ -151,6 +151,20 @@ export class KonvaBackend implements DrawingBackend {
             height: config.height,
             offsetY: config.offsetY,
             perfectDrawEnabled: false,
+            listening: false,
+        }));
+    }
+
+    addImage(parent: GroupNode, config: ImageConfig) {
+        if (!(parent instanceof KonvaGroupNode)) return;
+        const image = Konva.Util.createImageElement();
+        image.src = config.src;
+        parent.konvaGroup.add(new Konva.Image({
+            x: config.x,
+            y: config.y,
+            width: config.width,
+            height: config.height,
+            image: image,
             listening: false,
         }));
     }
