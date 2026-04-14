@@ -11,6 +11,27 @@
 <image x="34.98735809326172" y="34.46092224121094" width="10.689655303955078" height="1.7816085815429688" href="data:image/png;base64,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"/>
 <image x="6" y="15" width="12.344827651977539" height="2.0689659118652344" href="data:image/png;base64,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"/>
 <image x="85.66162872314453" y="16.218143463134766" width="7.611480712890625" height="1.7655506134033203" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMIAAAAtCAIAAABzkSMxAAAACXBIWXMAAA7EAAAOxAGVKw4bAAADIklEQVR4nO3ZsWviUBwH8JfjIAVBOBAn6fREip0ck78gpUOXm29LVh26dXTrYNa4de7SQfL+gmR0shTJG4p0OTk4ThB8U27QJNZEmlqvXp7fDx3Sl1/Dg/z63u/3QggAAAAAAAAAAAAAAAAAAAAAHAXl0BPYkdZrem014wYXbPCz2/nlf/qUjtmXQ09g36hqtE+9oKYdeiJHRbo0WqLVG/PQczgmMqQRs4aKMlSUsc2TwfpZ6XAzOjoypFFkfj8Q8S/B03x5YbqtMFz+UJMQrUeD6Dq5lWyCpV6QHiSElHpuM3pOKwyaQfiRMKKZNTdIIoOAmkXehr8eegL7o1W+X8ZF9+yhn45Qr4MWpTs8uuKGp8b6AFWzHpMzrNQLGu3XNygtO17zynq8yJh2AciwGhlOKwxboXe6ejd8Zus863WoO+UQMd3XyfHRsDiHZpY+VJSxxVbTMxxa0IpOhjTaRMuXN5WsLUIwa6wry0IqM8+yaLXrJDuEbY3TddhuYczifZ8QMu93p1FU+aqYeSRjGhFCjcyeXzz05+8+Tzo/iZcwbj93+vM9hYnxKBr0F0F0WdDOQIY0ijq1oaJPWDy6p55fO4vrLTG435Icu4SpbS+u/XPthv8zGdIo4f/q2kmzVtD/7CKSqFP7CHpyTkjmfuc/CUKWS4ja2Ba0S5iw9ceOLJ9spFqNNLN2t/ahLT46yqF8ZZYIIUT71tjo5kaLuEo2rmur0509hKntO2pqyXqpaRU3aLrFLLFlWI0MpxU6qVE+7b7VjI3Gghhq9JBGxkMIIf7vAa+uWnRadbxqZlTusJdbVnWWpRAtO155I4xl/E0BSLUarRH2j5c3dwz//g/fHBOpkXnndpYaTMsZRvoXqVOA4pMujbhg9kRX8pUd/ktdn7LopXI20ZXnQfod93ldn8RhhM9sa5KkQrDw3xVG5p36ULemjK+nrOB8Zlvjgp5iwy40kyafw3pb+8GcYRKQoTb650waOuUt99ZOiXKGyUi6Te1TCWbl2T1zhhUY0iiH0YJxwddrJi44m1r66w/yOcMAAAAAAAAAAAAAAOAz/QWOnacfukky4gAAAABJRU5ErkJggg=="/>
+<polyline points="72,29 74.09898376464844,29.034687042236328" stroke="rgb(255, 0, 0)" stroke-width="0.025" stroke-dasharray="0.05 0.05" fill="none"/>
+<polyline points="55,8 57.5,6.5 61,8" stroke="rgb(255, 0, 0)" stroke-width="0.025" stroke-dasharray="0.4 0.2" fill="none"/>
+<polyline points="24,17" stroke="rgb(255, 0, 0)" stroke-width="0.025" fill="none"/>
+<polyline points="70,15 68,17" stroke="rgb(255, 0, 0)" stroke-width="0.025" stroke-dasharray="0.05 0.05" fill="none"/>
+<polyline points="68,31 66,31" stroke="rgb(255, 0, 0)" stroke-width="0.025" stroke-dasharray="0.05 0.05" fill="none"/>
+<polyline points="24,9 22,11" stroke="rgb(255, 0, 0)" stroke-width="0.025" stroke-dasharray="0.05 0.05" fill="none"/>
+<polyline points="80,31 82,31" stroke="rgb(255, 0, 0)" stroke-width="0.025" stroke-dasharray="0.05 0.05" fill="none"/>
+<polyline points="84,17 85.5,17" stroke="rgb(188, 0, 0)" stroke-width="0.025" fill="none"/>
+<polygon points="85.5,17 85.21539501058484,17.094868329805053 85.21539501058484,16.905131670194947" fill="rgb(188, 0, 0)" stroke="rgb(188, 0, 0)" stroke-width="0.025"/>
+<polyline points="34,25 34,23" stroke="rgb(255, 0, 0)" stroke-width="0.025" stroke-dasharray="0.4 0.2" fill="none"/>
+<polyline points="66,35 68,31" stroke="rgb(255, 0, 0)" stroke-width="0.025" stroke-dasharray="0.4 0.2" fill="none"/>
+<polyline points="26,15" stroke="rgb(255, 0, 0)" stroke-width="0.025" fill="none"/>
+<polyline points="68,29 70,29" stroke="rgb(255, 0, 0)" stroke-width="0.025" stroke-dasharray="0.05 0.05" fill="none"/>
+<polyline points="68,29 66,27" stroke="rgb(255, 0, 0)" stroke-width="0.025" stroke-dasharray="0.05 0.05" fill="none"/>
+<polyline points="76,25 76,27" stroke="rgb(255, 0, 0)" stroke-width="0.025" stroke-dasharray="0.05 0.05" fill="none"/>
+<polyline points="18,9 18,7" stroke="rgb(255, 0, 0)" stroke-width="0.025" stroke-dasharray="0.05 0.05" fill="none"/>
+<polyline points="80,29 82,27" stroke="rgb(255, 0, 0)" stroke-width="0.025" stroke-dasharray="0.05 0.05" fill="none"/>
+<polyline points="24,25 22.030302047729492,23.0404052734375" stroke="rgb(255, 0, 0)" stroke-width="0.025" stroke-dasharray="0.05 0.05" fill="none"/>
+<polyline points="30,23 30,25" stroke="rgb(255, 0, 0)" stroke-width="0.025" stroke-dasharray="0.4 0.2" fill="none"/>
+<polyline points="46,19 45,18 38,18 36,17 36,15" stroke="rgb(255, 0, 0)" stroke-width="0.025" stroke-dasharray="0.05 0.05" fill="none"/>
+<polyline points="74,31 74,35" stroke="rgb(255, 0, 0)" stroke-width="0.025" stroke-dasharray="0.4 0.2" fill="none"/>
 <polyline points="38.3 14.7 39.7 13.3" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
 <polyline points="38.3 15.3 39.7 16.7" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
 <polyline points="36.3 15 37.7 15" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
@@ -196,29 +217,9 @@
 <polyline points="19.7 23.3 18.3 24.7" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
 <polyline points="21.7 10.7 20.3 9.3" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
 <polyline points="52.7 23.3 51.3 24.7" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
-<polyline points="72 29 74.09898376464844 29.034687042236328" stroke="rgb(255, 0, 0)" stroke-width="0.025" fill="none" stroke-dasharray="0.05 0.05"/>
-<polyline points="55 8 57.5 6.5 61 8" stroke="rgb(255, 0, 0)" stroke-width="0.025" fill="none" stroke-dasharray="0.4 0.2"/>
-<polyline points="24 17" stroke="rgb(255, 0, 0)" stroke-width="0.025" fill="none"/>
-<polyline points="70 15 68 17" stroke="rgb(255, 0, 0)" stroke-width="0.025" fill="none" stroke-dasharray="0.05 0.05"/>
-<polyline points="68 31 66 31" stroke="rgb(255, 0, 0)" stroke-width="0.025" fill="none" stroke-dasharray="0.05 0.05"/>
-<polyline points="24 9 22 11" stroke="rgb(255, 0, 0)" stroke-width="0.025" fill="none" stroke-dasharray="0.05 0.05"/>
-<polyline points="80 31 82 31" stroke="rgb(255, 0, 0)" stroke-width="0.025" fill="none" stroke-dasharray="0.05 0.05"/>
-<polyline points="84 17 85.5 17" stroke="rgb(188, 0, 0)" stroke-width="0.025" fill="none"/>
-<polygon points="85.5,17 85.21539501058484,17.094868329805053 85.21539501058484,16.905131670194947" fill="rgb(188, 0, 0)" stroke="rgb(188, 0, 0)" stroke-width="0.025"/>
-<polyline points="34 25 34 23" stroke="rgb(255, 0, 0)" stroke-width="0.025" fill="none" stroke-dasharray="0.4 0.2"/>
-<polyline points="66 35 68 31" stroke="rgb(255, 0, 0)" stroke-width="0.025" fill="none" stroke-dasharray="0.4 0.2"/>
-<polyline points="26 15" stroke="rgb(255, 0, 0)" stroke-width="0.025" fill="none"/>
-<polyline points="68 29 70 29" stroke="rgb(255, 0, 0)" stroke-width="0.025" fill="none" stroke-dasharray="0.05 0.05"/>
-<polyline points="68 29 66 27" stroke="rgb(255, 0, 0)" stroke-width="0.025" fill="none" stroke-dasharray="0.05 0.05"/>
-<polyline points="76 25 76 27" stroke="rgb(255, 0, 0)" stroke-width="0.025" fill="none" stroke-dasharray="0.05 0.05"/>
-<polyline points="18 9 18 7" stroke="rgb(255, 0, 0)" stroke-width="0.025" fill="none" stroke-dasharray="0.05 0.05"/>
-<polyline points="80 29 82 27" stroke="rgb(255, 0, 0)" stroke-width="0.025" fill="none" stroke-dasharray="0.05 0.05"/>
-<polyline points="24 25 22.030302047729492 23.0404052734375" stroke="rgb(255, 0, 0)" stroke-width="0.025" fill="none" stroke-dasharray="0.05 0.05"/>
-<polyline points="30 23 30 25" stroke="rgb(255, 0, 0)" stroke-width="0.025" fill="none" stroke-dasharray="0.4 0.2"/>
-<polyline points="46 19 45 18 38 18 36 17 36 15" stroke="rgb(255, 0, 0)" stroke-width="0.025" fill="none" stroke-dasharray="0.05 0.05"/>
-<polyline points="74 31 74 35" stroke="rgb(255, 0, 0)" stroke-width="0.025" fill="none" stroke-dasharray="0.4 0.2"/>
 <g transform="translate(17.7,6.7)">
 <rect x="0" y="0" width="0.6" height="0.6" fill="rgb(239,176,73)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<polygon points="0.3000000000000007,0.3540000000000001 0.4454922678357853,0.4980000000000002 0.1545077321642161,0.4980000000000002" fill="rgba(25,25,25, 0.6)" stroke="rgba(25,25,25)" stroke-width="0.025"/>
 </g>
 <g transform="translate(37.7,14.7)">
 <rect x="0" y="0" width="0.6" height="0.6" fill="rgb(128,0,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
@@ -231,6 +232,7 @@
 </g>
 <g transform="translate(69.7,18.7)">
 <rect x="0" y="0" width="0.6" height="0.6" fill="rgb(192,192,192)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<polygon points="0.29999999999999716,0.3539999999999992 0.4454922678357889,0.49799999999999756 0.15450773216420544,0.49799999999999756" fill="rgba(25,25,25, 0.6)" stroke="rgba(25,25,25)" stroke-width="0.025"/>
 </g>
 <g transform="translate(65.7,18.7)">
 <rect x="0" y="0" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
@@ -273,6 +275,7 @@
 </g>
 <g transform="translate(54.7,7.7)">
 <rect x="0" y="0" width="0.6" height="0.6" fill="rgb(128,128,0)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<polygon points="0.29999999999999716,0.24599999999999955 0.15450773216421254,0.10199999999999942 0.4454922678357818,0.10199999999999942" fill="rgba(225,255,255, 0.6)" stroke="rgba(225,255,255)" stroke-width="0.025"/>
 </g>
 <g transform="translate(49.7,14.7)">
 <rect x="0" y="0" width="0.6" height="0.6" fill="rgb(128,0,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
@@ -309,6 +312,7 @@
 </g>
 <g transform="translate(60.7,7.7)">
 <rect x="0" y="0" width="0.6" height="0.6" fill="rgb(128,128,0)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<polygon points="0.29999999999999716,0.3540000000000001 0.4454922678357818,0.4980000000000002 0.15450773216421254,0.4980000000000002" fill="rgba(225,255,255, 0.6)" stroke="rgba(225,255,255)" stroke-width="0.025"/>
 </g>
 <g transform="translate(67.7,8.7)">
 <rect x="0" y="0" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
@@ -330,6 +334,7 @@
 </g>
 <g transform="translate(67.7,30.7)">
 <rect x="0" y="0" width="0.6" height="0.6" fill="rgb(0,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<polygon points="0.29999999999999716,0.24600000000000222 0.15450773216420544,0.10200000000000387 0.4454922678357889,0.10200000000000031" fill="rgba(225,255,255, 0.6)" stroke="rgba(225,255,255)" stroke-width="0.025"/>
 </g>
 <g transform="translate(23.7,8.7)">
 <rect x="0" y="0" width="0.6" height="0.6" fill="rgb(170,139,89)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
@@ -339,7 +344,7 @@
 </g>
 <g transform="translate(81.7,26.7)">
 <rect x="0" y="0" width="0.6" height="0.6" fill="rgb(239,176,73)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<text x="0.3" y="0.27812499999999996" font-size="0.44999999999999996" font-family="sans-serif" font-weight="bold" fill="rgba(25,25,25)" text-anchor="middle" dominant-baseline="central">+</text>
+<text x="0.3" y="0.44375" font-size="0.44999999999999996" font-family="sans-serif" font-weight="bold" fill="rgba(25,25,25)" text-anchor="middle" dominant-baseline="auto">+</text>
 </g>
 <g transform="translate(69.7,32.7)">
 <rect x="0" y="0" width="0.6" height="0.6" fill="rgb(0,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
@@ -349,7 +354,7 @@
 </g>
 <g transform="translate(69.7,28.7)">
 <rect x="0" y="0" width="0.6" height="0.6" fill="rgb(239,176,73)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<text x="0.3" y="0.3" font-size="0.44999999999999996" font-family="sans-serif" font-weight="bold" fill="rgba(25,25,25)" text-anchor="middle" dominant-baseline="central">T</text>
+<text x="0.3" y="0.46562499999999996" font-size="0.44999999999999996" font-family="sans-serif" font-weight="bold" fill="rgba(25,25,25)" text-anchor="middle" dominant-baseline="auto">T</text>
 </g>
 <g transform="translate(60.7,5.7)">
 <rect x="0" y="0" width="0.6" height="0.6" fill="rgb(128,128,0)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
@@ -359,6 +364,7 @@
 </g>
 <g transform="translate(33.7,22.7)">
 <rect x="0" y="0" width="0.6" height="0.6" fill="rgb(255,255,255)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<polygon points="0.29999999999999716,0.24600000000000222 0.15450773216421254,0.10200000000000387 0.4454922678357818,0.10200000000000031" fill="rgba(25,25,25, 0.6)" stroke="rgba(25,25,25)" stroke-width="0.025"/>
 </g>
 <g transform="translate(23.7,20.7)">
 <rect x="0" y="0" width="0.6" height="0.6" fill="rgb(0,255,255)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
@@ -434,6 +440,7 @@
 </g>
 <g transform="translate(33.7,24.7)">
 <rect x="0" y="0" width="0.6" height="0.6" fill="rgb(239,176,73)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<polygon points="0.29999999999999716,0.3539999999999992 0.4454922678357818,0.49799999999999756 0.15450773216421254,0.49799999999999756" fill="rgba(25,25,25, 0.6)" stroke="rgba(25,25,25)" stroke-width="0.025"/>
 </g>
 <g transform="translate(69.7,26.7)">
 <rect x="0" y="0" width="0.6" height="0.6" fill="rgb(255,255,0)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
@@ -458,12 +465,14 @@
 </g>
 <g transform="translate(69.7,6.7)">
 <rect x="0" y="0" width="0.6" height="0.6" fill="rgb(192,192,192)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<polygon points="0.29999999999999716,0.3540000000000001 0.4454922678357889,0.4980000000000002 0.15450773216420544,0.4980000000000002" fill="rgba(25,25,25, 0.6)" stroke="rgba(25,25,25)" stroke-width="0.025"/>
 </g>
 <g transform="translate(61.7,12.7)">
 <rect x="0" y="0" width="0.6" height="0.6" fill="rgb(128,128,0)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 </g>
 <g transform="translate(73.7,34.7)">
 <rect x="0" y="0" width="0.6" height="0.6" fill="rgb(0,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<polygon points="0.29999999999999716,0.3539999999999992 0.4454922678357889,0.49799999999999756 0.15450773216420544,0.49799999999999756" fill="rgba(225,255,255, 0.6)" stroke="rgba(225,255,255)" stroke-width="0.025"/>
 </g>
 <g transform="translate(17.7,20.7)">
 <rect x="0" y="0" width="0.6" height="0.6" fill="rgb(255,255,0)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
@@ -488,9 +497,11 @@
 </g>
 <g transform="translate(59.7,12.7)">
 <rect x="0" y="0" width="0.6" height="0.6" fill="rgb(192,192,192)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<polygon points="0.29999999999999716,0.354000000000001 0.4454922678357818,0.4980000000000011 0.15450773216421254,0.4980000000000011" fill="rgba(25,25,25, 0.6)" stroke="rgba(25,25,25)" stroke-width="0.025"/>
 </g>
 <g transform="translate(65.7,34.7)">
 <rect x="0" y="0" width="0.6" height="0.6" fill="rgb(0,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<polygon points="0.29999999999999716,0.3539999999999992 0.4454922678357889,0.49799999999999756 0.15450773216420544,0.49799999999999756" fill="rgba(225,255,255, 0.6)" stroke="rgba(225,255,255)" stroke-width="0.025"/>
 </g>
 <g transform="translate(73.7,12.7)">
 <rect x="0" y="0" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
@@ -536,7 +547,7 @@
 </g>
 <g transform="translate(48.7,7.7)">
 <rect x="0" y="0" width="0.6" height="0.6" fill="rgb(239,176,73)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<text x="0.3" y="0.3" font-size="0.44999999999999996" font-family="sans-serif" font-weight="bold" fill="rgba(25,25,25)" text-anchor="middle" dominant-baseline="central">B</text>
+<text x="0.3" y="0.46562499999999996" font-size="0.44999999999999996" font-family="sans-serif" font-weight="bold" fill="rgba(25,25,25)" text-anchor="middle" dominant-baseline="auto">B</text>
 </g>
 <g transform="translate(62.7,20.7)">
 <rect x="0" y="0" width="0.6" height="0.6" fill="rgb(114, 1, 0)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
@@ -552,7 +563,7 @@
 </g>
 <g transform="translate(67.7,16.7)">
 <rect x="0" y="0" width="0.6" height="0.6" fill="rgb(239,176,73)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<text x="0.3" y="0.3" font-size="0.44999999999999996" font-family="sans-serif" font-weight="bold" fill="rgba(25,25,25)" text-anchor="middle" dominant-baseline="central">T</text>
+<text x="0.3" y="0.46562499999999996" font-size="0.44999999999999996" font-family="sans-serif" font-weight="bold" fill="rgba(25,25,25)" text-anchor="middle" dominant-baseline="auto">T</text>
 </g>
 <g transform="translate(65.7,26.7)">
 <rect x="0" y="0" width="0.6" height="0.6" fill="rgb(255,255,255)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
@@ -601,7 +612,7 @@
 </g>
 <g transform="translate(65.7,16.7)">
 <rect x="0" y="0" width="0.6" height="0.6" fill="rgb(255,0,255)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<text x="0.3" y="0.3" font-size="0.44999999999999996" font-family="sans-serif" font-weight="bold" fill="rgba(25,25,25)" text-anchor="middle" dominant-baseline="central">P</text>
+<text x="0.3" y="0.46562499999999996" font-size="0.44999999999999996" font-family="sans-serif" font-weight="bold" fill="rgba(25,25,25)" text-anchor="middle" dominant-baseline="auto">P</text>
 </g>
 <g transform="translate(71.7,20.7)">
 <rect x="0" y="0" width="0.6" height="0.6" fill="rgb(114, 1, 0)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
@@ -614,7 +625,7 @@
 </g>
 <g transform="translate(35.7,24.7)">
 <rect x="0" y="0" width="0.6" height="0.6" fill="rgb(239,176,73)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<text x="0.3" y="0.3" font-size="0.44999999999999996" font-family="sans-serif" font-weight="bold" fill="rgba(25,25,25)" text-anchor="middle" dominant-baseline="central">T</text>
+<text x="0.3" y="0.46562499999999996" font-size="0.44999999999999996" font-family="sans-serif" font-weight="bold" fill="rgba(25,25,25)" text-anchor="middle" dominant-baseline="auto">T</text>
 </g>
 <g transform="translate(73.7,28.7)">
 <rect x="0" y="0" width="0.6" height="0.6" fill="rgb(0,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
@@ -645,7 +656,7 @@
 </g>
 <g transform="translate(59.7,14.7)">
 <rect x="0" y="0" width="0.6" height="0.6" fill="rgb(139,69,19)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<text x="0.3" y="0.3" font-size="0.44999999999999996" font-family="sans-serif" font-weight="bold" fill="rgba(225,255,255)" text-anchor="middle" dominant-baseline="central">X</text>
+<text x="0.3" y="0.46562499999999996" font-size="0.44999999999999996" font-family="sans-serif" font-weight="bold" fill="rgba(225,255,255)" text-anchor="middle" dominant-baseline="auto">X</text>
 </g>
 <g transform="translate(41.7,14.7)">
 <rect x="0" y="0" width="0.6" height="0.6" fill="rgb(128,0,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
@@ -655,7 +666,7 @@
 </g>
 <g transform="translate(71.7,10.7)">
 <rect x="0" y="0" width="0.6" height="0.6" fill="rgb(0,255,0)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<text x="0.3" y="0.3" font-size="0.44999999999999996" font-family="sans-serif" font-weight="bold" fill="rgba(25,25,25)" text-anchor="middle" dominant-baseline="central">K</text>
+<text x="0.3" y="0.46562499999999996" font-size="0.44999999999999996" font-family="sans-serif" font-weight="bold" fill="rgba(25,25,25)" text-anchor="middle" dominant-baseline="auto">K</text>
 </g>
 <g transform="translate(27.7,28.7)">
 <rect x="0" y="0" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
@@ -671,13 +682,14 @@
 </g>
 <g transform="translate(17.7,4.7)">
 <rect x="0" y="0" width="0.6" height="0.6" fill="rgb(114, 1, 0)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<polygon points="0.3000000000000007,0.24599999999999955 0.1545077321642161,0.10199999999999942 0.4454922678357853,0.10199999999999942" fill="rgba(225,225,225, 0.6)" stroke="rgba(225,225,225)" stroke-width="0.025"/>
 </g>
 <g transform="translate(27.7,14.7)">
 <rect x="0" y="0" width="0.6" height="0.6" fill="rgb(114, 1, 0)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 </g>
 <g transform="translate(71.7,30.7)">
 <rect x="0" y="0" width="0.6" height="0.6" fill="rgb(239,176,73)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<text x="0.3" y="0.303125" font-size="0.44999999999999996" font-family="sans-serif" font-weight="bold" fill="rgba(25,25,25)" text-anchor="middle" dominant-baseline="central">S</text>
+<text x="0.3" y="0.46875" font-size="0.44999999999999996" font-family="sans-serif" font-weight="bold" fill="rgba(25,25,25)" text-anchor="middle" dominant-baseline="auto">S</text>
 </g>
 <g transform="translate(45.7,18.7)">
 <rect x="0" y="0" width="0.6" height="0.6" fill="rgb(128,128,0)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
@@ -690,7 +702,7 @@
 </g>
 <g transform="translate(75.7,12.7)">
 <rect x="0" y="0" width="0.6" height="0.6" fill="rgb(139,69,19)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<text x="0.3" y="0.3" font-size="0.44999999999999996" font-family="sans-serif" font-weight="bold" fill="rgba(225,255,255)" text-anchor="middle" dominant-baseline="central">X</text>
+<text x="0.3" y="0.46562499999999996" font-size="0.44999999999999996" font-family="sans-serif" font-weight="bold" fill="rgba(225,255,255)" text-anchor="middle" dominant-baseline="auto">X</text>
 </g>
 <g transform="translate(73.7,10.7)">
 <rect x="0" y="0" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
@@ -745,6 +757,7 @@
 </g>
 <g transform="translate(73.7,30.7)">
 <rect x="0" y="0" width="0.6" height="0.6" fill="rgb(0,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<polygon points="0.29999999999999716,0.24600000000000222 0.15450773216420544,0.10200000000000387 0.4454922678357889,0.10200000000000031" fill="rgba(225,255,255, 0.6)" stroke="rgba(225,255,255)" stroke-width="0.025"/>
 </g>
 <g transform="translate(58.7,18.7)">
 <rect x="0" y="0" width="0.6" height="0.6" fill="rgb(114, 1, 0)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
@@ -763,21 +776,8 @@
 </g>
 <g transform="translate(65.7,30.7)">
 <rect x="0" y="0" width="0.6" height="0.6" fill="rgb(239,176,73)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<text x="0.3" y="0.25937499999999997" font-size="0.44999999999999996" font-family="sans-serif" font-weight="bold" fill="rgba(25,25,25)" text-anchor="middle" dominant-baseline="central">r</text>
+<text x="0.3" y="0.425" font-size="0.44999999999999996" font-family="sans-serif" font-weight="bold" fill="rgba(25,25,25)" text-anchor="middle" dominant-baseline="auto">r</text>
 </g>
-<polygon points="18,7.054 18.145492267835785,7.198 17.854507732164215,7.198" fill="rgba(25,25,25, 0.6)" stroke="rgba(25,25,25)" stroke-width="0.025"/>
-<polygon points="70,19.054 70.14549226783579,19.197999999999997 69.85450773216421,19.197999999999997" fill="rgba(25,25,25, 0.6)" stroke="rgba(25,25,25)" stroke-width="0.025"/>
-<polygon points="55,7.946 54.854507732164215,7.802 55.145492267835785,7.802" fill="rgba(225,255,255, 0.6)" stroke="rgba(225,255,255)" stroke-width="0.025"/>
-<polygon points="61,8.054 61.145492267835785,8.198 60.854507732164215,8.198" fill="rgba(225,255,255, 0.6)" stroke="rgba(225,255,255)" stroke-width="0.025"/>
-<polygon points="68,30.946 67.85450773216421,30.802000000000003 68.14549226783579,30.802" fill="rgba(225,255,255, 0.6)" stroke="rgba(225,255,255)" stroke-width="0.025"/>
-<polygon points="34,22.946 33.854507732164215,22.802000000000003 34.145492267835785,22.802" fill="rgba(25,25,25, 0.6)" stroke="rgba(25,25,25)" stroke-width="0.025"/>
-<polygon points="34,25.054 34.145492267835785,25.197999999999997 33.854507732164215,25.197999999999997" fill="rgba(25,25,25, 0.6)" stroke="rgba(25,25,25)" stroke-width="0.025"/>
-<polygon points="70,7.054 70.14549226783579,7.198 69.85450773216421,7.198" fill="rgba(25,25,25, 0.6)" stroke="rgba(25,25,25)" stroke-width="0.025"/>
-<polygon points="74,35.054 74.14549226783579,35.198 73.85450773216421,35.198" fill="rgba(225,255,255, 0.6)" stroke="rgba(225,255,255)" stroke-width="0.025"/>
-<polygon points="60,13.054 60.145492267835785,13.198 59.854507732164215,13.198" fill="rgba(25,25,25, 0.6)" stroke="rgba(25,25,25)" stroke-width="0.025"/>
-<polygon points="66,35.054 66.14549226783579,35.198 65.85450773216421,35.198" fill="rgba(225,255,255, 0.6)" stroke="rgba(225,255,255)" stroke-width="0.025"/>
-<polygon points="18,4.946 17.854507732164215,4.802 18.145492267835785,4.802" fill="rgba(225,225,225, 0.6)" stroke="rgba(225,225,225)" stroke-width="0.025"/>
-<polygon points="74,30.946 73.85450773216421,30.802000000000003 74.14549226783579,30.802" fill="rgba(225,255,255, 0.6)" stroke="rgba(225,255,255)" stroke-width="0.025"/>
+<text x="2.5" y="-2.2275848388671875" font-size="2.5" font-family="sans-serif" fill="white" text-anchor="start" dominant-baseline="auto">Verden</text>
 <circle cx="26" cy="15" r="0.51" stroke="#00e5b2" stroke-width="0.1" stroke-opacity="1" stroke-dasharray="0.05 0.05" fill="none"/>
-<text x="2.5" y="0.2724151611328125" font-size="2.5" font-family="sans-serif" fill="white">Verden</text>
 </svg>
