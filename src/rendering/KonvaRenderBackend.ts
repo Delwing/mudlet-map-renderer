@@ -70,7 +70,7 @@ export class KonvaRenderBackend {
         this.stage.add(this.gridLayer);
         this.linkLayer = new Konva.Layer({listening: false});
         this.stage.add(this.linkLayer);
-        this.roomLayer = new Konva.Layer();
+        this.roomLayer = new Konva.Layer({listening: false});
         this.stage.add(this.roomLayer);
         this.positionLayer = new Konva.Layer({listening: false});
         this.stage.add(this.positionLayer);
