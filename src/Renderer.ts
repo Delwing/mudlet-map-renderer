@@ -17,6 +17,8 @@ import {CullingManager} from "./CullingManager";
 import type {RoomNodeEntry, StandaloneExitEntry} from "./CullingManager";
 import {TypedEventEmitter} from "./TypedEventEmitter";
 import {drawExitDataToCanvas} from "./scene/ExitDataRenderer";
+import {KonvaBackend, KonvaGroupNode, KonvaLayerNode} from "./backend/KonvaBackend";
+import type {GroupNode} from "./backend/DrawingBackend";
 
 const defaultRoomSize = 0.6;
 const defaultLineWidth = 0.025;
@@ -347,8 +349,9 @@ export class Renderer implements MapRenderer {
         this.mapReader = mapReader;
         this.exitRenderer = new ExitRenderer(mapReader, this.settings);
         this.pathRenderer = new PathRenderer(mapReader, this.overlayLayer, this.settings);
-        this.roomShapeRenderer = new RoomShapeRenderer(mapReader, this.settings);
-        this.gridRenderer = new GridRenderer(this.gridLayer, this.settings);
+        const backend = new KonvaBackend();
+        this.roomShapeRenderer = new RoomShapeRenderer(mapReader, this.settings, backend);
+        this.gridRenderer = new GridRenderer(new KonvaLayerNode(this.gridLayer), this.settings, backend);
 
         this.viewport = new ViewportManager(this.stage, container, this.settings, {
             scheduleCulling: () => this.culling.scheduleCulling(),
@@ -361,7 +364,7 @@ export class Renderer implements MapRenderer {
         }, this.events);
 
         this.culling = new CullingManager(
-            this.stage, this.roomLayer, this.linkLayer,
+            this.stage, new KonvaLayerNode(this.roomLayer), new KonvaLayerNode(this.linkLayer),
             this.settings, this.gridRenderer, this.viewport,
         );
 
@@ -838,9 +841,15 @@ export class Renderer implements MapRenderer {
         }));
     }
 
+    /** Unwrap a GroupNode to Konva.Group for direct Konva layer operations. */
+    private toKonvaGroup(node: GroupNode): Konva.Group {
+        return (node as KonvaGroupNode).konvaGroup;
+    }
+
     private renderRooms(rooms: MapData.Room[]) {
         rooms.forEach(room => {
-            const roomRender = this.roomShapeRenderer.createRoomGroup(room);
+            const roomNode = this.roomShapeRenderer.createRoomGroup(room);
+            const roomRender = this.toKonvaGroup(roomNode);
             this.roomLayer.add(roomRender);
 
             // Special exits stored as draw data for batch rendering
@@ -869,7 +878,7 @@ export class Renderer implements MapRenderer {
                 roomRender.add(render);
             })
 
-            const entry: RoomNodeEntry = {room, group: roomRender};
+            const entry: RoomNodeEntry = {room, group: roomNode};
             this.culling.roomNodes.set(room.id, entry);
             this.culling.addRoomToSpatialIndex(entry);
         })
@@ -946,12 +955,13 @@ export class Renderer implements MapRenderer {
 
         roomsToRedraw.forEach((roomToRedraw, id) => {
             const isCurrent = id === room.id;
-            const overlayRoom = this.createOverlayRoomGroup(
+            const overlayNode = this.createOverlayRoomGroup(
                 roomToRedraw,
                 {
                     stroke: isCurrent && this.settings.highlightCurrentRoom ? currentRoomColor : this.settings.lineColor,
                 }
             );
+            const overlayRoom = this.toKonvaGroup(overlayNode);
             this.positionLayer.add(overlayRoom);
             this.currentRoomOverlay.push(overlayRoom);
 

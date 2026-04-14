@@ -1,10 +1,10 @@
-import Konva from "konva";
 import type {ExitDrawData} from "./ExitRenderer";
 import type {Settings, CullingMode, PerfSnapshot} from "./Renderer";
 import type {GridRenderer} from "./GridRenderer";
 import type {ViewportManager} from "./ViewportManager";
+import type {GroupNode, LayerNode} from "./backend/DrawingBackend";
 
-export type RoomNodeEntry = { room: MapData.Room; group: Konva.Group };
+export type RoomNodeEntry = { room: MapData.Room; group: GroupNode };
 type Bounds = { x: number; y: number; width: number; height: number };
 export type StandaloneExitEntry = { data: ExitDrawData; bounds: Bounds; targetRoomId?: number };
 
@@ -62,15 +62,23 @@ class PerfMonitor {
     }
 }
 
+export type StageInfo = {
+    scaleX(): number;
+    position(): { x: number; y: number };
+    width(): number;
+    height(): number;
+};
+
 /**
  * Manages spatial indexing and viewport culling for rooms and exits.
- * Toggles Konva node visibility based on what's in the viewport.
+ * Toggles node visibility based on what's in the viewport.
+ * No direct Konva dependency.
  */
 export class CullingManager {
 
-    private readonly stage: Konva.Stage;
-    private readonly roomLayer: Konva.Layer;
-    private readonly linkLayer: Konva.Layer;
+    private readonly stageInfo: StageInfo;
+    private readonly roomLayer: LayerNode;
+    private readonly linkLayer: LayerNode;
     private readonly settings: Settings;
     private readonly gridRenderer: GridRenderer;
     private readonly viewport: ViewportManager;
@@ -95,14 +103,14 @@ export class CullingManager {
     private perfMonitor = new PerfMonitor();
 
     constructor(
-        stage: Konva.Stage,
-        roomLayer: Konva.Layer,
-        linkLayer: Konva.Layer,
+        stageInfo: StageInfo,
+        roomLayer: LayerNode,
+        linkLayer: LayerNode,
         settings: Settings,
         gridRenderer: GridRenderer,
         viewport: ViewportManager,
     ) {
-        this.stage = stage;
+        this.stageInfo = stageInfo;
         this.roomLayer = roomLayer;
         this.linkLayer = linkLayer;
         this.settings = settings;
@@ -232,19 +240,19 @@ export class CullingManager {
     updateCulling() {
         if (this.roomNodes.size === 0 && this.standaloneExitNodes.length === 0) return;
 
-        const scale = this.stage.scaleX();
+        const scale = this.stageInfo.scaleX();
         if (!scale) return;
 
         this.perfMonitor.setCallback(this.settings.perfCallback);
         const perfStart = this.settings.perfCallback ? performance.now() : 0;
 
-        const stagePosition = this.stage.position();
+        const stagePosition = this.stageInfo.position();
         const halfSize = this.settings.roomSize / 2;
         const bounds = this.settings.cullingBounds;
         const viewportMinX = bounds ? bounds.x : 0;
-        const viewportMaxX = bounds ? bounds.x + bounds.width : this.stage.width();
+        const viewportMaxX = bounds ? bounds.x + bounds.width : this.stageInfo.width();
         const viewportMinY = bounds ? bounds.y : 0;
-        const viewportMaxY = bounds ? bounds.y + bounds.height : this.stage.height();
+        const viewportMaxY = bounds ? bounds.y + bounds.height : this.stageInfo.height();
         const minX = (Math.min(viewportMinX, viewportMaxX) - stagePosition.x) / scale;
         const maxX = (Math.max(viewportMinX, viewportMaxX) - stagePosition.x) / scale;
         const minY = (Math.min(viewportMinY, viewportMaxY) - stagePosition.y) / scale;
@@ -263,7 +271,7 @@ export class CullingManager {
 
         if (mode === "none") {
             this.roomNodes.forEach(entry => {
-                if (!entry.group.visible()) { entry.group.visible(true); roomLayerNeedsDraw = true; }
+                if (!entry.group.isVisible()) { entry.group.setVisible(true); roomLayerNeedsDraw = true; }
             });
             if (this.visibleExitDrawData.length !== this.standaloneExitNodes.length) {
                 this.visibleExitDrawData.length = 0;
@@ -285,7 +293,7 @@ export class CullingManager {
             this.roomNodes.forEach(entry => {
                 const isVisible = entry.room.x + halfSize >= minX && entry.room.x - halfSize <= maxX &&
                     entry.room.y + halfSize >= minY && entry.room.y - halfSize <= maxY;
-                if (entry.group.visible() !== isVisible) { entry.group.visible(isVisible); roomLayerNeedsDraw = true; }
+                if (entry.group.isVisible() !== isVisible) { entry.group.setVisible(isVisible); roomLayerNeedsDraw = true; }
                 if (isVisible) nextVisibleRooms.add(entry);
             });
 
@@ -307,13 +315,13 @@ export class CullingManager {
         roomCandidates.forEach(entry => {
             const isVisible = entry.room.x + halfSize >= minX && entry.room.x - halfSize <= maxX &&
                 entry.room.y + halfSize >= minY && entry.room.y - halfSize <= maxY;
-            if (entry.group.visible() !== isVisible) { entry.group.visible(isVisible); roomLayerNeedsDraw = true; }
+            if (entry.group.isVisible() !== isVisible) { entry.group.setVisible(isVisible); roomLayerNeedsDraw = true; }
             if (isVisible) nextVisibleRooms.add(entry);
         });
 
         this.visibleRooms.forEach(entry => {
-            if (!roomCandidates.has(entry) && entry.group.visible()) {
-                entry.group.visible(false);
+            if (!roomCandidates.has(entry) && entry.group.isVisible()) {
+                entry.group.setVisible(false);
                 roomLayerNeedsDraw = true;
             }
         });

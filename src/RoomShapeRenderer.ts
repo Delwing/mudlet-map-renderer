@@ -1,94 +1,75 @@
-import Konva from "konva";
 import MapReader from "./reader/MapReader";
 import type {Settings} from "./Renderer";
+import type {DrawingBackend, GroupNode} from "./backend/DrawingBackend";
 import {measureTextBaselineOffset} from "./utils/textMeasure";
 import {computeRoomColors, computeEmboss} from "./scene/RoomStyle";
 
 /**
- * Creates Konva groups for individual rooms — shape, emboss, and symbol.
- * Used by the main Renderer for both the room layer and the overlay layer.
+ * Creates visual room groups via a DrawingBackend — shape, emboss, and symbol.
+ * No direct Konva dependency.
  */
 export class RoomShapeRenderer {
 
     private readonly mapReader: MapReader;
     private readonly settings: Settings;
+    private readonly backend: DrawingBackend;
 
-    constructor(mapReader: MapReader, settings: Settings) {
+    constructor(mapReader: MapReader, settings: Settings, backend: DrawingBackend) {
         this.mapReader = mapReader;
         this.settings = settings;
+        this.backend = backend;
     }
 
     createRoomGroup(room: MapData.Room, options?: {
         strokeOverride?: string;
-    }): Konva.Group {
+    }): GroupNode {
         const {fillColor, strokeColor, borderWidth, symbolColor} = computeRoomColors(
             room, this.mapReader, this.settings, options?.strokeOverride,
         );
 
-        const roomGroup = new Konva.Group({
-            x: room.x - this.settings.roomSize / 2,
-            y: room.y - this.settings.roomSize / 2,
-            listening: false,
-        });
+        const rs = this.settings.roomSize;
+        const group = this.backend.createGroup(room.x - rs / 2, room.y - rs / 2);
 
-        const roomShape = this.settings.roomShape === "circle"
-            ? new Konva.Circle({
-                x: this.settings.roomSize / 2,
-                y: this.settings.roomSize / 2,
-                radius: this.settings.roomSize / 2,
-                fill: fillColor,
-                strokeWidth: borderWidth,
-                stroke: strokeColor,
-                perfectDrawEnabled: false,
-                listening: false,
-            })
-            : new Konva.Rect({
-                x: 0,
-                y: 0,
-                width: this.settings.roomSize,
-                height: this.settings.roomSize,
-                fill: fillColor,
-                strokeWidth: borderWidth,
-                stroke: strokeColor,
-                cornerRadius: this.settings.roomShape === "roundedRectangle" ? this.settings.roomSize * 0.2 : 0,
-                perfectDrawEnabled: false,
-                listening: false,
+        if (this.settings.roomShape === "circle") {
+            this.backend.addCircle(group, {
+                cx: rs / 2, cy: rs / 2, radius: rs / 2,
+                fill: fillColor, stroke: strokeColor, strokeWidth: borderWidth,
             });
-
-        roomGroup.add(roomShape);
+        } else {
+            this.backend.addRect(group, {
+                x: 0, y: 0, width: rs, height: rs,
+                fill: fillColor, stroke: strokeColor, strokeWidth: borderWidth,
+                cornerRadius: this.settings.roomShape === "roundedRectangle" ? rs * 0.2 : 0,
+            });
+        }
 
         const emboss = computeEmboss(this.settings);
         if (emboss) {
-            roomGroup.add(new Konva.Line({
+            this.backend.addLine(group, {
                 points: emboss.points,
                 stroke: emboss.stroke,
                 strokeWidth: emboss.strokeWidth,
-                perfectDrawEnabled: false,
-                listening: false,
-            }));
+            });
         }
 
         if (room.roomChar !== undefined) {
-            const fontSize = this.settings.roomSize * 0.75;
+            const fontSize = rs * 0.75;
             const baselineRatio = measureTextBaselineOffset(room.roomChar, this.settings.fontFamily);
             const refBaselineRatio = measureTextBaselineOffset("M", this.settings.fontFamily);
-            roomGroup.add(new Konva.Text({
-                x: 0,
-                y: 0,
+            this.backend.addText(group, {
+                x: 0, y: 0,
                 text: room.roomChar,
                 fontSize,
                 fontStyle: "bold",
                 fill: symbolColor,
                 align: "center",
                 verticalAlign: "middle",
-                width: this.settings.roomSize,
-                height: this.settings.roomSize,
+                width: rs,
+                height: rs,
                 offsetY: (refBaselineRatio - baselineRatio) * fontSize,
-                perfectDrawEnabled: false,
-                listening: false,
-            }));
+            });
         }
 
-        return roomGroup;
+        return group;
     }
 }
