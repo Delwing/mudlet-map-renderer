@@ -8,14 +8,13 @@ import {movePoint, movePointCircle, movePointRoundedRect} from "./directions";
 import {computePathData} from "./PathData";
 import {measureTextBaselineOffset} from "./utils/textMeasure";
 import {computeRoomColors, computeEmboss} from "./scene/RoomStyle";
+import {computeInnerExits, computeTriangleVertices} from "./scene/InnerExitStyle";
 
 const dirNumbers: Record<number, MapData.direction> = {
     1: "north", 2: "northeast", 3: "northwest", 4: "east", 5: "west",
     6: "south", 7: "southeast", 8: "southwest", 9: "up", 10: "down",
     11: "in", 12: "out",
 };
-
-const innerExits: MapData.direction[] = ["up", "down", "in", "out"];
 
 const DoorColors = {
     OPEN: 'rgb(10, 155, 10)',
@@ -62,13 +61,6 @@ export class SvgExporter {
         this.mapReader = mapReader;
         this.settings = settings;
         this.exitRenderer = new ExitRenderer(mapReader, null, settings);
-    }
-
-    private getSymbolColor(envId: number, opacity?: number): string {
-        if (this.settings.frameMode) {
-            return this.mapReader.getColorValue(envId);
-        }
-        return this.mapReader.getSymbolColor(envId, opacity);
     }
 
     export(areaId: number, zIndex: number, options?: SvgExportOptions): string {
@@ -393,70 +385,20 @@ export class SvgExporter {
     // --- Inner Exits (up/down/in/out triangles) ---
 
     private renderInnerExits(lines: string[], rooms: MapData.Room[]) {
-        const rs = this.settings.roomSize;
-        const triRadius = rs / 5;
-
         for (const room of rooms) {
-            for (const exit of innerExits) {
-                if (!room.exits[exit]) continue;
-
-                const symbolColor = this.getSymbolColor(room.env);
-                const symbolFill = this.getSymbolColor(room.env, 0.6);
-                let doorStroke: string | undefined;
-                const doorType = room.doors[exit];
-                if (doorType !== undefined) {
-                    doorStroke = getDoorColor(doorType);
-                }
-                const stroke = doorStroke ?? symbolColor;
-
-                // Generate triangle(s) based on exit direction
-                switch (exit) {
-                    case "up": {
-                        const pos = movePoint(room.x, room.y, "south", rs / 4);
-                        lines.push(this.svgTriangle(pos.x, pos.y, triRadius, 0, symbolFill, stroke));
-                        break;
-                    }
-                    case "down": {
-                        const pos = movePoint(room.x, room.y, "north", rs / 4);
-                        lines.push(this.svgTriangle(pos.x, pos.y, triRadius, 180, symbolFill, stroke));
-                        break;
-                    }
-                    case "in": {
-                        const posW = movePoint(room.x, room.y, "west", rs / 4);
-                        const posE = movePoint(room.x, room.y, "east", rs / 4);
-                        lines.push(this.svgTriangle(posW.x, posW.y, triRadius, 90, symbolFill, stroke));
-                        lines.push(this.svgTriangle(posE.x, posE.y, triRadius, -90, symbolFill, stroke));
-                        break;
-                    }
-                    case "out": {
-                        const posW = movePoint(room.x, room.y, "west", rs / 4);
-                        const posE = movePoint(room.x, room.y, "east", rs / 4);
-                        lines.push(this.svgTriangle(posW.x, posW.y, triRadius, -90, symbolFill, stroke));
-                        lines.push(this.svgTriangle(posE.x, posE.y, triRadius, 90, symbolFill, stroke));
-                        break;
-                    }
-                }
+            const {triangles} = computeInnerExits(room, this.mapReader, this.settings);
+            for (const tri of triangles) {
+                lines.push(this.svgPolygon(tri.vertices, tri.fill, tri.stroke, tri.strokeWidth));
             }
         }
     }
 
-    private svgTriangle(cx: number, cy: number, radius: number, rotationDeg: number, fill: string, stroke: string): string {
-        // Generate a 3-sided regular polygon (triangle pointing up at 0 deg)
-        // Konva uses scaleX=1.4, scaleY=0.8 on the triangles
-        const scaleX = 1.4, scaleY = 0.8;
-        const angleRad = rotationDeg * Math.PI / 180;
+    private svgPolygon(vertices: number[], fill: string, stroke: string, strokeWidth: number): string {
         const points: string[] = [];
-        for (let i = 0; i < 3; i++) {
-            // Regular polygon vertex: starting at top (-PI/2 offset for pointing up)
-            const a = (2 * Math.PI * i / 3) - Math.PI / 2;
-            let px = Math.cos(a) * radius * scaleX;
-            let py = Math.sin(a) * radius * scaleY;
-            // Rotate
-            const rx = px * Math.cos(angleRad) - py * Math.sin(angleRad);
-            const ry = px * Math.sin(angleRad) + py * Math.cos(angleRad);
-            points.push(`${cx + rx},${cy + ry}`);
+        for (let i = 0; i < vertices.length; i += 2) {
+            points.push(`${vertices[i]},${vertices[i + 1]}`);
         }
-        return `<polygon points="${points.join(' ')}" fill="${escapeXml(fill)}" stroke="${escapeXml(stroke)}" stroke-width="${this.settings.lineWidth}"/>`;
+        return `<polygon points="${points.join(' ')}" fill="${escapeXml(fill)}" stroke="${escapeXml(stroke)}" stroke-width="${strokeWidth}"/>`;
     }
 
     // --- Overlay: Paths ---
@@ -481,17 +423,9 @@ export class SvgExporter {
 
         const triRadius = this.settings.roomSize / 5;
         for (const marker of result.innerMarkers) {
-            lines.push(this.svgTriangle(marker.room.x, marker.room.y, triRadius, this.innerExitRotation(marker.direction), color, 'black'));
-        }
-    }
-
-    private innerExitRotation(direction: MapData.direction): number {
-        switch (direction) {
-            case "up": return 0;
-            case "down": return 180;
-            case "in": return 90;
-            case "out": return -90;
-            default: return 0;
+            const rot = marker.direction === "up" ? 0 : marker.direction === "down" ? 180 : marker.direction === "in" ? 90 : -90;
+            const vertices = computeTriangleVertices(marker.room.x, marker.room.y, triRadius, rot);
+            lines.push(this.svgPolygon(vertices, color, 'black', this.settings.lineWidth));
         }
     }
 
