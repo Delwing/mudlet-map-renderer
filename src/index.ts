@@ -2,6 +2,8 @@ export * from './Renderer';
 export { default as MapReader } from './reader/MapReader';
 export { default as PathFinder } from './PathFinder';
 export type { PathFindingAlgorithm } from './PathFinder';
+export { MapGraph } from './MapGraph';
+export type { Edge, GraphData } from './MapGraph';
 export { default as ExplorationArea } from './reader/ExplorationArea';
 export { createSettings } from "./Renderer";
 export type { Settings, RendererEventMap } from "./Renderer";

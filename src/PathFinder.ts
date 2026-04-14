@@ -1,37 +1,9 @@
 import Graph from "node-dijkstra";
 import MapReader from "./reader/MapReader";
+import {MapGraph} from "./MapGraph";
+import type {Edge} from "./MapGraph";
 
 export type PathFindingAlgorithm = 'dijkstra' | 'astar';
-
-const exitNumberToDirection: Record<number, MapData.direction> = {
-    1: "north",
-    2: "northeast",
-    3: "northwest",
-    4: "east",
-    5: "west",
-    6: "south",
-    7: "southeast",
-    8: "southwest",
-    9: "up",
-    10: "down",
-    11: "in",
-    12: "out",
-};
-
-const directionToExitWeightKey: Record<MapData.direction, string> = {
-    north: "n",
-    northeast: "ne",
-    northwest: "nw",
-    east: "e",
-    west: "w",
-    south: "s",
-    southeast: "se",
-    southwest: "sw",
-    up: "up",
-    down: "down",
-    in: "in",
-    out: "out",
-};
 
 // --- Min-heap for A* ---
 
@@ -75,11 +47,6 @@ function heapPop(heap: HeapEntry[]): HeapEntry | undefined {
 
 // --- Algorithm implementations ---
 
-interface Edge {
-    id: number;
-    weight: number;
-}
-
 function reconstructPath(cameFrom: Map<number, number>, from: number, to: number): number[] {
     const path: number[] = [to];
     let current = to;
@@ -101,18 +68,18 @@ function findPathAStar(
     adj: Map<number, Edge[]>,
     from: number,
     to: number,
-    mapReader: MapReader,
-    maxEdgeDistance: number,
-    minEdgeWeight: number,
+    mapGraph: MapGraph,
 ): number[] | null {
-    const goalRoom = mapReader.getRoom(to);
+    const goalRoom = mapGraph.getRoom(to);
     if (!goalRoom) return null;
     const goalX = goalRoom.x;
     const goalY = goalRoom.y;
     const goalZ = goalRoom.z;
+    const maxEdgeDistance = mapGraph.getMaxEdgeDistance();
+    const minEdgeWeight = mapGraph.getMinEdgeWeight();
 
     const heuristic = (roomId: number): number => {
-        const room = mapReader.getRoom(roomId);
+        const room = mapGraph.getRoom(roomId);
         if (!room) return 0;
         const dx = room.x - goalX;
         const dy = room.y - goalY;
@@ -125,10 +92,10 @@ function findPathAStar(
     const heap: HeapEntry[] = [];
 
     gScore.set(from, 0);
-    heapPush(heap, { id: from, priority: heuristic(from) });
+    heapPush(heap, {id: from, priority: heuristic(from)});
 
     while (heap.length > 0) {
-        const { id: current } = heapPop(heap)!;
+        const {id: current} = heapPop(heap)!;
         if (current === to) return reconstructPath(cameFrom, from, to);
 
         const currentG = gScore.get(current) ?? Infinity;
@@ -140,7 +107,7 @@ function findPathAStar(
             if (nextG < (gScore.get(edge.id) ?? Infinity)) {
                 gScore.set(edge.id, nextG);
                 cameFrom.set(edge.id, current);
-                heapPush(heap, { id: edge.id, priority: nextG + heuristic(edge.id) });
+                heapPush(heap, {id: edge.id, priority: nextG + heuristic(edge.id)});
             }
         }
     }
@@ -151,22 +118,15 @@ function findPathAStar(
 
 export default class PathFinder {
 
-    private readonly mapReader: MapReader;
-    private readonly adj: Map<number, Edge[]>;
-    private readonly graph: Graph;
-    private readonly maxEdgeDistance: number;
-    private readonly minEdgeWeight: number;
+    private readonly mapGraph: MapGraph;
+    private readonly dijkstraGraph: Graph;
     private _algorithm: PathFindingAlgorithm;
     private readonly cache = new Map<string, number[] | null>();
 
     constructor(mapReader: MapReader, algorithm: PathFindingAlgorithm = 'dijkstra') {
-        this.mapReader = mapReader;
         this._algorithm = algorithm;
-        const { adj, maxEdgeDistance, minEdgeWeight, graphDefinition } = this.buildGraph();
-        this.adj = adj;
-        this.graph = new Graph(graphDefinition);
-        this.maxEdgeDistance = maxEdgeDistance;
-        this.minEdgeWeight = minEdgeWeight;
+        this.mapGraph = new MapGraph(mapReader);
+        this.dijkstraGraph = new Graph(this.mapGraph.getGraphDefinition());
     }
 
     get algorithm(): PathFindingAlgorithm {
@@ -186,12 +146,12 @@ export default class PathFinder {
         }
 
         if (from === to) {
-            const result = this.mapReader.getRoom(from) ? [from] : null;
+            const result = this.mapGraph.getRoom(from) ? [from] : null;
             this.cache.set(cacheKey, result);
             return result;
         }
 
-        if (!this.mapReader.getRoom(from) || !this.mapReader.getRoom(to)) {
+        if (!this.mapGraph.getRoom(from) || !this.mapGraph.getRoom(to)) {
             this.cache.set(cacheKey, null);
             return null;
         }
@@ -199,80 +159,14 @@ export default class PathFinder {
         let result: number[] | null;
         switch (this._algorithm) {
             case 'dijkstra':
-                result = findPathDijkstra(this.graph, from, to);
+                result = findPathDijkstra(this.dijkstraGraph, from, to);
                 break;
             case 'astar':
-                result = findPathAStar(this.adj, from, to, this.mapReader, this.maxEdgeDistance, this.minEdgeWeight);
+                result = findPathAStar(this.mapGraph.getAdj(), from, to, this.mapGraph);
                 break;
         }
 
         this.cache.set(cacheKey, result);
         return result;
-    }
-
-    private resolveEdgeWeight(room: MapData.Room, exitWeightKey: string, target: MapData.Room): number {
-        const exitWeight = room.exitWeights?.[exitWeightKey];
-        if (exitWeight !== undefined && exitWeight > 0) return exitWeight;
-        return Math.max(target.weight, 1);
-    }
-
-    private buildGraph() {
-        const adj = new Map<number, Edge[]>();
-        const graphDefinition: Record<string, Record<string, number>> = {};
-        let maxEdgeDist = 1;
-        let minEdgeWeight = Infinity;
-
-        this.mapReader.getRooms().forEach(room => {
-            const edges: Edge[] = [];
-            const connections: Record<string, number> = {};
-
-            const lockedDirections = new Set(
-                (room.exitLocks ?? [])
-                    .map(lockId => exitNumberToDirection[lockId])
-                    .filter((direction): direction is MapData.direction => Boolean(direction))
-            );
-
-            const lockedSpecialTargets = new Set(room.mSpecialExitLocks ?? []);
-
-            Object.entries(room.exits ?? {}).forEach(([direction, targetRoomId]) => {
-                if (lockedDirections.has(direction as MapData.direction)) return;
-                const target = this.mapReader.getRoom(targetRoomId);
-                if (target) {
-                    const weightKey = directionToExitWeightKey[direction as MapData.direction] ?? direction;
-                    const weight = this.resolveEdgeWeight(room, weightKey, target);
-                    edges.push({ id: targetRoomId, weight });
-                    connections[targetRoomId.toString()] = weight;
-                    if (weight < minEdgeWeight) minEdgeWeight = weight;
-                    const dx = target.x - room.x;
-                    const dy = target.y - room.y;
-                    const dz = target.z - room.z;
-                    const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
-                    if (dist > maxEdgeDist) maxEdgeDist = dist;
-                }
-            });
-
-            Object.entries(room.specialExits ?? {}).forEach(([exitCommand, targetRoomId]) => {
-                if (lockedSpecialTargets.has(targetRoomId)) return;
-                const target = this.mapReader.getRoom(targetRoomId);
-                if (target) {
-                    const weight = this.resolveEdgeWeight(room, exitCommand, target);
-                    edges.push({ id: targetRoomId, weight });
-                    connections[targetRoomId.toString()] = weight;
-                    if (weight < minEdgeWeight) minEdgeWeight = weight;
-                    const dx = target.x - room.x;
-                    const dy = target.y - room.y;
-                    const dz = target.z - room.z;
-                    const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
-                    if (dist > maxEdgeDist) maxEdgeDist = dist;
-                }
-            });
-
-            adj.set(room.id, edges);
-            graphDefinition[room.id.toString()] = connections;
-        });
-
-        if (!isFinite(minEdgeWeight)) minEdgeWeight = 1;
-
-        return { adj, maxEdgeDistance: maxEdgeDist, minEdgeWeight, graphDefinition };
     }
 }
