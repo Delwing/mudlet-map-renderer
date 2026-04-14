@@ -160,7 +160,7 @@ export class MapRenderer {
     }
 
     getZoom(): number {
-        return this.backend.viewport.getZoom();
+        return this.backend.viewport.zoom;
     }
 
     getViewportBounds(): ViewportBounds {

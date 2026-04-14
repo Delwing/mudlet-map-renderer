@@ -8,6 +8,7 @@ export { MapRenderer } from './rendering/MapRenderer';
 export { MapState } from './MapState';
 export type { MapStateEventMap, HighlightEntry, PathEntry } from './MapState';
 export { KonvaRenderBackend } from './rendering/KonvaRenderBackend';
+export { Viewport } from './Viewport';
 
 // --- Core ---
 export { default as MapReader } from './reader/MapReader';

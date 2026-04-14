@@ -1,30 +1,29 @@
 import Konva from "konva";
 import type Area from "../reader/Area";
 import type Plane from "../reader/Plane";
-import type {ViewportBounds, RendererEventMap} from "../Renderer";
+import type {RendererEventMap} from "../Renderer";
 import {SceneBuilder, buildPositionMarker, buildHighlight, buildPathOverlay} from "../SceneBuilder";
 import type {SceneBuildResult, AreaExitHitZone} from "../SceneBuilder";
 import type {MapState} from "../MapState";
-import {ViewportManager} from "../ViewportManager";
-import type {ViewportCallbacks} from "../ViewportManager";
+import {Viewport} from "../Viewport";
 import {CullingManager} from "../CullingManager";
 import {InteractionHandler} from "../InteractionHandler";
 import {TypedEventEmitter} from "../TypedEventEmitter";
 import {KonvaGroupNode, KonvaLayerNode} from "../backend/KonvaBackend";
-import type {GroupNode} from "../backend/DrawingBackend";
 import ExplorationArea from "../reader/ExplorationArea";
 
 const currentRoomColor = 'rgb(120, 72, 0)';
 
 /**
  * Konva rendering engine. Owns the full rendering pipeline:
- * stage, layers, scene builder, viewport, culling, overlays.
+ * stage, layers, scene builder, culling, overlays.
+ *
+ * Viewport is the source of truth for transform state.
+ * This backend subscribes to viewport.onChange and applies state to the Konva stage.
  *
  * Works identically in both modes:
- * - DOM container → stage attached to DOM, InteractionHandler for mouse/touch
- * - No container → headless stage, same viewport/culling, no mouse/touch
- *
- * Subscribes to MapState events and auto-syncs the Konva scene graph.
+ * - DOM container → stage attached to DOM, mouse/touch → viewport
+ * - No container → headless stage, same viewport/culling, no input
  */
 export class KonvaRenderBackend {
     readonly stage: Konva.Stage;
@@ -34,7 +33,7 @@ export class KonvaRenderBackend {
     readonly overlayLayer: Konva.Layer;
     readonly positionLayer: Konva.Layer;
 
-    readonly viewport: ViewportManager;
+    readonly viewport: Viewport;
     readonly culling: CullingManager;
     readonly events: TypedEventEmitter<RendererEventMap>;
 
@@ -58,11 +57,13 @@ export class KonvaRenderBackend {
                 container,
                 width: container.clientWidth,
                 height: container.clientHeight,
-                draggable: true,
+                draggable: false,
             });
             container.style.backgroundColor = state.settings.backgroundColor;
+            this.viewport = new Viewport(container.clientWidth, container.clientHeight);
         } else {
             this.stage = new Konva.Stage({width: 1, height: 1});
+            this.viewport = new Viewport(1, 1);
         }
 
         this.gridLayer = new Konva.Layer({listening: false});
@@ -84,21 +85,6 @@ export class KonvaRenderBackend {
 
         this.events = new TypedEventEmitter<RendererEventMap>(container);
 
-        const viewportCallbacks: ViewportCallbacks = {
-            scheduleCulling: () => this.culling.scheduleCulling(),
-            onResize: () => {
-                if (state.positionRoomId) {
-                    const room = state.mapReader.getRoom(state.positionRoomId);
-                    if (room) this.viewport.panToMapPoint(room.x, room.y, false);
-                }
-            },
-        };
-
-        this.viewport = new ViewportManager(
-            this.stage, container, state.settings,
-            viewportCallbacks, this.events,
-        );
-
         this.culling = new CullingManager(
             this.stage,
             new KonvaLayerNode(this.roomLayer),
@@ -108,15 +94,18 @@ export class KonvaRenderBackend {
             this.viewport,
         );
 
+        // Viewport drives the stage
+        this.viewport.onChange = () => this.applyViewportToStage();
+
         if (container) {
+            this.initInputEvents(container);
             new InteractionHandler(this.stage, container, state.settings, {
-                clientToMapPoint: (cx, cy) => this.viewport.clientToMapPoint(cx, cy),
+                clientToMapPoint: (cx, cy) => this.viewport.clientToMapPoint(cx, cy, container.getBoundingClientRect()),
                 findRoomAtPoint: (mx, my) => this.culling.findRoomAtMapPoint(mx, my),
                 getAreaExitHitZones: () => this.areaExitHitZones,
             }, this.events);
         }
 
-        // Subscribe to state events
         this.subscribeToState(state);
     }
 
@@ -142,12 +131,179 @@ export class KonvaRenderBackend {
         }
     }
 
-    /**
-     * Capture the current scene to a canvas at the given dimensions.
-     * Temporarily reframes the existing stage viewport to fit the requested
-     * area/room, captures, then restores the original viewport state.
-     * No throwaway stage — uses the live scene graph.
-     */
+    // --- Viewport → Stage (one-way, called from onChange) ---
+
+    private applyViewportToStage() {
+        const scale = this.viewport.getScale();
+        this.stage.scale({x: scale, y: scale});
+        this.stage.position(this.viewport.position);
+        this.stage.batchDraw();
+        this.culling.scheduleCulling();
+    }
+
+    // --- Input event wiring (interactive mode only) ---
+
+    private initInputEvents(container: HTMLDivElement) {
+        const scaleBy = 1.1;
+
+        // --- Resize ---
+        const handleResize = () => {
+            this.viewport.setSize(container.clientWidth, container.clientHeight);
+            this.stage.width(container.clientWidth);
+            this.stage.height(container.clientHeight);
+            if (this.viewport.centerOnResize && this.state.positionRoomId) {
+                const room = this.state.mapReader.getRoom(this.state.positionRoomId);
+                if (room) this.viewport.panToMapPoint(room.x, room.y);
+            }
+        };
+
+        if (typeof window !== 'undefined') {
+            window.addEventListener('resize', handleResize);
+        }
+        container.addEventListener('resize', handleResize);
+
+        // --- Drag (pointer events on container → Viewport) ---
+        let pointerDown = false;
+        let pointerId: number | undefined;
+
+        container.addEventListener('pointerdown', (e) => {
+            // Only drag with left button, ignore if multi-touch is active
+            if (e.button !== 0 || e.pointerType === 'touch') return;
+            pointerDown = true;
+            pointerId = e.pointerId;
+            container.setPointerCapture(e.pointerId);
+            const rect = container.getBoundingClientRect();
+            this.viewport.startDrag(e.clientX - rect.left, e.clientY - rect.top);
+        });
+
+        container.addEventListener('pointermove', (e) => {
+            if (!pointerDown || e.pointerId !== pointerId) return;
+            const rect = container.getBoundingClientRect();
+            this.viewport.updateDrag(e.clientX - rect.left, e.clientY - rect.top);
+        });
+
+        container.addEventListener('pointerup', (e) => {
+            if (e.pointerId !== pointerId) return;
+            pointerDown = false;
+            pointerId = undefined;
+            this.viewport.endDrag();
+            this.events.emit('pan', this.viewport.getViewportBounds());
+        });
+
+        container.addEventListener('pointercancel', (e) => {
+            if (e.pointerId !== pointerId) return;
+            pointerDown = false;
+            pointerId = undefined;
+            this.viewport.endDrag();
+        });
+
+        // --- Touch drag (single finger) ---
+        let touchDragId: number | undefined;
+
+        container.addEventListener('touchstart', (e) => {
+            if (e.touches.length === 1) {
+                const touch = e.touches[0];
+                touchDragId = touch.identifier;
+                const rect = container.getBoundingClientRect();
+                this.viewport.startDrag(touch.clientX - rect.left, touch.clientY - rect.top);
+            } else {
+                // Multi-touch: end drag, start pinch
+                if (this.viewport.isDragging()) this.viewport.endDrag();
+                touchDragId = undefined;
+            }
+        }, {passive: true});
+
+        container.addEventListener('touchmove', (e) => {
+            const touches = e.touches;
+
+            // --- Pinch zoom (two fingers) ---
+            if (touches.length >= 2) {
+                e.preventDefault();
+                if (this.viewport.isDragging()) this.viewport.endDrag();
+                touchDragId = undefined;
+
+                const rect = container.getBoundingClientRect();
+                const p1 = {x: touches[0].clientX - rect.left, y: touches[0].clientY - rect.top};
+                const p2 = {x: touches[1].clientX - rect.left, y: touches[1].clientY - rect.top};
+                this.handlePinch(p1, p2);
+                return;
+            }
+
+            // --- Single finger drag ---
+            if (touches.length === 1 && touchDragId === touches[0].identifier) {
+                const touch = touches[0];
+                const rect = container.getBoundingClientRect();
+                this.viewport.updateDrag(touch.clientX - rect.left, touch.clientY - rect.top);
+            }
+        });
+
+        container.addEventListener('touchend', (e) => {
+            this.lastPinchDistance = undefined;
+            if (e.touches.length === 0) {
+                if (this.viewport.isDragging()) {
+                    this.viewport.endDrag();
+                    this.events.emit('pan', this.viewport.getViewportBounds());
+                }
+                touchDragId = undefined;
+            } else if (e.touches.length === 1) {
+                // Went from multi to single: start fresh drag
+                const touch = e.touches[0];
+                touchDragId = touch.identifier;
+                const rect = container.getBoundingClientRect();
+                this.viewport.startDrag(touch.clientX - rect.left, touch.clientY - rect.top);
+            }
+        }, {passive: true});
+
+        container.addEventListener('touchcancel', () => {
+            this.lastPinchDistance = undefined;
+            if (this.viewport.isDragging()) this.viewport.endDrag();
+            touchDragId = undefined;
+        }, {passive: true});
+
+        // --- Wheel zoom ---
+        container.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const rect = container.getBoundingClientRect();
+            const screenX = e.clientX - rect.left;
+            const screenY = e.clientY - rect.top;
+
+            let direction = e.deltaY > 0 ? -1 : 1;
+            if (e.ctrlKey) direction = -direction;
+
+            const newZoom = direction > 0 ? this.viewport.zoom * scaleBy : this.viewport.zoom / scaleBy;
+            if (this.viewport.zoomToPoint(newZoom, screenX, screenY)) {
+                this.events.emit('zoom', {zoom: this.viewport.zoom});
+                this.events.emit('pan', this.viewport.getViewportBounds());
+            }
+        }, {passive: false});
+    }
+
+    // --- Pinch zoom state ---
+
+    private lastPinchDistance?: number;
+
+    private handlePinch(p1: {x: number; y: number}, p2: {x: number; y: number}) {
+        const distance = Math.hypot(p1.x - p2.x, p1.y - p2.y);
+
+        if (this.lastPinchDistance === undefined || this.lastPinchDistance === 0 || distance === 0) {
+            this.lastPinchDistance = distance;
+            return;
+        }
+
+        const centerX = (p1.x + p2.x) / 2;
+        const centerY = (p1.y + p2.y) / 2;
+        const newZoom = this.viewport.zoom * (distance / this.lastPinchDistance);
+
+        if (this.viewport.zoomToPoint(newZoom, centerX, centerY)) {
+            this.events.emit('zoom', {zoom: this.viewport.zoom});
+            this.events.emit('pan', this.viewport.getViewportBounds());
+        }
+
+        this.lastPinchDistance = distance;
+    }
+
+    // --- Canvas export ---
+
     toCanvas(options: {
         width: number;
         height: number;
@@ -164,18 +320,18 @@ export class KonvaRenderBackend {
         const {width, height} = options;
         const padding = options.padding ?? 3;
 
-        // Save current stage state
-        const savedWidth = this.stage.width();
-        const savedHeight = this.stage.height();
-        const savedScaleX = this.stage.scaleX();
-        const savedScaleY = this.stage.scaleY();
-        const savedPos = this.stage.position();
+        // Save current viewport state
+        const savedWidth = this.viewport.width;
+        const savedHeight = this.viewport.height;
+        const savedZoom = this.viewport.zoom;
+        const savedMinZoom = this.viewport.minZoom;
+        const savedPos = {...this.viewport.position};
 
-        // Resize stage to export dimensions
-        this.stage.width(width);
-        this.stage.height(height);
+        // Suppress onChange during export framing
+        const savedOnChange = this.viewport.onChange;
+        this.viewport.onChange = undefined;
 
-        // Compute bounds and frame the viewport
+        // Frame for export
         const bounds = this.computeExportBounds(area, plane, options.roomId, padding);
         const scaleX = width / bounds.w;
         const scaleY = height / bounds.h;
@@ -185,15 +341,16 @@ export class KonvaRenderBackend {
         const offsetX = (width - mapPixelW) / 2;
         const offsetY = (height - mapPixelH) / 2;
 
+        this.viewport.width = width;
+        this.viewport.height = height;
+        this.stage.width(width);
+        this.stage.height(height);
         this.stage.scale({x: scale, y: scale});
         this.stage.position({x: offsetX - bounds.x * scale, y: offsetY - bounds.y * scale});
 
-        // Update culling + grid for the new viewport
         this.culling.updateCulling();
 
-        // Add temporary background layer behind everything.
-        // The stage has scale+position transforms, so the bg layer must
-        // counter them to fill the entire canvas in screen coordinates.
+        // Temporary background layer
         const bgLayer = new Konva.Layer({listening: false});
         bgLayer.scale({x: 1 / scale, y: 1 / scale});
         bgLayer.position({x: -(offsetX - bounds.x * scale) / scale, y: -(offsetY - bounds.y * scale) / scale});
@@ -201,15 +358,20 @@ export class KonvaRenderBackend {
         this.stage.add(bgLayer);
         bgLayer.moveToBottom();
 
-        // Capture
         const canvas = this.stage.toCanvas({width, height});
 
-        // Cleanup: remove background, restore state
+        // Restore
         bgLayer.destroy();
+        this.viewport.width = savedWidth;
+        this.viewport.height = savedHeight;
+        this.viewport.zoom = savedZoom;
+        this.viewport.minZoom = savedMinZoom;
+        this.viewport.position = savedPos;
+        this.viewport.onChange = savedOnChange;
+
         this.stage.width(savedWidth);
         this.stage.height(savedHeight);
-        this.stage.scale({x: savedScaleX, y: savedScaleY});
-        this.stage.position(savedPos);
+        this.applyViewportToStage();
         this.culling.updateCulling();
 
         return canvas;
@@ -217,10 +379,6 @@ export class KonvaRenderBackend {
 
     // --- State event handlers ---
 
-    /**
-     * Re-render the current state from scratch.
-     * Rebuilds scene, culling, highlights, and position overlay.
-     */
     refresh() {
         const {currentAreaInstance, currentZIndex, positionRoomId} = this.state;
         if (!currentAreaInstance || currentZIndex === undefined) return;
@@ -245,7 +403,10 @@ export class KonvaRenderBackend {
 
         state.events.on('center', ({roomId, instant}) => {
             const room = state.mapReader.getRoom(roomId);
-            if (room) this.viewport.panToMapPoint(room.x, room.y, instant);
+            if (room) {
+                this.viewport.panToMapPointAnimated(room.x, room.y,
+                    instant || this.state.settings.instantMapMove);
+            }
         });
 
         state.events.on('highlight', ({roomId, color}) => {
@@ -263,7 +424,7 @@ export class KonvaRenderBackend {
 
     // --- Scene lifecycle ---
 
-    private buildScene(area: Area, plane: Plane, zIndex: number, viewportBounds?: ViewportBounds): SceneBuildResult {
+    private buildScene(area: Area, plane: Plane, zIndex: number, viewportBounds?: import("../Renderer").ViewportBounds): SceneBuildResult {
         this.positionLayer.destroyChildren();
         this.positionMarker = undefined;
         this.clearOverlayShapes();
@@ -279,7 +440,9 @@ export class KonvaRenderBackend {
         this.areaExitHitZones = [];
         this.culling.computeBucketSize();
 
-        this.viewport.applyScale();
+        // Apply current viewport scale to stage
+        const scale = this.viewport.getScale();
+        this.stage.scale({x: scale, y: scale});
 
         for (const [, entry] of result.roomNodes) {
             this.culling.roomNodes.set(entry.room.id, entry);
@@ -315,7 +478,8 @@ export class KonvaRenderBackend {
         if (!room) return;
 
         if (center) {
-            this.viewport.panToMapPoint(room.x, room.y, instant);
+            this.viewport.panToMapPointAnimated(room.x, room.y,
+                instant || this.state.settings.instantMapMove);
         }
 
         this.updateCurrentRoomOverlay(room);

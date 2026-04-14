@@ -1,7 +1,7 @@
 import type {ExitDrawData} from "./ExitRenderer";
 import type {Settings, CullingMode, PerfSnapshot} from "./Renderer";
 import type {GridRenderer} from "./GridRenderer";
-import type {ViewportManager} from "./ViewportManager";
+import type {Viewport} from "./Viewport";
 import type {GroupNode, LayerNode} from "./backend/DrawingBackend";
 
 export type RoomNodeEntry = { room: MapData.Room; group: GroupNode };
@@ -81,7 +81,7 @@ export class CullingManager {
     private readonly linkLayer: LayerNode;
     private readonly settings: Settings;
     private readonly gridRenderer: GridRenderer;
-    private readonly viewport: ViewportManager;
+    private readonly viewport: Viewport;
 
     // Node collections (owned by Renderer, shared by reference)
     roomNodes: Map<number, RoomNodeEntry> = new Map();
@@ -108,7 +108,7 @@ export class CullingManager {
         linkLayer: LayerNode,
         settings: Settings,
         gridRenderer: GridRenderer,
-        viewport: ViewportManager,
+        viewport: Viewport,
     ) {
         this.stageInfo = stageInfo;
         this.roomLayer = roomLayer;
