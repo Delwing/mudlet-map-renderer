@@ -1,4 +1,4 @@
-import {Renderer, createSettings, PathFinder} from "@src";
+import {MapRenderer, createSettings, PathFinder} from "@src";
 import type {Settings} from "@src";
 import MapReader from "@src/reader/MapReader";
 import {initControls, initPerfMonitor} from "./controls";
@@ -32,7 +32,7 @@ const mapDataUrl = new URL("./mapExport.json", import.meta.url).href;
 const colorDataUrl = new URL("./colors.json", import.meta.url).href;
 
 let mapReader!: MapReader;
-let renderer!: Renderer;
+let renderer!: MapRenderer;
 let pathFinder!: PathFinder;
 const settings: Settings = createSettings();
 let currentRoomId!: number;
@@ -168,7 +168,7 @@ async function initialize() {
     }
 
     pathFinder = new PathFinder(mapReader);
-    renderer = new Renderer(stageElement, mapReader, settings);
+    renderer = new MapRenderer(mapReader, settings, stageElement);
 
     // Controls & perf
     const {explorationToggle} = initControls(settings, renderer, () => currentRoomId, pathFinder, updateDestinationGuidance, (color) => {

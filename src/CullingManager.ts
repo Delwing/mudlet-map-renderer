@@ -231,10 +231,15 @@ export class CullingManager {
     scheduleCulling() {
         if (this.cullingScheduled) return;
         this.cullingScheduled = true;
-        window.requestAnimationFrame(() => {
+        const cb = () => {
             this.cullingScheduled = false;
             this.updateCulling();
-        });
+        };
+        if (typeof requestAnimationFrame !== 'undefined') {
+            requestAnimationFrame(cb);
+        } else {
+            cb();
+        }
     }
 
     updateCulling() {

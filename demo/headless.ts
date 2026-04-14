@@ -1,10 +1,9 @@
+import "konva/canvas-backend";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-import { HeadlessRenderer } from "@src";
-import { createSettings } from "@src";
-import MapReader from "../src/reader/MapReader";
-import PathFinder from "../src/PathFinder";
+import { MapRenderer, createSettings, PathFinder } from "@src";
+import MapReader from "@src/reader/MapReader";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -174,6 +173,7 @@ async function main() {
     const mapReader = new MapReader(mapData, colorData);
     const settings = createSettings();
     settings.areaName = true;
+    settings.highlightCurrentRoom = false;
     settings.frameMode = args.frameMode;
     settings.emboss = args.emboss;
     settings.roomShape = args.roomShape;
@@ -181,7 +181,7 @@ async function main() {
     settings.labelRenderMode = args.labelMode;
     if (args.bgColor) settings.backgroundColor = args.bgColor;
     if (args.lineColor) settings.lineColor = args.lineColor;
-    const renderer = new HeadlessRenderer(mapReader, settings);
+    const renderer = new MapRenderer(mapReader, settings);
 
     // Determine area and z from --room or --area/--z
     let areaId = args.area;

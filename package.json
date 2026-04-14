@@ -21,7 +21,7 @@
     "demo:dev": "vite --config vite.demo.config.ts",
     "demo:build": "vite build --config vite.demo.config.ts",
     "demo:preview": "vite preview --config vite.demo.config.ts",
-    "demo:headless": "tsx demo/headless.ts",
+    "demo:headless": "tsx --tsconfig demo/tsconfig.json demo/headless.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:visual": "playwright test",

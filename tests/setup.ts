@@ -1,3 +1,4 @@
+import 'konva/canvas-backend';
 import { vi } from 'vitest';
 
 vi.mock('../src/utils/textMeasure', () => ({

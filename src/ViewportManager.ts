@@ -12,7 +12,7 @@ export type ViewportCallbacks = {
 export class ViewportManager {
 
     private readonly stage: Konva.Stage;
-    private readonly container: HTMLDivElement;
+    private readonly container?: HTMLDivElement;
     private readonly settings: Settings;
     private readonly events: TypedEventEmitter<RendererEventMap>;
     private readonly callbacks: ViewportCallbacks;
@@ -27,7 +27,7 @@ export class ViewportManager {
 
     constructor(
         stage: Konva.Stage,
-        container: HTMLDivElement,
+        container: HTMLDivElement | undefined,
         settings: Settings,
         callbacks: ViewportCallbacks,
         events: TypedEventEmitter<RendererEventMap>,
@@ -38,10 +38,14 @@ export class ViewportManager {
         this.callbacks = callbacks;
         this.events = events;
 
-        this.initScaling(1.1);
+        if (container) {
+            this.initScaling(1.1);
 
-        window.addEventListener('resize', () => this.handleResize());
-        container.addEventListener('resize', () => this.handleResize());
+            if (typeof window !== 'undefined') {
+                window.addEventListener('resize', () => this.handleResize());
+            }
+            container.addEventListener('resize', () => this.handleResize());
+        }
 
         this.stage.on('dragmove', () => {
             this.callbacks.scheduleCulling();
@@ -54,6 +58,7 @@ export class ViewportManager {
     }
 
     private handleResize() {
+        if (!this.container) return;
         this.stage.width(this.container.clientWidth);
         this.stage.height(this.container.clientHeight);
         if (this.centerOnResize) {
@@ -135,9 +140,9 @@ export class ViewportManager {
     }
 
     clientToMapPoint(clientX: number, clientY: number) {
-        const rect = this.container.getBoundingClientRect();
-        const stageX = clientX - rect.left;
-        const stageY = clientY - rect.top;
+        const rect = this.container?.getBoundingClientRect();
+        const stageX = clientX - (rect?.left ?? 0);
+        const stageY = clientY - (rect?.top ?? 0);
         const scale = this.stage.scaleX();
         if (!scale) return null;
         const pos = this.stage.position();
@@ -342,7 +347,7 @@ export class ViewportManager {
                 this.stage.draggable(false);
             }
 
-            const rect = this.container.getBoundingClientRect();
+            const rect = this.container!.getBoundingClientRect();
             const p1 = {
                 x: touch1.clientX - rect.left,
                 y: touch1.clientY - rect.top,

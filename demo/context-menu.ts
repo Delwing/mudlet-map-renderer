@@ -1,10 +1,10 @@
-import {Renderer} from "@src";
+import {MapRenderer} from "@src";
 import type {RoomContextMenuEventDetail, RoomClickEventDetail} from "@src";
 import MapReader from "@src/reader/MapReader";
 
 export function initContextMenu(
     stageElement: HTMLDivElement,
-    renderer: Renderer,
+    renderer: MapRenderer,
     mapReader: MapReader,
     moveToRoom: (room: MapData.Room) => void,
     updateRoomStatus: (msg: string) => void,

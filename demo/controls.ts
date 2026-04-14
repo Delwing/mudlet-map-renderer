@@ -1,4 +1,4 @@
-import {Renderer, CullingMode, RoomShape, PathFinder} from "@src";
+import {MapRenderer, CullingMode, RoomShape, PathFinder} from "@src";
 import type {Settings, LabelRenderMode, PerfSnapshot, PathFindingAlgorithm} from "@src";
 
 function rgbToHex(rgb: string): string {
@@ -19,7 +19,7 @@ function describeCullingMode(mode: CullingMode) {
     }
 }
 
-export function initControls(settings: Settings, renderer: Renderer, getCurrentRoomId: () => number, pathFinder?: PathFinder, onAlgorithmChange?: () => void, onPathColorChange?: (color: string) => void) {
+export function initControls(settings: Settings, renderer: MapRenderer, getCurrentRoomId: () => number, pathFinder?: PathFinder, onAlgorithmChange?: () => void, onPathColorChange?: (color: string) => void) {
     const explorationToggle = document.getElementById("exploration-toggle") as HTMLInputElement | null;
     const instantMoveToggle = document.getElementById("instant-move-toggle") as HTMLInputElement | null;
     const highlightToggle = document.getElementById("highlight-toggle") as HTMLInputElement | null;
