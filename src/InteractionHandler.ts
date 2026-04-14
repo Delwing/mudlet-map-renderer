@@ -1,10 +1,6 @@
 import Konva from "konva";
-import type {
-    Settings,
-    RoomClickEventDetail,
-    RoomContextMenuEventDetail,
-    AreaExitClickEventDetail,
-} from "./Renderer";
+import type {Settings, RendererEventMap} from "./Renderer";
+import type {TypedEventEmitter} from "./TypedEventEmitter";
 
 type Bounds = { x: number; y: number; width: number; height: number };
 type AreaExitHitZone = { bounds: Bounds; targetRoomId: number };
@@ -25,17 +21,20 @@ export class InteractionHandler {
     private readonly container: HTMLDivElement;
     private readonly settings: Settings;
     private readonly hitTest: HitTestCallbacks;
+    private readonly events: TypedEventEmitter<RendererEventMap>;
 
     constructor(
         stage: Konva.Stage,
         container: HTMLDivElement,
         settings: Settings,
         hitTest: HitTestCallbacks,
+        events: TypedEventEmitter<RendererEventMap>,
     ) {
         this.stage = stage;
         this.container = container;
         this.settings = settings;
         this.hitTest = hitTest;
+        this.events = events;
         this.init();
     }
 
@@ -61,33 +60,30 @@ export class InteractionHandler {
 
     private emitRoomClickEvent(roomId: number, clientX: number, clientY: number) {
         const bounds = this.container.getBoundingClientRect();
-        const detail: RoomClickEventDetail = {
+        this.events.emit('roomclick', {
             roomId,
             position: { x: clientX - bounds.left, y: clientY - bounds.top },
-        };
-        this.container.dispatchEvent(new CustomEvent<RoomClickEventDetail>('roomclick', {detail}));
+        });
     }
 
     private emitRoomContextEvent(roomId: number, clientX: number, clientY: number) {
         const bounds = this.container.getBoundingClientRect();
-        const detail: RoomContextMenuEventDetail = {
+        this.events.emit('roomcontextmenu', {
             roomId,
             position: { x: clientX - bounds.left, y: clientY - bounds.top },
-        };
-        this.container.dispatchEvent(new CustomEvent<RoomContextMenuEventDetail>('roomcontextmenu', {detail}));
+        });
     }
 
     private emitAreaExitClickEvent(targetRoomId: number, clientX: number, clientY: number) {
         const bounds = this.container.getBoundingClientRect();
-        const detail: AreaExitClickEventDetail = {
+        this.events.emit('areaexitclick', {
             targetRoomId,
             position: { x: clientX - bounds.left, y: clientY - bounds.top },
-        };
-        this.container.dispatchEvent(new CustomEvent<AreaExitClickEventDetail>('areaexitclick', {detail}));
+        });
     }
 
     private emitMapClickEvent() {
-        this.container.dispatchEvent(new CustomEvent('mapclick'));
+        this.events.emit('mapclick', undefined);
     }
 
     private init() {

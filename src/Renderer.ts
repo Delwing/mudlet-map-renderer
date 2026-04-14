@@ -16,6 +16,7 @@ import {GridRenderer} from "./GridRenderer";
 import {InteractionHandler} from "./InteractionHandler";
 import {CullingManager} from "./CullingManager";
 import type {RoomNodeEntry, StandaloneExitEntry} from "./CullingManager";
+import {TypedEventEmitter} from "./TypedEventEmitter";
 
 const defaultRoomSize = 0.6;
 const defaultLineWidth = 0.025;
@@ -114,6 +115,15 @@ export type ViewportBounds = {
 };
 
 export type PanEventDetail = ViewportBounds;
+
+export type RendererEventMap = {
+    roomclick: RoomClickEventDetail;
+    roomcontextmenu: RoomContextMenuEventDetail;
+    areaexitclick: AreaExitClickEventDetail;
+    mapclick: undefined;
+    pan: PanEventDetail;
+    zoom: ZoomChangeEventDetail;
+};
 
 /**
  * Style configuration for the player position marker.
@@ -287,6 +297,7 @@ type AreaExitHitZone = { bounds: { x: number; y: number; width: number; height: 
 
 export class Renderer implements MapRenderer {
 
+    private readonly events: TypedEventEmitter<RendererEventMap>;
     private readonly stage: Konva.Stage;
     private readonly gridLayer: Konva.Layer;
     private readonly roomLayer: Konva.Layer;
@@ -315,6 +326,7 @@ export class Renderer implements MapRenderer {
 
     constructor(container: HTMLDivElement, mapReader: MapReader, settings?: Settings) {
         this.settings = settings ?? createSettings();
+        this.events = new TypedEventEmitter<RendererEventMap>(container);
         this.stage = new Konva.Stage({
             container: container,
             width: container.clientWidth,
@@ -346,7 +358,7 @@ export class Renderer implements MapRenderer {
                     if (room) this.viewport.panToMapPoint(room.x, room.y, false);
                 }
             },
-        });
+        }, this.events);
 
         this.culling = new CullingManager(
             this.stage, this.roomLayer, this.linkLayer,
@@ -357,7 +369,7 @@ export class Renderer implements MapRenderer {
             clientToMapPoint: (cx, cy) => this.viewport.clientToMapPoint(cx, cy),
             findRoomAtPoint: (mx, my) => this.culling.findRoomAtMapPoint(mx, my),
             getAreaExitHitZones: () => this.areaExitHitZones,
-        });
+        }, this.events);
     }
 
 
@@ -504,6 +516,18 @@ export class Renderer implements MapRenderer {
 
     set minZoom(value: number) {
         this.viewport.minZoom = value;
+    }
+
+    /**
+     * Subscribe to a typed renderer event.
+     * Also works alongside legacy container.addEventListener() for backwards compat.
+     */
+    on<K extends keyof RendererEventMap>(event: K, handler: (detail: RendererEventMap[K]) => void): void {
+        this.events.on(event, handler);
+    }
+
+    off<K extends keyof RendererEventMap>(event: K, handler: (detail: RendererEventMap[K]) => void): void {
+        this.events.off(event, handler);
     }
 
     setCullingMode(mode: CullingMode) {

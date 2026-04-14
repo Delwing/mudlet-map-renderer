@@ -1,5 +1,6 @@
 import Konva from "konva";
-import type {Settings, ViewportBounds, ZoomChangeEventDetail, PanEventDetail} from "./Renderer";
+import type {Settings, ViewportBounds, RendererEventMap} from "./Renderer";
+import type {TypedEventEmitter} from "./TypedEventEmitter";
 
 const defaultZoom = 75;
 
@@ -13,6 +14,7 @@ export class ViewportManager {
     private readonly stage: Konva.Stage;
     private readonly container: HTMLDivElement;
     private readonly settings: Settings;
+    private readonly events: TypedEventEmitter<RendererEventMap>;
     private readonly callbacks: ViewportCallbacks;
 
     private currentZoom: number = 1;
@@ -28,11 +30,13 @@ export class ViewportManager {
         container: HTMLDivElement,
         settings: Settings,
         callbacks: ViewportCallbacks,
+        events: TypedEventEmitter<RendererEventMap>,
     ) {
         this.stage = stage;
         this.container = container;
         this.settings = settings;
         this.callbacks = callbacks;
+        this.events = events;
 
         this.initScaling(1.1);
 
@@ -231,17 +235,11 @@ export class ViewportManager {
     }
 
     emitPanEvent() {
-        const event = new CustomEvent<PanEventDetail>('pan', {
-            detail: this.getViewportBounds(),
-        });
-        this.container.dispatchEvent(event);
+        this.events.emit('pan', this.getViewportBounds());
     }
 
     emitZoomChangeEvent() {
-        const event = new CustomEvent<ZoomChangeEventDetail>('zoom', {
-            detail: {zoom: this.currentZoom},
-        });
-        this.container.dispatchEvent(event);
+        this.events.emit('zoom', {zoom: this.currentZoom});
     }
 
     private initScaling(scaleBy: number) {
