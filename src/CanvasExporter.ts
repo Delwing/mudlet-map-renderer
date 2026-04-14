@@ -2,15 +2,15 @@ import MapReader from "./reader/MapReader";
 import Area from "./reader/Area";
 import Plane from "./reader/Plane";
 import ExitRenderer from "./ExitRenderer";
-import type {ExitDrawData} from "./ExitRenderer";
 import type {Settings} from "./Renderer";
-import {computePathData} from "./PathData";
 import {measureTextBaselineOffset} from "./utils/textMeasure";
 import {computeRoomColors, computeEmboss} from "./scene/RoomStyle";
-import {computeInnerExits, computeTriangleVertices} from "./scene/InnerExitStyle";
+import {computeInnerExits} from "./scene/InnerExitStyle";
 import {computeStubs} from "./scene/StubStyle";
 import {computeSpecialExits} from "./scene/SpecialExitStyle";
 import {drawExitDataToCanvas} from "./scene/ExitDataRenderer";
+import {computeGrid} from "./scene/GridStyle";
+import {computeHighlight, computePositionMarker, computePathOverlay} from "./scene/OverlayStyle";
 
 export type CanvasExportOverlays = {
     position?: { roomId: number };
@@ -173,29 +173,14 @@ export class CanvasExporter {
     // --- Grid ---
 
     private renderGrid(ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D, bounds: { x: number; y: number; w: number; h: number }) {
-        const gs = this.settings.gridSize;
-        const left = Math.floor(bounds.x / gs) * gs;
-        const right = Math.ceil((bounds.x + bounds.w) / gs) * gs;
-        const top = Math.floor(bounds.y / gs) * gs;
-        const bottom = Math.ceil((bounds.y + bounds.h) / gs) * gs;
-
-        ctx.strokeStyle = this.settings.gridColor;
-        ctx.lineWidth = this.settings.gridLineWidth;
+        const grid = computeGrid(this.settings, bounds);
+        ctx.strokeStyle = grid.stroke;
+        ctx.lineWidth = grid.strokeWidth;
         ctx.setLineDash([]);
-
-        // Vertical lines
-        for (let x = left; x <= right; x += gs) {
+        for (const l of grid.lines) {
             ctx.beginPath();
-            ctx.moveTo(x, top);
-            ctx.lineTo(x, bottom);
-            ctx.stroke();
-        }
-
-        // Horizontal lines
-        for (let y = top; y <= bottom; y += gs) {
-            ctx.beginPath();
-            ctx.moveTo(left, y);
-            ctx.lineTo(right, y);
+            ctx.moveTo(l.x1, l.y1);
+            ctx.lineTo(l.x2, l.y2);
             ctx.stroke();
         }
     }
@@ -393,8 +378,7 @@ export class CanvasExporter {
     // --- Overlay: Paths ---
 
     private renderPathOverlay(ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D, locations: number[], color: string, areaId: number, zIndex: number) {
-        const result = computePathData(this.mapReader, this.settings, locations, areaId, zIndex);
-        const lw = this.settings.lineWidth;
+        const data = computePathOverlay(this.mapReader, this.settings, locations, color, areaId, zIndex);
 
         ctx.save();
         ctx.globalAlpha = 0.8;
@@ -402,32 +386,24 @@ export class CanvasExporter {
         ctx.lineJoin = 'round';
         ctx.setLineDash([]);
 
-        const drawSegment = (points: number[]) => {
-            if (points.length < 4) return;
-            // Black outline
+        for (const seg of data.segments) {
+            const pts = seg.points;
             ctx.beginPath();
-            ctx.moveTo(points[0], points[1]);
-            for (let i = 2; i < points.length; i += 2) ctx.lineTo(points[i], points[i + 1]);
+            ctx.moveTo(pts[0], pts[1]);
+            for (let i = 2; i < pts.length; i += 2) ctx.lineTo(pts[i], pts[i + 1]);
             ctx.strokeStyle = 'black';
-            ctx.lineWidth = lw * 8;
+            ctx.lineWidth = data.outlineWidth;
             ctx.stroke();
-            // Colored line
             ctx.beginPath();
-            ctx.moveTo(points[0], points[1]);
-            for (let i = 2; i < points.length; i += 2) ctx.lineTo(points[i], points[i + 1]);
-            ctx.strokeStyle = color;
-            ctx.lineWidth = lw * 4;
+            ctx.moveTo(pts[0], pts[1]);
+            for (let i = 2; i < pts.length; i += 2) ctx.lineTo(pts[i], pts[i + 1]);
+            ctx.strokeStyle = data.color;
+            ctx.lineWidth = data.lineWidth;
             ctx.stroke();
-        };
+        }
 
-        for (const segment of result.segments) drawSegment(segment.points);
-        for (const cl of result.customLines) drawSegment(cl.points);
-
-        const triRadius = this.settings.roomSize / 5;
-        for (const marker of result.innerMarkers) {
-            const rot = marker.direction === "up" ? 0 : marker.direction === "down" ? 180 : marker.direction === "in" ? 90 : -90;
-            const vertices = computeTriangleVertices(marker.room.x, marker.room.y, triRadius, rot);
-            this.drawPolygon(ctx, vertices, color, 'black', this.settings.lineWidth);
+        for (const tri of data.triangles) {
+            this.drawPolygon(ctx, tri.vertices, data.color, 'black', this.settings.lineWidth);
         }
 
         ctx.restore();
@@ -438,20 +414,18 @@ export class CanvasExporter {
     private renderHighlightOverlay(ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D, roomId: number, color: string) {
         const room = this.mapReader.getRoom(roomId);
         if (!room) return;
-        const factor = 1.5;
-        const rs = this.settings.roomSize;
+        const hl = computeHighlight(room, color, this.settings);
 
-        ctx.strokeStyle = color;
-        ctx.lineWidth = 0.1;
-        ctx.setLineDash([0.05, 0.05]);
+        ctx.strokeStyle = hl.stroke;
+        ctx.lineWidth = hl.strokeWidth;
+        ctx.setLineDash(hl.dash);
 
-        if (this.settings.roomShape === "circle") {
+        if (hl.shape === 'circle') {
             ctx.beginPath();
-            ctx.arc(room.x, room.y, rs / 2 * factor, 0, Math.PI * 2);
+            ctx.arc(hl.cx, hl.cy, hl.size, 0, Math.PI * 2);
             ctx.stroke();
         } else {
-            const sz = rs * factor;
-            ctx.strokeRect(room.x - sz / 2, room.y - sz / 2, sz, sz);
+            ctx.strokeRect(hl.cx - hl.size, hl.cy - hl.size, hl.size * 2, hl.size * 2);
         }
         ctx.setLineDash([]);
     }
@@ -461,8 +435,7 @@ export class CanvasExporter {
     private renderPositionMarker(ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D, roomId: number) {
         const room = this.mapReader.getRoom(roomId);
         if (!room) return;
-        const pm = this.settings.playerMarker;
-        const size = this.settings.roomSize * pm.sizeFactor;
+        const pm = computePositionMarker(room, this.settings);
 
         ctx.save();
         ctx.globalAlpha = pm.strokeAlpha;
@@ -470,19 +443,16 @@ export class CanvasExporter {
         ctx.lineWidth = pm.strokeWidth;
         ctx.setLineDash(pm.dashEnabled && pm.dash ? pm.dash : []);
 
-        const useRoomShape = pm.matchRoomShape && this.settings.roomShape !== "circle";
-        if (useRoomShape) {
-            const halfSize = size / 2;
-            const cr = this.settings.roomShape === "roundedRectangle" ? size * 0.2 : 0;
-            if (cr > 0) {
-                this.roundRect(ctx, room.x - halfSize, room.y - halfSize, size, size, cr);
+        if (pm.shape === 'rect') {
+            if (pm.cornerRadius > 0) {
+                this.roundRect(ctx, pm.cx - pm.size, pm.cy - pm.size, pm.size * 2, pm.size * 2, pm.cornerRadius);
             } else {
                 ctx.beginPath();
-                ctx.rect(room.x - halfSize, room.y - halfSize, size, size);
+                ctx.rect(pm.cx - pm.size, pm.cy - pm.size, pm.size * 2, pm.size * 2);
             }
         } else {
             ctx.beginPath();
-            ctx.arc(room.x, room.y, size / 2, 0, Math.PI * 2);
+            ctx.arc(pm.cx, pm.cy, pm.size, 0, Math.PI * 2);
         }
         ctx.stroke();
 

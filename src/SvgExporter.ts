@@ -2,15 +2,15 @@ import MapReader from "./reader/MapReader";
 import Area from "./reader/Area";
 import Plane from "./reader/Plane";
 import ExitRenderer from "./ExitRenderer";
-import type {ExitDrawData, ExitDrawLine, ExitDrawArrow, ExitDrawDoor} from "./ExitRenderer";
 import type {Settings} from "./Renderer";
-import {computePathData} from "./PathData";
 import {measureTextBaselineOffset} from "./utils/textMeasure";
 import {computeRoomColors, computeEmboss} from "./scene/RoomStyle";
-import {computeInnerExits, computeTriangleVertices} from "./scene/InnerExitStyle";
+import {computeInnerExits} from "./scene/InnerExitStyle";
 import {computeStubs} from "./scene/StubStyle";
 import {computeSpecialExits} from "./scene/SpecialExitStyle";
 import {drawExitDataToSvgLines} from "./scene/ExitDataRenderer";
+import {computeGrid} from "./scene/GridStyle";
+import {computeHighlight, computePositionMarker, computePathOverlay} from "./scene/OverlayStyle";
 
 function escapeXml(s: string): string {
     return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -145,23 +145,10 @@ export class SvgExporter {
     // --- Grid ---
 
     private renderGrid(lines: string[], bounds: { x: number; y: number; w: number; h: number }) {
-        const gs = this.settings.gridSize;
-        const left = Math.floor(bounds.x / gs) * gs;
-        const right = Math.ceil((bounds.x + bounds.w) / gs) * gs;
-        const top = Math.floor(bounds.y / gs) * gs;
-        const bottom = Math.ceil((bounds.y + bounds.h) / gs) * gs;
-
-        const color = escapeXml(this.settings.gridColor);
-        const lw = this.settings.gridLineWidth;
-
-        // Vertical lines
-        for (let x = left; x <= right; x += gs) {
-            lines.push(`<line x1="${x}" y1="${top}" x2="${x}" y2="${bottom}" stroke="${color}" stroke-width="${lw}"/>`);
-        }
-
-        // Horizontal lines
-        for (let y = top; y <= bottom; y += gs) {
-            lines.push(`<line x1="${left}" y1="${y}" x2="${right}" y2="${y}" stroke="${color}" stroke-width="${lw}"/>`);
+        const grid = computeGrid(this.settings, bounds);
+        const color = escapeXml(grid.stroke);
+        for (const l of grid.lines) {
+            lines.push(`<line x1="${l.x1}" y1="${l.y1}" x2="${l.x2}" y2="${l.y2}" stroke="${color}" stroke-width="${grid.strokeWidth}"/>`);
         }
     }
 
@@ -298,28 +285,14 @@ export class SvgExporter {
     // --- Overlay: Paths ---
 
     private renderPathOverlay(lines: string[], locations: number[], color: string, areaId: number, zIndex: number) {
-        const result = computePathData(this.mapReader, this.settings, locations, areaId, zIndex);
-        const lw = this.settings.lineWidth;
-
-        for (const segment of result.segments) {
-            const pts = segment.points.map(p => p.toString()).join(' ');
-            // Black outline
-            lines.push(`<polyline points="${pts}" stroke="black" stroke-width="${lw * 8}" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="0.8"/>`);
-            // Colored line
-            lines.push(`<polyline points="${pts}" stroke="${escapeXml(color)}" stroke-width="${lw * 4}" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="0.8"/>`);
+        const data = computePathOverlay(this.mapReader, this.settings, locations, color, areaId, zIndex);
+        for (const seg of data.segments) {
+            const pts = seg.points.map(p => p.toString()).join(' ');
+            lines.push(`<polyline points="${pts}" stroke="black" stroke-width="${data.outlineWidth}" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="0.8"/>`);
+            lines.push(`<polyline points="${pts}" stroke="${escapeXml(data.color)}" stroke-width="${data.lineWidth}" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="0.8"/>`);
         }
-
-        for (const cl of result.customLines) {
-            const pts = cl.points.map(p => p.toString()).join(' ');
-            lines.push(`<polyline points="${pts}" stroke="black" stroke-width="${lw * 8}" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="0.8"/>`);
-            lines.push(`<polyline points="${pts}" stroke="${escapeXml(color)}" stroke-width="${lw * 4}" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="0.8"/>`);
-        }
-
-        const triRadius = this.settings.roomSize / 5;
-        for (const marker of result.innerMarkers) {
-            const rot = marker.direction === "up" ? 0 : marker.direction === "down" ? 180 : marker.direction === "in" ? 90 : -90;
-            const vertices = computeTriangleVertices(marker.room.x, marker.room.y, triRadius, rot);
-            lines.push(this.svgPolygon(vertices, color, 'black', this.settings.lineWidth));
+        for (const tri of data.triangles) {
+            lines.push(this.svgPolygon(tri.vertices, data.color, 'black', this.settings.lineWidth));
         }
     }
 
@@ -328,15 +301,13 @@ export class SvgExporter {
     private renderHighlightOverlay(lines: string[], roomId: number, color: string) {
         const room = this.mapReader.getRoom(roomId);
         if (!room) return;
-        const factor = 1.5;
-        const rs = this.settings.roomSize;
-        const dash = '0.05 0.05';
-
-        if (this.settings.roomShape === "circle") {
-            lines.push(`<circle cx="${room.x}" cy="${room.y}" r="${rs / 2 * factor}" stroke="${escapeXml(color)}" stroke-width="0.1" stroke-dasharray="${dash}" fill="none"/>`);
+        const hl = computeHighlight(room, color, this.settings);
+        const dashAttr = ` stroke-dasharray="${hl.dash.join(' ')}"`;
+        if (hl.shape === 'circle') {
+            lines.push(`<circle cx="${hl.cx}" cy="${hl.cy}" r="${hl.size}" stroke="${escapeXml(hl.stroke)}" stroke-width="${hl.strokeWidth}"${dashAttr} fill="none"/>`);
         } else {
-            const sz = rs * factor;
-            lines.push(`<rect x="${room.x - sz / 2}" y="${room.y - sz / 2}" width="${sz}" height="${sz}" stroke="${escapeXml(color)}" stroke-width="0.1" stroke-dasharray="${dash}" fill="none"/>`);
+            const crAttr = hl.cornerRadius > 0 ? ` rx="${hl.cornerRadius}" ry="${hl.cornerRadius}"` : '';
+            lines.push(`<rect x="${hl.cx - hl.size}" y="${hl.cy - hl.size}" width="${hl.size * 2}" height="${hl.size * 2}" stroke="${escapeXml(hl.stroke)}" stroke-width="${hl.strokeWidth}"${dashAttr} fill="none"${crAttr}/>`);
         }
     }
 
@@ -345,20 +316,16 @@ export class SvgExporter {
     private renderPositionMarker(lines: string[], roomId: number) {
         const room = this.mapReader.getRoom(roomId);
         if (!room) return;
-        const pm = this.settings.playerMarker;
-        const size = this.settings.roomSize * pm.sizeFactor;
+        const pm = computePositionMarker(room, this.settings);
         const dashAttr = pm.dashEnabled && pm.dash ? ` stroke-dasharray="${pm.dash.join(' ')}"` : '';
         const fillOpacity = pm.fillAlpha > 0 ? ` fill="${pm.fillColor}" fill-opacity="${pm.fillAlpha}"` : ' fill="none"';
         const strokeAttrs = `stroke="${pm.strokeColor}" stroke-width="${pm.strokeWidth}" stroke-opacity="${pm.strokeAlpha}"${dashAttr}${fillOpacity}`;
 
-        const useRoomShape = pm.matchRoomShape && this.settings.roomShape !== "circle";
-        if (useRoomShape) {
-            const halfSize = size / 2;
-            const cr = this.settings.roomShape === "roundedRectangle" ? size * 0.2 : 0;
-            const crAttr = cr > 0 ? ` rx="${cr}" ry="${cr}"` : '';
-            lines.push(`<rect x="${room.x - halfSize}" y="${room.y - halfSize}" width="${size}" height="${size}" ${strokeAttrs}${crAttr}/>`);
+        if (pm.shape === 'rect') {
+            const crAttr = pm.cornerRadius > 0 ? ` rx="${pm.cornerRadius}" ry="${pm.cornerRadius}"` : '';
+            lines.push(`<rect x="${pm.cx - pm.size}" y="${pm.cy - pm.size}" width="${pm.size * 2}" height="${pm.size * 2}" ${strokeAttrs}${crAttr}/>`);
         } else {
-            lines.push(`<circle cx="${room.x}" cy="${room.y}" r="${size / 2}" ${strokeAttrs}/>`);
+            lines.push(`<circle cx="${pm.cx}" cy="${pm.cy}" r="${pm.size}" ${strokeAttrs}/>`);
         }
     }
 }
