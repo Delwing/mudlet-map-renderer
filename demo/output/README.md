@@ -46,11 +46,11 @@ tsx demo/headless.ts --format png --area 57 --width 3840 --height 2160 --label-m
 # Full area
 tsx demo/headless.ts --format svg --area 57 --output demo/output/area_full.svg
 
-# Grid
-tsx demo/headless.ts --format svg --area 57 --grid --output demo/output/grid.svg
+# Grid (room centered, matches grid.png)
+tsx demo/headless.ts --format svg --room 3287 --grid --output demo/output/grid.svg
 
-# Frame mode + circle + grid
-tsx demo/headless.ts --format svg --area 57 --frame-mode --room-shape circle --grid --output demo/output/frame_circle_grid.svg
+# Frame mode + circle + grid (room centered)
+tsx demo/headless.ts --format svg --room 3287 --frame-mode --room-shape circle --grid --output demo/output/frame_circle_grid.svg
 
 # Room centered
 tsx demo/headless.ts --format svg --room 3287 --output demo/output/room_centered.svg

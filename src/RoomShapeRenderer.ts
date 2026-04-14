@@ -55,9 +55,13 @@ export class RoomShapeRenderer {
         if (room.roomChar) {
             const fontSize = rs * 0.75;
             const baselineRatio = measureTextBaselineOffset(room.roomChar, this.settings.fontFamily);
-            const refBaselineRatio = measureTextBaselineOffset("M", this.settings.fontFamily);
+            // Use a wide text box to prevent Konva word-wrapping multi-char symbols.
+            // The group doesn't clip, so oversized width is fine for centering.
+            const textWidth = Math.max(rs, room.roomChar.length * fontSize * 0.8);
+            const textOffset = (textWidth - rs) / 2;
             this.backend.addText(group, {
-                x: 0, y: 0,
+                x: -textOffset,
+                y: 0,
                 text: room.roomChar,
                 fontSize,
                 fontFamily: this.settings.fontFamily,
@@ -65,9 +69,8 @@ export class RoomShapeRenderer {
                 fill: symbolColor,
                 align: "center",
                 verticalAlign: "middle",
-                width: rs,
+                width: textWidth,
                 height: rs,
-                offsetY: (refBaselineRatio - baselineRatio) * fontSize,
                 baselineRatio,
             });
         }

@@ -186,12 +186,18 @@ export class KonvaRenderBackend {
         const offsetX = (width - mapPixelW) / 2;
         const offsetY = (height - mapPixelH) / 2;
 
+        // Update viewport to match export framing so grid/culling use correct bounds.
+        // Set zoom so that viewport.getScale() === export scale.
+        const exportPosition = {x: offsetX - bounds.x * scale, y: offsetY - bounds.y * scale};
         this.viewport.width = width;
         this.viewport.height = height;
+        this.viewport.zoom = scale / (this.viewport.getScale() / this.viewport.zoom);
+        this.viewport.position = exportPosition;
+
         this.stage.width(width);
         this.stage.height(height);
         this.stage.scale({x: scale, y: scale});
-        this.stage.position({x: offsetX - bounds.x * scale, y: offsetY - bounds.y * scale});
+        this.stage.position(exportPosition);
 
         this.culling.updateCulling();
 
