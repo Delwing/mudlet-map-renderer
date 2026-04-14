@@ -98,8 +98,15 @@ export class KonvaRenderBackend {
         this.viewport.onChange = () => this.applyViewportToStage();
 
         if (container) {
-            this.initInputEvents(container);
-            new InteractionHandler(this.stage, container, state.settings, {
+            // Sync stage size when viewport resizes
+            const origSetSize = this.viewport.setSize.bind(this.viewport);
+            this.viewport.setSize = (w: number, h: number) => {
+                origSetSize(w, h);
+                this.stage.width(w);
+                this.stage.height(h);
+            };
+
+            new InteractionHandler(container, this.viewport, state, state.settings, {
                 clientToMapPoint: (cx, cy) => this.viewport.clientToMapPoint(cx, cy, container.getBoundingClientRect()),
                 findRoomAtPoint: (mx, my) => this.culling.findRoomAtMapPoint(mx, my),
                 getAreaExitHitZones: () => this.areaExitHitZones,
@@ -135,167 +142,6 @@ export class KonvaRenderBackend {
         this.stage.position(this.viewport.position);
         this.stage.batchDraw();
         this.culling.scheduleCulling();
-    }
-
-    // --- Input event wiring (interactive mode only) ---
-
-    private initInputEvents(container: HTMLDivElement) {
-        const scaleBy = 1.1;
-
-        // --- Resize ---
-        const handleResize = () => {
-            this.viewport.setSize(container.clientWidth, container.clientHeight);
-            this.stage.width(container.clientWidth);
-            this.stage.height(container.clientHeight);
-            if (this.viewport.centerOnResize && this.state.positionRoomId) {
-                const room = this.state.mapReader.getRoom(this.state.positionRoomId);
-                if (room) this.viewport.panToMapPoint(room.x, room.y);
-            }
-        };
-
-        if (typeof window !== 'undefined') {
-            window.addEventListener('resize', handleResize);
-        }
-        container.addEventListener('resize', handleResize);
-
-        // --- Drag (pointer events on container → Viewport) ---
-        let pointerDown = false;
-        let pointerId: number | undefined;
-
-        container.addEventListener('pointerdown', (e) => {
-            // Only drag with left button, ignore if multi-touch is active
-            if (e.button !== 0 || e.pointerType === 'touch') return;
-            pointerDown = true;
-            pointerId = e.pointerId;
-            container.setPointerCapture(e.pointerId);
-            const rect = container.getBoundingClientRect();
-            this.viewport.startDrag(e.clientX - rect.left, e.clientY - rect.top);
-        });
-
-        container.addEventListener('pointermove', (e) => {
-            if (!pointerDown || e.pointerId !== pointerId) return;
-            const rect = container.getBoundingClientRect();
-            this.viewport.updateDrag(e.clientX - rect.left, e.clientY - rect.top);
-        });
-
-        container.addEventListener('pointerup', (e) => {
-            if (e.pointerId !== pointerId) return;
-            pointerDown = false;
-            pointerId = undefined;
-            this.viewport.endDrag();
-            this.events.emit('pan', this.viewport.getViewportBounds());
-        });
-
-        container.addEventListener('pointercancel', (e) => {
-            if (e.pointerId !== pointerId) return;
-            pointerDown = false;
-            pointerId = undefined;
-            this.viewport.endDrag();
-        });
-
-        // --- Touch drag (single finger) ---
-        let touchDragId: number | undefined;
-
-        container.addEventListener('touchstart', (e) => {
-            if (e.touches.length === 1) {
-                const touch = e.touches[0];
-                touchDragId = touch.identifier;
-                const rect = container.getBoundingClientRect();
-                this.viewport.startDrag(touch.clientX - rect.left, touch.clientY - rect.top);
-            } else {
-                // Multi-touch: end drag, start pinch
-                if (this.viewport.isDragging()) this.viewport.endDrag();
-                touchDragId = undefined;
-            }
-        }, {passive: true});
-
-        container.addEventListener('touchmove', (e) => {
-            const touches = e.touches;
-
-            // --- Pinch zoom (two fingers) ---
-            if (touches.length >= 2) {
-                e.preventDefault();
-                if (this.viewport.isDragging()) this.viewport.endDrag();
-                touchDragId = undefined;
-
-                const rect = container.getBoundingClientRect();
-                const p1 = {x: touches[0].clientX - rect.left, y: touches[0].clientY - rect.top};
-                const p2 = {x: touches[1].clientX - rect.left, y: touches[1].clientY - rect.top};
-                this.handlePinch(p1, p2);
-                return;
-            }
-
-            // --- Single finger drag ---
-            if (touches.length === 1 && touchDragId === touches[0].identifier) {
-                const touch = touches[0];
-                const rect = container.getBoundingClientRect();
-                this.viewport.updateDrag(touch.clientX - rect.left, touch.clientY - rect.top);
-            }
-        });
-
-        container.addEventListener('touchend', (e) => {
-            this.lastPinchDistance = undefined;
-            if (e.touches.length === 0) {
-                if (this.viewport.isDragging()) {
-                    this.viewport.endDrag();
-                    this.events.emit('pan', this.viewport.getViewportBounds());
-                }
-                touchDragId = undefined;
-            } else if (e.touches.length === 1) {
-                // Went from multi to single: start fresh drag
-                const touch = e.touches[0];
-                touchDragId = touch.identifier;
-                const rect = container.getBoundingClientRect();
-                this.viewport.startDrag(touch.clientX - rect.left, touch.clientY - rect.top);
-            }
-        }, {passive: true});
-
-        container.addEventListener('touchcancel', () => {
-            this.lastPinchDistance = undefined;
-            if (this.viewport.isDragging()) this.viewport.endDrag();
-            touchDragId = undefined;
-        }, {passive: true});
-
-        // --- Wheel zoom ---
-        container.addEventListener('wheel', (e) => {
-            e.preventDefault();
-            const rect = container.getBoundingClientRect();
-            const screenX = e.clientX - rect.left;
-            const screenY = e.clientY - rect.top;
-
-            let direction = e.deltaY > 0 ? -1 : 1;
-            if (e.ctrlKey) direction = -direction;
-
-            const newZoom = direction > 0 ? this.viewport.zoom * scaleBy : this.viewport.zoom / scaleBy;
-            if (this.viewport.zoomToPoint(newZoom, screenX, screenY)) {
-                this.events.emit('zoom', {zoom: this.viewport.zoom});
-                this.events.emit('pan', this.viewport.getViewportBounds());
-            }
-        }, {passive: false});
-    }
-
-    // --- Pinch zoom state ---
-
-    private lastPinchDistance?: number;
-
-    private handlePinch(p1: {x: number; y: number}, p2: {x: number; y: number}) {
-        const distance = Math.hypot(p1.x - p2.x, p1.y - p2.y);
-
-        if (this.lastPinchDistance === undefined || this.lastPinchDistance === 0 || distance === 0) {
-            this.lastPinchDistance = distance;
-            return;
-        }
-
-        const centerX = (p1.x + p2.x) / 2;
-        const centerY = (p1.y + p2.y) / 2;
-        const newZoom = this.viewport.zoom * (distance / this.lastPinchDistance);
-
-        if (this.viewport.zoomToPoint(newZoom, centerX, centerY)) {
-            this.events.emit('zoom', {zoom: this.viewport.zoom});
-            this.events.emit('pan', this.viewport.getViewportBounds());
-        }
-
-        this.lastPinchDistance = distance;
     }
 
     // --- Canvas export ---
