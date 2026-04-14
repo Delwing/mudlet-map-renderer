@@ -1,6 +1,5 @@
 import Konva from "konva";
 import ExitRenderer from "./ExitRenderer";
-import type {ExitDrawData} from "./ExitRenderer";
 import MapReader from "./reader/MapReader";
 import Exit from "./reader/Exit";
 import Area from "./reader/Area";
@@ -17,6 +16,7 @@ import {InteractionHandler} from "./InteractionHandler";
 import {CullingManager} from "./CullingManager";
 import type {RoomNodeEntry, StandaloneExitEntry} from "./CullingManager";
 import {TypedEventEmitter} from "./TypedEventEmitter";
+import {drawExitDataToCanvas} from "./scene/ExitDataRenderer";
 
 const defaultRoomSize = 0.6;
 const defaultLineWidth = 0.025;
@@ -1000,76 +1000,11 @@ export class Renderer implements MapRenderer {
             sceneFunc: (context) => {
                 const ctx = context._context;
                 for (const data of this.culling.visibleExitDrawData) {
-                    this.drawExitData(ctx, data);
+                    drawExitDataToCanvas(ctx, data);
                 }
             },
         });
         this.linkLayer.add(this.exitBatchShape);
-    }
-
-    private drawExitData(ctx: CanvasRenderingContext2D, data: ExitDrawData) {
-        for (const line of data.lines) {
-            ctx.beginPath();
-            ctx.moveTo(line.points[0], line.points[1]);
-            for (let i = 2; i < line.points.length; i += 2) {
-                ctx.lineTo(line.points[i], line.points[i + 1]);
-            }
-            ctx.strokeStyle = line.stroke;
-            ctx.lineWidth = line.strokeWidth;
-            if (line.dash) {
-                ctx.setLineDash(line.dash);
-            } else {
-                ctx.setLineDash([]);
-            }
-            ctx.stroke();
-        }
-
-        for (const arrow of data.arrows) {
-            // Draw the line part
-            ctx.beginPath();
-            ctx.moveTo(arrow.points[0], arrow.points[1]);
-            for (let i = 2; i < arrow.points.length; i += 2) {
-                ctx.lineTo(arrow.points[i], arrow.points[i + 1]);
-            }
-            ctx.strokeStyle = arrow.stroke;
-            ctx.lineWidth = arrow.strokeWidth;
-            if (arrow.dash) {
-                ctx.setLineDash(arrow.dash);
-            } else {
-                ctx.setLineDash([]);
-            }
-            ctx.stroke();
-
-            // Draw the arrowhead
-            const lastIdx = arrow.points.length - 2;
-            const tipX = arrow.points[lastIdx];
-            const tipY = arrow.points[lastIdx + 1];
-            const prevX = arrow.points[lastIdx - 2];
-            const prevY = arrow.points[lastIdx - 1];
-            const angle = Math.atan2(tipY - prevY, tipX - prevX);
-            const pl = arrow.pointerLength;
-            const pw = arrow.pointerWidth / 2;
-            ctx.beginPath();
-            ctx.setLineDash([]);
-            ctx.moveTo(tipX, tipY);
-            ctx.lineTo(tipX - pl * Math.cos(angle - Math.atan2(pw, pl)), tipY - pl * Math.sin(angle - Math.atan2(pw, pl)));
-            ctx.lineTo(tipX - pl * Math.cos(angle + Math.atan2(pw, pl)), tipY - pl * Math.sin(angle + Math.atan2(pw, pl)));
-            ctx.closePath();
-            ctx.fillStyle = arrow.fill;
-            ctx.fill();
-            ctx.strokeStyle = arrow.stroke;
-            ctx.lineWidth = arrow.strokeWidth;
-            ctx.stroke();
-        }
-
-        for (const door of data.doors) {
-            ctx.beginPath();
-            ctx.rect(door.x, door.y, door.width, door.height);
-            ctx.strokeStyle = door.stroke;
-            ctx.lineWidth = door.strokeWidth;
-            ctx.setLineDash([]);
-            ctx.stroke();
-        }
     }
 
     private renderLabels(Labels: MapData.Label[]) {

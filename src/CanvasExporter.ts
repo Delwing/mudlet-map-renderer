@@ -4,25 +4,13 @@ import Plane from "./reader/Plane";
 import ExitRenderer from "./ExitRenderer";
 import type {ExitDrawData} from "./ExitRenderer";
 import type {Settings} from "./Renderer";
-import {movePoint, movePointCircle, movePointRoundedRect} from "./directions";
 import {computePathData} from "./PathData";
 import {measureTextBaselineOffset} from "./utils/textMeasure";
 import {computeRoomColors, computeEmboss} from "./scene/RoomStyle";
 import {computeInnerExits, computeTriangleVertices} from "./scene/InnerExitStyle";
-
-const dirNumbers: Record<number, MapData.direction> = {
-    1: "north", 2: "northeast", 3: "northwest", 4: "east", 5: "west",
-    6: "south", 7: "southeast", 8: "southwest", 9: "up", 10: "down",
-    11: "in", 12: "out",
-};
-
-const DoorColors: Record<number, string> = {
-    1: 'rgb(10, 155, 10)',
-    2: 'rgb(226, 205, 59)',
-    3: 'rgb(155, 10, 10)',
-};
-
-
+import {computeStubs} from "./scene/StubStyle";
+import {computeSpecialExits} from "./scene/SpecialExitStyle";
+import {drawExitDataToCanvas} from "./scene/ExitDataRenderer";
 
 export type CanvasExportOverlays = {
     position?: { roomId: number };
@@ -182,12 +170,6 @@ export class CanvasExporter {
         return this.settings.uniformLevelSize ? area.getFullBounds() : plane.getBounds();
     }
 
-    private getRoomEdgePoint(x: number, y: number, direction: MapData.direction, distance: number) {
-        if (this.settings.roomShape === "circle") return movePointCircle(x, y, direction, distance);
-        if (this.settings.roomShape === "roundedRectangle") return movePointRoundedRect(x, y, direction, distance, this.settings.roomSize * 0.2);
-        return movePoint(x, y, direction, distance);
-    }
-
     // --- Grid ---
 
     private renderGrid(ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D, bounds: { x: number; y: number; w: number; h: number }) {
@@ -254,78 +236,21 @@ export class CanvasExporter {
         for (const exit of exits) {
             const data = this.exitRenderer.renderData(exit, zIndex);
             if (!data) continue;
-            this.drawExitData(ctx, data);
-        }
-    }
-
-    private drawExitData(ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D, data: ExitDrawData) {
-        for (const line of data.lines) {
-            ctx.beginPath();
-            ctx.moveTo(line.points[0], line.points[1]);
-            for (let i = 2; i < line.points.length; i += 2) {
-                ctx.lineTo(line.points[i], line.points[i + 1]);
-            }
-            ctx.strokeStyle = line.stroke;
-            ctx.lineWidth = line.strokeWidth;
-            ctx.setLineDash(line.dash ?? []);
-            ctx.stroke();
-        }
-
-        for (const arrow of data.arrows) {
-            ctx.beginPath();
-            ctx.moveTo(arrow.points[0], arrow.points[1]);
-            for (let i = 2; i < arrow.points.length; i += 2) {
-                ctx.lineTo(arrow.points[i], arrow.points[i + 1]);
-            }
-            ctx.strokeStyle = arrow.stroke;
-            ctx.lineWidth = arrow.strokeWidth;
-            ctx.setLineDash(arrow.dash ?? []);
-            ctx.stroke();
-
-            // Arrowhead
-            const lastIdx = arrow.points.length - 2;
-            const tipX = arrow.points[lastIdx], tipY = arrow.points[lastIdx + 1];
-            const prevX = arrow.points[lastIdx - 2], prevY = arrow.points[lastIdx - 1];
-            const angle = Math.atan2(tipY - prevY, tipX - prevX);
-            const pl = arrow.pointerLength, pw = arrow.pointerWidth / 2;
-            ctx.beginPath();
-            ctx.setLineDash([]);
-            ctx.moveTo(tipX, tipY);
-            ctx.lineTo(tipX - pl * Math.cos(angle - Math.atan2(pw, pl)), tipY - pl * Math.sin(angle - Math.atan2(pw, pl)));
-            ctx.lineTo(tipX - pl * Math.cos(angle + Math.atan2(pw, pl)), tipY - pl * Math.sin(angle + Math.atan2(pw, pl)));
-            ctx.closePath();
-            ctx.fillStyle = arrow.fill;
-            ctx.fill();
-            ctx.strokeStyle = arrow.stroke;
-            ctx.lineWidth = arrow.strokeWidth;
-            ctx.stroke();
-        }
-
-        for (const door of data.doors) {
-            ctx.beginPath();
-            ctx.rect(door.x, door.y, door.width, door.height);
-            ctx.strokeStyle = door.stroke;
-            ctx.lineWidth = door.strokeWidth;
-            ctx.setLineDash([]);
-            ctx.stroke();
+            drawExitDataToCanvas(ctx as CanvasRenderingContext2D, data);
         }
     }
 
     // --- Stubs ---
 
     private renderStubs(ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D, rooms: MapData.Room[]) {
-        ctx.strokeStyle = this.settings.lineColor;
-        ctx.lineWidth = this.settings.lineWidth;
         ctx.setLineDash([]);
         for (const room of rooms) {
-            for (const stub of room.stubs) {
-                const direction = dirNumbers[stub];
-                if (!direction) continue;
-                const start = this.getRoomEdgePoint(room.x, room.y, direction, this.settings.roomSize / 2);
-                const end = movePoint(room.x, room.y, direction, this.settings.roomSize / 2 + 0.5);
+            for (const stub of computeStubs(room, this.settings)) {
                 ctx.beginPath();
-                ctx.moveTo(start.x, start.y);
-                ctx.lineTo(end.x, end.y);
+                ctx.moveTo(stub.x1, stub.y1);
+                ctx.lineTo(stub.x2, stub.y2);
+                ctx.strokeStyle = stub.stroke;
+                ctx.lineWidth = stub.strokeWidth;
                 ctx.stroke();
             }
         }
@@ -335,55 +260,32 @@ export class CanvasExporter {
 
     private renderSpecialExits(ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D, rooms: MapData.Room[]) {
         for (const room of rooms) {
-            for (const [dir, line] of Object.entries(room.customLines)) {
-                const points: number[] = [room.x, room.y];
-                for (const pt of line.points) {
-                    points.push(pt.x, -pt.y);
-                }
-                const strokeColor = `rgb(${line.attributes.color.r}, ${line.attributes.color.g}, ${line.attributes.color.b})`;
-                ctx.strokeStyle = strokeColor;
-                ctx.lineWidth = this.settings.lineWidth;
-
-                if (line.attributes.style === "dot line") {
-                    ctx.setLineDash([0.05, 0.05]);
-                } else if (line.attributes.style === "dash line") {
-                    ctx.setLineDash([0.4, 0.2]);
-                } else {
-                    ctx.setLineDash([]);
-                }
-
+            for (const se of computeSpecialExits(room, this.settings)) {
+                const pts = se.line.points;
+                ctx.strokeStyle = se.line.stroke;
+                ctx.lineWidth = se.line.strokeWidth;
+                ctx.setLineDash(se.line.dash ?? []);
                 ctx.beginPath();
-                ctx.moveTo(points[0], points[1]);
-                for (let i = 2; i < points.length; i += 2) {
-                    ctx.lineTo(points[i], points[i + 1]);
-                }
+                ctx.moveTo(pts[0], pts[1]);
+                for (let i = 2; i < pts.length; i += 2) ctx.lineTo(pts[i], pts[i + 1]);
                 ctx.stroke();
 
-                if (line.attributes.arrow && points.length >= 4) {
-                    const li = points.length - 2;
-                    const tipX = points[li], tipY = points[li + 1];
-                    const prevX = points[li - 2], prevY = points[li - 1];
-                    const angle = Math.atan2(tipY - prevY, tipX - prevX);
-                    const pl = 0.3, pw = 0.1;
+                if (se.arrow) {
                     ctx.beginPath();
                     ctx.setLineDash([]);
-                    ctx.moveTo(tipX, tipY);
-                    ctx.lineTo(tipX - pl * Math.cos(angle - Math.atan2(pw, pl)), tipY - pl * Math.sin(angle - Math.atan2(pw, pl)));
-                    ctx.lineTo(tipX - pl * Math.cos(angle + Math.atan2(pw, pl)), tipY - pl * Math.sin(angle + Math.atan2(pw, pl)));
+                    ctx.moveTo(se.arrow.tipX, se.arrow.tipY);
+                    ctx.lineTo(se.arrow.x1, se.arrow.y1);
+                    ctx.lineTo(se.arrow.x2, se.arrow.y2);
                     ctx.closePath();
-                    ctx.fillStyle = strokeColor;
+                    ctx.fillStyle = se.arrow.fill;
                     ctx.fill();
                 }
 
-                const doorType = room.doors[dir];
-                if (doorType && points.length >= 4) {
-                    const dx = points[0] + (points[2] - points[0]) / 2;
-                    const dy = points[1] + (points[3] - points[1]) / 2;
-                    const s = this.settings.roomSize / 2;
+                if (se.door) {
                     ctx.beginPath();
-                    ctx.rect(dx - s / 2, dy - s / 2, s, s);
-                    ctx.strokeStyle = DoorColors[doorType] ?? DoorColors[3];
-                    ctx.lineWidth = this.settings.lineWidth;
+                    ctx.rect(se.door.x, se.door.y, se.door.width, se.door.height);
+                    ctx.strokeStyle = se.door.stroke;
+                    ctx.lineWidth = se.door.strokeWidth;
                     ctx.setLineDash([]);
                     ctx.stroke();
                 }

@@ -4,31 +4,13 @@ import Plane from "./reader/Plane";
 import ExitRenderer from "./ExitRenderer";
 import type {ExitDrawData, ExitDrawLine, ExitDrawArrow, ExitDrawDoor} from "./ExitRenderer";
 import type {Settings} from "./Renderer";
-import {movePoint, movePointCircle, movePointRoundedRect} from "./directions";
 import {computePathData} from "./PathData";
 import {measureTextBaselineOffset} from "./utils/textMeasure";
 import {computeRoomColors, computeEmboss} from "./scene/RoomStyle";
 import {computeInnerExits, computeTriangleVertices} from "./scene/InnerExitStyle";
-
-const dirNumbers: Record<number, MapData.direction> = {
-    1: "north", 2: "northeast", 3: "northwest", 4: "east", 5: "west",
-    6: "south", 7: "southeast", 8: "southwest", 9: "up", 10: "down",
-    11: "in", 12: "out",
-};
-
-const DoorColors = {
-    OPEN: 'rgb(10, 155, 10)',
-    CLOSED: 'rgb(226, 205, 59)',
-    LOCKED: 'rgb(155, 10, 10)',
-};
-
-function getDoorColor(doorType: 1 | 2 | 3): string {
-    switch (doorType) {
-        case 1: return DoorColors.OPEN;
-        case 2: return DoorColors.CLOSED;
-        default: return DoorColors.LOCKED;
-    }
-}
+import {computeStubs} from "./scene/StubStyle";
+import {computeSpecialExits} from "./scene/SpecialExitStyle";
+import {drawExitDataToSvgLines} from "./scene/ExitDataRenderer";
 
 function escapeXml(s: string): string {
     return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -160,15 +142,6 @@ export class SvgExporter {
         return this.settings.uniformLevelSize ? area.getFullBounds() : plane.getBounds();
     }
 
-    private getRoomEdgePoint(x: number, y: number, direction: MapData.direction, distance: number) {
-        if (this.settings.roomShape === "circle") {
-            return movePointCircle(x, y, direction, distance);
-        } else if (this.settings.roomShape === "roundedRectangle") {
-            return movePointRoundedRect(x, y, direction, distance, this.settings.roomSize * 0.2);
-        }
-        return movePoint(x, y, direction, distance);
-    }
-
     // --- Grid ---
 
     private renderGrid(lines: string[], bounds: { x: number; y: number; w: number; h: number }) {
@@ -233,67 +206,16 @@ export class SvgExporter {
         for (const exit of exits) {
             const data = this.exitRenderer.renderData(exit, zIndex);
             if (!data) continue;
-            this.renderExitData(lines, data);
+            drawExitDataToSvgLines(lines, data);
         }
-    }
-
-    private renderExitData(lines: string[], data: ExitDrawData) {
-        for (const line of data.lines) {
-            this.renderSvgLine(lines, line);
-        }
-        for (const arrow of data.arrows) {
-            this.renderSvgArrow(lines, arrow);
-        }
-        for (const door of data.doors) {
-            this.renderSvgDoor(lines, door);
-        }
-    }
-
-    private renderSvgLine(lines: string[], line: ExitDrawLine) {
-        if (line.points.length < 4) return;
-        const points = line.points.map(p => p.toString()).join(' ');
-        const dash = line.dash ? ` stroke-dasharray="${line.dash.join(' ')}"` : '';
-        lines.push(`<polyline points="${points}" stroke="${escapeXml(line.stroke)}" stroke-width="${line.strokeWidth}" fill="none"${dash}/>`);
-    }
-
-    private renderSvgArrow(lines: string[], arrow: ExitDrawArrow) {
-        if (arrow.points.length < 4) return;
-        // Line
-        const points = arrow.points.map(p => p.toString()).join(' ');
-        const dash = arrow.dash ? ` stroke-dasharray="${arrow.dash.join(' ')}"` : '';
-        lines.push(`<polyline points="${points}" stroke="${escapeXml(arrow.stroke)}" stroke-width="${arrow.strokeWidth}" fill="none"${dash}/>`);
-
-        // Arrowhead
-        const lastIdx = arrow.points.length - 2;
-        const tipX = arrow.points[lastIdx];
-        const tipY = arrow.points[lastIdx + 1];
-        const prevX = arrow.points[lastIdx - 2];
-        const prevY = arrow.points[lastIdx - 1];
-        const angle = Math.atan2(tipY - prevY, tipX - prevX);
-        const pl = arrow.pointerLength;
-        const pw = arrow.pointerWidth / 2;
-        const x1 = tipX - pl * Math.cos(angle - Math.atan2(pw, pl));
-        const y1 = tipY - pl * Math.sin(angle - Math.atan2(pw, pl));
-        const x2 = tipX - pl * Math.cos(angle + Math.atan2(pw, pl));
-        const y2 = tipY - pl * Math.sin(angle + Math.atan2(pw, pl));
-        lines.push(`<polygon points="${tipX},${tipY} ${x1},${y1} ${x2},${y2}" fill="${escapeXml(arrow.fill)}" stroke="${escapeXml(arrow.stroke)}" stroke-width="${arrow.strokeWidth}"/>`);
-    }
-
-    private renderSvgDoor(lines: string[], door: ExitDrawDoor) {
-        lines.push(`<rect x="${door.x}" y="${door.y}" width="${door.width}" height="${door.height}" stroke="${escapeXml(door.stroke)}" stroke-width="${door.strokeWidth}" fill="none"/>`);
     }
 
     // --- Stubs ---
 
     private renderStubs(lines: string[], rooms: MapData.Room[]) {
-        const color = this.settings.lineColor;
         for (const room of rooms) {
-            for (const stub of room.stubs) {
-                const direction = dirNumbers[stub];
-                if (!direction) continue;
-                const start = this.getRoomEdgePoint(room.x, room.y, direction, this.settings.roomSize / 2);
-                const end = movePoint(room.x, room.y, direction, this.settings.roomSize / 2 + 0.5);
-                lines.push(`<line x1="${start.x}" y1="${start.y}" x2="${end.x}" y2="${end.y}" stroke="${escapeXml(color)}" stroke-width="${this.settings.lineWidth}"/>`);
+            for (const stub of computeStubs(room, this.settings)) {
+                lines.push(`<line x1="${stub.x1}" y1="${stub.y1}" x2="${stub.x2}" y2="${stub.y2}" stroke="${escapeXml(stub.stroke)}" stroke-width="${stub.strokeWidth}"/>`);
             }
         }
     }
@@ -302,45 +224,17 @@ export class SvgExporter {
 
     private renderSpecialExits(lines: string[], rooms: MapData.Room[]) {
         for (const room of rooms) {
-            for (const [dir, line] of Object.entries(room.customLines)) {
-                const points: number[] = [room.x, room.y];
-                for (const pt of line.points) {
-                    points.push(pt.x, -pt.y);
+            for (const se of computeSpecialExits(room, this.settings)) {
+                const pts = se.line.points.map(p => p.toString()).join(' ');
+                const dash = se.line.dash ? ` stroke-dasharray="${se.line.dash.join(' ')}"` : '';
+                lines.push(`<polyline points="${pts}" stroke="${escapeXml(se.line.stroke)}" stroke-width="${se.line.strokeWidth}" fill="none"${dash}/>`);
+                if (se.arrow) {
+                    const a = se.arrow;
+                    lines.push(`<polygon points="${a.tipX},${a.tipY} ${a.x1},${a.y1} ${a.x2},${a.y2}" fill="${escapeXml(a.fill)}" stroke="${escapeXml(a.stroke)}" stroke-width="${a.strokeWidth}"/>`);
                 }
-                const strokeColor = `rgb(${line.attributes.color.r}, ${line.attributes.color.g}, ${line.attributes.color.b})`;
-                let dashAttr = '';
-                if (line.attributes.style === "dot line") {
-                    dashAttr = ' stroke-dasharray="0.05 0.05"';
-                } else if (line.attributes.style === "dash line") {
-                    dashAttr = ' stroke-dasharray="0.4 0.2"';
-                }
-
-                const pointsStr = points.map(p => p.toString()).join(' ');
-                if (line.attributes.arrow && points.length >= 4) {
-                    // Draw line + arrowhead
-                    lines.push(`<polyline points="${pointsStr}" stroke="${escapeXml(strokeColor)}" stroke-width="${this.settings.lineWidth}" fill="none"${dashAttr}/>`);
-                    // Arrowhead at last segment
-                    const li = points.length - 2;
-                    const tipX = points[li], tipY = points[li + 1];
-                    const prevX = points[li - 2], prevY = points[li - 1];
-                    const angle = Math.atan2(tipY - prevY, tipX - prevX);
-                    const pl = 0.3, pw = 0.1;
-                    const x1 = tipX - pl * Math.cos(angle - Math.atan2(pw, pl));
-                    const y1 = tipY - pl * Math.sin(angle - Math.atan2(pw, pl));
-                    const x2 = tipX - pl * Math.cos(angle + Math.atan2(pw, pl));
-                    const y2 = tipY - pl * Math.sin(angle + Math.atan2(pw, pl));
-                    lines.push(`<polygon points="${tipX},${tipY} ${x1},${y1} ${x2},${y2}" fill="${escapeXml(strokeColor)}" stroke="${escapeXml(strokeColor)}" stroke-width="${this.settings.lineWidth}"/>`);
-                } else {
-                    lines.push(`<polyline points="${pointsStr}" stroke="${escapeXml(strokeColor)}" stroke-width="${this.settings.lineWidth}" fill="none"${dashAttr}/>`);
-                }
-
-                // Door on special exit
-                const doorType = room.doors[dir];
-                if (doorType && points.length >= 4) {
-                    const dx = points[0] + (points[2] - points[0]) / 2;
-                    const dy = points[1] + (points[3] - points[1]) / 2;
-                    const s = this.settings.roomSize / 2;
-                    lines.push(`<rect x="${dx - s / 2}" y="${dy - s / 2}" width="${s}" height="${s}" stroke="${getDoorColor(doorType)}" stroke-width="${this.settings.lineWidth}" fill="none"/>`);
+                if (se.door) {
+                    const d = se.door;
+                    lines.push(`<rect x="${d.x}" y="${d.y}" width="${d.width}" height="${d.height}" stroke="${escapeXml(d.stroke)}" stroke-width="${d.strokeWidth}" fill="none"/>`);
                 }
             }
         }
