@@ -376,33 +376,33 @@ exports[`SvgExporter > rendering modes > snapshot - colored + emboss 1`] = `
 <line x1="0.3" y1="-2.3" x2="0.8" y2="-2.8" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 <line x1="2" y1="1.7" x2="2" y2="1.2" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 <line x1="2.3" y1="2" x2="2.8" y2="2" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<rect x="-0.3" y="-0.3" width="0.6" height="0.6" fill="rgb(64, 64, 64)" stroke="rgb(128,128,128)" stroke-width="0.025"/>
+<rect x="-0.3" y="-0.3" width="0.6" height="0.6" fill="rgb(38, 38, 38)" stroke="rgb(128,128,128)" stroke-width="0.025"/>
 <polyline points="-0.3,-0.3 0.3,-0.3 0.3,0.3" stroke="#000000" stroke-width="0.025" fill="none"/>
-<rect x="-0.3" y="-2.3" width="0.6" height="0.6" fill="rgb(64, 64, 64)" stroke="rgb(128,128,128)" stroke-width="0.025"/>
+<rect x="-0.3" y="-2.3" width="0.6" height="0.6" fill="rgb(38, 38, 38)" stroke="rgb(128,128,128)" stroke-width="0.025"/>
 <polyline points="-0.3,-2.3 0.3,-2.3 0.3,-1.6999999999999997" stroke="#000000" stroke-width="0.025" fill="none"/>
-<rect x="1.7" y="-0.3" width="0.6" height="0.6" fill="rgb(100, 80, 20)" stroke="rgb(200,160,40)" stroke-width="0.025"/>
+<rect x="1.7" y="-0.3" width="0.6" height="0.6" fill="rgb(60, 48, 12)" stroke="rgb(200,160,40)" stroke-width="0.025"/>
 <polyline points="1.7,-0.3 2.3,-0.3 2.3,0.3" stroke="#000000" stroke-width="0.025" fill="none"/>
 <text x="2" y="0.15749999999999997" font-size="0.44999999999999996" font-weight="bold" font-family="sans-serif" fill="rgba(25,25,25)" text-anchor="middle">S</text>
-<rect x="-2.3" y="-0.3" width="0.6" height="0.6" fill="rgb(15, 60, 15)" stroke="rgb(30,120,30)" stroke-width="0.025"/>
+<rect x="-2.3" y="-0.3" width="0.6" height="0.6" fill="rgb(9, 36, 9)" stroke="rgb(30,120,30)" stroke-width="0.025"/>
 <polyline points="-2.3,-0.3 -1.6999999999999997,-0.3 -1.6999999999999997,0.3" stroke="#000000" stroke-width="0.025" fill="none"/>
-<rect x="-0.3" y="1.7" width="0.6" height="0.6" fill="rgb(64, 64, 64)" stroke="rgb(128,128,128)" stroke-width="0.025"/>
+<rect x="-0.3" y="1.7" width="0.6" height="0.6" fill="rgb(38, 38, 38)" stroke="rgb(128,128,128)" stroke-width="0.025"/>
 <polyline points="-0.3,1.7 0.3,1.7 0.3,2.3" stroke="#000000" stroke-width="0.025" fill="none"/>
-<rect x="-0.3" y="-4.3" width="0.6" height="0.6" fill="rgb(64, 64, 64)" stroke="rgb(128,128,128)" stroke-width="0.025"/>
+<rect x="-0.3" y="-4.3" width="0.6" height="0.6" fill="rgb(38, 38, 38)" stroke="rgb(128,128,128)" stroke-width="0.025"/>
 <polyline points="-0.3,-4.3 0.3,-4.3 0.3,-3.6999999999999997" stroke="#000000" stroke-width="0.025" fill="none"/>
-<rect x="3.7" y="-2.3" width="0.6" height="0.6" fill="rgb(100, 80, 20)" stroke="rgb(200,160,40)" stroke-width="0.025"/>
+<rect x="3.7" y="-2.3" width="0.6" height="0.6" fill="rgb(60, 48, 12)" stroke="rgb(200,160,40)" stroke-width="0.025"/>
 <polyline points="3.7,-2.3 4.3,-2.3 4.3,-1.6999999999999997" stroke="#000000" stroke-width="0.025" fill="none"/>
-<rect x="-4.3" y="1.7" width="0.6" height="0.6" fill="rgb(15, 60, 15)" stroke="rgb(30,120,30)" stroke-width="0.025"/>
+<rect x="-4.3" y="1.7" width="0.6" height="0.6" fill="rgb(9, 36, 9)" stroke="rgb(30,120,30)" stroke-width="0.025"/>
 <polyline points="-4.3,1.7 -3.6999999999999997,1.7 -3.6999999999999997,2.3" stroke="#000000" stroke-width="0.025" fill="none"/>
-<rect x="1.7" y="1.7" width="0.6" height="0.6" fill="rgb(100, 80, 20)" stroke="rgb(200,160,40)" stroke-width="0.025"/>
+<rect x="1.7" y="1.7" width="0.6" height="0.6" fill="rgb(60, 48, 12)" stroke="rgb(200,160,40)" stroke-width="0.025"/>
 <polyline points="1.7,1.7 2.3,1.7 2.3,2.3" stroke="#000000" stroke-width="0.025" fill="none"/>
-<rect x="3.7" y="-0.3" width="0.6" height="0.6" fill="rgb(64, 64, 64)" stroke="rgb(128,128,128)" stroke-width="0.025"/>
+<rect x="3.7" y="-0.3" width="0.6" height="0.6" fill="rgb(38, 38, 38)" stroke="rgb(128,128,128)" stroke-width="0.025"/>
 <polyline points="3.7,-0.3 4.3,-0.3 4.3,0.3" stroke="#000000" stroke-width="0.025" fill="none"/>
-<rect x="5.7" y="-0.3" width="0.6" height="0.6" fill="rgb(40, 30, 20)" stroke="rgb(80,60,40)" stroke-width="0.025"/>
+<rect x="5.7" y="-0.3" width="0.6" height="0.6" fill="rgb(24, 18, 12)" stroke="rgb(80,60,40)" stroke-width="0.025"/>
 <polyline points="5.7,-0.3 6.3,-0.3 6.3,0.3" stroke="#000000" stroke-width="0.025" fill="none"/>
 <text x="6" y="0.15749999999999997" font-size="0.44999999999999996" font-weight="bold" font-family="sans-serif" fill="rgba(225,255,255)" text-anchor="middle">X</text>
-<rect x="7.7" y="1.7" width="0.6" height="0.6" fill="rgb(40, 30, 20)" stroke="rgb(80,60,40)" stroke-width="0.025"/>
+<rect x="7.7" y="1.7" width="0.6" height="0.6" fill="rgb(24, 18, 12)" stroke="rgb(80,60,40)" stroke-width="0.025"/>
 <polyline points="7.7,1.7 8.3,1.7 8.3,2.3" stroke="#000000" stroke-width="0.025" fill="none"/>
-<rect x="-2.3" y="-2.3" width="0.6" height="0.6" fill="rgb(64, 64, 64)" stroke="rgb(128,128,128)" stroke-width="0.025"/>
+<rect x="-2.3" y="-2.3" width="0.6" height="0.6" fill="rgb(38, 38, 38)" stroke="rgb(128,128,128)" stroke-width="0.025"/>
 <polyline points="-2.3,-2.3 -1.6999999999999997,-2.3 -1.6999999999999997,-1.6999999999999997" stroke="#000000" stroke-width="0.025" fill="none"/>
 <polygon points="1.0287033112837766e-17,0.05399999999999999 0.14549226783578567,0.19799999999999998 -0.14549226783578564,0.19800000000000004" fill="rgba(25,25,25, 0.6)" stroke="rgba(25,25,25)" stroke-width="0.025"/>
 <polygon points="4,-2.054 3.8545077321642145,-2.198 4.1454922678357855,-2.198" fill="rgba(25,25,25, 0.6)" stroke="rgba(25,25,25)" stroke-width="0.025"/>
@@ -444,21 +444,21 @@ exports[`SvgExporter > rendering modes > snapshot - colored mode 1`] = `
 <line x1="0.3" y1="-2.3" x2="0.8" y2="-2.8" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 <line x1="2" y1="1.7" x2="2" y2="1.2" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 <line x1="2.3" y1="2" x2="2.8" y2="2" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<rect x="-0.3" y="-0.3" width="0.6" height="0.6" fill="rgb(64, 64, 64)" stroke="rgb(128,128,128)" stroke-width="0.025"/>
-<rect x="-0.3" y="-2.3" width="0.6" height="0.6" fill="rgb(64, 64, 64)" stroke="rgb(128,128,128)" stroke-width="0.025"/>
-<rect x="1.7" y="-0.3" width="0.6" height="0.6" fill="rgb(100, 80, 20)" stroke="rgb(200,160,40)" stroke-width="0.025"/>
+<rect x="-0.3" y="-0.3" width="0.6" height="0.6" fill="rgb(38, 38, 38)" stroke="rgb(128,128,128)" stroke-width="0.025"/>
+<rect x="-0.3" y="-2.3" width="0.6" height="0.6" fill="rgb(38, 38, 38)" stroke="rgb(128,128,128)" stroke-width="0.025"/>
+<rect x="1.7" y="-0.3" width="0.6" height="0.6" fill="rgb(60, 48, 12)" stroke="rgb(200,160,40)" stroke-width="0.025"/>
 <text x="2" y="0.15749999999999997" font-size="0.44999999999999996" font-weight="bold" font-family="sans-serif" fill="rgba(25,25,25)" text-anchor="middle">S</text>
-<rect x="-2.3" y="-0.3" width="0.6" height="0.6" fill="rgb(15, 60, 15)" stroke="rgb(30,120,30)" stroke-width="0.025"/>
-<rect x="-0.3" y="1.7" width="0.6" height="0.6" fill="rgb(64, 64, 64)" stroke="rgb(128,128,128)" stroke-width="0.025"/>
-<rect x="-0.3" y="-4.3" width="0.6" height="0.6" fill="rgb(64, 64, 64)" stroke="rgb(128,128,128)" stroke-width="0.025"/>
-<rect x="3.7" y="-2.3" width="0.6" height="0.6" fill="rgb(100, 80, 20)" stroke="rgb(200,160,40)" stroke-width="0.025"/>
-<rect x="-4.3" y="1.7" width="0.6" height="0.6" fill="rgb(15, 60, 15)" stroke="rgb(30,120,30)" stroke-width="0.025"/>
-<rect x="1.7" y="1.7" width="0.6" height="0.6" fill="rgb(100, 80, 20)" stroke="rgb(200,160,40)" stroke-width="0.025"/>
-<rect x="3.7" y="-0.3" width="0.6" height="0.6" fill="rgb(64, 64, 64)" stroke="rgb(128,128,128)" stroke-width="0.025"/>
-<rect x="5.7" y="-0.3" width="0.6" height="0.6" fill="rgb(40, 30, 20)" stroke="rgb(80,60,40)" stroke-width="0.025"/>
+<rect x="-2.3" y="-0.3" width="0.6" height="0.6" fill="rgb(9, 36, 9)" stroke="rgb(30,120,30)" stroke-width="0.025"/>
+<rect x="-0.3" y="1.7" width="0.6" height="0.6" fill="rgb(38, 38, 38)" stroke="rgb(128,128,128)" stroke-width="0.025"/>
+<rect x="-0.3" y="-4.3" width="0.6" height="0.6" fill="rgb(38, 38, 38)" stroke="rgb(128,128,128)" stroke-width="0.025"/>
+<rect x="3.7" y="-2.3" width="0.6" height="0.6" fill="rgb(60, 48, 12)" stroke="rgb(200,160,40)" stroke-width="0.025"/>
+<rect x="-4.3" y="1.7" width="0.6" height="0.6" fill="rgb(9, 36, 9)" stroke="rgb(30,120,30)" stroke-width="0.025"/>
+<rect x="1.7" y="1.7" width="0.6" height="0.6" fill="rgb(60, 48, 12)" stroke="rgb(200,160,40)" stroke-width="0.025"/>
+<rect x="3.7" y="-0.3" width="0.6" height="0.6" fill="rgb(38, 38, 38)" stroke="rgb(128,128,128)" stroke-width="0.025"/>
+<rect x="5.7" y="-0.3" width="0.6" height="0.6" fill="rgb(24, 18, 12)" stroke="rgb(80,60,40)" stroke-width="0.025"/>
 <text x="6" y="0.15749999999999997" font-size="0.44999999999999996" font-weight="bold" font-family="sans-serif" fill="rgba(225,255,255)" text-anchor="middle">X</text>
-<rect x="7.7" y="1.7" width="0.6" height="0.6" fill="rgb(40, 30, 20)" stroke="rgb(80,60,40)" stroke-width="0.025"/>
-<rect x="-2.3" y="-2.3" width="0.6" height="0.6" fill="rgb(64, 64, 64)" stroke="rgb(128,128,128)" stroke-width="0.025"/>
+<rect x="7.7" y="1.7" width="0.6" height="0.6" fill="rgb(24, 18, 12)" stroke="rgb(80,60,40)" stroke-width="0.025"/>
+<rect x="-2.3" y="-2.3" width="0.6" height="0.6" fill="rgb(38, 38, 38)" stroke="rgb(128,128,128)" stroke-width="0.025"/>
 <polygon points="1.0287033112837766e-17,0.05399999999999999 0.14549226783578567,0.19799999999999998 -0.14549226783578564,0.19800000000000004" fill="rgba(25,25,25, 0.6)" stroke="rgba(25,25,25)" stroke-width="0.025"/>
 <polygon points="4,-2.054 3.8545077321642145,-2.198 4.1454922678357855,-2.198" fill="rgba(25,25,25, 0.6)" stroke="rgba(25,25,25)" stroke-width="0.025"/>
 <polygon points="3.946,4.40872847693047e-18 3.802,0.14549226783578567 3.802,-0.14549226783578564" fill="rgba(25,25,25, 0.6)" stroke="rgb(226, 205, 59)" stroke-width="0.025"/>
@@ -842,21 +842,21 @@ exports[`SvgExporter > visual options > snapshot - no borders 1`] = `
 <line x1="0.3" y1="-2.3" x2="0.8" y2="-2.8" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 <line x1="2" y1="1.7" x2="2" y2="1.2" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 <line x1="2.3" y1="2" x2="2.8" y2="2" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<rect x="-0.3" y="-0.3" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<rect x="-0.3" y="-2.3" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<rect x="1.7" y="-0.3" width="0.6" height="0.6" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<rect x="-0.3" y="-0.3" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0"/>
+<rect x="-0.3" y="-2.3" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0"/>
+<rect x="1.7" y="-0.3" width="0.6" height="0.6" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0"/>
 <text x="2" y="0.15749999999999997" font-size="0.44999999999999996" font-weight="bold" font-family="sans-serif" fill="rgba(25,25,25)" text-anchor="middle">S</text>
-<rect x="-2.3" y="-0.3" width="0.6" height="0.6" fill="rgb(30,120,30)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<rect x="-0.3" y="1.7" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<rect x="-0.3" y="-4.3" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<rect x="3.7" y="-2.3" width="0.6" height="0.6" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<rect x="-4.3" y="1.7" width="0.6" height="0.6" fill="rgb(30,120,30)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<rect x="1.7" y="1.7" width="0.6" height="0.6" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<rect x="3.7" y="-0.3" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<rect x="5.7" y="-0.3" width="0.6" height="0.6" fill="rgb(80,60,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<rect x="-2.3" y="-0.3" width="0.6" height="0.6" fill="rgb(30,120,30)" stroke="rgb(225, 255, 225)" stroke-width="0"/>
+<rect x="-0.3" y="1.7" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0"/>
+<rect x="-0.3" y="-4.3" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0"/>
+<rect x="3.7" y="-2.3" width="0.6" height="0.6" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0"/>
+<rect x="-4.3" y="1.7" width="0.6" height="0.6" fill="rgb(30,120,30)" stroke="rgb(225, 255, 225)" stroke-width="0"/>
+<rect x="1.7" y="1.7" width="0.6" height="0.6" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0"/>
+<rect x="3.7" y="-0.3" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0"/>
+<rect x="5.7" y="-0.3" width="0.6" height="0.6" fill="rgb(80,60,40)" stroke="rgb(225, 255, 225)" stroke-width="0"/>
 <text x="6" y="0.15749999999999997" font-size="0.44999999999999996" font-weight="bold" font-family="sans-serif" fill="rgba(225,255,255)" text-anchor="middle">X</text>
-<rect x="7.7" y="1.7" width="0.6" height="0.6" fill="rgb(80,60,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<rect x="-2.3" y="-2.3" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<rect x="7.7" y="1.7" width="0.6" height="0.6" fill="rgb(80,60,40)" stroke="rgb(225, 255, 225)" stroke-width="0"/>
+<rect x="-2.3" y="-2.3" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0"/>
 <polygon points="1.0287033112837766e-17,0.05399999999999999 0.14549226783578567,0.19799999999999998 -0.14549226783578564,0.19800000000000004" fill="rgba(25,25,25, 0.6)" stroke="rgba(25,25,25)" stroke-width="0.025"/>
 <polygon points="4,-2.054 3.8545077321642145,-2.198 4.1454922678357855,-2.198" fill="rgba(25,25,25, 0.6)" stroke="rgba(25,25,25)" stroke-width="0.025"/>
 <polygon points="3.946,4.40872847693047e-18 3.802,0.14549226783578567 3.802,-0.14549226783578564" fill="rgba(25,25,25, 0.6)" stroke="rgb(226, 205, 59)" stroke-width="0.025"/>

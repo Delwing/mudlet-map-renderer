@@ -4,10 +4,10 @@ import Plane from "./reader/Plane";
 import ExitRenderer from "./ExitRenderer";
 import type {ExitDrawData} from "./ExitRenderer";
 import type {Settings} from "./Renderer";
-import {darkenColor, colorLightness} from "./Renderer";
 import {movePoint, movePointCircle, movePointRoundedRect} from "./directions";
 import {computePathData} from "./PathData";
 import {measureTextBaselineOffset} from "./utils/textMeasure";
+import {computeRoomColors, computeEmboss} from "./scene/RoomStyle";
 
 const dirNumbers: Record<number, MapData.direction> = {
     1: "north", 2: "northeast", 3: "northwest", 4: "east", 5: "west",
@@ -406,21 +406,20 @@ export class CanvasExporter {
         const halfRs = rs / 2;
 
         for (const room of rooms) {
-            const envColor = this.mapReader.getColorValue(room.env);
-            const fillColor = this.settings.coloredMode ? darkenColor(envColor, 0.5)
-                : this.settings.frameMode ? this.settings.backgroundColor : envColor;
-            const strokeColor = (this.settings.frameMode || this.settings.coloredMode) ? envColor : this.settings.lineColor;
+            const {fillColor, strokeColor, borderWidth, symbolColor} = computeRoomColors(
+                room, this.mapReader, this.settings,
+            );
 
             ctx.fillStyle = fillColor;
             ctx.strokeStyle = strokeColor;
-            ctx.lineWidth = this.settings.lineWidth;
+            ctx.lineWidth = borderWidth;
             ctx.setLineDash([]);
 
             if (this.settings.roomShape === "circle") {
                 ctx.beginPath();
                 ctx.arc(room.x, room.y, halfRs, 0, Math.PI * 2);
                 ctx.fill();
-                ctx.stroke();
+                if (borderWidth > 0) ctx.stroke();
             } else {
                 const rx = room.x - halfRs;
                 const ry = room.y - halfRs;
@@ -428,34 +427,25 @@ export class CanvasExporter {
                 if (cr > 0) {
                     this.roundRect(ctx, rx, ry, rs, rs, cr);
                     ctx.fill();
-                    ctx.stroke();
+                    if (borderWidth > 0) ctx.stroke();
                 } else {
                     ctx.fillRect(rx, ry, rs, rs);
-                    ctx.strokeRect(rx, ry, rs, rs);
+                    if (borderWidth > 0) ctx.strokeRect(rx, ry, rs, rs);
                 }
 
-                // Emboss
-                if (this.settings.emboss) {
-                    const isLight = colorLightness(this.settings.lineColor) > 0.41;
+                const emboss = computeEmboss(this.settings);
+                if (emboss) {
                     ctx.beginPath();
-                    if (isLight) {
-                        ctx.moveTo(rx, ry);
-                        ctx.lineTo(rx + rs, ry);
-                        ctx.lineTo(rx + rs, ry + rs);
-                    } else {
-                        ctx.moveTo(rx, ry);
-                        ctx.lineTo(rx, ry + rs);
-                        ctx.lineTo(rx + rs, ry + rs);
-                    }
-                    ctx.strokeStyle = isLight ? '#000000' : '#ffffff';
-                    ctx.lineWidth = this.settings.lineWidth;
+                    ctx.moveTo(rx + emboss.points[0], ry + emboss.points[1]);
+                    ctx.lineTo(rx + emboss.points[2], ry + emboss.points[3]);
+                    ctx.lineTo(rx + emboss.points[4], ry + emboss.points[5]);
+                    ctx.strokeStyle = emboss.stroke;
+                    ctx.lineWidth = emboss.strokeWidth;
                     ctx.stroke();
                 }
             }
 
-            // Symbol
             if (room.roomChar) {
-                const symbolColor = this.getSymbolColor(room.env);
                 const fontSize = rs * 0.75;
                 ctx.fillStyle = symbolColor;
                 ctx.font = `bold ${fontSize}px ${this.settings.fontFamily}`;

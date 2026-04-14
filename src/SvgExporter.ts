@@ -4,10 +4,10 @@ import Plane from "./reader/Plane";
 import ExitRenderer from "./ExitRenderer";
 import type {ExitDrawData, ExitDrawLine, ExitDrawArrow, ExitDrawDoor} from "./ExitRenderer";
 import type {Settings} from "./Renderer";
-import {darkenColor, colorLightness} from "./Renderer";
 import {movePoint, movePointCircle, movePointRoundedRect} from "./directions";
 import {computePathData} from "./PathData";
 import {measureTextBaselineOffset} from "./utils/textMeasure";
+import {computeRoomColors, computeEmboss} from "./scene/RoomStyle";
 
 const dirNumbers: Record<number, MapData.direction> = {
     1: "north", 2: "northeast", 3: "northwest", 4: "east", 5: "west",
@@ -361,34 +361,28 @@ export class SvgExporter {
         const halfRs = rs / 2;
 
         for (const room of rooms) {
-            const envColor = this.mapReader.getColorValue(room.env);
-            const fillColor = this.settings.coloredMode ? darkenColor(envColor, 0.5)
-                : this.settings.frameMode ? this.settings.backgroundColor : envColor;
-            const strokeColor = (this.settings.frameMode || this.settings.coloredMode) ? envColor : this.settings.lineColor;
+            const {fillColor, strokeColor, borderWidth, symbolColor} = computeRoomColors(
+                room, this.mapReader, this.settings,
+            );
 
             if (this.settings.roomShape === "circle") {
-                lines.push(`<circle cx="${room.x}" cy="${room.y}" r="${halfRs}" fill="${escapeXml(fillColor)}" stroke="${escapeXml(strokeColor)}" stroke-width="${this.settings.lineWidth}"/>`);
+                lines.push(`<circle cx="${room.x}" cy="${room.y}" r="${halfRs}" fill="${escapeXml(fillColor)}" stroke="${escapeXml(strokeColor)}" stroke-width="${borderWidth}"/>`);
             } else {
                 const rx = room.x - halfRs;
                 const ry = room.y - halfRs;
                 const cr = this.settings.roomShape === "roundedRectangle" ? rs * 0.2 : 0;
                 const crAttr = cr > 0 ? ` rx="${cr}" ry="${cr}"` : '';
-                lines.push(`<rect x="${rx}" y="${ry}" width="${rs}" height="${rs}" fill="${escapeXml(fillColor)}" stroke="${escapeXml(strokeColor)}" stroke-width="${this.settings.lineWidth}"${crAttr}/>`);
+                lines.push(`<rect x="${rx}" y="${ry}" width="${rs}" height="${rs}" fill="${escapeXml(fillColor)}" stroke="${escapeXml(strokeColor)}" stroke-width="${borderWidth}"${crAttr}/>`);
 
-                // Emboss
-                if (this.settings.emboss) {
-                    const isLight = colorLightness(this.settings.lineColor) > 0.41;
-                    const embossColor = isLight ? '#000000' : '#ffffff';
-                    const pts = isLight
-                        ? `${rx},${ry} ${rx + rs},${ry} ${rx + rs},${ry + rs}`
-                        : `${rx},${ry} ${rx},${ry + rs} ${rx + rs},${ry + rs}`;
-                    lines.push(`<polyline points="${pts}" stroke="${embossColor}" stroke-width="${this.settings.lineWidth}" fill="none"/>`);
+                const emboss = computeEmboss(this.settings);
+                if (emboss) {
+                    const pts = emboss.points;
+                    const svgPts = `${rx + pts[0]},${ry + pts[1]} ${rx + pts[2]},${ry + pts[3]} ${rx + pts[4]},${ry + pts[5]}`;
+                    lines.push(`<polyline points="${svgPts}" stroke="${emboss.stroke}" stroke-width="${emboss.strokeWidth}" fill="none"/>`);
                 }
             }
 
-            // Room symbol
             if (room.roomChar) {
-                const symbolColor = this.getSymbolColor(room.env);
                 const fontSize = rs * 0.75;
                 const baselineY = room.y + measureTextBaselineOffset(room.roomChar, this.settings.fontFamily) * fontSize;
                 lines.push(`<text x="${room.x}" y="${baselineY}" font-size="${fontSize}" font-weight="bold" font-family="${escapeXml(this.settings.fontFamily)}" fill="${escapeXml(symbolColor)}" text-anchor="middle">${escapeXml(room.roomChar)}</text>`);

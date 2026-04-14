@@ -1,8 +1,8 @@
 import Konva from "konva";
 import MapReader from "./reader/MapReader";
 import type {Settings} from "./Renderer";
-import {colorLightness, darkenColor} from "./Renderer";
 import {measureTextBaselineOffset} from "./utils/textMeasure";
+import {computeRoomColors, computeEmboss} from "./scene/RoomStyle";
 
 /**
  * Creates Konva groups for individual rooms — shape, emboss, and symbol.
@@ -18,27 +18,18 @@ export class RoomShapeRenderer {
         this.settings = settings;
     }
 
-    /**
-     * Create a Konva.Group for a room with shape, optional emboss, and symbol.
-     * @param room The room data
-     * @param options.strokeOverride Override the stroke color (used for current-room highlight)
-     */
     createRoomGroup(room: MapData.Room, options?: {
         strokeOverride?: string;
     }): Konva.Group {
+        const {fillColor, strokeColor, borderWidth, symbolColor} = computeRoomColors(
+            room, this.mapReader, this.settings, options?.strokeOverride,
+        );
+
         const roomGroup = new Konva.Group({
             x: room.x - this.settings.roomSize / 2,
             y: room.y - this.settings.roomSize / 2,
             listening: false,
         });
-
-        const envColor = this.mapReader.getColorValue(room.env);
-        const fillColor = this.settings.coloredMode ? darkenColor(envColor, 0.7)
-            : this.settings.frameMode ? this.settings.backgroundColor : envColor;
-        const strokeColor = options?.strokeOverride
-            ? ((this.settings.frameMode || this.settings.coloredMode) ? envColor : options.strokeOverride)
-            : ((this.settings.frameMode || this.settings.coloredMode) ? envColor : this.settings.lineColor);
-        const borderWidth = this.settings.borders ? this.settings.lineWidth : 0;
 
         const roomShape = this.settings.roomShape === "circle"
             ? new Konva.Circle({
@@ -66,42 +57,28 @@ export class RoomShapeRenderer {
 
         roomGroup.add(roomShape);
 
-        if (this.settings.emboss && this.settings.roomShape !== "circle") {
-            const rs = this.settings.roomSize;
-            const isLight = colorLightness(this.settings.lineColor) > 0.41;
+        const emboss = computeEmboss(this.settings);
+        if (emboss) {
             roomGroup.add(new Konva.Line({
-                points: isLight ? [0, 0, rs, 0, rs, rs] : [0, 0, 0, rs, rs, rs],
-                stroke: isLight ? '#000000' : '#ffffff',
-                strokeWidth: this.settings.lineWidth,
+                points: emboss.points,
+                stroke: emboss.stroke,
+                strokeWidth: emboss.strokeWidth,
                 perfectDrawEnabled: false,
                 listening: false,
             }));
         }
 
-        this.renderSymbol(room, roomGroup);
-
-        return roomGroup;
-    }
-
-    private getSymbolColor(envId: number, opacity?: number): string {
-        if (this.settings.frameMode) {
-            return this.mapReader.getColorValue(envId);
-        }
-        return this.mapReader.getSymbolColor(envId, opacity);
-    }
-
-    private renderSymbol(room: MapData.Room, roomGroup: Konva.Group) {
         if (room.roomChar !== undefined) {
             const fontSize = this.settings.roomSize * 0.75;
             const baselineRatio = measureTextBaselineOffset(room.roomChar, this.settings.fontFamily);
             const refBaselineRatio = measureTextBaselineOffset("M", this.settings.fontFamily);
-            const roomChar = new Konva.Text({
+            roomGroup.add(new Konva.Text({
                 x: 0,
                 y: 0,
                 text: room.roomChar,
-                fontSize: fontSize,
+                fontSize,
                 fontStyle: "bold",
-                fill: this.getSymbolColor(room.env),
+                fill: symbolColor,
                 align: "center",
                 verticalAlign: "middle",
                 width: this.settings.roomSize,
@@ -109,8 +86,9 @@ export class RoomShapeRenderer {
                 offsetY: (refBaselineRatio - baselineRatio) * fontSize,
                 perfectDrawEnabled: false,
                 listening: false,
-            });
-            roomGroup.add(roomChar);
+            }));
         }
+
+        return roomGroup;
     }
 }
