@@ -1,6 +1,5 @@
 import type {DrawingBackend, GroupNode} from "../backend/DrawingBackend";
 import type {HighlightData, PositionMarkerData, PathOverlayData} from "./OverlayStyle";
-import type {ExitDrawData, ExitDrawArrow} from "../ExitRenderer";
 import type {SpecialExitData} from "./SpecialExitStyle";
 import type {StubData} from "./StubStyle";
 import type {TriangleData} from "./InnerExitStyle";
@@ -95,55 +94,6 @@ export function renderPathOverlay(backend: DrawingBackend, data: PathOverlayData
         });
     }
     return group;
-}
-
-/**
- * Render ExitDrawData through DrawingBackend (replaces renderWithColor Konva method).
- */
-export function renderExitDrawData(backend: DrawingBackend, data: ExitDrawData): GroupNode {
-    const group = backend.createGroup(0, 0);
-    for (const line of data.lines) {
-        backend.addLine(group, {
-            points: line.points,
-            stroke: line.stroke, strokeWidth: line.strokeWidth,
-            dash: line.dash,
-        });
-    }
-    for (const arrow of data.arrows) {
-        renderArrowToBackend(backend, group, arrow);
-    }
-    for (const door of data.doors) {
-        backend.addRect(group, {
-            x: door.x, y: door.y,
-            width: door.width, height: door.height,
-            stroke: door.stroke, strokeWidth: door.strokeWidth,
-        });
-    }
-    return group;
-}
-
-function renderArrowToBackend(backend: DrawingBackend, group: GroupNode, arrow: ExitDrawArrow) {
-    // Line part
-    backend.addLine(group, {
-        points: arrow.points,
-        stroke: arrow.stroke, strokeWidth: arrow.strokeWidth,
-        dash: arrow.dash,
-    });
-    // Arrowhead triangle
-    const lastIdx = arrow.points.length - 2;
-    const tipX = arrow.points[lastIdx], tipY = arrow.points[lastIdx + 1];
-    const prevX = arrow.points[lastIdx - 2], prevY = arrow.points[lastIdx - 1];
-    const angle = Math.atan2(tipY - prevY, tipX - prevX);
-    const pl = arrow.pointerLength, pw = arrow.pointerWidth / 2;
-    const x1 = tipX - pl * Math.cos(angle - Math.atan2(pw, pl));
-    const y1 = tipY - pl * Math.sin(angle - Math.atan2(pw, pl));
-    const x2 = tipX - pl * Math.cos(angle + Math.atan2(pw, pl));
-    const y2 = tipY - pl * Math.sin(angle + Math.atan2(pw, pl));
-    backend.addPolygon(group, {
-        vertices: [tipX, tipY, x1, y1, x2, y2],
-        fill: arrow.fill, stroke: arrow.stroke,
-        strokeWidth: arrow.strokeWidth,
-    });
 }
 
 /**

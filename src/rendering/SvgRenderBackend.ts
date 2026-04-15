@@ -1,10 +1,10 @@
 import {SvgBackend, SvgGroupNode, SvgLayerNode} from "../backend/SvgBackend";
 import {ScenePipeline} from "../ScenePipeline";
-import {drawExitDataToSvgLines} from "../scene/ExitDataRenderer";
 import {computeHighlight, computePositionMarker, computePathOverlay} from "../scene/OverlayStyle";
 import {renderHighlight, renderPositionMarker, renderPathOverlay} from "../scene/OverlayRenderer";
 import type {SvgOverlays} from "../SvgTypes";
 import type {MapState} from "../MapState";
+import type {DrawingBackend} from "../backend/DrawingBackend";
 
 function escapeXml(s: string): string {
     return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -21,9 +21,11 @@ function escapeXml(s: string): string {
  */
 export class SvgRenderBackend {
     private readonly state: MapState;
+    private readonly drawingBackendFactory?: (inner: DrawingBackend) => DrawingBackend;
 
-    constructor(state: MapState) {
+    constructor(state: MapState, drawingBackendFactory?: (innerSvgBackend: DrawingBackend) => DrawingBackend) {
         this.state = state;
+        this.drawingBackendFactory = drawingBackendFactory;
     }
 
     exportSvg(options?: { roomId?: number; padding?: number; overlays?: SvgOverlays }): string | undefined {
@@ -39,7 +41,8 @@ export class SvgRenderBackend {
         const bounds = this.state.computeExportBounds(area, plane, options?.roomId, padding);
 
         // Set up SVG layers
-        const svgBackend = new SvgBackend();
+        const rawSvgBackend = new SvgBackend();
+        const svgBackend = this.drawingBackendFactory ? this.drawingBackendFactory(rawSvgBackend) : rawSvgBackend;
         const gridLayer = new SvgLayerNode();
         const linkLayer = new SvgLayerNode();
         const roomLayer = new SvgLayerNode();
@@ -54,7 +57,7 @@ export class SvgRenderBackend {
             minY: bounds.y, maxY: bounds.y + bounds.h,
         };
 
-        const result = pipeline.buildScene(area, plane, currentZIndex, viewportBounds);
+        pipeline.buildScene(area, plane, currentZIndex, viewportBounds);
 
         // Assemble SVG
         const lines: string[] = [];
@@ -65,14 +68,9 @@ export class SvgRenderBackend {
         const gridSvg = gridLayer.toSvg();
         if (gridSvg) lines.push(gridSvg);
 
-        // Link layer (labels + special exits from pipeline)
+        // Link layer (labels + link exits + special exits — all from pipeline)
         const linkSvg = linkLayer.toSvg();
         if (linkSvg) lines.push(linkSvg);
-
-        // Link exits (serialized directly from exit data)
-        for (const data of result.exitDrawData) {
-            drawExitDataToSvgLines(lines, data);
-        }
 
         // Room layer (rooms with stubs + inner exits + area name)
         const roomSvg = roomLayer.toSvg();

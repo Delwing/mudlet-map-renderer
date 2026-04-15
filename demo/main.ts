@@ -1,4 +1,4 @@
-import {MapRenderer, createSettings, PathFinder} from "@src";
+import {MapRenderer, createSettings, PathFinder, KonvaBackend, SketchyBackend} from "@src";
 import type {Settings} from "@src";
 import MapReader from "@src/reader/MapReader";
 import {initControls, initPerfMonitor} from "./controls";
@@ -40,6 +40,9 @@ let destinationRoomId: number | undefined;
 let currentDestinationPath: number[] | undefined;
 let pathColor = '#66E64D';
 let walker!: Walker;
+let sketchEnabled = false;
+let sketchColor = '#444444';
+let savedBackgroundColor: string;
 
 // --- Helpers ---
 
@@ -150,6 +153,20 @@ function updateDestinationGuidance() {
     currentDestinationPath = path;
 }
 
+// --- Sketch backend helpers ---
+
+function applySketchMode() {
+    if (sketchEnabled) {
+        const jitter = settings.lineWidth * 0.6;
+        renderer.setDrawingBackend(new SketchyBackend(new KonvaBackend(), jitter, sketchColor));
+        settings.backgroundColor = '#ffffff';
+    } else {
+        renderer.setDrawingBackend(new KonvaBackend());
+        settings.backgroundColor = savedBackgroundColor;
+    }
+    renderer.refresh();
+}
+
 // --- Initialization ---
 
 async function initialize() {
@@ -168,9 +185,7 @@ async function initialize() {
     }
 
     pathFinder = new PathFinder(mapReader);
-
-    // Read backend preference from URL
-    const params = new URLSearchParams(window.location.search);
+    savedBackgroundColor = settings.backgroundColor;
     renderer = new MapRenderer(mapReader, settings, stageElement);
 
     // Controls & perf
@@ -184,6 +199,22 @@ async function initialize() {
     initPerfMonitor(settings);
     initContextMenu(stageElement, renderer, mapReader, moveToRoom, (msg) => updateStatus(roomStatusElement, msg));
 
+    // Sketch toggle (demo-side — recreates renderer with/without decorator)
+    const sketchToggle = document.getElementById("sketch-toggle") as HTMLInputElement | null;
+    const sketchColorInput = document.getElementById("sketch-color") as HTMLInputElement | null;
+    const sketchColorLabel = document.getElementById("sketch-color-label") as HTMLElement | null;
+
+    sketchToggle?.addEventListener("change", () => {
+        sketchEnabled = sketchToggle.checked;
+        if (sketchColorLabel) sketchColorLabel.style.display = sketchEnabled ? '' : 'none';
+        applySketchMode();
+    });
+
+    sketchColorInput?.addEventListener("input", () => {
+        sketchColor = sketchColorInput.value;
+        if (sketchEnabled) applySketchMode();
+    });
+
     // Walker
     walker = new Walker(mapReader, pathFinder, walkerStatusElement, walkerToggleButton, {
         getCurrentRoomId: () => currentRoomId,
@@ -194,6 +225,7 @@ async function initialize() {
     });
 
     // Starting room
+    const params = new URLSearchParams(window.location.search);
     const requestedRoomId = parseRoomId(params.get("roomId") ?? params.get("room") ?? undefined);
     let startingRoomId = DEFAULT_STARTING_ROOM_ID;
     let initialStatus = "";

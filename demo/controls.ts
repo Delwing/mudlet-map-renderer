@@ -260,6 +260,7 @@ export function initControls(settings: Settings, renderer: MapRenderer, getCurre
         renderer.refresh();
     });
 
+
     savePngBtn?.addEventListener("click", async () => {
         const blob = renderer.exportPngBlob({ pixelRatio: 2 });
         if (!blob) return;

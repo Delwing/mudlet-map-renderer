@@ -12,14 +12,13 @@ import {TypedEventEmitter} from "../TypedEventEmitter";
 import {KonvaBackend, KonvaLayerNode} from "../backend/KonvaBackend";
 import type {InteractiveBackend} from "./MapRenderer";
 import type {DrawingBackend, GroupNode, LayerNode} from "../backend/DrawingBackend";
-import {drawExitDataToCanvas} from "../scene/ExitDataRenderer";
 import {computeHighlight, computePositionMarker, computePathOverlay} from "../scene/OverlayStyle";
 import {computeStubs} from "../scene/StubStyle";
 import {computeSpecialExits} from "../scene/SpecialExitStyle";
 import {computeInnerExits} from "../scene/InnerExitStyle";
 import {
     renderHighlight, renderPositionMarker, renderPathOverlay,
-    renderExitDrawData, renderSpecialExitGroup, renderStubsGroup, renderInnerExitsGroup,
+    renderSpecialExitGroup, renderStubsGroup, renderInnerExitsGroup,
 } from "../scene/OverlayRenderer";
 import ExplorationArea from "../reader/ExplorationArea";
 
@@ -50,7 +49,7 @@ export class KonvaRenderBackend implements InteractiveBackend {
 
     private readonly state: MapState;
     private readonly container?: HTMLDivElement;
-    private readonly drawingBackend: DrawingBackend;
+    private drawingBackend: DrawingBackend;
     private readonly positionLayerNode: LayerNode;
     private readonly overlayLayerNode: LayerNode;
     private pipeline: ScenePipeline;
@@ -65,7 +64,7 @@ export class KonvaRenderBackend implements InteractiveBackend {
     private origSetSize?: (w: number, h: number) => void;
     private destroyed = false;
 
-    constructor(state: MapState, container?: HTMLDivElement) {
+    constructor(state: MapState, container?: HTMLDivElement, drawingBackend?: DrawingBackend) {
         this.state = state;
         this.container = container;
 
@@ -94,7 +93,7 @@ export class KonvaRenderBackend implements InteractiveBackend {
         this.overlayLayer = new Konva.Layer({listening: false});
         this.stage.add(this.overlayLayer);
 
-        this.drawingBackend = new KonvaBackend();
+        this.drawingBackend = drawingBackend ?? new KonvaBackend();
         this.positionLayerNode = new KonvaLayerNode(this.positionLayer);
         this.overlayLayerNode = new KonvaLayerNode(this.overlayLayer);
 
@@ -134,6 +133,15 @@ export class KonvaRenderBackend implements InteractiveBackend {
         }
 
         this.subscribeToState(state);
+    }
+
+    setDrawingBackend(backend: DrawingBackend) {
+        this.drawingBackend = backend;
+        this.pipeline = new ScenePipeline(this.state.mapReader, this.state.settings, backend, {
+            gridLayer: new KonvaLayerNode(this.gridLayer),
+            linkLayer: new KonvaLayerNode(this.linkLayer),
+            roomLayer: new KonvaLayerNode(this.roomLayer),
+        });
     }
 
     get exitRenderer() {
@@ -301,6 +309,7 @@ export class KonvaRenderBackend implements InteractiveBackend {
         if (!currentAreaInstance || currentZIndex === undefined) return;
         const plane = currentAreaInstance.getPlane(currentZIndex);
         if (!plane) return;
+        this.updateBackground();
         const result = this.buildScene(currentAreaInstance, plane, currentZIndex, this.viewport.getViewportBounds());
         this.onSceneBuilt(result);
         this.syncHighlights();
@@ -349,20 +358,6 @@ export class KonvaRenderBackend implements InteractiveBackend {
 
         const result = this.pipeline.buildScene(area, plane, zIndex, viewportBounds);
 
-        // Konva-specific: batch exit rendering via sceneFunc for performance
-        const visibleExitDrawData = result.exitDrawData;
-        const exitBatchShape = new Konva.Shape({
-            listening: false,
-            perfectDrawEnabled: false,
-            sceneFunc: (context) => {
-                const ctx = context._context;
-                for (const data of visibleExitDrawData) {
-                    drawExitDataToCanvas(ctx, data);
-                }
-            },
-        });
-        this.linkLayer.add(exitBatchShape);
-
         this.lastBuildResult = result;
         return result;
     }
@@ -385,7 +380,6 @@ export class KonvaRenderBackend implements InteractiveBackend {
             this.culling.addStandaloneExitToSpatialIndex(entry);
         }
         this.culling.setExitBoundsRoomSize();
-        this.culling.visibleExitDrawData = result.exitDrawData;
         this.areaExitHitZones = result.areaExitHitZones;
 
         this.culling.updateCulling();
@@ -466,7 +460,7 @@ export class KonvaRenderBackend implements InteractiveBackend {
             exits.forEach(exit => {
                 const data = exitRenderer.renderDataWithColor(exit, currentRoomColor, this.state.currentZIndex!);
                 if (data) {
-                    preRoomNodes.push(renderExitDrawData(this.drawingBackend, data));
+                    preRoomNodes.push(this.pipeline.renderExitData(data));
                 }
             });
         }

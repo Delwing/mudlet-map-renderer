@@ -19,6 +19,9 @@ export { MapState } from './MapState';
 export type { MapStateEventMap, HighlightEntry, PathEntry } from './MapState';
 export { KonvaRenderBackend } from './rendering/KonvaRenderBackend';
 export { Viewport } from './Viewport';
+export type { DrawingBackend } from './backend/DrawingBackend';
+export { KonvaBackend } from './backend/KonvaBackend';
+export { SketchyBackend } from './backend/SketchyBackend';
 
 // --- Core ---
 export { default as MapReader } from './reader/MapReader';

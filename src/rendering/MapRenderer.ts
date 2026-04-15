@@ -7,6 +7,7 @@ import {MapState} from "../MapState";
 import type {SvgExportOptions} from "../SvgTypes";
 import {KonvaRenderBackend} from "./KonvaRenderBackend";
 import {SvgRenderBackend} from "./SvgRenderBackend";
+import type {DrawingBackend} from "../backend/DrawingBackend";
 import type {CanvasExportOptions, CanvasExportOverlays} from "../HeadlessRenderer";
 import type {Viewport} from "../Viewport";
 import type {CullingManager} from "../CullingManager";
@@ -17,6 +18,7 @@ export interface InteractiveBackend {
     readonly viewport: Viewport;
     readonly culling: CullingManager;
     readonly events: TypedEventEmitter<RendererEventMap>;
+    setDrawingBackend(backend: DrawingBackend): void;
     updateBackground(): void;
     refresh(): void;
     /** Render a specific region to canvas (for headless / bounded export). */
@@ -34,6 +36,7 @@ export interface InteractiveBackend {
 export class MapRenderer {
     readonly state: MapState;
     readonly backend: InteractiveBackend;
+    private readonly svgDrawingBackendFactory?: (innerSvgBackend: DrawingBackend) => DrawingBackend;
 
     get settings(): Settings {
         return this.state.settings;
@@ -45,23 +48,26 @@ export class MapRenderer {
      * @param container       DOM element for interactive rendering. Omit for headless.
      * @param backendFactory  Optional factory that receives the `MapState` and returns
      *   a custom `InteractiveBackend`. When omitted, a `KonvaRenderBackend` is created.
-     *
-     *   ```ts
-     *   new MapRenderer(mapReader, settings, container,
-     *       (state) => new PaperRenderBackend(state, container));
-     *   ```
+     * @param drawingBackend  Optional DrawingBackend for Konva rendering.
+     *   Must create GroupNodes compatible with KonvaLayerNode (i.e. wrap a KonvaBackend).
+     *   Use `new SketchyBackend(new KonvaBackend(), jitter, color)` for pencil style.
+     * @param svgDrawingBackendFactory  Optional factory for SVG export drawing backend.
+     *   Receives the default SvgBackend and returns a wrapped one.
      */
     constructor(
         mapReader: MapReader,
         settings?: Settings,
         container?: HTMLDivElement,
         backendFactory?: (state: MapState) => InteractiveBackend,
+        drawingBackend?: DrawingBackend,
+        svgDrawingBackendFactory?: (innerSvgBackend: DrawingBackend) => DrawingBackend,
     ) {
         const resolvedSettings = settings ?? createSettings();
         this.state = new MapState(mapReader, resolvedSettings);
+        this.svgDrawingBackendFactory = svgDrawingBackendFactory;
         this.backend = backendFactory
             ? backendFactory(this.state)
-            : new KonvaRenderBackend(this.state, container);
+            : new KonvaRenderBackend(this.state, container, drawingBackend);
     }
 
     destroy() {
@@ -122,6 +128,10 @@ export class MapRenderer {
         this.state.refreshPosition();
     }
 
+    setDrawingBackend(backend: DrawingBackend) {
+        this.backend.setDrawingBackend(backend);
+    }
+
     updateBackground() {
         this.backend.updateBackground();
     }
@@ -138,7 +148,7 @@ export class MapRenderer {
             ...options,
             overlays: this.state.getOverlaysForArea(options?.overlays),
         };
-        const svgBackend = new SvgRenderBackend(this.state);
+        const svgBackend = new SvgRenderBackend(this.state, this.svgDrawingBackendFactory);
         return svgBackend.exportSvg(mergedOptions);
     }
 

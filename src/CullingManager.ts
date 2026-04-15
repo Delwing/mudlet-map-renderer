@@ -1,10 +1,9 @@
-import type {ExitDrawData} from "./ExitRenderer";
 import type {Settings, CullingMode, PerfSnapshot} from "./types/Settings";
 import type {GroupNode, LayerNode} from "./backend/DrawingBackend";
 
 export type RoomNodeEntry = { room: MapData.Room; group: GroupNode };
 type Bounds = { x: number; y: number; width: number; height: number };
-export type StandaloneExitEntry = { data: ExitDrawData; bounds: Bounds; targetRoomId?: number };
+export type StandaloneExitEntry = { group: GroupNode; bounds: Bounds; targetRoomId?: number };
 
 class PerfMonitor {
     private samples: PerfSnapshot[] = [];
@@ -82,7 +81,6 @@ export class CullingManager {
     // Node collections (owned by Renderer, shared by reference)
     roomNodes: Map<number, RoomNodeEntry> = new Map();
     standaloneExitNodes: StandaloneExitEntry[] = [];
-    visibleExitDrawData: ExitDrawData[] = [];
 
     // Spatial index
     spatialBucketSize = 5;
@@ -122,7 +120,6 @@ export class CullingManager {
         this.exitSpatialIndex.clear();
         this.visibleRooms.clear();
         this.visibleStandaloneExitNodes.clear();
-        this.visibleExitDrawData.length = 0;
     }
 
     private getBucketKey(bucketX: number, bucketY: number) {
@@ -270,11 +267,9 @@ export class CullingManager {
             this.roomNodes.forEach(entry => {
                 if (!entry.group.isVisible()) { entry.group.setVisible(true); roomLayerNeedsDraw = true; }
             });
-            if (this.visibleExitDrawData.length !== this.standaloneExitNodes.length) {
-                this.visibleExitDrawData.length = 0;
-                for (const entry of this.standaloneExitNodes) this.visibleExitDrawData.push(entry.data);
-                linkLayerNeedsDraw = true;
-            }
+            this.standaloneExitNodes.forEach(entry => {
+                if (!entry.group.isVisible()) { entry.group.setVisible(true); linkLayerNeedsDraw = true; }
+            });
             if (roomLayerNeedsDraw) this.roomLayer.batchDraw();
             if (linkLayerNeedsDraw) this.linkLayer.batchDraw();
             this.visibleRooms.clear();
@@ -360,25 +355,20 @@ export class CullingManager {
         function check(entry: StandaloneExitEntry) {
             const b = entry.bounds;
             const isVisible = b.x + b.width >= minX && b.x <= maxX && b.y + b.height >= minY && b.y <= maxY;
-            if (isVisible) {
-                nextVisible.add(entry);
-            }
+            if (entry.group.isVisible() !== isVisible) { entry.group.setVisible(isVisible); changed = true; }
+            if (isVisible) nextVisible.add(entry);
         }
 
-        // Detect changes
-        if (nextVisible.size !== this.visibleStandaloneExitNodes.size) {
-            changed = true;
-        } else {
-            nextVisible.forEach(e => { if (!this.visibleStandaloneExitNodes.has(e)) changed = true; });
-        }
+        // Hide exits that were visible but aren't candidates anymore (indexed mode)
+        this.visibleStandaloneExitNodes.forEach(entry => {
+            if (!nextVisible.has(entry) && entry.group.isVisible()) {
+                entry.group.setVisible(false);
+                changed = true;
+            }
+        });
 
         this.bufferExitSet = this.visibleStandaloneExitNodes;
         this.visibleStandaloneExitNodes = nextVisible;
-
-        if (changed) {
-            this.visibleExitDrawData.length = 0;
-            this.visibleStandaloneExitNodes.forEach(e => this.visibleExitDrawData.push(e.data));
-        }
 
         return {changed};
     }

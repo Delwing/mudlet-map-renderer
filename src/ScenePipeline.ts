@@ -7,7 +7,7 @@ import type {DrawingBackend, GroupNode, LayerNode} from "./backend/DrawingBacken
 import {RoomShapeRenderer} from "./RoomShapeRenderer";
 import {GridRenderer} from "./GridRenderer";
 import ExitRenderer from "./ExitRenderer";
-import type {ExitDrawData} from "./ExitRenderer";
+import type {ExitDrawData, ExitDrawArrow} from "./ExitRenderer";
 import {computeStubs} from "./scene/StubStyle";
 import {computeSpecialExits} from "./scene/SpecialExitStyle";
 import {computeInnerExits} from "./scene/InnerExitStyle";
@@ -15,14 +15,13 @@ import {computeInnerExits} from "./scene/InnerExitStyle";
 type Bounds = { x: number; y: number; width: number; height: number };
 
 export type RoomNodeEntry = { room: MapData.Room; group: GroupNode };
-export type StandaloneExitEntry = { data: ExitDrawData; bounds: Bounds; targetRoomId?: number };
+export type StandaloneExitEntry = { group: GroupNode; bounds: Bounds; targetRoomId?: number };
 export type AreaExitHitZone = { bounds: Bounds; targetRoomId: number };
 
 export type SceneBuildResult = {
     roomNodes: Map<number, RoomNodeEntry>;
     standaloneExitNodes: StandaloneExitEntry[];
     areaExitHitZones: AreaExitHitZone[];
-    exitDrawData: ExitDrawData[];
 };
 
 function getLabelColor(color: MapData.Color): string {
@@ -100,7 +99,6 @@ export class ScenePipeline {
             roomNodes: roomResult.roomNodes,
             standaloneExitNodes: exitResult.standaloneExitNodes,
             areaExitHitZones: [...exitResult.areaExitHitZones, ...roomResult.areaExitHitZones],
-            exitDrawData: exitResult.exitDrawData,
         };
     }
 
@@ -190,19 +188,64 @@ export class ScenePipeline {
     private renderLinkExits(exits: Exit[], zIndex: number) {
         const standaloneExitNodes: StandaloneExitEntry[] = [];
         const areaExitHitZones: AreaExitHitZone[] = [];
-        const exitDrawData: ExitDrawData[] = [];
 
         exits.forEach(exit => {
             const data = this.exitRenderer.renderData(exit, zIndex);
             if (!data) return;
-            standaloneExitNodes.push({data, bounds: data.bounds, targetRoomId: data.targetRoomId});
-            exitDrawData.push(data);
+            const group = this.renderExitData(data);
+            this.linkLayer.addNode(group);
+            standaloneExitNodes.push({group, bounds: data.bounds, targetRoomId: data.targetRoomId});
             if (data.targetRoomId !== undefined) {
                 areaExitHitZones.push({bounds: data.bounds, targetRoomId: data.targetRoomId});
             }
         });
 
-        return {standaloneExitNodes, areaExitHitZones, exitDrawData};
+        return {standaloneExitNodes, areaExitHitZones};
+    }
+
+    /** Render ExitDrawData through the DrawingBackend. */
+    renderExitData(data: ExitDrawData): GroupNode {
+        const group = this.backend.createGroup(0, 0);
+        for (const line of data.lines) {
+            this.backend.addLine(group, {
+                points: line.points,
+                stroke: line.stroke, strokeWidth: line.strokeWidth,
+                dash: line.dash,
+            });
+        }
+        for (const arrow of data.arrows) {
+            this.renderArrow(group, arrow);
+        }
+        for (const door of data.doors) {
+            this.backend.addRect(group, {
+                x: door.x, y: door.y,
+                width: door.width, height: door.height,
+                stroke: door.stroke, strokeWidth: door.strokeWidth,
+            });
+        }
+        return group;
+    }
+
+    private renderArrow(group: GroupNode, arrow: ExitDrawArrow) {
+        this.backend.addLine(group, {
+            points: arrow.points,
+            stroke: arrow.stroke, strokeWidth: arrow.strokeWidth,
+            dash: arrow.dash,
+        });
+        const lastIdx = arrow.points.length - 2;
+        const tipX = arrow.points[lastIdx], tipY = arrow.points[lastIdx + 1];
+        const prevX = arrow.points[lastIdx - 2], prevY = arrow.points[lastIdx - 1];
+        const angle = Math.atan2(tipY - prevY, tipX - prevX);
+        const pl = arrow.pointerLength, pw = arrow.pointerWidth / 2;
+        const x1 = tipX - pl * Math.cos(angle - Math.atan2(pw, pl));
+        const y1 = tipY - pl * Math.sin(angle - Math.atan2(pw, pl));
+        const x2 = tipX - pl * Math.cos(angle + Math.atan2(pw, pl));
+        const y2 = tipY - pl * Math.sin(angle + Math.atan2(pw, pl));
+        this.backend.addPolygon(group, {
+            vertices: [tipX, tipY, x1, y1, x2, y2],
+            fill: arrow.fill, stroke: arrow.stroke,
+            strokeWidth: arrow.strokeWidth,
+        });
     }
 
     // --- Labels ---
