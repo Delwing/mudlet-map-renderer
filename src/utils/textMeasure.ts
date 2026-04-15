@@ -62,7 +62,7 @@ export function measureTextBaselineOffset(text: string, fontFamily: string): Bas
     if (cached !== undefined) return cached;
 
     const canvas = getCanvas();
-    const ctx = canvas.getContext('2d')!;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
     const font = `bold ${MEASURE_PX}px ${fontFamily}`;
     ctx.clearRect(0, 0, CANVAS_PX, CANVAS_PX);
     ctx.font          = font;
