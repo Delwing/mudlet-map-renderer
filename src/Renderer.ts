@@ -64,4 +64,5 @@ export class Renderer implements MapRendererInterface {
     refreshCurrentRoomOverlay() { this.renderer.refreshCurrentRoomOverlay(); }
     updateBackground() { this.renderer.updateBackground(); }
     refresh() { this.renderer.refresh(); }
+    destroy() { this.renderer.destroy(); }
 }

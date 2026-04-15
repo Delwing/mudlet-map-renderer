@@ -61,6 +61,9 @@ export class KonvaRenderBackend implements InteractiveBackend {
     private pathShapes: GroupNode[] = [];
     private currentRoomOverlay: GroupNode[] = [];
     private areaExitHitZones: AreaExitHitZone[] = [];
+    private interactionHandler?: InteractionHandler;
+    private origSetSize?: (w: number, h: number) => void;
+    private destroyed = false;
 
     constructor(state: MapState, container?: HTMLDivElement) {
         this.state = state;
@@ -115,14 +118,15 @@ export class KonvaRenderBackend implements InteractiveBackend {
 
         if (container) {
             // Sync stage size when viewport resizes
-            const origSetSize = this.viewport.setSize.bind(this.viewport);
+            this.origSetSize = this.viewport.setSize.bind(this.viewport);
+            const origSetSize = this.origSetSize;
             this.viewport.setSize = (w: number, h: number) => {
                 origSetSize(w, h);
                 this.stage.width(w);
                 this.stage.height(h);
             };
 
-            new InteractionHandler(container, this.viewport, state, state.settings, {
+            this.interactionHandler = new InteractionHandler(container, this.viewport, state, state.settings, {
                 clientToMapPoint: (cx, cy) => this.viewport.clientToMapPoint(cx, cy, container.getBoundingClientRect()),
                 findRoomAtPoint: (mx, my) => this.culling.findRoomAtMapPoint(mx, my),
                 getAreaExitHitZones: () => this.areaExitHitZones,
@@ -142,6 +146,40 @@ export class KonvaRenderBackend implements InteractiveBackend {
 
     get gridRenderer() {
         return this.pipeline.gridRenderer;
+    }
+
+    destroy() {
+        if (this.destroyed) return;
+        this.destroyed = true;
+
+        // Remove all MapState event subscriptions
+        this.state.events.removeAllListeners();
+
+        // Destroy interaction handler (removes DOM listeners)
+        this.interactionHandler?.destroy();
+
+        // Cancel any running viewport animation
+        this.viewport.cancelAnimation();
+
+        // Restore monkey-patched setSize
+        if (this.origSetSize) {
+            this.viewport.setSize = this.origSetSize;
+        }
+
+        // Disconnect viewport from stage
+        this.viewport.onChange = undefined;
+
+        // Destroy all Konva nodes and the stage
+        this.clearOverlayShapes();
+        this.clearCurrentRoomOverlay();
+        if (this.positionMarker) {
+            this.positionMarker.destroy();
+            this.positionMarker = undefined;
+        }
+        this.stage.destroy();
+
+        // Clear renderer events
+        this.events.removeAllListeners();
     }
 
     updateBackground() {

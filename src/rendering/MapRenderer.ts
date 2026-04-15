@@ -23,7 +23,7 @@ export interface InteractiveBackend {
     toCanvas(options: { width: number; height: number; roomId?: number; padding?: number }): any;
     /** Capture the current viewport as a canvas with background fill. */
     exportCanvas(options?: { pixelRatio?: number }): HTMLCanvasElement | undefined;
-    destroy?(): void;
+    destroy(): void;
 }
 
 /**
@@ -62,6 +62,10 @@ export class MapRenderer {
         this.backend = backendFactory
             ? backendFactory(this.state)
             : new KonvaRenderBackend(this.state, container);
+    }
+
+    destroy() {
+        this.backend.destroy();
     }
 
     // --- State mutations (emit events → backend reacts) ---

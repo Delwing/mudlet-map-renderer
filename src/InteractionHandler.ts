@@ -29,6 +29,8 @@ export class InteractionHandler {
     private readonly events: TypedEventEmitter<RendererEventMap>;
 
     private lastPinchDistance?: number;
+    private readonly cleanupFns: (() => void)[] = [];
+    private destroyed = false;
 
     constructor(
         container: HTMLDivElement,
@@ -49,6 +51,37 @@ export class InteractionHandler {
         this.initMapEvents();
     }
 
+    destroy() {
+        if (this.destroyed) return;
+        this.destroyed = true;
+        for (const cleanup of this.cleanupFns) {
+            cleanup();
+        }
+        this.cleanupFns.length = 0;
+    }
+
+    private listen<K extends keyof HTMLElementEventMap>(
+        target: EventTarget,
+        event: K,
+        handler: (e: HTMLElementEventMap[K]) => void,
+        options?: AddEventListenerOptions,
+    ): void;
+    private listen(
+        target: EventTarget,
+        event: string,
+        handler: EventListener,
+        options?: AddEventListenerOptions,
+    ): void;
+    private listen(
+        target: EventTarget,
+        event: string,
+        handler: EventListener,
+        options?: AddEventListenerOptions,
+    ) {
+        target.addEventListener(event, handler, options);
+        this.cleanupFns.push(() => target.removeEventListener(event, handler, options));
+    }
+
     // ===== Viewport events (drag, zoom, resize) =====
 
     private initViewportEvents() {
@@ -66,15 +99,15 @@ export class InteractionHandler {
         };
 
         if (typeof window !== 'undefined') {
-            window.addEventListener('resize', handleResize);
+            this.listen(window, 'resize', handleResize);
         }
-        container.addEventListener('resize', handleResize);
+        this.listen(container, 'resize', handleResize);
 
         // --- Mouse drag (pointer events) ---
         let pointerDown = false;
         let pointerId: number | undefined;
 
-        container.addEventListener('pointerdown', (e) => {
+        this.listen(container, 'pointerdown', (e) => {
             if (e.button !== 0 || e.pointerType === 'touch') return;
             pointerDown = true;
             pointerId = e.pointerId;
@@ -83,13 +116,13 @@ export class InteractionHandler {
             viewport.startDrag(e.clientX - rect.left, e.clientY - rect.top);
         });
 
-        container.addEventListener('pointermove', (e) => {
+        this.listen(container, 'pointermove', (e) => {
             if (!pointerDown || e.pointerId !== pointerId) return;
             const rect = container.getBoundingClientRect();
             viewport.updateDrag(e.clientX - rect.left, e.clientY - rect.top);
         });
 
-        container.addEventListener('pointerup', (e) => {
+        this.listen(container, 'pointerup', (e) => {
             if (e.pointerId !== pointerId) return;
             pointerDown = false;
             pointerId = undefined;
@@ -97,7 +130,7 @@ export class InteractionHandler {
             this.events.emit('pan', viewport.getViewportBounds());
         });
 
-        container.addEventListener('pointercancel', (e) => {
+        this.listen(container, 'pointercancel', (e) => {
             if (e.pointerId !== pointerId) return;
             pointerDown = false;
             pointerId = undefined;
@@ -107,7 +140,7 @@ export class InteractionHandler {
         // --- Touch drag (single finger) + pinch zoom (two fingers) ---
         let touchDragId: number | undefined;
 
-        container.addEventListener('touchstart', (e) => {
+        this.listen(container, 'touchstart', (e: TouchEvent) => {
             if (e.touches.length === 1) {
                 const touch = e.touches[0];
                 touchDragId = touch.identifier;
@@ -119,7 +152,7 @@ export class InteractionHandler {
             }
         }, {passive: true});
 
-        container.addEventListener('touchmove', (e) => {
+        this.listen(container, 'touchmove', (e: TouchEvent) => {
             const touches = e.touches;
 
             // Pinch zoom (two fingers)
@@ -143,7 +176,7 @@ export class InteractionHandler {
             }
         });
 
-        container.addEventListener('touchend', (e) => {
+        this.listen(container, 'touchend', (e: TouchEvent) => {
             this.lastPinchDistance = undefined;
             if (e.touches.length === 0) {
                 if (viewport.isDragging()) {
@@ -159,14 +192,14 @@ export class InteractionHandler {
             }
         }, {passive: true});
 
-        container.addEventListener('touchcancel', () => {
+        this.listen(container, 'touchcancel', () => {
             this.lastPinchDistance = undefined;
             if (viewport.isDragging()) viewport.endDrag();
             touchDragId = undefined;
         }, {passive: true});
 
         // --- Wheel zoom ---
-        container.addEventListener('wheel', (e) => {
+        this.listen(container, 'wheel', (e: WheelEvent) => {
             e.preventDefault();
             const rect = container.getBoundingClientRect();
             const screenX = e.clientX - rect.left;
@@ -210,7 +243,7 @@ export class InteractionHandler {
         let hoveredRoom: MapData.Room | null = null;
         let hoveredAreaExit = false;
 
-        container.addEventListener('mousemove', (e) => {
+        this.listen(container, 'mousemove', (e: MouseEvent) => {
             const room = this.findRoomAtClientPoint(e.clientX, e.clientY);
             if (room !== hoveredRoom) {
                 hoveredRoom = room;
@@ -228,7 +261,7 @@ export class InteractionHandler {
             }
         });
 
-        container.addEventListener('mouseleave', () => {
+        this.listen(container, 'mouseleave', () => {
             hoveredRoom = null;
             hoveredAreaExit = false;
             container.style.cursor = 'auto';
@@ -236,13 +269,13 @@ export class InteractionHandler {
 
         let clickStart: { x: number; y: number } | null = null;
 
-        container.addEventListener('mousedown', (e) => {
+        this.listen(container, 'mousedown', (e: MouseEvent) => {
             if (e.button === 0) {
                 clickStart = { x: e.clientX, y: e.clientY };
             }
         });
 
-        container.addEventListener('mouseup', (e) => {
+        this.listen(container, 'mouseup', (e: MouseEvent) => {
             if (e.button !== 0 || !clickStart) return;
             const dx = e.clientX - clickStart.x;
             const dy = e.clientY - clickStart.y;
@@ -261,7 +294,7 @@ export class InteractionHandler {
             this.emitMapClickEvent();
         });
 
-        container.addEventListener('contextmenu', (e) => {
+        this.listen(container, 'contextmenu', (e: MouseEvent) => {
             const room = this.findRoomAtClientPoint(e.clientX, e.clientY);
             if (room) {
                 e.preventDefault();
@@ -283,7 +316,7 @@ export class InteractionHandler {
             dragSuppressed = false;
         };
 
-        container.addEventListener('touchstart', (e) => {
+        this.listen(container, 'touchstart', (e: TouchEvent) => {
             clearLongPress();
             if (e.touches.length > 1) return;
             const touch = e.touches[0];
@@ -302,10 +335,10 @@ export class InteractionHandler {
             }, 500);
         }, { passive: true });
 
-        container.addEventListener('touchend', () => clearLongPress(), { passive: true });
-        container.addEventListener('touchcancel', () => clearLongPress(), { passive: true });
+        this.listen(container, 'touchend', () => clearLongPress(), { passive: true });
+        this.listen(container, 'touchcancel', () => clearLongPress(), { passive: true });
 
-        container.addEventListener('touchmove', (e) => {
+        this.listen(container, 'touchmove', (e: TouchEvent) => {
             if (!longPressStart) return;
             const touch = e.touches[0];
             if (!touch) {

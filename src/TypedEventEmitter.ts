@@ -28,6 +28,10 @@ export class TypedEventEmitter<EventMap extends Record<string, unknown>> {
         this.listeners.get(event)?.delete(handler);
     }
 
+    removeAllListeners(): void {
+        this.listeners.clear();
+    }
+
     emit<K extends keyof EventMap>(event: K, detail: EventMap[K]): void {
         // Typed listeners
         this.listeners.get(event)?.forEach(handler => handler(detail));

@@ -97,4 +97,8 @@ export class HeadlessRenderer implements MapRendererInterface {
     renderToCanvas(options: CanvasExportOptions & { overlays?: CanvasExportOverlays }): any {
         return this.renderer.renderToCanvas(options);
     }
+
+    destroy() {
+        this.renderer.destroy();
+    }
 }
