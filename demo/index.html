@@ -164,11 +164,19 @@
                         <option value="frame">Frame</option>
                         <option value="colored">Colored</option>
                         <option value="pencil">Pencil</option>
+                        <option value="parchment">Parchment</option>
+                        <option value="parchment-pencil">Parchment + Pencil</option>
+                        <option value="isometric">Isometric</option>
+                        <option value="isometric-parchment">Isometric + Parchment</option>
                     </select>
                 </label>
                 <label class="color-label" id="sketch-color-label" style="display:none">
                     <input type="color" id="sketch-color" value="#444444">
                     <span>Pencil color</span>
+                </label>
+                <label class="select-label" id="iso-rotation-label" style="display:none">
+                    <span>Iso rotation: <span id="iso-rotation-value">30</span>°</span>
+                    <input type="range" id="iso-rotation" min="0" max="360" step="5" value="30">
                 </label>
                 <label class="check-label">
                     <input type="checkbox" id="emboss-toggle">

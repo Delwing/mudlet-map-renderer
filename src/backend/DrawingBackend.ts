@@ -79,6 +79,9 @@ export interface TextConfig {
     baselineRatio?: number;
     /** Konva vertical correction: offsetY = ratio * fontSize shifts text up to true visual centre. */
     konvaCorrectionRatio?: number;
+    /** Optional 2D affine transform [a, b, c, d, e, f] applied to the text.
+     *  When set, the text is drawn at the origin and the matrix positions/skews it. */
+    transform?: [number, number, number, number, number, number];
 }
 
 export interface ImageConfig {
@@ -87,6 +90,9 @@ export interface ImageConfig {
     width: number;
     height: number;
     src: string;
+    /** Optional 2D affine transform [a, b, c, d, e, f] applied to the image.
+     *  When set, x/y/width/height describe the source rect; the matrix positions the output. */
+    transform?: [number, number, number, number, number, number];
 }
 
 export interface DrawingBackend {

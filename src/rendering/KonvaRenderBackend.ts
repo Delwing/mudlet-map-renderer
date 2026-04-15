@@ -66,6 +66,7 @@ export class KonvaRenderBackend implements InteractiveBackend {
     private interactionHandler?: InteractionHandler;
     private origSetSize?: (w: number, h: number) => void;
     private destroyed = false;
+    private coordinateTransform: ((x: number, y: number) => { x: number; y: number }) | null = null;
 
     constructor(state: MapState, container?: HTMLDivElement, drawingBackend?: DrawingBackend) {
         this.state = state;
@@ -145,6 +146,14 @@ export class KonvaRenderBackend implements InteractiveBackend {
             linkLayer: new KonvaLayerNode(this.linkLayer),
             roomLayer: new KonvaLayerNode(this.roomLayer),
         });
+    }
+
+    setCoordinateTransform(fn: ((x: number, y: number) => { x: number; y: number }) | null) {
+        this.coordinateTransform = fn;
+    }
+
+    private mapPoint(x: number, y: number): { x: number; y: number } {
+        return this.coordinateTransform ? this.coordinateTransform(x, y) : {x, y};
     }
 
     get exitRenderer() {
@@ -338,7 +347,8 @@ export class KonvaRenderBackend implements InteractiveBackend {
         state.events.on('center', ({roomId, instant}) => {
             const room = state.mapReader.getRoom(roomId);
             if (room) {
-                this.viewport.panToMapPointAnimated(room.x, room.y,
+                const p = this.mapPoint(room.x, room.y);
+                this.viewport.panToMapPointAnimated(p.x, p.y,
                     instant || this.state.settings.instantMapMove);
             }
         });
@@ -416,7 +426,8 @@ export class KonvaRenderBackend implements InteractiveBackend {
         if (!room) return;
 
         if (center) {
-            this.viewport.panToMapPointAnimated(room.x, room.y,
+            const p = this.mapPoint(room.x, room.y);
+            this.viewport.panToMapPointAnimated(p.x, p.y,
                 instant || this.state.settings.instantMapMove);
         }
 

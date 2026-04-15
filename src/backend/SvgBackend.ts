@@ -156,13 +156,22 @@ export class SvgBackend implements DrawingBackend {
             y -= config.offsetY;
         }
 
-        const el = `<text${attr('x', x)}${attr('y', y)}${attr('font-size', config.fontSize)}${config.fontFamily ? attr('font-family', config.fontFamily) : ''}${config.fontStyle === 'bold' ? ' font-weight="bold"' : ''}${attr('fill', config.fill)} text-anchor="${anchor}" dominant-baseline="${baseline}">${escapeXml(config.text)}</text>`;
+        const transformAttr = config.transform
+            ? ` transform="matrix(${config.transform.join(',')})"`
+            : '';
+        const el = `<text${attr('x', x)}${attr('y', y)}${attr('font-size', config.fontSize)}${config.fontFamily ? attr('font-family', config.fontFamily) : ''}${config.fontStyle === 'bold' ? ' font-weight="bold"' : ''}${attr('fill', config.fill)} text-anchor="${anchor}" dominant-baseline="${baseline}"${transformAttr}>${escapeXml(config.text)}</text>`;
         parent.elements.push(el);
     }
 
     addImage(parent: GroupNode, config: ImageConfig) {
         if (!(parent instanceof SvgGroupNode)) return;
-        const el = `<image${attr('x', config.x)}${attr('y', config.y)}${attr('width', config.width)}${attr('height', config.height)} href="${escapeXml(config.src)}"/>`;
-        parent.elements.push(el);
+        if (config.transform) {
+            const [a, b, c, d, e, f] = config.transform;
+            const el = `<image${attr('width', config.width)}${attr('height', config.height)} href="${escapeXml(config.src)}" transform="matrix(${a},${b},${c},${d},${e},${f})"/>`;
+            parent.elements.push(el);
+        } else {
+            const el = `<image${attr('x', config.x)}${attr('y', config.y)}${attr('width', config.width)}${attr('height', config.height)} href="${escapeXml(config.src)}"/>`;
+            parent.elements.push(el);
+        }
     }
 }

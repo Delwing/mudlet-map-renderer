@@ -29,7 +29,7 @@ function describeCullingMode(mode: CullingMode) {
     }
 }
 
-export function initControls(settings: Settings, renderer: MapRenderer, getCurrentRoomId: () => number, pathFinder?: PathFinder, onAlgorithmChange?: () => void, onPathColorChange?: (color: string) => void, onSketchModeChange?: (enabled: boolean) => void) {
+export function initControls(settings: Settings, renderer: MapRenderer, getCurrentRoomId: () => number, pathFinder?: PathFinder, onAlgorithmChange?: () => void, onPathColorChange?: (color: string) => void, onRenderModeChange?: (mode: string) => void) {
     const explorationToggle = document.getElementById("exploration-toggle") as HTMLInputElement | null;
     const instantMoveToggle = document.getElementById("instant-move-toggle") as HTMLInputElement | null;
     const highlightToggle = document.getElementById("highlight-toggle") as HTMLInputElement | null;
@@ -296,15 +296,26 @@ export function initControls(settings: Settings, renderer: MapRenderer, getCurre
         const mode = renderModeSelect.value;
         settings.frameMode = mode === "frame";
         settings.coloredMode = mode === "colored";
-        const isPencil = mode === "pencil";
-        if (sketchColorLabel) sketchColorLabel.style.display = isPencil ? '' : 'none';
-        onSketchModeChange?.(isPencil);
-        if (!isPencil) renderer.refresh();
+        const showPencilColor = mode === "pencil" || mode === "parchment-pencil";
+        if (sketchColorLabel) sketchColorLabel.style.display = showPencilColor ? '' : 'none';
+        onRenderModeChange?.(mode);
+        if (!onRenderModeChange) renderer.refresh();
     });
 
     sketchColorInput?.addEventListener("input", () => {
-        if (renderModeSelect?.value === "pencil") {
-            onSketchModeChange?.(true);
+        const mode = renderModeSelect?.value;
+        if (mode === "pencil" || mode === "parchment-pencil") {
+            onRenderModeChange?.(mode);
+        }
+    });
+
+    const isoRotationSlider = document.getElementById("iso-rotation") as HTMLInputElement | null;
+    const isoRotationValue = document.getElementById("iso-rotation-value") as HTMLSpanElement | null;
+    isoRotationSlider?.addEventListener("input", () => {
+        if (isoRotationValue) isoRotationValue.textContent = isoRotationSlider.value;
+        const mode = renderModeSelect?.value;
+        if (mode?.startsWith("isometric")) {
+            onRenderModeChange?.(mode);
         }
     });
 

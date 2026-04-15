@@ -144,35 +144,83 @@ export class KonvaBackend implements DrawingBackend {
         // konvaCorrectionRatio compensates for glyphs whose visual bounds differ.
         const offsetY = (config.offsetY ?? 0)
             + (config.konvaCorrectionRatio ?? 0) * config.fontSize;
-        parent.konvaGroup.add(new Konva.Text({
-            x: config.x,
-            y: config.y,
-            text: config.text,
-            fontSize: config.fontSize,
-            fontFamily: config.fontFamily,
-            fontStyle: config.fontStyle,
-            fill: config.fill,
-            align: config.align,
-            verticalAlign: config.verticalAlign,
-            width: config.width,
-            height: config.height,
-            offsetY: offsetY || undefined,
-            perfectDrawEnabled: false,
-            listening: false,
-        }));
+
+        if (config.transform) {
+            const [a, b, c, d, e, f] = config.transform;
+            const w = config.width;
+            const h = config.height;
+            const text = config.text;
+            const fontSize = config.fontSize;
+            const fontFamily = config.fontFamily ?? 'sans-serif';
+            const fontStyle = config.fontStyle ?? 'normal';
+            const fill = config.fill ?? 'black';
+            parent.konvaGroup.add(new Konva.Shape({
+                listening: false,
+                perfectDrawEnabled: false,
+                sceneFunc: (ctx) => {
+                    ctx.save();
+                    // @ts-ignore — access native canvas context
+                    const c2d: CanvasRenderingContext2D = ctx._context;
+                    c2d.transform(a, b, c, d, e, f);
+                    c2d.font = `${fontStyle} ${fontSize}px ${fontFamily}`;
+                    c2d.fillStyle = fill;
+                    c2d.textAlign = 'center';
+                    c2d.textBaseline = 'middle';
+                    c2d.fillText(text, (w ?? 0) / 2, (h ?? 0) / 2);
+                    ctx.restore();
+                },
+            }));
+        } else {
+            parent.konvaGroup.add(new Konva.Text({
+                x: config.x,
+                y: config.y,
+                text: config.text,
+                fontSize: config.fontSize,
+                fontFamily: config.fontFamily,
+                fontStyle: config.fontStyle,
+                fill: config.fill,
+                align: config.align,
+                verticalAlign: config.verticalAlign,
+                width: config.width,
+                height: config.height,
+                offsetY: offsetY || undefined,
+                perfectDrawEnabled: false,
+                listening: false,
+            }));
+        }
     }
 
     addImage(parent: GroupNode, config: ImageConfig) {
         if (!(parent instanceof KonvaGroupNode)) return;
         const image = Konva.Util.createImageElement();
         image.src = config.src;
-        parent.konvaGroup.add(new Konva.Image({
-            x: config.x,
-            y: config.y,
-            width: config.width,
-            height: config.height,
-            image: image,
-            listening: false,
-        }));
+
+        if (config.transform) {
+            const [a, b, c, d, e, f] = config.transform;
+            const w = config.width;
+            const h = config.height;
+            // Use a custom shape to draw the image with an affine transform
+            parent.konvaGroup.add(new Konva.Shape({
+                listening: false,
+                perfectDrawEnabled: false,
+                sceneFunc: (ctx, shape) => {
+                    ctx.save();
+                    // @ts-ignore — Konva context wraps a native canvas 2d context
+                    const c2d: CanvasRenderingContext2D = ctx._context;
+                    c2d.transform(a, b, c, d, e, f);
+                    c2d.drawImage(image, 0, 0, w, h);
+                    ctx.restore();
+                },
+            }));
+        } else {
+            parent.konvaGroup.add(new Konva.Image({
+                x: config.x,
+                y: config.y,
+                width: config.width,
+                height: config.height,
+                image: image,
+                listening: false,
+            }));
+        }
     }
 }

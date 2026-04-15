@@ -22,6 +22,9 @@ export { Viewport } from './Viewport';
 export type { DrawingBackend } from './backend/DrawingBackend';
 export { KonvaBackend } from './backend/KonvaBackend';
 export { SketchyBackend } from './backend/SketchyBackend';
+export { ParchmentBackend } from './backend/ParchmentBackend';
+export { IsometricBackend } from './backend/IsometricBackend';
+export type { IsometricRotation } from './backend/IsometricBackend';
 
 // --- Core ---
 export { default as MapReader } from './reader/MapReader';

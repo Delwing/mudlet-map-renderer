@@ -1,4 +1,4 @@
-import {MapRenderer, createSettings, PathFinder, KonvaBackend, SketchyBackend} from "@src";
+import {MapRenderer, createSettings, PathFinder, KonvaBackend, SketchyBackend, ParchmentBackend, IsometricBackend} from "@src";
 import type {Settings} from "@src";
 import MapReader from "@src/reader/MapReader";
 import {initControls, initPerfMonitor} from "./controls";
@@ -40,9 +40,10 @@ let destinationRoomId: number | undefined;
 let currentDestinationPath: number[] | undefined;
 let pathColor = '#66E64D';
 let walker!: Walker;
-let sketchEnabled = false;
 let sketchColor = '#444444';
 let savedBackgroundColor: string;
+let savedLineColor: string;
+let savedFontFamily: string;
 
 // --- Helpers ---
 
@@ -153,21 +154,92 @@ function updateDestinationGuidance() {
     currentDestinationPath = path;
 }
 
-// --- Sketch backend helpers ---
+// --- Render mode helpers ---
 
-function applySketchMode(enabled: boolean) {
-    sketchEnabled = enabled;
+function getIsoRotation(): number {
+    const el = document.getElementById("iso-rotation") as HTMLInputElement | null;
+    return el ? parseInt(el.value, 10) : 30;
+}
+
+function applyRenderMode(mode: string) {
     const sketchColorInput = document.getElementById("sketch-color") as HTMLInputElement | null;
     if (sketchColorInput) sketchColor = sketchColorInput.value;
-    if (sketchEnabled) {
-        const jitter = settings.lineWidth * 0.6;
-        renderer.setDrawingBackend(new SketchyBackend(new KonvaBackend(), jitter, sketchColor));
-        settings.backgroundColor = '#ffffff';
-    } else {
-        renderer.setDrawingBackend(new KonvaBackend());
-        settings.backgroundColor = savedBackgroundColor;
+    const jitter = settings.lineWidth * 0.6;
+    const isIso = mode.startsWith("isometric");
+
+    // Show/hide iso rotation control
+    const isoRotationLabel = document.getElementById("iso-rotation-label") as HTMLElement | null;
+    if (isoRotationLabel) isoRotationLabel.style.display = isIso ? '' : 'none';
+
+    // Restore saved settings before applying new mode
+    settings.backgroundColor = savedBackgroundColor;
+    settings.lineColor = savedLineColor;
+    settings.fontFamily = savedFontFamily;
+    renderer.setCullingTransform(null);
+
+    switch (mode) {
+        case "pencil": {
+            renderer.setDrawingBackend(new SketchyBackend(new KonvaBackend(), jitter, sketchColor));
+            settings.backgroundColor = '#ffffff';
+            break;
+        }
+        case "parchment": {
+            renderer.setDrawingBackend(new ParchmentBackend(new KonvaBackend()));
+            settings.backgroundColor = '#f4e4c1';
+            settings.lineColor = '#5c4033';
+            settings.fontFamily = 'Georgia, serif';
+            break;
+        }
+        case "parchment-pencil": {
+            const pencilColor = '#4a3728';
+            renderer.setDrawingBackend(
+                new SketchyBackend(new ParchmentBackend(new KonvaBackend()), jitter, pencilColor),
+            );
+            settings.backgroundColor = '#f4e4c1';
+            settings.lineColor = '#5c4033';
+            settings.fontFamily = 'Georgia, serif';
+            break;
+        }
+        case "isometric": {
+            const depth = settings.roomSize * 0.3;
+            const rotation = getIsoRotation();
+            const iso = new IsometricBackend(new KonvaBackend(), {depth, rotation});
+            renderer.setDrawingBackend(iso);
+            renderer.setCullingTransform(iso.getTransform());
+            settings.backgroundColor = '#1a1a2e';
+            settings.lineColor = '#8888aa';
+            break;
+        }
+        case "isometric-parchment": {
+            const depth = settings.roomSize * 0.3;
+            const pencilColor = '#4a3728';
+            const rotation = getIsoRotation();
+            const iso = new IsometricBackend(
+                new SketchyBackend(new ParchmentBackend(new KonvaBackend()), jitter, pencilColor),
+                {depth, rotation},
+            );
+            renderer.setDrawingBackend(iso);
+            renderer.setCullingTransform(iso.getTransform());
+            settings.backgroundColor = '#f4e4c1';
+            settings.lineColor = '#5c4033';
+            settings.fontFamily = 'Georgia, serif';
+            break;
+        }
+        default: {
+            renderer.setDrawingBackend(new KonvaBackend());
+            break;
+        }
     }
+
+    renderer.updateBackground();
     renderer.refresh();
+    if (isIso) {
+        if (currentRoomId) {
+            renderer.centerOn(currentRoomId, true);
+        } else {
+            renderer.fitArea();
+        }
+    }
 }
 
 // --- Initialization ---
@@ -189,6 +261,8 @@ async function initialize() {
 
     pathFinder = new PathFinder(mapReader);
     savedBackgroundColor = settings.backgroundColor;
+    savedLineColor = settings.lineColor;
+    savedFontFamily = settings.fontFamily;
     renderer = new MapRenderer(mapReader, settings, stageElement);
 
     // Controls & perf
@@ -198,7 +272,7 @@ async function initialize() {
             renderer.clearPaths();
             renderer.renderPath(currentDestinationPath, pathColor);
         }
-    }, applySketchMode);
+    }, applyRenderMode);
     initPerfMonitor(settings);
     initContextMenu(stageElement, renderer, mapReader, moveToRoom, (msg) => updateStatus(roomStatusElement, msg));
 

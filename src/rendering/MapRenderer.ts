@@ -37,6 +37,7 @@ export class MapRenderer {
     readonly state: MapState;
     readonly backend: InteractiveBackend;
     private readonly svgDrawingBackendFactory?: (innerSvgBackend: DrawingBackend) => DrawingBackend;
+    private coordinateTransform: ((x: number, y: number) => { x: number; y: number }) | null = null;
 
     get settings(): Settings {
         return this.state.settings;
@@ -201,11 +202,24 @@ export class MapRenderer {
         if (!plane) return null;
         const b = this.state.getEffectiveBounds(this.state.currentAreaInstance, plane);
         const hasAreaName = this.state.settings.areaName && this.state.currentAreaInstance.getAreaName();
-        return {
+        const raw: ViewportBounds = {
             minX: hasAreaName ? b.minX - 4 : b.minX,
             maxX: b.maxX,
             minY: hasAreaName ? b.minY - 7 : b.minY,
             maxY: b.maxY,
+        };
+        if (!this.coordinateTransform) return raw;
+        // Transform the 4 corners and compute the AABB in rendered space
+        const fn = this.coordinateTransform;
+        const c1 = fn(raw.minX, raw.minY);
+        const c2 = fn(raw.maxX, raw.minY);
+        const c3 = fn(raw.maxX, raw.maxY);
+        const c4 = fn(raw.minX, raw.maxY);
+        return {
+            minX: Math.min(c1.x, c2.x, c3.x, c4.x),
+            maxX: Math.max(c1.x, c2.x, c3.x, c4.x),
+            minY: Math.min(c1.y, c2.y, c3.y, c4.y),
+            maxY: Math.max(c1.y, c2.y, c3.y, c4.y),
         };
     }
 
@@ -229,6 +243,14 @@ export class MapRenderer {
 
     set minZoom(value: number) {
         this.backend.viewport.minZoom = value;
+    }
+
+    setCullingTransform(fn: ((x: number, y: number) => { x: number; y: number }) | null) {
+        this.coordinateTransform = fn;
+        this.backend.culling.setCoordinateTransform(fn);
+        if ('setCoordinateTransform' in this.backend) {
+            (this.backend as KonvaRenderBackend).setCoordinateTransform(fn);
+        }
     }
 
     setCullingMode(mode: CullingMode) {
