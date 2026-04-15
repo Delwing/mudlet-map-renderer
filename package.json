@@ -28,7 +28,7 @@
     "test:visual:update": "playwright test --update-snapshots"
   },
   "dependencies": {
-    "konva": "^10.2.3",
+    "konva": "^10.2.4",
     "node-dijkstra": "^2.5.1"
   },
   "devDependencies": {
