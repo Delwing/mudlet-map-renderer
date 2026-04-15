@@ -125,4 +125,8 @@ export class BlueprintBackend implements DrawingBackend {
     addImage(parent: GroupNode, config: ImageConfig): void {
         this.inner.addImage(parent, config);
     }
+
+    getExitDepthOffset(): { x: number; y: number } {
+        return this.inner.getExitDepthOffset();
+    }
 }

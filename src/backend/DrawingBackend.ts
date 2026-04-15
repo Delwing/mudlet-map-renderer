@@ -103,4 +103,9 @@ export interface DrawingBackend {
     addPolygon(parent: GroupNode, config: PolygonConfig): void;
     addText(parent: GroupNode, config: TextConfig): void;
     addImage(parent: GroupNode, config: ImageConfig): void;
+    /**
+     * Cartesian offset for exit line groups so they connect at the cube base
+     * instead of the top face. Returns {x:0, y:0} for flat backends.
+     */
+    getExitDepthOffset(): { x: number; y: number };
 }

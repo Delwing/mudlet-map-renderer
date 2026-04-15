@@ -112,14 +112,15 @@ export class ScenePipeline {
         const roomNodes = new Map<number, RoomNodeEntry>();
         const areaExitHitZones: AreaExitHitZone[] = [];
         const rs = this.settings.roomSize;
+        const depthOff = this.backend.getExitDepthOffset();
 
         rooms.forEach(room => {
             // Room shape (through DrawingBackend)
             const roomNode = this.roomShapeRenderer.createRoomGroup(room);
 
-            // Special exits → link layer
+            // Special exits → link layer (offset for cube depth)
             for (const se of computeSpecialExits(room, this.settings)) {
-                const seGroup = this.backend.createGroup(0, 0);
+                const seGroup = this.backend.createGroup(depthOff.x, depthOff.y);
                 this.backend.addLine(seGroup, {
                     points: se.line.points,
                     stroke: se.line.stroke,
@@ -205,7 +206,8 @@ export class ScenePipeline {
 
     /** Render ExitDrawData through the DrawingBackend. */
     renderExitData(data: ExitDrawData): GroupNode {
-        const group = this.backend.createGroup(0, 0);
+        const depthOff = this.backend.getExitDepthOffset();
+        const group = this.backend.createGroup(depthOff.x, depthOff.y);
         for (const line of data.lines) {
             this.backend.addLine(group, {
                 points: line.points,

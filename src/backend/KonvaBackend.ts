@@ -223,4 +223,8 @@ export class KonvaBackend implements DrawingBackend {
             }));
         }
     }
+
+    getExitDepthOffset(): { x: number; y: number } {
+        return { x: 0, y: 0 };
+    }
 }

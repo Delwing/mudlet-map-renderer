@@ -332,4 +332,11 @@ export class IsometricBackend implements DrawingBackend {
             return {x: ox, y: oy};
         };
     }
+
+    getExitDepthOffset(): { x: number; y: number } {
+        if (this.depth <= 0) return this.inner.getExitDepthOffset();
+        const [dx, dy] = this.isoInv(0, this.depth);
+        const inner = this.inner.getExitDepthOffset();
+        return { x: dx + inner.x, y: dy + inner.y };
+    }
 }

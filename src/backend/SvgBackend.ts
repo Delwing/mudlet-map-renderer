@@ -174,4 +174,8 @@ export class SvgBackend implements DrawingBackend {
             parent.elements.push(el);
         }
     }
+
+    getExitDepthOffset(): { x: number; y: number } {
+        return { x: 0, y: 0 };
+    }
 }
