@@ -3,6 +3,7 @@ import type {Settings} from "./types/Settings";
 import type {DrawingBackend, GroupNode} from "./backend/DrawingBackend";
 import {measureTextBaselineOffset} from "./utils/textMeasure";
 import {computeRoomColors, computeEmboss} from "./scene/RoomStyle";
+import {lightenColor} from "./utils/color";
 
 /**
  * Creates visual room groups via a DrawingBackend — shape, emboss, and symbol.
@@ -23,12 +24,44 @@ export class RoomShapeRenderer {
     createRoomGroup(room: MapData.Room, options?: {
         strokeOverride?: string;
     }): GroupNode {
-        const {fillColor, strokeColor, borderWidth, symbolColor} = computeRoomColors(
+        const {fillColor, strokeColor, borderWidth, symbolColor, envColor} = computeRoomColors(
             room, this.mapReader, this.settings, options?.strokeOverride,
         );
 
         const rs = this.settings.roomSize;
         const group = this.backend.createGroup(room.x - rs / 2, room.y - rs / 2);
+
+        // Border glow in colored mode: soft luminous halos behind the border stroke
+        if (this.settings.coloredMode && borderWidth > 0) {
+            const match = envColor.match(/(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
+            if (match) {
+                const brightColor = lightenColor(envColor, 0.6);
+                const bm = brightColor.match(/(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
+                const br = bm ? bm[1] : match[1], bg = bm ? bm[2] : match[2], bb = bm ? bm[3] : match[3];
+                const inset = borderWidth / 2;
+                const baseRadius = rs / 2 - inset;
+                const baseCorner = this.settings.roomShape === "roundedRectangle" ? (rs - borderWidth) * 0.2 : 0;
+                const glowLayers = [
+                    {width: borderWidth * 3, r: match[1], g: match[2], b: match[3], alpha: 0.35},
+                    {width: borderWidth * 1.2, r: br, g: bg, b: bb, alpha: 0.6},
+                ];
+                for (const gl of glowLayers) {
+                    const glowStroke = `rgba(${gl.r}, ${gl.g}, ${gl.b}, ${gl.alpha})`;
+                    if (this.settings.roomShape === "circle") {
+                        this.backend.addCircle(group, {
+                            cx: rs / 2, cy: rs / 2, radius: baseRadius,
+                            stroke: glowStroke, strokeWidth: gl.width,
+                        });
+                    } else {
+                        this.backend.addRect(group, {
+                            x: inset, y: inset, width: rs - borderWidth, height: rs - borderWidth,
+                            stroke: glowStroke, strokeWidth: gl.width,
+                            cornerRadius: baseCorner,
+                        });
+                    }
+                }
+            }
+        }
 
         // Inset shape by half the stroke width so the border stays inside the room bounds.
         const inset = borderWidth / 2;

@@ -1,5 +1,5 @@
 import type {Settings} from "../types/Settings";
-import {darkenColor, colorLightness} from "../utils/color";
+import {darkenColor, lightenColor, colorLightness} from "../utils/color";
 import MapReader from "../reader/MapReader";
 
 export type RoomColors = {
@@ -7,6 +7,7 @@ export type RoomColors = {
     strokeColor: string;
     borderWidth: number;
     symbolColor: string;
+    envColor: string;
 };
 
 export type EmbossStyle = {
@@ -26,17 +27,18 @@ export function computeRoomColors(
     strokeOverride?: string,
 ): RoomColors {
     const envColor = mapReader.getColorValue(room.env);
-    const fillColor = settings.coloredMode ? darkenColor(envColor, 0.7)
+    const fillColor = settings.coloredMode ? darkenColor(envColor, 0.5)
         : settings.frameMode ? settings.backgroundColor : envColor;
+    const brightEnvColor = settings.coloredMode ? lightenColor(envColor, 0.1) : envColor;
     const strokeColor = strokeOverride
-        ? ((settings.frameMode || settings.coloredMode) ? envColor : strokeOverride)
-        : ((settings.frameMode || settings.coloredMode) ? envColor : settings.lineColor);
+        ? ((settings.frameMode || settings.coloredMode) ? brightEnvColor : strokeOverride)
+        : ((settings.frameMode || settings.coloredMode) ? brightEnvColor : settings.lineColor);
     const borderWidth = settings.borders ? settings.lineWidth : 0;
     const symbolColor = (settings.frameMode || settings.coloredMode)
-        ? mapReader.getColorValue(room.env)
+        ? brightEnvColor
         : mapReader.getSymbolColor(room.env);
 
-    return {fillColor, strokeColor, borderWidth, symbolColor};
+    return {fillColor, strokeColor, borderWidth, symbolColor, envColor};
 }
 
 /**
