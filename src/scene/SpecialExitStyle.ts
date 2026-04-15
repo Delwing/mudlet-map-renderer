@@ -1,4 +1,4 @@
-import type {Settings} from "../Renderer";
+import type {Settings} from "../types/Settings";
 
 const DoorColors: Record<number, string> = {
     1: 'rgb(10, 155, 10)',

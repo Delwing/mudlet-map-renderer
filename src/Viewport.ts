@@ -1,4 +1,4 @@
-import type {ViewportBounds} from "./Renderer";
+import type {ViewportBounds} from "./types/Settings";
 
 const BASE_SCALE = 75;
 

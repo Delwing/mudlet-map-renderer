@@ -1,4 +1,4 @@
-import type {Settings} from "../Renderer";
+import type {Settings} from "../types/Settings";
 import MapReader from "../reader/MapReader";
 import {movePoint} from "../directions";
 

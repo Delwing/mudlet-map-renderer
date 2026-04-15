@@ -1,4 +1,4 @@
-import type {Settings} from "../Renderer";
+import type {Settings} from "../types/Settings";
 
 export type GridLineData = {
     x1: number; y1: number;

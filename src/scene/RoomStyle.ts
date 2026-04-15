@@ -1,5 +1,5 @@
-import type {Settings} from "../Renderer";
-import {darkenColor, colorLightness} from "../Renderer";
+import type {Settings} from "../types/Settings";
+import {darkenColor, colorLightness} from "../utils/color";
 import MapReader from "../reader/MapReader";
 
 export type RoomColors = {

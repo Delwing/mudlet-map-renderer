@@ -2,7 +2,7 @@ import type MapReader from "./reader/MapReader";
 import type Area from "./reader/Area";
 import type Plane from "./reader/Plane";
 import type Exit from "./reader/Exit";
-import type {Settings, ViewportBounds} from "./Renderer";
+import type {Settings, ViewportBounds} from "./types/Settings";
 import type {DrawingBackend, GroupNode, LayerNode} from "./backend/DrawingBackend";
 import {RoomShapeRenderer} from "./RoomShapeRenderer";
 import {GridRenderer} from "./GridRenderer";

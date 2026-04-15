@@ -1,8 +1,8 @@
 import MapReader from "./reader/MapReader";
 import Area from "./reader/Area";
 import type Plane from "./reader/Plane";
-import type {Settings} from "./Renderer";
-import type {SvgOverlays} from "./SvgExporter";
+import type {Settings} from "./types/Settings";
+import type {SvgOverlays} from "./SvgTypes";
 import {TypedEventEmitter} from "./TypedEventEmitter";
 
 export type HighlightEntry = { color: string; area: number; z: number };

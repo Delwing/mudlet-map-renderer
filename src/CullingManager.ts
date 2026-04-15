@@ -1,5 +1,5 @@
 import type {ExitDrawData} from "./ExitRenderer";
-import type {Settings, CullingMode, PerfSnapshot} from "./Renderer";
+import type {Settings, CullingMode, PerfSnapshot} from "./types/Settings";
 import type {GridRenderer} from "./GridRenderer";
 import type {Viewport} from "./Viewport";
 import type {GroupNode, LayerNode} from "./backend/DrawingBackend";

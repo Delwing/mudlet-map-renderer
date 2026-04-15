@@ -1,7 +1,7 @@
 import Konva from "konva";
 import type Area from "../reader/Area";
 import type Plane from "../reader/Plane";
-import type {RendererEventMap} from "../Renderer";
+import type {RendererEventMap} from "../types/Settings";
 import {ScenePipeline} from "../ScenePipeline";
 import type {SceneBuildResult, AreaExitHitZone} from "../ScenePipeline";
 import type {MapState} from "../MapState";

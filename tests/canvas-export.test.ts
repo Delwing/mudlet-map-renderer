@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { HeadlessRenderer } from '../src/HeadlessRenderer';
-import { createSettings } from '../src/Renderer';
+import { createSettings } from '../src/types/Settings';
 import { createTestMapReader } from './helpers';
 
 const WIDTH = 400;

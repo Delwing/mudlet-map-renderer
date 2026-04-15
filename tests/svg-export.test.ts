@@ -1,16 +1,29 @@
 import { describe, it, expect } from 'vitest';
-import { SvgExporter } from '../src/SvgExporter';
-import { createSettings } from '../src/Renderer';
+import { SvgRenderBackend } from '../src/rendering/SvgRenderBackend';
+import { MapState } from '../src/MapState';
+import { createSettings } from '../src/types/Settings';
 import { createTestMapReader } from './helpers';
+import type { Settings } from '../src/types/Settings';
 
-function exportArea(settingsOverrides?: Partial<ReturnType<typeof createSettings>>) {
+function exportArea(settingsOverrides?: Partial<Settings>) {
     const reader = createTestMapReader();
     const settings = { ...createSettings(), ...settingsOverrides };
-    const exporter = new SvgExporter(reader, settings);
-    return exporter.export(1, 0);
+    const state = new MapState(reader, settings);
+    state.setArea(1, 0);
+    const backend = new SvgRenderBackend(state);
+    return backend.exportSvg();
 }
 
-describe('SvgExporter', () => {
+function exportWithState(setup: (state: MapState) => void, options?: Parameters<SvgRenderBackend['exportSvg']>[0]) {
+    const reader = createTestMapReader();
+    const settings = createSettings();
+    const state = new MapState(reader, settings);
+    setup(state);
+    const backend = new SvgRenderBackend(state);
+    return backend.exportSvg(options);
+}
+
+describe('SvgRenderBackend', () => {
     describe('basic export', () => {
         it('produces valid SVG string', () => {
             const svg = exportArea();
@@ -26,7 +39,6 @@ describe('SvgExporter', () => {
 
         it('renders rooms as rects by default', () => {
             const svg = exportArea();
-            // Default roomShape is "rectangle", rooms are rendered as <rect>
             expect(svg).toContain('<rect');
         });
 
@@ -99,49 +111,44 @@ describe('SvgExporter', () => {
 
     describe('overlays', () => {
         it('snapshot - position marker', () => {
-            const reader = createTestMapReader();
-            const settings = createSettings();
-            const exporter = new SvgExporter(reader, settings);
-            const svg = exporter.export(1, 0, {
-                overlays: { position: { roomId: 1 } },
-            });
+            const svg = exportWithState(
+                (state) => state.setArea(1, 0),
+                { overlays: { position: { roomId: 1 } } },
+            );
             expect(svg).toMatchSnapshot();
         });
 
         it('snapshot - highlights', () => {
-            const reader = createTestMapReader();
-            const settings = createSettings();
-            const exporter = new SvgExporter(reader, settings);
-            const svg = exporter.export(1, 0, {
-                overlays: {
-                    highlights: [
-                        { roomId: 1, color: '#ff0000' },
-                        { roomId: 3, color: '#00ff00' },
-                    ],
+            const svg = exportWithState(
+                (state) => state.setArea(1, 0),
+                {
+                    overlays: {
+                        highlights: [
+                            { roomId: 1, color: '#ff0000' },
+                            { roomId: 3, color: '#00ff00' },
+                        ],
+                    },
                 },
-            });
+            );
             expect(svg).toMatchSnapshot();
         });
 
         it('snapshot - path overlay', () => {
-            const reader = createTestMapReader();
-            const settings = createSettings();
-            const exporter = new SvgExporter(reader, settings);
-            const svg = exporter.export(1, 0, {
-                overlays: {
-                    paths: [{ locations: [6, 2, 1, 3], color: '#66E64D' }],
+            const svg = exportWithState(
+                (state) => state.setArea(1, 0),
+                {
+                    overlays: {
+                        paths: [{ locations: [6, 2, 1, 3], color: '#66E64D' }],
+                    },
                 },
-            });
+            );
             expect(svg).toMatchSnapshot();
         });
     });
 
     describe('different area', () => {
         it('snapshot - area 2 (Dark Forest)', () => {
-            const reader = createTestMapReader();
-            const settings = createSettings();
-            const exporter = new SvgExporter(reader, settings);
-            const svg = exporter.export(2, 0);
+            const svg = exportWithState((state) => state.setArea(2, 0));
             expect(svg).toContain('<svg');
             expect(svg).toMatchSnapshot();
         });
@@ -149,28 +156,21 @@ describe('SvgExporter', () => {
 
     describe('z-level', () => {
         it('snapshot - area 1 z=-1 (underground)', () => {
-            const reader = createTestMapReader();
-            const settings = createSettings();
-            const exporter = new SvgExporter(reader, settings);
-            const svg = exporter.export(1, -1);
+            const svg = exportWithState((state) => state.setArea(1, -1));
             expect(svg).toContain('<svg');
             expect(svg).toMatchSnapshot();
         });
     });
 
-    describe('error handling', () => {
-        it('throws for nonexistent area', () => {
-            const reader = createTestMapReader();
-            const settings = createSettings();
-            const exporter = new SvgExporter(reader, settings);
-            expect(() => exporter.export(999, 0)).toThrow();
+    describe('missing data', () => {
+        it('returns undefined for nonexistent area', () => {
+            const svg = exportWithState((state) => state.setArea(999, 0));
+            expect(svg).toBeUndefined();
         });
 
-        it('throws for nonexistent z-level', () => {
-            const reader = createTestMapReader();
-            const settings = createSettings();
-            const exporter = new SvgExporter(reader, settings);
-            expect(() => exporter.export(1, 99)).toThrow();
+        it('returns undefined for nonexistent z-level', () => {
+            const svg = exportWithState((state) => state.setArea(1, 99));
+            expect(svg).toBeUndefined();
         });
     });
 });

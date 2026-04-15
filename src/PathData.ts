@@ -1,5 +1,5 @@
 import MapReader from "./reader/MapReader";
-import type {Settings} from "./Renderer";
+import type {Settings} from "./types/Settings";
 import {movePoint, movePointCircle, movePointRoundedRect, PlanarDirection, planarDirections, oppositeDirections} from "./directions";
 import {longToShort, regularExits} from "./reader/Exit";
 

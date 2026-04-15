@@ -1,8 +1,8 @@
 import type MapReader from "./reader/MapReader";
 import type Area from "./reader/Area";
-import type {Settings} from "./Renderer";
+import type {Settings} from "./types/Settings";
 import type {MapRenderer as MapRendererInterface} from "./MapRenderer";
-import type {SvgExportOptions} from "./SvgExporter";
+import type {SvgExportOptions} from "./SvgTypes";
 import {MapRenderer} from "./rendering/MapRenderer";
 
 export type CanvasExportOptions = {
@@ -26,12 +26,11 @@ export type CanvasExportOverlays = {
  * Backward-compatible headless renderer.
  * Delegates to the unified MapRenderer in headless mode (no container).
  *
- * Usage:
+ * @deprecated Use MapRenderer directly (omit the container argument for headless mode):
  * ```
- * import 'konva/canvas-backend';  // required for Node.js
- * import { HeadlessRenderer } from 'mudlet-map-renderer';
+ * import { MapRenderer, createSettings } from 'mudlet-map-renderer';
  *
- * const renderer = new HeadlessRenderer(mapReader, settings);
+ * const renderer = new MapRenderer(mapReader, settings);
  * renderer.drawArea(areaId, 0);
  * renderer.setPosition(playerRoomId);
  *

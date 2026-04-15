@@ -1,4 +1,4 @@
-import type {Settings} from "../Renderer";
+import type {Settings} from "../types/Settings";
 import {movePoint, movePointCircle, movePointRoundedRect} from "../directions";
 
 const dirNumbers: Record<number, MapData.direction> = {

@@ -1,7 +1,16 @@
-// --- Re-exports from old Renderer (types, settings, color utils) ---
-export * from './Renderer';
-export { createSettings } from "./Renderer";
-export type { Settings, RendererEventMap } from "./Renderer";
+// --- Types, settings, color utils ---
+export { createSettings } from './types/Settings';
+export type {
+    Settings, ViewportBounds, RendererEventMap, PerfSnapshot,
+    CullingMode, RoomShape, LabelRenderMode, PlayerMarkerStyle,
+    RoomClickEventDetail, RoomContextMenuEventDetail,
+    ZoomChangeEventDetail, AreaExitClickEventDetail, PanEventDetail,
+} from './types/Settings';
+export { darkenColor, colorLightness, hexToRgba } from './utils/color';
+
+// --- Backward compat (deprecated — use MapRenderer directly) ---
+/** @deprecated Use MapRenderer with container argument instead */
+export { Renderer } from './Renderer';
 
 // --- New unified MapRenderer ---
 export { MapRenderer } from './rendering/MapRenderer';
@@ -25,13 +34,13 @@ export type { AreaMapSettings } from './AreaMapRenderer';
 export type { AreaDomainInfo, DomainFilter } from './AreaMapRenderer';
 
 // --- Export ---
-export { SvgExporter } from './SvgExporter';
-export type { SvgExportOptions, SvgOverlays } from './SvgExporter';
+export type { SvgExportOptions, SvgOverlays } from './SvgTypes';
 export { computePathData } from './PathData';
 export type { PathResult, PathSegment, PathInnerMarker } from './PathData';
 
-// --- Backward compat aliases ---
+// --- Backward compat (deprecated — use MapRenderer directly) ---
+/** @deprecated Use MapRenderer without container argument instead */
 export { HeadlessRenderer } from './HeadlessRenderer';
 export type { CanvasExportOptions, CanvasExportOverlays } from './HeadlessRenderer';
-// Old MapRenderer interface — keep for backward compat type consumers
+/** @deprecated Use the MapRenderer class directly */
 export type { MapRenderer as MapRendererInterface } from './MapRenderer';

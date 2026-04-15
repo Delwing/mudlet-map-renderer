@@ -1,5 +1,5 @@
-import type {Settings, ViewportBounds} from "./Renderer";
-import type {DrawingBackend, GroupNode, LayerNode} from "./backend/DrawingBackend";
+import type {Settings, ViewportBounds} from "./types/Settings";
+import type {DrawingBackend, LayerNode} from "./backend/DrawingBackend";
 
 /**
  * Renders and caches the background grid on a dedicated layer.

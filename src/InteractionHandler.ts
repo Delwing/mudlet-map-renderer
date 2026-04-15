@@ -1,4 +1,4 @@
-import type {Settings, RendererEventMap} from "./Renderer";
+import type {Settings, RendererEventMap} from "./types/Settings";
 import type {TypedEventEmitter} from "./TypedEventEmitter";
 import type {Viewport} from "./Viewport";
 import type {MapState} from "./MapState";

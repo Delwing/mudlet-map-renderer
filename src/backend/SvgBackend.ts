@@ -89,13 +89,15 @@ export class SvgBackend implements DrawingBackend {
 
     addRect(parent: GroupNode, config: RectConfig) {
         if (!(parent instanceof SvgGroupNode)) return;
-        const el = `<rect${attr('x', config.x)}${attr('y', config.y)}${attr('width', config.width)}${attr('height', config.height)}${attr('fill', config.fill)}${attr('stroke', config.stroke)}${attr('stroke-width', config.strokeWidth)}${config.cornerRadius ? `${attr('rx', config.cornerRadius)}${attr('ry', config.cornerRadius)}` : ''}${dashAttr(config.dash, config.dashEnabled)}/>`;
+        const fill = config.fill ?? 'none';
+        const el = `<rect${attr('x', config.x)}${attr('y', config.y)}${attr('width', config.width)}${attr('height', config.height)}${attr('fill', fill)}${attr('stroke', config.stroke)}${attr('stroke-width', config.strokeWidth)}${config.cornerRadius ? `${attr('rx', config.cornerRadius)}${attr('ry', config.cornerRadius)}` : ''}${dashAttr(config.dash, config.dashEnabled)}/>`;
         parent.elements.push(el);
     }
 
     addCircle(parent: GroupNode, config: CircleConfig) {
         if (!(parent instanceof SvgGroupNode)) return;
-        const el = `<circle${attr('cx', config.cx)}${attr('cy', config.cy)}${attr('r', config.radius)}${attr('fill', config.fill)}${attr('stroke', config.stroke)}${attr('stroke-width', config.strokeWidth)}${dashAttr(config.dash, config.dashEnabled)}/>`;
+        const fill = config.fill ?? 'none';
+        const el = `<circle${attr('cx', config.cx)}${attr('cy', config.cy)}${attr('r', config.radius)}${attr('fill', fill)}${attr('stroke', config.stroke)}${attr('stroke-width', config.strokeWidth)}${dashAttr(config.dash, config.dashEnabled)}/>`;
         parent.elements.push(el);
     }
 
@@ -106,7 +108,7 @@ export class SvgBackend implements DrawingBackend {
         for (let i = 0; i < points.length; i += 2) {
             svgPoints.push(`${points[i]},${points[i + 1]}`);
         }
-        const el = `<polyline points="${svgPoints.join(' ')}"${attr('stroke', config.stroke)}${attr('stroke-width', config.strokeWidth)}${dashAttr(config.dash)} fill="none"/>`;
+        const el = `<polyline points="${svgPoints.join(' ')}"${attr('stroke', config.stroke)}${attr('stroke-width', config.strokeWidth)}${dashAttr(config.dash)}${attr('stroke-linecap', config.lineCap)}${attr('stroke-linejoin', config.lineJoin)}${attr('opacity', config.alpha)} fill="none"/>`;
         parent.elements.push(el);
     }
 
@@ -141,7 +143,7 @@ export class SvgBackend implements DrawingBackend {
         }
         if (config.height !== undefined && config.verticalAlign === 'middle') {
             if (config.baselineRatio !== undefined) {
-                // Explicit baseline positioning — matches old SvgExporter approach.
+                // Explicit baseline positioning for accurate vertical centering.
                 // baselineRatio is the fraction of fontSize from top to alphabetic baseline.
                 // Position y so the glyph is visually centered in the box.
                 y = config.y + config.height / 2 + config.baselineRatio * config.fontSize;

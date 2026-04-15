@@ -70,7 +70,7 @@ function drawDoorToCanvas(ctx: CanvasRenderingContext2D, door: ExitDrawDoor) {
 
 /**
  * Render ExitDrawData to SVG string lines.
- * Shared by the SvgExporter.
+ * Shared by the SvgRenderBackend.
  */
 export function drawExitDataToSvgLines(lines: string[], data: ExitDrawData) {
     for (const line of data.lines) {

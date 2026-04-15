@@ -1,21 +1,12 @@
 import type Area from "./reader/Area";
-import type {Settings} from "./Renderer";
-import type {SvgExportOptions} from "./SvgExporter";
+import type {Settings} from "./types/Settings";
+import type {SvgExportOptions} from "./SvgTypes";
 
 /**
  * Environment-agnostic interface for map rendering.
  *
- * Both the browser {@link Renderer} (Konva.js, requires DOM) and
- * {@link HeadlessRenderer} (no DOM, export-only) implement this interface.
- *
- * Use this type to write code that works in both environments:
- * ```typescript
- * function setupMap(renderer: MapRenderer) {
- *     renderer.drawArea(1, 0);
- *     renderer.setPosition(42);
- *     renderer.renderHighlight(100, '#ff0000');
- * }
- * ```
+ * @deprecated Use the `MapRenderer` class from `rendering/MapRenderer` directly.
+ * It handles both interactive (with container) and headless (without container) modes.
  */
 export interface MapRenderer {
     readonly settings: Settings;

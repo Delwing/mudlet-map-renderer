@@ -1,6 +1,6 @@
 import Exit, {longToShort, shortTolong, regularExits} from "./reader/Exit";
 import MapReader from "./reader/MapReader";
-import type {Settings} from "./Renderer";
+import type {Settings} from "./types/Settings";
 import {movePoint, movePointCircle, movePointRoundedRect} from "./directions";
 
 const Colors = {

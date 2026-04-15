@@ -1,10 +1,10 @@
 import MapReader from "../reader/MapReader";
 import type Area from "../reader/Area";
-import type {ViewportBounds, RendererEventMap, CullingMode} from "../Renderer";
-import {createSettings} from "../Renderer";
-import type {Settings} from "../Renderer";
+import type {ViewportBounds, RendererEventMap, CullingMode} from "../types/Settings";
+import {createSettings} from "../types/Settings";
+import type {Settings} from "../types/Settings";
 import {MapState} from "../MapState";
-import type {SvgExportOptions} from "../SvgExporter";
+import type {SvgExportOptions} from "../SvgTypes";
 import {KonvaRenderBackend} from "./KonvaRenderBackend";
 import {SvgRenderBackend} from "./SvgRenderBackend";
 import type {CanvasExportOptions, CanvasExportOverlays} from "../HeadlessRenderer";

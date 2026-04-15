@@ -1,5 +1,5 @@
 import MapReader from "./reader/MapReader";
-import type {Settings} from "./Renderer";
+import type {Settings} from "./types/Settings";
 import type {DrawingBackend, GroupNode} from "./backend/DrawingBackend";
 import {measureTextBaselineOffset} from "./utils/textMeasure";
 import {computeRoomColors, computeEmboss} from "./scene/RoomStyle";
