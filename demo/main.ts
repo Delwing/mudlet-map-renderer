@@ -1,4 +1,4 @@
-import {MapRenderer, createSettings, PathFinder, KonvaBackend, SketchyBackend, ParchmentBackend, BlueprintBackend, IsometricBackend} from "@src";
+import {MapRenderer, createSettings, PathFinder, KonvaBackend, SketchyBackend, ParchmentBackend, BlueprintBackend, NeonBackend, IsometricBackend} from "@src";
 import type {Settings} from "@src";
 import MapReader from "@src/reader/MapReader";
 import {initControls, initPerfMonitor} from "./controls";
@@ -44,6 +44,7 @@ let sketchColor = '#444444';
 let savedBackgroundColor: string;
 let savedLineColor: string;
 let savedFontFamily: string;
+let updateTerrainRooms: () => void = () => {};
 
 // --- Helpers ---
 
@@ -68,6 +69,7 @@ function moveToRoom(room: MapData.Room) {
     updateAreaSelector();
     populateLevelSelector(room.area, room.z);
     updateDestinationGuidance();
+    updateTerrainRooms();
 }
 
 function updateAreaStatus(areaId: number) {
@@ -230,6 +232,12 @@ function applyRenderMode(mode: string) {
             settings.fontFamily = '"Courier New", monospace';
             break;
         }
+        case "neon": {
+            renderer.setDrawingBackend(new NeonBackend(new KonvaBackend()));
+            settings.backgroundColor = '#0a0a0f';
+            settings.lineColor = '#00ffaa';
+            break;
+        }
         default: {
             renderer.setDrawingBackend(new KonvaBackend());
             break;
@@ -271,13 +279,15 @@ async function initialize() {
     renderer = new MapRenderer(mapReader, settings, stageElement);
 
     // Controls & perf
-    const {explorationToggle} = initControls(settings, renderer, () => currentRoomId, pathFinder, updateDestinationGuidance, (color) => {
+    const controlsResult = initControls(settings, renderer, () => currentRoomId, pathFinder, updateDestinationGuidance, (color) => {
         pathColor = color;
         if (currentDestinationPath) {
             renderer.clearPaths();
             renderer.renderPath(currentDestinationPath, pathColor);
         }
-    }, applyRenderMode);
+    }, applyRenderMode, mapReader);
+    const explorationToggle = controlsResult.explorationToggle;
+    updateTerrainRooms = controlsResult.updateTerrainRooms;
     initPerfMonitor(settings);
     initContextMenu(stageElement, renderer, mapReader, moveToRoom, (msg) => updateStatus(roomStatusElement, msg));
 
@@ -341,6 +351,7 @@ async function initialize() {
         renderer.drawArea(areaId, z);
         renderer.fitArea();
         updateAreaStatus(areaId);
+        updateTerrainRooms();
         updateStatus(roomStatusElement, `Switched to area: ${area.getAreaName()}`);
     });
 
@@ -352,6 +363,7 @@ async function initialize() {
         renderer.clearPosition();
         renderer.drawArea(areaId, z);
         renderer.fitArea();
+        updateTerrainRooms();
     });
 
     explorationToggle?.addEventListener("change", () => {

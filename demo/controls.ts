@@ -1,5 +1,10 @@
-import {MapRenderer, CullingMode, RoomShape, PathFinder, WeatherOverlay} from "@src";
-import type {Settings, LabelRenderMode, PerfSnapshot, PathFindingAlgorithm, WeatherType} from "@src";
+import {MapRenderer, CullingMode, RoomShape, PathFinder} from "@src";
+import type {Settings, LabelRenderMode, PerfSnapshot, PathFindingAlgorithm} from "@src";
+import type MapReader from "@src/reader/MapReader";
+import {WeatherOverlay} from "./WeatherOverlay";
+import type {WeatherType} from "./WeatherOverlay";
+import {TerrainOverlay} from "./TerrainOverlay";
+import type {TerrainEffectType, TerrainRoom} from "./TerrainOverlay";
 
 function rgbToHex(rgb: string): string {
     const match = rgb.match(/(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
@@ -29,7 +34,7 @@ function describeCullingMode(mode: CullingMode) {
     }
 }
 
-export function initControls(settings: Settings, renderer: MapRenderer, getCurrentRoomId: () => number, pathFinder?: PathFinder, onAlgorithmChange?: () => void, onPathColorChange?: (color: string) => void, onRenderModeChange?: (mode: string) => void) {
+export function initControls(settings: Settings, renderer: MapRenderer, getCurrentRoomId: () => number, pathFinder?: PathFinder, onAlgorithmChange?: () => void, onPathColorChange?: (color: string) => void, onRenderModeChange?: (mode: string) => void, mapReader?: MapReader) {
     const explorationToggle = document.getElementById("exploration-toggle") as HTMLInputElement | null;
     const instantMoveToggle = document.getElementById("instant-move-toggle") as HTMLInputElement | null;
     const highlightToggle = document.getElementById("highlight-toggle") as HTMLInputElement | null;
@@ -397,6 +402,66 @@ export function initControls(settings: Settings, renderer: MapRenderer, getCurre
         applyWeather();
     });
 
+    // --- Terrain effects (overlay plugin) ---
+
+    let terrain = new TerrainOverlay();
+    const terrainToggle = document.getElementById("terrain-effects-toggle") as HTMLInputElement | null;
+
+    function classifyEnvColor(rgb: string): TerrainEffectType | null {
+        const m = rgb.match(/(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
+        if (!m) return null;
+        const r = parseInt(m[1]), g = parseInt(m[2]), b = parseInt(m[3]);
+        const max = Math.max(r, g, b);
+        if (max === 0) return null;
+        // Dominant channel classification
+        if (b >= 80 && b === max && b > r + 20 && b > g + 20) return "water";
+        if (g >= 80 && g === max && g > r + 20 && g > b + 20) return "forest";
+        if (r >= 120 && r === max && r > g * 1.5 && r > b * 1.5) return "lava";
+        if (r > 160 && g > 160 && b > 160 && Math.abs(r - b) < 60 && Math.abs(r - g) < 60) return "ice";
+        return null;
+    }
+
+    function updateTerrainRooms() {
+        if (!mapReader || !terrainToggle?.checked) {
+            terrain.setRooms([]);
+            return;
+        }
+        // Use area/level selectors as source of truth (they're always up to date)
+        const areaEl = document.getElementById("area-select") as HTMLSelectElement | null;
+        const levelEl = document.getElementById("level-select") as HTMLSelectElement | null;
+        let areaId = areaEl ? parseInt(areaEl.value, 10) : NaN;
+        let z = levelEl ? parseInt(levelEl.value, 10) : NaN;
+        // Fall back to current room if selectors not available
+        if (isNaN(areaId) || isNaN(z)) {
+            const currentRoom = mapReader.getRoom(getCurrentRoomId());
+            if (!currentRoom) { terrain.setRooms([]); return; }
+            areaId = currentRoom.area;
+            z = currentRoom.z;
+        }
+        const area = mapReader.getArea(areaId);
+        const plane = area?.getPlane(z);
+        const planeRooms = plane?.getRooms() ?? [];
+        const rooms: TerrainRoom[] = [];
+        for (const room of planeRooms) {
+            const color = mapReader.getColorValue(room.env);
+            const effect = classifyEnvColor(color);
+            if (effect) {
+                rooms.push({x: room.x, y: room.y, effect, size: settings.roomSize});
+            }
+        }
+        terrain.setRooms(rooms);
+    }
+
+    terrainToggle?.addEventListener("change", () => {
+        if (terrainToggle.checked) {
+            terrain = new TerrainOverlay();
+            renderer.addOverlayPlugin('terrain', terrain);
+            updateTerrainRooms();
+        } else {
+            renderer.removeOverlayPlugin('terrain');
+        }
+    });
+
     savePngBtn?.addEventListener("click", async () => {
         const blob = renderer.exportPngBlob({ pixelRatio: 2 });
         if (!blob) return;
@@ -430,7 +495,7 @@ export function initControls(settings: Settings, renderer: MapRenderer, getCurre
         hud?.classList.toggle("collapsed");
     });
 
-    return { explorationToggle, updateCullingStatus };
+    return { explorationToggle, updateCullingStatus, updateTerrainRooms };
 }
 
 export function initPerfMonitor(settings: Settings) {
