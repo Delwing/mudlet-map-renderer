@@ -1,6 +1,6 @@
 import Konva from "konva";
 import type {ViewportBounds} from "@src/types/Settings";
-import type {OverlayPlugin} from "@src/types/OverlayPlugin";
+import type {OverlayPlugin, CoordinateTransform} from "@src/types/OverlayPlugin";
 
 export type FogOfWarStyle = {
     /** Darkness opacity (0.0 - 1.0). Default: 0.85 */
@@ -37,6 +37,7 @@ export class FogOfWarOverlay implements OverlayPlugin {
     private connections: RevealedConnection[] = [];
     private bounds: ViewportBounds = {minX: 0, maxX: 10, minY: 0, maxY: 10};
     private scale: number = 75;
+    private coordTransform?: CoordinateTransform;
     private dirty = true;
 
     constructor() {
@@ -84,14 +85,24 @@ export class FogOfWarOverlay implements OverlayPlugin {
         if (this.layer) this.layer.batchDraw();
     }
 
-    updateViewport(bounds: ViewportBounds, scale?: number) {
+    updateViewport(bounds: ViewportBounds, scale?: number, coordinateTransform?: CoordinateTransform) {
         this.bounds = bounds;
         if (scale !== undefined) this.scale = scale;
+        this.coordTransform = coordinateTransform;
         this.dirty = true;
     }
 
     destroy() {
         if (this.shape) this.shape.destroy();
+    }
+
+    /** Transform a map point through the coordinate transform (e.g. isometric) then to screen pixels. */
+    private toScreen(x: number, y: number, s: number, pos: {x: number; y: number}): {sx: number; sy: number} {
+        if (this.coordTransform) {
+            const t = this.coordTransform(x, y);
+            return {sx: t.x * s + pos.x, sy: t.y * s + pos.y};
+        }
+        return {sx: x * s + pos.x, sy: y * s + pos.y};
     }
 
     private draw(ctx: CanvasRenderingContext2D) {
@@ -138,22 +149,22 @@ export class FogOfWarOverlay implements OverlayPlugin {
             if (cMaxX < minX - margin || cMinX > maxX + margin ||
                 cMaxY < minY - margin || cMinY > maxY + margin) continue;
 
+            const p1 = this.toScreen(conn.x1, conn.y1, s, pos);
+            const p2 = this.toScreen(conn.x2, conn.y2, s, pos);
             ctx.globalAlpha = 1;
             ctx.beginPath();
-            ctx.moveTo(conn.x1 * s + pos.x, conn.y1 * s + pos.y);
-            ctx.lineTo(conn.x2 * s + pos.x, conn.y2 * s + pos.y);
+            ctx.moveTo(p1.sx, p1.sy);
+            ctx.lineTo(p2.sx, p2.sy);
             ctx.stroke();
         }
 
         // 2b. Punch smooth radial holes at each revealed room
         for (const room of this.rooms) {
-            // Cull rooms far outside viewport
-            if (room.x < minX - margin || room.x > maxX + margin ||
-                room.y < minY - margin || room.y > maxY + margin) continue;
+            const {sx, sy} = this.toScreen(room.x, room.y, s, pos);
 
-            // Map coords → screen pixels
-            const sx = room.x * s + pos.x;
-            const sy = room.y * s + pos.y;
+            // Cull if off-screen (with margin)
+            if (sx < -radiusPx * 2 || sx > sw + radiusPx * 2 ||
+                sy < -radiusPx * 2 || sy > sh + radiusPx * 2) continue;
 
             const gradient = ctx.createRadialGradient(sx, sy, 0, sx, sy, radiusPx);
             gradient.addColorStop(0, 'rgba(0, 0, 0, 1)');

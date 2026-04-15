@@ -31,11 +31,13 @@ import type {ViewportBounds} from "./Settings";
  * renderer.removeOverlayPlugin('my-effect');
  * ```
  */
+export type CoordinateTransform = (x: number, y: number) => { x: number; y: number };
+
 export interface OverlayPlugin {
     /** Called once when the plugin is added to the renderer. Draw on this layer. */
     attach(layer: Konva.Layer): void;
-    /** Called on every pan/zoom with the visible map bounds and pixel scale. */
-    updateViewport(bounds: ViewportBounds, scale: number): void;
+    /** Called on every pan/zoom with the visible map bounds, pixel scale, and optional coordinate transform (e.g. isometric projection). */
+    updateViewport(bounds: ViewportBounds, scale: number, coordinateTransform?: CoordinateTransform): void;
     /** Called when the plugin is removed or the renderer is destroyed. Clean up Konva nodes. */
     destroy(): void;
 }

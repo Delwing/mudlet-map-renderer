@@ -7,7 +7,7 @@ export type {
     ZoomChangeEventDetail, AreaExitClickEventDetail, PanEventDetail,
 } from './types/Settings';
 export { darkenColor, colorLightness, hexToRgba } from './utils/color';
-export type { OverlayPlugin } from './types/OverlayPlugin';
+export type { OverlayPlugin, CoordinateTransform } from './types/OverlayPlugin';
 
 // --- Backward compat (deprecated — use MapRenderer directly) ---
 /** @deprecated Use MapRenderer with container argument instead */

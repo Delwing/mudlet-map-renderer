@@ -243,7 +243,7 @@ export class KonvaRenderBackend implements InteractiveBackend {
         this.refreshAmbientLight();
         const vpBounds = this.viewport.getViewportBounds();
         for (const plugin of this.overlayPlugins.values()) {
-            plugin.updateViewport(vpBounds, scale);
+            plugin.updateViewport(vpBounds, scale, this.coordinateTransform ?? undefined);
         }
     }
 
@@ -349,7 +349,7 @@ export class KonvaRenderBackend implements InteractiveBackend {
         this.removeOverlayPlugin(id);
         plugin.attach(this.overlayLayer);
         this.overlayPlugins.set(id, plugin);
-        plugin.updateViewport(this.viewport.getViewportBounds(), this.viewport.getScale());
+        plugin.updateViewport(this.viewport.getViewportBounds(), this.viewport.getScale(), this.coordinateTransform ?? undefined);
     }
 
     removeOverlayPlugin(id: string) {
