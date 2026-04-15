@@ -1,6 +1,6 @@
 import Konva from "konva";
 import type {ViewportBounds} from "@src/types/Settings";
-import type {OverlayPlugin} from "@src/types/OverlayPlugin";
+import type {OverlayPlugin, CoordinateTransform} from "@src/types/OverlayPlugin";
 
 export type WeatherType = "rain" | "snow" | "fog" | "dust" | "none";
 
@@ -84,9 +84,9 @@ export class WeatherOverlay implements OverlayPlugin {
         if (this.layer) this.startAnimation();
     }
 
-    updateViewport(bounds: ViewportBounds, scale?: number) {
+    updateViewport(bounds: ViewportBounds, scale: number, _coordinateTransform?: CoordinateTransform) {
         this.bounds = bounds;
-        if (scale !== undefined) this.scale = scale;
+        this.scale = scale;
     }
 
     destroy() {

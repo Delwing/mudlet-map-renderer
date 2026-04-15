@@ -383,7 +383,7 @@ async function initialize() {
         } else {
             mapReader.clearExplorationDecoration();
         }
-        renderer.setPosition(currentRoomId);
+        renderer.setPosition(currentRoomId, false);
         const currentRoom = mapReader.getRoom(currentRoomId);
         if (currentRoom) updateAreaStatus(currentRoom.area);
         updateDestinationGuidance();

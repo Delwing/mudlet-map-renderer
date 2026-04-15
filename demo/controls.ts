@@ -168,7 +168,7 @@ export function initControls(settings: Settings, renderer: MapRenderer, getCurre
 
     highlightToggle?.addEventListener("change", () => {
         settings.highlightCurrentRoom = highlightToggle.checked;
-        renderer.setPosition(getCurrentRoomId());
+        renderer.setPosition(getCurrentRoomId(), false);
     });
 
     gridToggle?.addEventListener("change", () => {
@@ -248,50 +248,50 @@ export function initControls(settings: Settings, renderer: MapRenderer, getCurre
 
     playerMarkerStrokeColor?.addEventListener("input", () => {
         settings.playerMarker.strokeColor = playerMarkerStrokeColor.value;
-        renderer.setPosition(getCurrentRoomId());
+        renderer.updatePositionMarker(getCurrentRoomId());
     });
 
     playerMarkerStrokeAlpha?.addEventListener("input", () => {
         const value = parseFloat(playerMarkerStrokeAlpha.value);
         settings.playerMarker.strokeAlpha = value;
         if (playerMarkerStrokeAlphaValue) playerMarkerStrokeAlphaValue.textContent = value.toFixed(2);
-        renderer.setPosition(getCurrentRoomId());
+        renderer.updatePositionMarker(getCurrentRoomId());
     });
 
     playerMarkerFillColor?.addEventListener("input", () => {
         settings.playerMarker.fillColor = playerMarkerFillColor.value;
-        renderer.setPosition(getCurrentRoomId());
+        renderer.updatePositionMarker(getCurrentRoomId());
     });
 
     playerMarkerFillAlpha?.addEventListener("input", () => {
         const value = parseFloat(playerMarkerFillAlpha.value);
         settings.playerMarker.fillAlpha = value;
         if (playerMarkerFillAlphaValue) playerMarkerFillAlphaValue.textContent = value.toFixed(2);
-        renderer.setPosition(getCurrentRoomId());
+        renderer.updatePositionMarker(getCurrentRoomId());
     });
 
     playerMarkerStrokeWidth?.addEventListener("input", () => {
         const value = parseFloat(playerMarkerStrokeWidth.value);
         settings.playerMarker.strokeWidth = value;
         if (playerMarkerStrokeWidthValue) playerMarkerStrokeWidthValue.textContent = value.toFixed(2);
-        renderer.setPosition(getCurrentRoomId());
+        renderer.updatePositionMarker(getCurrentRoomId());
     });
 
     playerMarkerSize?.addEventListener("input", () => {
         const value = parseFloat(playerMarkerSize.value);
         settings.playerMarker.sizeFactor = value;
         if (playerMarkerSizeValue) playerMarkerSizeValue.textContent = value.toFixed(2);
-        renderer.setPosition(getCurrentRoomId());
+        renderer.updatePositionMarker(getCurrentRoomId());
     });
 
     playerMarkerDashEnabled?.addEventListener("change", () => {
         settings.playerMarker.dashEnabled = playerMarkerDashEnabled.checked;
-        renderer.setPosition(getCurrentRoomId());
+        renderer.updatePositionMarker(getCurrentRoomId());
     });
 
     playerMarkerMatchShape?.addEventListener("change", () => {
         settings.playerMarker.matchRoomShape = playerMarkerMatchShape.checked;
-        renderer.setPosition(getCurrentRoomId());
+        renderer.updatePositionMarker(getCurrentRoomId());
     });
 
     pathColorInput?.addEventListener("input", () => {
@@ -345,26 +345,26 @@ export function initControls(settings: Settings, renderer: MapRenderer, getCurre
 
     ambientLightToggle?.addEventListener("change", () => {
         settings.ambientLight.enabled = ambientLightToggle.checked;
-        renderer.setPosition(getCurrentRoomId());
+        renderer.refresh();
     });
 
     ambientLightColor?.addEventListener("input", () => {
         settings.ambientLight.color = ambientLightColor.value;
-        renderer.setPosition(getCurrentRoomId());
+        renderer.refresh();
     });
 
     ambientLightRadius?.addEventListener("input", () => {
         const value = parseFloat(ambientLightRadius.value);
         settings.ambientLight.radius = value;
         if (ambientLightRadiusValue) ambientLightRadiusValue.textContent = value.toString();
-        renderer.setPosition(getCurrentRoomId());
+        renderer.refresh();
     });
 
     ambientLightIntensity?.addEventListener("input", () => {
         const value = parseFloat(ambientLightIntensity.value);
         settings.ambientLight.intensity = value;
         if (ambientLightIntensityValue) ambientLightIntensityValue.textContent = value.toFixed(2);
-        renderer.setPosition(getCurrentRoomId());
+        renderer.refresh();
     });
 
     // --- Weather (overlay plugin) ---

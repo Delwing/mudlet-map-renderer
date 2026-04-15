@@ -365,6 +365,7 @@ export class KonvaRenderBackend implements InteractiveBackend {
         const result = this.buildScene(currentAreaInstance, plane, currentZIndex, this.viewport.getViewportBounds());
         this.onSceneBuilt(result);
         this.syncHighlights();
+        this.syncPaths();
         if (positionRoomId !== undefined) {
             this.onPositionChanged(positionRoomId, false, false);
         }

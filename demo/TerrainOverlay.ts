@@ -1,6 +1,6 @@
 import Konva from "konva";
 import type {ViewportBounds} from "@src/types/Settings";
-import type {OverlayPlugin} from "@src/types/OverlayPlugin";
+import type {CoordinateTransform, OverlayPlugin} from "@src/types/OverlayPlugin";
 
 export type TerrainEffectType = "water" | "forest" | "lava" | "ice";
 
@@ -28,6 +28,7 @@ export class TerrainOverlay implements OverlayPlugin {
     private animation: Konva.Animation | null = null;
     private time: number = 0;
     private destroyed = false;
+    private coordTransform?: CoordinateTransform;
     private ripples: RippleState[] = [];
     private leaves: LeafParticle[][] = [];
     private sparkles: SparkleState[][] = [];
@@ -48,9 +49,10 @@ export class TerrainOverlay implements OverlayPlugin {
         else this.stopAnimation();
     }
 
-    updateViewport(bounds: ViewportBounds, scale?: number) {
+    updateViewport(bounds: ViewportBounds, scale: number, coordinateTransform?: CoordinateTransform) {
         this.bounds = bounds;
-        if (scale !== undefined) this.scale = scale;
+        this.scale = scale;
+        if (coordinateTransform) this.coordTransform = coordinateTransform;
     }
 
     destroy() {
@@ -77,8 +79,8 @@ export class TerrainOverlay implements OverlayPlugin {
                     this.leaves.push([]); this.sparkles.push([]); break;
                 case "ice": {
                     const ss: SparkleState[] = [];
-                    for (let i = 0; i < 2 + Math.floor(Math.random() * 3); i++)
-                        ss.push({ox: (Math.random() - 0.5) * rs * 0.8, oy: (Math.random() - 0.5) * rs * 0.8, phase: Math.random() * Math.PI * 2, speed: 1.5 + Math.random() * 2, size: 0.02 + Math.random() * 0.03});
+                    for (let i = 0; i < 5 + Math.floor(Math.random() * 4); i++)
+                        ss.push({ox: (Math.random() - 0.5) * rs * 0.9, oy: (Math.random() - 0.5) * rs * 0.9, phase: Math.random() * Math.PI * 2, speed: 2.0 + Math.random() * 3, size: 0.03 + Math.random() * 0.05});
                     this.ripples.push({phase: 0, speed: 0}); this.leaves.push([]); this.sparkles.push(ss); break;
                 }
             }
@@ -107,13 +109,46 @@ export class TerrainOverlay implements OverlayPlugin {
         }
     }
 
+    /**
+     * Derive the affine basis vectors from the coordinate transform by sampling.
+     * Returns the transformed center and the basis vectors for local-to-transformed mapping.
+     */
+    private getAffineBasis(cx: number, cy: number): { pos: {x: number; y: number}; ax: number; ay: number; bx: number; by: number } {
+        if (!this.coordTransform) {
+            return { pos: {x: cx, y: cy}, ax: 1, ay: 0, bx: 0, by: 1 };
+        }
+        const o = this.coordTransform(cx, cy);
+        const px = this.coordTransform(cx + 1, cy);
+        const py = this.coordTransform(cx, cy + 1);
+        return {
+            pos: o,
+            ax: px.x - o.x, ay: px.y - o.y,  // how local +X maps
+            bx: py.x - o.x, by: py.y - o.y,  // how local +Y maps
+        };
+    }
+
+    /**
+     * Set up a canvas affine transform so that drawing at local (0,0) maps to
+     * the transformed room center, and local offsets are projected onto the
+     * isometric (or other) face.
+     */
+    private applyRoomTransform(ctx: CanvasRenderingContext2D, cx: number, cy: number): { pos: {x: number; y: number} } {
+        const {pos, ax, ay, bx, by} = this.getAffineBasis(cx, cy);
+        ctx.save();
+        // ctx.transform(a, b, c, d, e, f) maps (x,y) → (a*x + c*y + e, b*x + d*y + f)
+        ctx.transform(ax, ay, bx, by, pos.x, pos.y);
+        return { pos };
+    }
+
     private draw(ctx: CanvasRenderingContext2D) {
         if (this.rooms.length === 0) return;
         const {minX, maxX, minY, maxY} = this.bounds;
         ctx.save();
         for (let i = 0; i < this.rooms.length; i++) {
             const room = this.rooms[i];
-            if (room.x < minX - 1 || room.x > maxX + 1 || room.y < minY - 1 || room.y > maxY + 1) continue;
+            // Cull using transformed position
+            const pos = this.coordTransform ? this.coordTransform(room.x, room.y) : {x: room.x, y: room.y};
+            if (pos.x < minX - 1 || pos.x > maxX + 1 || pos.y < minY - 1 || pos.y > maxY + 1) continue;
             switch (room.effect) {
                 case "water": this.drawWater(ctx, room, this.ripples[i]); break;
                 case "forest": this.drawForest(ctx, room, this.leaves[i]); break;
@@ -127,6 +162,7 @@ export class TerrainOverlay implements OverlayPlugin {
     private drawWater(ctx: CanvasRenderingContext2D, room: TerrainRoom, state: RippleState) {
         const rs = room.size ?? 0.6, half = rs / 2, color = EFFECT_COLORS.water;
         const seed1 = (room.x * 7.3 + room.y * 13.7) % 1, seed2 = (room.x * 3.1 + room.y * 11.9) % 1;
+        this.applyRoomTransform(ctx, room.x, room.y);
         for (let r = 0; r < 3; r++) {
             const ox = (((r * 0.37 + seed1) % 1) - 0.5) * half * 0.8;
             const oy = (((r * 0.53 + seed2) % 1) - 0.5) * half * 0.8;
@@ -136,44 +172,58 @@ export class TerrainOverlay implements OverlayPlugin {
             const alpha = 0.7 * (1 - progress);
             if (alpha <= 0.03) continue;
             ctx.globalAlpha = alpha; ctx.strokeStyle = color; ctx.lineWidth = Math.max(0.025, 1.2 / this.scale);
-            ctx.beginPath(); ctx.arc(room.x + ox, room.y + oy, radius, 0, Math.PI * 2); ctx.stroke();
+            ctx.beginPath(); ctx.arc(ox, oy, radius, 0, Math.PI * 2); ctx.stroke();
         }
+        ctx.restore();
     }
 
     private drawForest(ctx: CanvasRenderingContext2D, room: TerrainRoom, leaves: LeafParticle[]) {
         const color = EFFECT_COLORS.forest;
+        this.applyRoomTransform(ctx, room.x, room.y);
         for (const leaf of leaves) {
             ctx.globalAlpha = leaf.opacity; ctx.fillStyle = color;
-            ctx.save(); ctx.translate(room.x + leaf.ox, room.y + leaf.oy); ctx.rotate(leaf.rot);
+            ctx.save(); ctx.translate(leaf.ox, leaf.oy); ctx.rotate(leaf.rot);
             ctx.beginPath(); ctx.ellipse(0, 0, leaf.size, leaf.size * 0.5, 0, 0, Math.PI * 2); ctx.fill();
             ctx.restore();
         }
+        ctx.restore();
     }
 
     private drawLava(ctx: CanvasRenderingContext2D, room: TerrainRoom, state: RippleState) {
-        const rs = room.size ?? 0.6, half = rs / 2, cx = room.x, cy = room.y;
-        const pulse = 0.3 + 0.3 * Math.sin(state.phase), radius = half * 0.7;
-        ctx.globalAlpha = pulse;
-        const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, radius);
+        const rs = room.size ?? 0.6, half = rs / 2;
+        this.applyRoomTransform(ctx, room.x, room.y);
+        const radius = half * 0.7;
+        ctx.globalAlpha = 0.3 + 0.3 * Math.sin(state.phase);
+        const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, radius);
         grad.addColorStop(0, '#ff6600'); grad.addColorStop(0.5, '#ff2200'); grad.addColorStop(1, 'transparent');
-        ctx.fillStyle = grad; ctx.beginPath(); ctx.arc(cx, cy, radius, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = grad; ctx.beginPath(); ctx.arc(0, 0, radius, 0, Math.PI * 2); ctx.fill();
         const flicker = Math.sin(state.phase * 3.7) * 0.5 + 0.5;
         if (flicker > 0.7) {
             ctx.globalAlpha = (flicker - 0.7) * 2; ctx.fillStyle = '#ffaa00';
-            ctx.beginPath(); ctx.arc(cx + Math.cos(state.phase * 2.3) * half * 0.3, cy + Math.sin(state.phase * 1.7) * half * 0.3, 0.04, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.arc(Math.cos(state.phase * 2.3) * half * 0.3, Math.sin(state.phase * 1.7) * half * 0.3, 0.04, 0, Math.PI * 2); ctx.fill();
         }
+        ctx.restore();
     }
 
     private drawIce(ctx: CanvasRenderingContext2D, room: TerrainRoom, sparkles: SparkleState[]) {
-        const cx = room.x, cy = room.y, color = EFFECT_COLORS.ice;
+        const rs = room.size ?? 0.6, half = rs / 2;
+        const color = EFFECT_COLORS.ice;
+        this.applyRoomTransform(ctx, room.x, room.y);
+        // Frost glow base
+        ctx.globalAlpha = 0.15;
+        const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, half * 0.8);
+        grad.addColorStop(0, '#cceeff'); grad.addColorStop(0.6, '#aaddff'); grad.addColorStop(1, 'transparent');
+        ctx.fillStyle = grad; ctx.beginPath(); ctx.arc(0, 0, half * 0.8, 0, Math.PI * 2); ctx.fill();
+        // Sparkles
         for (const spark of sparkles) {
             const alpha = Math.max(0, Math.sin(spark.phase));
             if (alpha < 0.05) continue;
-            ctx.globalAlpha = alpha * 0.8; ctx.fillStyle = color;
-            const sx = cx + spark.ox, sy = cy + spark.oy, r = Math.max(spark.size, 1 / this.scale);
+            ctx.globalAlpha = alpha; ctx.fillStyle = color;
+            const sx = spark.ox, sy = spark.oy, r = Math.max(spark.size, 1 / this.scale);
             ctx.beginPath(); ctx.moveTo(sx - r, sy); ctx.lineTo(sx, sy - r * 0.3); ctx.lineTo(sx + r, sy); ctx.lineTo(sx, sy + r * 0.3); ctx.closePath(); ctx.fill();
             ctx.beginPath(); ctx.moveTo(sx, sy - r); ctx.lineTo(sx + r * 0.3, sy); ctx.lineTo(sx, sy + r); ctx.lineTo(sx - r * 0.3, sy); ctx.closePath(); ctx.fill();
         }
+        ctx.restore();
     }
 
     private startAnimation() {
