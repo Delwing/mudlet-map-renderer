@@ -23,6 +23,7 @@ import {
     renderAmbientLight,
 } from "../scene/OverlayRenderer";
 import ExplorationArea from "../reader/ExplorationArea";
+import type {OverlayPlugin} from "../types/OverlayPlugin";
 
 const currentRoomColor = 'rgb(120, 72, 0)';
 
@@ -67,6 +68,7 @@ export class KonvaRenderBackend implements InteractiveBackend {
     private origSetSize?: (w: number, h: number) => void;
     private destroyed = false;
     private coordinateTransform: ((x: number, y: number) => { x: number; y: number }) | null = null;
+    private overlayPlugins: Map<string, OverlayPlugin> = new Map();
 
     constructor(state: MapState, container?: HTMLDivElement, drawingBackend?: DrawingBackend) {
         this.state = state;
@@ -178,6 +180,10 @@ export class KonvaRenderBackend implements InteractiveBackend {
         // Destroy interaction handler (removes DOM listeners)
         this.interactionHandler?.destroy();
 
+        // Stop overlay plugins
+        for (const plugin of this.overlayPlugins.values()) plugin.destroy();
+        this.overlayPlugins.clear();
+
         // Cancel any running viewport animation
         this.viewport.cancelAnimation();
 
@@ -235,6 +241,10 @@ export class KonvaRenderBackend implements InteractiveBackend {
         this.pipeline.gridRenderer.render(this.viewport.getViewportBounds());
         this.culling.scheduleCulling();
         this.refreshAmbientLight();
+        const vpBounds = this.viewport.getViewportBounds();
+        for (const plugin of this.overlayPlugins.values()) {
+            plugin.updateViewport(vpBounds, scale);
+        }
     }
 
     // --- Canvas export ---
@@ -332,6 +342,21 @@ export class KonvaRenderBackend implements InteractiveBackend {
         this.syncHighlights();
         if (positionRoomId !== undefined) {
             this.onPositionChanged(positionRoomId, false, false);
+        }
+    }
+
+    addOverlayPlugin(id: string, plugin: OverlayPlugin) {
+        this.removeOverlayPlugin(id);
+        plugin.attach(this.overlayLayer);
+        this.overlayPlugins.set(id, plugin);
+        plugin.updateViewport(this.viewport.getViewportBounds(), this.viewport.getScale());
+    }
+
+    removeOverlayPlugin(id: string) {
+        const existing = this.overlayPlugins.get(id);
+        if (existing) {
+            existing.destroy();
+            this.overlayPlugins.delete(id);
         }
     }
 

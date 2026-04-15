@@ -1,5 +1,5 @@
-import {MapRenderer, CullingMode, RoomShape, PathFinder} from "@src";
-import type {Settings, LabelRenderMode, PerfSnapshot, PathFindingAlgorithm} from "@src";
+import {MapRenderer, CullingMode, RoomShape, PathFinder, WeatherOverlay} from "@src";
+import type {Settings, LabelRenderMode, PerfSnapshot, PathFindingAlgorithm, WeatherType} from "@src";
 
 function rgbToHex(rgb: string): string {
     const match = rgb.match(/(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
@@ -359,6 +359,42 @@ export function initControls(settings: Settings, renderer: MapRenderer, getCurre
         settings.ambientLight.intensity = value;
         if (ambientLightIntensityValue) ambientLightIntensityValue.textContent = value.toFixed(2);
         renderer.setPosition(getCurrentRoomId());
+    });
+
+    // --- Weather (overlay plugin) ---
+
+    const weather = new WeatherOverlay();
+    renderer.addOverlayPlugin('weather', weather);
+
+    const weatherType = document.getElementById("weather-type") as HTMLSelectElement | null;
+    const weatherIntensity = document.getElementById("weather-intensity") as HTMLInputElement | null;
+    const weatherIntensityValue = document.getElementById("weather-intensity-value") as HTMLSpanElement | null;
+    const weatherWindAngle = document.getElementById("weather-wind-angle") as HTMLInputElement | null;
+    const weatherWindAngleValue = document.getElementById("weather-wind-angle-value") as HTMLSpanElement | null;
+    const weatherWindStrength = document.getElementById("weather-wind-strength") as HTMLInputElement | null;
+    const weatherWindStrengthValue = document.getElementById("weather-wind-strength-value") as HTMLSpanElement | null;
+
+    const applyWeather = () => {
+        weather.setStyle({
+            type: (weatherType?.value ?? "none") as WeatherType,
+            intensity: weatherIntensity ? parseFloat(weatherIntensity.value) : 0.5,
+            windAngle: weatherWindAngle ? parseFloat(weatherWindAngle.value) : 10,
+            windStrength: weatherWindStrength ? parseFloat(weatherWindStrength.value) : 1.0,
+        });
+    };
+
+    weatherType?.addEventListener("change", applyWeather);
+    weatherIntensity?.addEventListener("input", () => {
+        if (weatherIntensityValue) weatherIntensityValue.textContent = parseFloat(weatherIntensity!.value).toFixed(2);
+        applyWeather();
+    });
+    weatherWindAngle?.addEventListener("input", () => {
+        if (weatherWindAngleValue) weatherWindAngleValue.textContent = weatherWindAngle!.value;
+        applyWeather();
+    });
+    weatherWindStrength?.addEventListener("input", () => {
+        if (weatherWindStrengthValue) weatherWindStrengthValue.textContent = parseFloat(weatherWindStrength!.value).toFixed(2);
+        applyWeather();
     });
 
     savePngBtn?.addEventListener("click", async () => {

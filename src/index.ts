@@ -7,6 +7,9 @@ export type {
     ZoomChangeEventDetail, AreaExitClickEventDetail, PanEventDetail,
 } from './types/Settings';
 export { darkenColor, colorLightness, hexToRgba } from './utils/color';
+export type { OverlayPlugin } from './types/OverlayPlugin';
+export { WeatherOverlay } from './scene/WeatherOverlay';
+export type { WeatherStyle, WeatherType } from './scene/WeatherOverlay';
 
 // --- Backward compat (deprecated — use MapRenderer directly) ---
 /** @deprecated Use MapRenderer with container argument instead */
@@ -23,6 +26,7 @@ export type { DrawingBackend } from './backend/DrawingBackend';
 export { KonvaBackend } from './backend/KonvaBackend';
 export { SketchyBackend } from './backend/SketchyBackend';
 export { ParchmentBackend } from './backend/ParchmentBackend';
+export { BlueprintBackend } from './backend/BlueprintBackend';
 export { IsometricBackend } from './backend/IsometricBackend';
 export type { IsometricRotation } from './backend/IsometricBackend';
 

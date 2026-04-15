@@ -1,4 +1,4 @@
-import {MapRenderer, createSettings, PathFinder, KonvaBackend, SketchyBackend, ParchmentBackend, IsometricBackend} from "@src";
+import {MapRenderer, createSettings, PathFinder, KonvaBackend, SketchyBackend, ParchmentBackend, BlueprintBackend, IsometricBackend} from "@src";
 import type {Settings} from "@src";
 import MapReader from "@src/reader/MapReader";
 import {initControls, initPerfMonitor} from "./controls";
@@ -206,8 +206,6 @@ function applyRenderMode(mode: string) {
             const iso = new IsometricBackend(new KonvaBackend(), {depth, rotation});
             renderer.setDrawingBackend(iso);
             renderer.setCullingTransform(iso.getTransform());
-            settings.backgroundColor = '#1a1a2e';
-            settings.lineColor = '#8888aa';
             break;
         }
         case "isometric-parchment": {
@@ -223,6 +221,13 @@ function applyRenderMode(mode: string) {
             settings.backgroundColor = '#f4e4c1';
             settings.lineColor = '#5c4033';
             settings.fontFamily = 'Georgia, serif';
+            break;
+        }
+        case "blueprint": {
+            renderer.setDrawingBackend(new BlueprintBackend(new KonvaBackend()));
+            settings.backgroundColor = '#0a1628';
+            settings.lineColor = '#4a7ab5';
+            settings.fontFamily = '"Courier New", monospace';
             break;
         }
         default: {

@@ -12,6 +12,7 @@ import type {CanvasExportOptions, CanvasExportOverlays} from "../HeadlessRendere
 import type {Viewport} from "../Viewport";
 import type {CullingManager} from "../CullingManager";
 import type {TypedEventEmitter} from "../TypedEventEmitter";
+import type {OverlayPlugin} from "../types/OverlayPlugin";
 
 /** Contract for interactive render backends. */
 export interface InteractiveBackend {
@@ -140,6 +141,25 @@ export class MapRenderer {
     refresh() {
         this.backend.updateBackground();
         this.backend.refresh();
+    }
+
+    /**
+     * Add a custom overlay plugin. It receives a Konva layer and viewport updates.
+     * @see OverlayPlugin
+     */
+    addOverlayPlugin(id: string, plugin: OverlayPlugin) {
+        if ('addOverlayPlugin' in this.backend) {
+            (this.backend as KonvaRenderBackend).addOverlayPlugin(id, plugin);
+        }
+    }
+
+    /**
+     * Remove a previously added overlay plugin by id.
+     */
+    removeOverlayPlugin(id: string) {
+        if ('removeOverlayPlugin' in this.backend) {
+            (this.backend as KonvaRenderBackend).removeOverlayPlugin(id);
+        }
     }
 
     // --- Export ---
