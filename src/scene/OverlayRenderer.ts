@@ -18,13 +18,25 @@ export function renderHighlight(backend: DrawingBackend, data: HighlightData): G
             dash: data.dash, dashEnabled: true,
         });
     } else {
-        backend.addRect(group, {
-            x: data.cx - data.size, y: data.cy - data.size,
-            width: data.size * 2, height: data.size * 2,
-            stroke: data.stroke, strokeWidth: data.strokeWidth,
-            cornerRadius: data.cornerRadius,
-            dash: data.dash, dashEnabled: true,
-        });
+        // Draw 4 individual dashed lines so corners stay clean.
+        const x1 = data.cx - data.size;
+        const y1 = data.cy - data.size;
+        const x2 = data.cx + data.size;
+        const y2 = data.cy + data.size;
+        const sides: number[][] = [
+            [x1, y1, x2, y1], // top
+            [x2, y1, x2, y2], // right
+            [x2, y2, x1, y2], // bottom
+            [x1, y2, x1, y1], // left
+        ];
+        for (const pts of sides) {
+            backend.addLine(group, {
+                points: pts,
+                stroke: data.stroke, strokeWidth: data.strokeWidth,
+                dash: data.dash,
+                lineCap: 'butt',
+            });
+        }
     }
     return group;
 }

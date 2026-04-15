@@ -4,185 +4,7 @@
     <meta charset="UTF-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title>Map Renderer — Demo</title>
-    <style>
-        html, body {
-            width: 100%;
-            height: 100%;
-            margin: 0;
-            font-family: Inter, system-ui, sans-serif;
-            background-color: #000;
-            color: #fff;
-        }
-
-        body {
-            position: relative;
-            overflow: hidden;
-        }
-
-        #stage {
-            width: 100%;
-            height: 100%;
-        }
-
-        #hud {
-            position: absolute;
-            top: 1rem;
-            left: 1rem;
-            padding: 0.5rem 0.75rem;
-            background: rgba(0, 0, 0, 0.6);
-            border-radius: 0.5rem;
-            font-size: 0.9rem;
-            line-height: 1.4;
-            pointer-events: auto;
-            max-height: calc(100vh - 2rem);
-            overflow-y: auto;
-        }
-
-        #context-menu {
-            position: absolute;
-            min-width: 9rem;
-            padding: 0.35rem 0.5rem;
-            background: rgba(12, 16, 24, 0.92);
-            border: 1px solid rgba(99, 187, 255, 0.4);
-            border-radius: 0.4rem;
-            box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.35);
-            font-size: 0.85rem;
-            pointer-events: none;
-            transform: translate(-50%, 0.5rem);
-            color: #c8f7ff;
-            transition: opacity 0.1s ease;
-            opacity: 0;
-        }
-
-        #context-menu.visible {
-            opacity: 1;
-            pointer-events: auto;
-        }
-
-        #context-menu-content {
-            display: flex;
-            flex-direction: column;
-            gap: 0.25rem;
-        }
-
-        #context-menu-content .ctx-title {
-            font-weight: 600;
-            padding-bottom: 0.15rem;
-            border-bottom: 1px solid rgba(99, 187, 255, 0.2);
-            margin-bottom: 0.1rem;
-        }
-
-        #context-menu-content button {
-            display: block;
-            width: 100%;
-            padding: 0.25rem 0.4rem;
-            background: rgba(32, 40, 56, 0.7);
-            color: #e8fafe;
-            border: 1px solid rgba(99, 187, 255, 0.3);
-            border-radius: 0.3rem;
-            font: inherit;
-            font-size: 0.8rem;
-            cursor: pointer;
-            text-align: left;
-        }
-
-        #context-menu-content button:hover {
-            background: rgba(99, 187, 255, 0.2);
-        }
-
-        #context-menu[hidden] {
-            display: none;
-        }
-
-        #controls {
-            margin-top: 0.5rem;
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
-        }
-
-        #controls label {
-            display: flex;
-            align-items: center;
-            gap: 0.4rem;
-            font-weight: 500;
-        }
-
-        #controls .select-label {
-            flex-direction: column;
-            align-items: flex-start;
-            gap: 0.35rem;
-        }
-
-        #controls select {
-            width: 100%;
-            padding: 0.25rem 0.35rem;
-            background: rgba(32, 40, 56, 0.7);
-            color: #e8fafe;
-            border: 1px solid rgba(99, 187, 255, 0.4);
-            border-radius: 0.35rem;
-            font: inherit;
-        }
-
-        #controls input[type="range"] {
-            width: 100%;
-            height: 0.35rem;
-            background: rgba(32, 40, 56, 0.7);
-            border: 1px solid rgba(99, 187, 255, 0.4);
-            border-radius: 0.35rem;
-            outline: none;
-            -webkit-appearance: none;
-        }
-
-        #controls input[type="range"]::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            appearance: none;
-            width: 1rem;
-            height: 1rem;
-            background: #63bbff;
-            border-radius: 50%;
-            cursor: pointer;
-        }
-
-        #controls input[type="range"]::-moz-range-thumb {
-            width: 1rem;
-            height: 1rem;
-            background: #63bbff;
-            border-radius: 50%;
-            cursor: pointer;
-            border: none;
-        }
-
-        #destination-form {
-            display: flex;
-            flex-direction: column;
-            gap: 0.35rem;
-        }
-
-        .control-inputs {
-            display: flex;
-            gap: 0.35rem;
-        }
-
-        #destination-input {
-            width: 6rem;
-        }
-
-        .form-status {
-            font-size: 0.8rem;
-            color: #c8f7ff;
-        }
-
-        #hud strong {
-            font-weight: 600;
-        }
-
-        #culling-status {
-            margin-top: 0.25rem;
-            font-size: 0.8rem;
-            color: #8ee7ff;
-        }
-    </style>
+    <link rel="stylesheet" href="/demo.css">
     <link href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,300..800;1,300..800&family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet">
 </head>
 <body>
@@ -191,129 +13,182 @@
     <div id="context-menu-content"></div>
 </div>
 <div id="hud">
-    <div id="status">Loading map…</div>
-    <div id="fps">FPS: --</div>
-    <div id="perf-stats" style="font-size: 0.75rem; color: #8ee7ff; font-family: 'Space Mono', monospace; white-space: pre;"></div>
-    <div id="walker-status"></div>
-    <div id="culling-status"></div>
-    <div id="controls">
-        <button type="button" id="walker-toggle">Start walker</button>
-        <label>
-            <input type="checkbox" id="exploration-toggle">
-            Exploration overlay
-        </label>
-        <label>
-            <input type="checkbox" id="instant-move-toggle">
-            Instant map movement
-        </label>
-        <label>
-            <input type="checkbox" id="highlight-toggle">
-            Highlight current room &amp; exits
-        </label>
-        <label>
-            <input type="checkbox" id="grid-toggle">
-            Background grid
-        </label>
-        <label class="select-label">
-            <span>Area</span>
-            <select id="area-select"></select>
-        </label>
-        <label class="select-label">
-            <span>Level (Z)</span>
-            <select id="level-select"></select>
-        </label>
-        <label class="select-label">
-            <span>Room shape</span>
-            <select id="room-shape">
-                <option value="rectangle">Rectangle</option>
-                <option value="roundedRectangle">Rounded Rectangle</option>
-                <option value="circle">Circle</option>
-            </select>
-        </label>
-        <label class="select-label">
-            <span>Culling mode</span>
-            <select id="culling-mode">
-                <option value="none">No culling</option>
-                <option value="basic">Classic culling</option>
-                <option value="indexed">Spatial index culling</option>
-            </select>
-        </label>
-        <label class="select-label">
-            <span>Pathfinding algorithm</span>
-            <select id="pathfinding-algorithm">
-                <option value="dijkstra">Dijkstra</option>
-                <option value="astar">A* (spatial)</option>
-            </select>
-        </label>
-        <label class="select-label">
-            <span>Path color</span>
-            <input type="color" id="path-color" value="#66E64D">
-        </label>
-        <label class="select-label">
-            <span>Background color</span>
-            <input type="color" id="background-color" value="#000000">
-        </label>
-        <label class="select-label">
-            <span>Line color</span>
-            <input type="color" id="line-color" value="#e1ffe1">
-        </label>
-        <label class="select-label">
-            <span>Room size: <span id="room-size-value">0.6</span></span>
-            <input type="range" id="room-size-slider" min="0.2" max="1.5" step="0.1" value="0.6">
-        </label>
-        <label class="select-label">
-            <span>Line width: <span id="line-width-value">0.025</span></span>
-            <input type="range" id="line-width-slider" min="0.01" max="0.1" step="0.005" value="0.025">
-        </label>
-        <label class="select-label">
-            <span>Label render mode</span>
-            <select id="label-render-mode">
-                <option value="image">Image</option>
-                <option value="data">Data</option>
-            </select>
-        </label>
-        <label>
-            <input type="checkbox" id="transparent-labels-toggle">
-            Transparent label backgrounds
-        </label>
-        <label>
-            <input type="checkbox" id="frame-mode-toggle">
-            Frame mode
-        </label>
-        <label>
-            <input type="checkbox" id="colored-mode-toggle">
-            Colored mode
-        </label>
-        <label>
-            <input type="checkbox" id="emboss-toggle">
-            Emboss effect
-        </label>
-        <label>
-            <input type="checkbox" id="area-name-toggle">
-            Area name header
-        </label>
-        <label>
-            <input type="checkbox" id="uniform-level-size-toggle">
-            Uniform level size
-        </label>
-        <div style="display: flex; gap: 0.35rem; margin-top: 0.25rem;">
-            <button type="button" id="save-png-btn">Save PNG</button>
-            <button type="button" id="save-svg-btn">Save SVG</button>
+    <div class="panel-section panel-header">
+        <div class="panel-header-row">
+            <div id="status">Loading map...</div>
+            <button type="button" id="panel-toggle" class="btn btn-icon" title="Toggle controls">&#9776;</button>
         </div>
-        <details>
-            <summary style="cursor: pointer; font-weight: 600; margin-top: 0.5rem;">Player Marker</summary>
-            <div style="margin-top: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
-                <label class="select-label">
-                    <span>Stroke color</span>
-                    <input type="color" id="player-marker-stroke-color" value="#00e5b2">
+        <div id="fps">FPS: --</div>
+        <div id="perf-stats"></div>
+        <div id="walker-status"></div>
+        <div id="culling-status"></div>
+        <div class="header-selects">
+            <label class="select-label">
+                <span>Area</span>
+                <select id="area-select"></select>
+            </label>
+            <label class="select-label">
+                <span>Level (Z)</span>
+                <select id="level-select"></select>
+            </label>
+        </div>
+    </div>
+
+    <div id="controls">
+        <!-- Navigation -->
+        <div class="panel-section">
+            <div class="section-title">Navigation</div>
+            <button type="button" id="walker-toggle" class="btn">Start walker</button>
+            <form id="room-form" class="inline-form">
+                <label for="room-input">Current room</label>
+                <div class="control-inputs">
+                    <input type="number" id="room-input" min="1" placeholder="Room ID" />
+                    <button type="submit" class="btn btn-sm">Go</button>
+                </div>
+                <div class="form-status" id="room-status"></div>
+            </form>
+            <form id="look-form" class="inline-form">
+                <label for="look-input">Look at room</label>
+                <div class="control-inputs">
+                    <input type="number" id="look-input" min="1" placeholder="Room ID" />
+                    <button type="submit" class="btn btn-sm">Look</button>
+                </div>
+                <div class="form-status" id="look-status"></div>
+            </form>
+            <form id="destination-form" class="inline-form">
+                <label for="destination-input">Destination room</label>
+                <div class="control-inputs">
+                    <input type="number" id="destination-input" min="1" placeholder="Room ID" />
+                    <button type="submit" class="btn btn-sm">Set</button>
+                    <button type="button" id="destination-clear" class="btn btn-sm btn-muted">Clear</button>
+                </div>
+                <div class="form-status" id="destination-status"></div>
+            </form>
+            <label class="check-label">
+                <input type="checkbox" id="instant-move-toggle">
+                <span>Instant map movement</span>
+            </label>
+        </div>
+
+        <!-- Map Settings -->
+        <div class="panel-section">
+            <div class="section-title">Map Settings</div>
+            <label class="select-label">
+                <span>Culling mode</span>
+                <select id="culling-mode">
+                    <option value="none">No culling</option>
+                    <option value="basic">Classic culling</option>
+                    <option value="indexed">Spatial index culling</option>
+                </select>
+            </label>
+            <label class="select-label">
+                <span>Pathfinding algorithm</span>
+                <select id="pathfinding-algorithm">
+                    <option value="dijkstra">Dijkstra</option>
+                    <option value="astar">A* (spatial)</option>
+                </select>
+            </label>
+        </div>
+
+        <!-- Appearance -->
+        <div class="panel-section">
+            <div class="section-title">Appearance</div>
+            <label class="select-label">
+                <span>Room shape</span>
+                <select id="room-shape">
+                    <option value="rectangle">Rectangle</option>
+                    <option value="roundedRectangle">Rounded Rectangle</option>
+                    <option value="circle">Circle</option>
+                </select>
+            </label>
+            <label class="select-label">
+                <span>Room size: <span id="room-size-value">0.6</span></span>
+                <input type="range" id="room-size-slider" min="0.2" max="1.5" step="0.1" value="0.6">
+            </label>
+            <label class="select-label">
+                <span>Line width: <span id="line-width-value">0.025</span></span>
+                <input type="range" id="line-width-slider" min="0.01" max="0.1" step="0.005" value="0.025">
+            </label>
+            <label class="select-label">
+                <span>Label render mode</span>
+                <select id="label-render-mode">
+                    <option value="image">Image</option>
+                    <option value="data">Data</option>
+                    <option value="data-transparent">Data (transparent)</option>
+                </select>
+            </label>
+            <div class="color-row">
+                <label class="color-label">
+                    <input type="color" id="background-color" value="#000000">
+                    <span>Background</span>
                 </label>
+                <label class="color-label">
+                    <input type="color" id="line-color" value="#e1ffe1">
+                    <span>Lines</span>
+                </label>
+                <label class="color-label">
+                    <input type="color" id="path-color" value="#66E64D">
+                    <span>Path</span>
+                </label>
+            </div>
+        </div>
+
+        <!-- Toggles -->
+        <div class="panel-section">
+            <div class="section-title">Effects</div>
+            <div class="toggle-grid">
+                <label class="check-label">
+                    <input type="checkbox" id="exploration-toggle">
+                    <span>Exploration overlay</span>
+                </label>
+                <label class="check-label">
+                    <input type="checkbox" id="highlight-toggle">
+                    <span>Highlight current room</span>
+                </label>
+                <label class="check-label">
+                    <input type="checkbox" id="grid-toggle">
+                    <span>Background grid</span>
+                </label>
+                <label class="select-label">
+                    <span>Render mode</span>
+                    <select id="render-mode">
+                        <option value="normal">Normal</option>
+                        <option value="frame">Frame</option>
+                        <option value="colored">Colored</option>
+                    </select>
+                </label>
+                <label class="check-label">
+                    <input type="checkbox" id="emboss-toggle">
+                    <span>Emboss effect</span>
+                </label>
+                <label class="check-label">
+                    <input type="checkbox" id="area-name-toggle">
+                    <span>Area name header</span>
+                </label>
+                <label class="check-label">
+                    <input type="checkbox" id="uniform-level-size-toggle">
+                    <span>Uniform level size</span>
+                </label>
+            </div>
+        </div>
+
+        <!-- Player Marker -->
+        <details class="panel-section collapsible">
+            <summary class="section-title">Player Marker</summary>
+            <div class="details-body">
+                <div class="color-row">
+                    <label class="color-label">
+                        <input type="color" id="player-marker-stroke-color" value="#00e5b2">
+                        <span>Stroke</span>
+                    </label>
+                    <label class="color-label">
+                        <input type="color" id="player-marker-fill-color" value="#00e5b2">
+                        <span>Fill</span>
+                    </label>
+                </div>
                 <label class="select-label">
                     <span>Stroke alpha: <span id="player-marker-stroke-alpha-value">1.00</span></span>
                     <input type="range" id="player-marker-stroke-alpha" min="0" max="1" step="0.01" value="1">
-                </label>
-                <label class="select-label">
-                    <span>Fill color</span>
-                    <input type="color" id="player-marker-fill-color" value="#00e5b2">
                 </label>
                 <label class="select-label">
                     <span>Fill alpha: <span id="player-marker-fill-alpha-value">0.00</span></span>
@@ -327,42 +202,24 @@
                     <span>Size factor: <span id="player-marker-size-value">1.70</span></span>
                     <input type="range" id="player-marker-size" min="0.5" max="3.0" step="0.05" value="1.7">
                 </label>
-                <label>
+                <label class="check-label">
                     <input type="checkbox" id="player-marker-dash-enabled" checked>
-                    Dashed line
+                    <span>Dashed line</span>
                 </label>
-                <label>
+                <label class="check-label">
                     <input type="checkbox" id="player-marker-match-shape">
-                    Match room shape
+                    <span>Match room shape</span>
                 </label>
             </div>
         </details>
-        <form id="room-form">
-            <label for="room-input">Current room</label>
-            <div class="control-inputs">
-                <input type="number" id="room-input" min="1" placeholder="Room ID" />
-                <button type="submit">Go</button>
+
+        <!-- Export -->
+        <div class="panel-section">
+            <div class="btn-row">
+                <button type="button" id="save-png-btn" class="btn">Save PNG</button>
+                <button type="button" id="save-svg-btn" class="btn">Save SVG</button>
             </div>
-            <div class="form-status" id="room-status"></div>
-        </form>
-        <form id="look-form">
-            <label for="look-input">Look at room</label>
-            <div class="control-inputs">
-                <input type="number" id="look-input" min="1" placeholder="Room ID" />
-                <button type="submit">Look</button>
-            </div>
-            <div class="form-status" id="look-status"></div>
-        </form>
-        <form id="destination-form">
-            <label for="destination-input">Destination room</label>
-            <div class="control-inputs">
-                <input type="number" id="destination-input" min="1" placeholder="Room ID" />
-                <button type="submit">Set</button>
-                <button type="button" id="destination-clear">Clear</button>
-            </div>
-            <div class="form-status" id="destination-status"></div>
-        </form>
-        <a href="/area-map.html" style="display: inline-block; margin-top: 0.75rem; color: #63bbff; text-decoration: none; font-size: 0.85rem;">View Area Map &rarr;</a>
+        </div>
     </div>
 </div>
 <script type="module" src="/main.ts"></script>

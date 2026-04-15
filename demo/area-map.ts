@@ -95,8 +95,6 @@ async function loadJson<T>(url: string, label: string): Promise<T> {
     return (await response.json()) as T;
 }
 
-// Empire background map configuration
-const empireBackgroundUrl = new URL("./empire.png", import.meta.url).href;
 
 // Background config state
 const bgConfig = {
@@ -107,28 +105,6 @@ const bgConfig = {
     y: -300,
     opacity: 0.25,
 };
-
-function applyBackgroundConfig() {
-    if (areaRenderer.getDomainFilter() !== "empire") return;
-
-    areaRenderer.setBackgroundImage({
-        url: empireBackgroundUrl,
-        x: bgConfig.x,
-        y: bgConfig.y,
-        width: bgConfig.baseWidth * bgConfig.scale,
-        height: bgConfig.baseHeight * bgConfig.scale,
-        opacity: bgConfig.opacity,
-    });
-    areaRenderer.redrawBackground();
-}
-
-function updateBackgroundForDomain(filter: DomainFilter) {
-    if (filter === "empire") {
-        applyBackgroundConfig();
-    } else {
-        areaRenderer.clearBackgroundImage();
-    }
-}
 
 async function initialize() {
     try {
@@ -146,7 +122,6 @@ async function initialize() {
     areaRenderer = new AreaMapRenderer(stageElement, mapReader);
     areaRenderer.setDomainInfo(areaDomains);
     areaRenderer.setDomainFilter("empire"); // Default to Empire
-    updateBackgroundForDomain("empire");
     areaRenderer.render();
 
     // Set the select element to match
@@ -203,7 +178,6 @@ function attachEventListeners() {
     domainSelect?.addEventListener("change", () => {
         const filter = domainSelect.value as DomainFilter;
         areaRenderer.setDomainFilter(filter);
-        updateBackgroundForDomain(filter);
         areaRenderer.render();
         selectedAreaId = undefined;
         updateAreaInfo(undefined);
@@ -214,25 +188,21 @@ function attachEventListeners() {
     bgScaleSlider?.addEventListener("input", () => {
         bgConfig.scale = parseFloat(bgScaleSlider.value);
         bgScaleValue.textContent = bgConfig.scale.toFixed(1);
-        applyBackgroundConfig();
     });
 
     bgXSlider?.addEventListener("input", () => {
         bgConfig.x = parseInt(bgXSlider.value);
         bgXValue.textContent = bgConfig.x.toString();
-        applyBackgroundConfig();
     });
 
     bgYSlider?.addEventListener("input", () => {
         bgConfig.y = parseInt(bgYSlider.value);
         bgYValue.textContent = bgConfig.y.toString();
-        applyBackgroundConfig();
     });
 
     bgOpacitySlider?.addEventListener("input", () => {
         bgConfig.opacity = parseFloat(bgOpacitySlider.value);
         bgOpacityValue.textContent = bgConfig.opacity.toFixed(2);
-        applyBackgroundConfig();
     });
 
     dotsModeToggle?.addEventListener("change", () => {

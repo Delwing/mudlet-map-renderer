@@ -29,7 +29,6 @@ export function initControls(settings: Settings, renderer: MapRenderer, getCurre
     const backgroundColorInput = document.getElementById("background-color") as HTMLInputElement | null;
     const lineColorInput = document.getElementById("line-color") as HTMLInputElement | null;
     const labelRenderModeSelect = document.getElementById("label-render-mode") as HTMLSelectElement | null;
-    const transparentLabelsToggle = document.getElementById("transparent-labels-toggle") as HTMLInputElement | null;
     const roomSizeSlider = document.getElementById("room-size-slider") as HTMLInputElement | null;
     const roomSizeValue = document.getElementById("room-size-value") as HTMLSpanElement | null;
     const lineWidthSlider = document.getElementById("line-width-slider") as HTMLInputElement | null;
@@ -48,8 +47,7 @@ export function initControls(settings: Settings, renderer: MapRenderer, getCurre
     const pathfindingAlgorithmSelect = document.getElementById("pathfinding-algorithm") as HTMLSelectElement | null;
     const pathColorInput = document.getElementById("path-color") as HTMLInputElement | null;
     const playerMarkerDashEnabled = document.getElementById("player-marker-dash-enabled") as HTMLInputElement | null;
-    const frameModeToggle = document.getElementById("frame-mode-toggle") as HTMLInputElement | null;
-    const coloredModeToggle = document.getElementById("colored-mode-toggle") as HTMLInputElement | null;
+    const renderModeSelect = document.getElementById("render-mode") as HTMLSelectElement | null;
     const playerMarkerMatchShape = document.getElementById("player-marker-match-shape") as HTMLInputElement | null;
     const embossToggle = document.getElementById("emboss-toggle") as HTMLInputElement | null;
     const areaNameToggle = document.getElementById("area-name-toggle") as HTMLInputElement | null;
@@ -71,8 +69,13 @@ export function initControls(settings: Settings, renderer: MapRenderer, getCurre
     if (gridToggle) gridToggle.checked = settings.gridEnabled;
     if (backgroundColorInput) backgroundColorInput.value = settings.backgroundColor;
     if (lineColorInput) lineColorInput.value = rgbToHex(settings.lineColor);
-    if (labelRenderModeSelect) labelRenderModeSelect.value = settings.labelRenderMode;
-    if (transparentLabelsToggle) transparentLabelsToggle.checked = settings.transparentLabels;
+    if (labelRenderModeSelect) {
+        if (settings.labelRenderMode === "data" && settings.transparentLabels) {
+            labelRenderModeSelect.value = "data-transparent";
+        } else {
+            labelRenderModeSelect.value = settings.labelRenderMode;
+        }
+    }
 
     if (roomSizeSlider && roomSizeValue) {
         roomSizeSlider.value = settings.roomSize.toString();
@@ -103,8 +106,11 @@ export function initControls(settings: Settings, renderer: MapRenderer, getCurre
     if (playerMarkerDashEnabled) playerMarkerDashEnabled.checked = settings.playerMarker.dashEnabled;
     if (playerMarkerMatchShape) playerMarkerMatchShape.checked = settings.playerMarker.matchRoomShape;
     if (pathfindingAlgorithmSelect && pathFinder) pathfindingAlgorithmSelect.value = pathFinder.algorithm;
-    if (frameModeToggle) frameModeToggle.checked = settings.frameMode;
-    if (coloredModeToggle) coloredModeToggle.checked = settings.coloredMode;
+    if (renderModeSelect) {
+        if (settings.frameMode) renderModeSelect.value = "frame";
+        else if (settings.coloredMode) renderModeSelect.value = "colored";
+        else renderModeSelect.value = "normal";
+    }
     if (embossToggle) embossToggle.checked = settings.emboss;
     if (areaNameToggle) areaNameToggle.checked = settings.areaName;
     if (uniformLevelSizeToggle) uniformLevelSizeToggle.checked = settings.uniformLevelSize;
@@ -155,12 +161,14 @@ export function initControls(settings: Settings, renderer: MapRenderer, getCurre
     });
 
     labelRenderModeSelect?.addEventListener("change", () => {
-        settings.labelRenderMode = labelRenderModeSelect.value as LabelRenderMode;
-        renderer.refresh();
-    });
-
-    transparentLabelsToggle?.addEventListener("change", () => {
-        settings.transparentLabels = transparentLabelsToggle.checked;
+        const val = labelRenderModeSelect.value;
+        if (val === "data-transparent") {
+            settings.labelRenderMode = "data" as LabelRenderMode;
+            settings.transparentLabels = true;
+        } else {
+            settings.labelRenderMode = val as LabelRenderMode;
+            settings.transparentLabels = false;
+        }
         renderer.refresh();
     });
 
@@ -230,13 +238,10 @@ export function initControls(settings: Settings, renderer: MapRenderer, getCurre
         onPathColorChange?.(pathColorInput.value);
     });
 
-    frameModeToggle?.addEventListener("change", () => {
-        settings.frameMode = frameModeToggle.checked;
-        renderer.refresh();
-    });
-
-    coloredModeToggle?.addEventListener("change", () => {
-        settings.coloredMode = coloredModeToggle.checked;
+    renderModeSelect?.addEventListener("change", () => {
+        const mode = renderModeSelect.value;
+        settings.frameMode = mode === "frame";
+        settings.coloredMode = mode === "colored";
         renderer.refresh();
     });
 
@@ -277,6 +282,15 @@ export function initControls(settings: Settings, renderer: MapRenderer, getCurre
         a.download = `map-${Date.now()}.svg`;
         a.click();
         URL.revokeObjectURL(url);
+    });
+
+    // --- Panel collapse/expand ---
+
+    const hud = document.getElementById("hud");
+    const panelToggle = document.getElementById("panel-toggle") as HTMLButtonElement | null;
+
+    panelToggle?.addEventListener("click", () => {
+        hud?.classList.toggle("collapsed");
     });
 
     return { explorationToggle, updateCullingStatus };

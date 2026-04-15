@@ -34,10 +34,10 @@ function computeTriangleVertices(cx: number, cy: number, radius: number, rotatio
 }
 
 function getSymbolColors(room: MapData.Room, mapReader: MapReader, settings: Settings): { symbolColor: string; symbolFill: string } {
-    const symbolColor = settings.frameMode
+    const symbolColor = (settings.frameMode || settings.coloredMode)
         ? mapReader.getColorValue(room.env)
         : mapReader.getSymbolColor(room.env);
-    const symbolFill = settings.frameMode
+    const symbolFill = (settings.frameMode || settings.coloredMode)
         ? mapReader.getColorValue(room.env)
         : mapReader.getSymbolColor(room.env, 0.6);
     return {symbolColor, symbolFill};

@@ -32,7 +32,7 @@ export function computeRoomColors(
         ? ((settings.frameMode || settings.coloredMode) ? envColor : strokeOverride)
         : ((settings.frameMode || settings.coloredMode) ? envColor : settings.lineColor);
     const borderWidth = settings.borders ? settings.lineWidth : 0;
-    const symbolColor = settings.frameMode
+    const symbolColor = (settings.frameMode || settings.coloredMode)
         ? mapReader.getColorValue(room.env)
         : mapReader.getSymbolColor(room.env);
 

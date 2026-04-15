@@ -30,16 +30,19 @@ export class RoomShapeRenderer {
         const rs = this.settings.roomSize;
         const group = this.backend.createGroup(room.x - rs / 2, room.y - rs / 2);
 
+        // Inset shape by half the stroke width so the border stays inside the room bounds.
+        const inset = borderWidth / 2;
+
         if (this.settings.roomShape === "circle") {
             this.backend.addCircle(group, {
-                cx: rs / 2, cy: rs / 2, radius: rs / 2,
+                cx: rs / 2, cy: rs / 2, radius: rs / 2 - inset,
                 fill: fillColor, stroke: strokeColor, strokeWidth: borderWidth,
             });
         } else {
             this.backend.addRect(group, {
-                x: 0, y: 0, width: rs, height: rs,
+                x: inset, y: inset, width: rs - borderWidth, height: rs - borderWidth,
                 fill: fillColor, stroke: strokeColor, strokeWidth: borderWidth,
-                cornerRadius: this.settings.roomShape === "roundedRectangle" ? rs * 0.2 : 0,
+                cornerRadius: this.settings.roomShape === "roundedRectangle" ? (rs - borderWidth) * 0.2 : 0,
             });
         }
 

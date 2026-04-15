@@ -67,15 +67,18 @@ export default class ExitRenderer {
     }
 
     /**
-     * Get the edge point of a room based on its shape
+     * Get the edge point of a room based on its shape.
+     * The inset accounts for the inner border so exit lines reach the visible room edge.
      */
     private getRoomEdgePoint(x: number, y: number, direction: MapData.direction, distance: number) {
+        const inset = this.settings.borders ? this.settings.lineWidth / 2 : 0;
+        const d = distance - inset;
         if (this.settings.roomShape === "circle") {
-            return movePointCircle(x, y, direction, distance);
+            return movePointCircle(x, y, direction, d);
         } else if (this.settings.roomShape === "roundedRectangle") {
-            return movePointRoundedRect(x, y, direction, distance, this.settings.roomSize * 0.2);
+            return movePointRoundedRect(x, y, direction, d, this.settings.roomSize * 0.2);
         } else {
-            return movePoint(x, y, direction, distance);
+            return movePoint(x, y, direction, d);
         }
     }
 

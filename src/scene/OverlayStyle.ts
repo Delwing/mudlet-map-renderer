@@ -17,7 +17,7 @@ export type HighlightData = {
 };
 
 export function computeHighlight(room: MapData.Room, color: string, settings: Settings): HighlightData {
-    const factor = 1.5;
+    const factor = 1.425;
     const rs = settings.roomSize;
     return {
         shape: settings.roomShape === "circle" ? 'circle' : 'rect',
