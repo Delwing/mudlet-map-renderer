@@ -188,7 +188,7 @@ export class SketchyBackend implements DrawingBackend {
      */
     private applyPencilWithAlpha(original: string | undefined): string {
         if (!original) return this.pencil;
-        const alphaMatch = original.match(/,\s*([\d.]+)\s*\)$/);
+        const alphaMatch = original.match(/^rgba\(.+,\s*([\d.]+)\s*\)$/);
         if (!alphaMatch) return this.pencil;
         const alpha = parseFloat(alphaMatch[1]);
         if (alpha >= 1) return this.pencil;
