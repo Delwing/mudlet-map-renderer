@@ -11,7 +11,6 @@ import type {ExitDrawData} from "./ExitRenderer";
 import {computeStubs} from "./scene/StubStyle";
 import {computeSpecialExits} from "./scene/SpecialExitStyle";
 import {computeInnerExits} from "./scene/InnerExitStyle";
-import {measureTextBaselineOffset} from "./utils/textMeasure";
 
 type Bounds = { x: number; y: number; width: number; height: number };
 

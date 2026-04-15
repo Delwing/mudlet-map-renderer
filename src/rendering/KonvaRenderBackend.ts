@@ -108,8 +108,6 @@ export class KonvaRenderBackend implements InteractiveBackend {
             new KonvaLayerNode(this.roomLayer),
             new KonvaLayerNode(this.linkLayer),
             state.settings,
-            this.pipeline.gridRenderer,
-            this.viewport,
         );
 
         // Viewport drives the stage
@@ -172,6 +170,7 @@ export class KonvaRenderBackend implements InteractiveBackend {
         this.stage.scale({x: scale, y: scale});
         this.stage.position(this.viewport.position);
         this.stage.batchDraw();
+        this.pipeline.gridRenderer.render(this.viewport.getViewportBounds());
         this.culling.scheduleCulling();
     }
 
@@ -227,6 +226,7 @@ export class KonvaRenderBackend implements InteractiveBackend {
         this.stage.scale({x: scale, y: scale});
         this.stage.position(exportPosition);
 
+        this.pipeline.gridRenderer.render(this.viewport.getViewportBounds());
         this.culling.updateCulling();
 
         // Temporary background layer

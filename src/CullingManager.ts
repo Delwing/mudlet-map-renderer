@@ -1,7 +1,5 @@
 import type {ExitDrawData} from "./ExitRenderer";
 import type {Settings, CullingMode, PerfSnapshot} from "./types/Settings";
-import type {GridRenderer} from "./GridRenderer";
-import type {Viewport} from "./Viewport";
 import type {GroupNode, LayerNode} from "./backend/DrawingBackend";
 
 export type RoomNodeEntry = { room: MapData.Room; group: GroupNode };
@@ -80,8 +78,6 @@ export class CullingManager {
     private readonly roomLayer: LayerNode;
     private readonly linkLayer: LayerNode;
     private readonly settings: Settings;
-    private readonly gridRenderer: GridRenderer;
-    private readonly viewport: Viewport;
 
     // Node collections (owned by Renderer, shared by reference)
     roomNodes: Map<number, RoomNodeEntry> = new Map();
@@ -107,15 +103,11 @@ export class CullingManager {
         roomLayer: LayerNode,
         linkLayer: LayerNode,
         settings: Settings,
-        gridRenderer: GridRenderer,
-        viewport: Viewport,
     ) {
         this.stageInfo = stageInfo;
         this.roomLayer = roomLayer;
         this.linkLayer = linkLayer;
         this.settings = settings;
-        this.gridRenderer = gridRenderer;
-        this.viewport = viewport;
     }
 
     computeBucketSize() {
@@ -340,13 +332,10 @@ export class CullingManager {
         if (roomLayerNeedsDraw) this.roomLayer.batchDraw();
         if (linkLayerNeedsDraw) this.linkLayer.batchDraw();
 
-        const gridStart = this.settings.perfCallback ? performance.now() : 0;
-        this.gridRenderer.render(this.viewport.getViewportBounds());
         if (this.settings.perfCallback) {
-            const gridMs = performance.now() - gridStart;
             const cullingMs = performance.now() - perfStart;
             this.perfMonitor.record({
-                cullingMs, gridMs,
+                cullingMs, gridMs: 0,
                 visibleRooms: this.visibleRooms.size,
                 totalRooms: this.roomNodes.size,
                 visibleExits: this.visibleStandaloneExitNodes.size,
