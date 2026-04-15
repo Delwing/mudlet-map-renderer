@@ -66,25 +66,36 @@ export class RoomShapeRenderer {
         // Inset shape by half the stroke width so the border stays inside the room bounds.
         const inset = borderWidth / 2;
 
+        const emboss = computeEmboss(fillColor, this.settings);
+        // When emboss is active, skip the regular border — the emboss lines serve as the border
+        const drawBorder = emboss ? 0 : borderWidth;
+
         if (this.settings.roomShape === "circle") {
             this.backend.addCircle(group, {
                 cx: rs / 2, cy: rs / 2, radius: rs / 2 - inset,
-                fill: fillColor, stroke: strokeColor, strokeWidth: borderWidth,
+                fill: fillColor, stroke: drawBorder ? strokeColor : undefined, strokeWidth: drawBorder,
             });
         } else {
             this.backend.addRect(group, {
                 x: inset, y: inset, width: rs - borderWidth, height: rs - borderWidth,
-                fill: fillColor, stroke: strokeColor, strokeWidth: borderWidth,
+                fill: fillColor, stroke: drawBorder ? strokeColor : undefined, strokeWidth: drawBorder,
                 cornerRadius: this.settings.roomShape === "roundedRectangle" ? (rs - borderWidth) * 0.2 : 0,
             });
         }
-
-        const emboss = computeEmboss(this.settings);
         if (emboss) {
             this.backend.addLine(group, {
-                points: emboss.points,
-                stroke: emboss.stroke,
-                strokeWidth: emboss.strokeWidth,
+                points: emboss.shadow.points,
+                stroke: emboss.shadow.stroke,
+                strokeWidth: emboss.shadow.strokeWidth,
+                lineCap: emboss.shadow.lineCap,
+                lineJoin: emboss.shadow.lineJoin,
+            });
+            this.backend.addLine(group, {
+                points: emboss.highlight.points,
+                stroke: emboss.highlight.stroke,
+                strokeWidth: emboss.highlight.strokeWidth,
+                lineCap: emboss.highlight.lineCap,
+                lineJoin: emboss.shadow.lineJoin,
             });
         }
 

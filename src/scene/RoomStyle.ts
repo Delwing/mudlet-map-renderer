@@ -10,10 +10,17 @@ export type RoomColors = {
     envColor: string;
 };
 
-export type EmbossStyle = {
+export type EmbossEdge = {
     points: number[];
     stroke: string;
     strokeWidth: number;
+    lineCap?: string;
+    lineJoin?: string;
+};
+
+export type EmbossStyle = {
+    highlight: EmbossEdge;
+    shadow: EmbossEdge;
 } | null;
 
 /**
@@ -42,16 +49,108 @@ export function computeRoomColors(
 }
 
 /**
- * Compute the emboss effect line for a room (only for rectangle/roundedRectangle shapes).
- * Returns null if emboss is disabled or shape is circle.
+ * Compute the emboss bevel for a room.
+ * Returns highlight (top+left) and shadow (bottom+right) edges using
+ * lightened/darkened versions of the fill color for a raised 3D look.
+ * Works for all room shapes: rectangle, roundedRectangle, and circle.
  */
-export function computeEmboss(settings: Settings): EmbossStyle {
-    if (!settings.emboss || settings.roomShape === "circle") return null;
+export function computeEmboss(fillColor: string, settings: Settings): EmbossStyle {
+    if (!settings.emboss) return null;
     const rs = settings.roomSize;
-    const isLight = colorLightness(settings.lineColor) > 0.41;
+    const inset = settings.borders ? settings.lineWidth / 2 : 0;
+    const sw = settings.lineWidth;
+    const hi = lightenColor(fillColor, 0.35);
+    const sh = darkenColor(fillColor, 0.45);
+
+    if (settings.roomShape === "circle") {
+        const cx = rs / 2;
+        const cy = rs / 2;
+        const r = rs / 2 - inset;
+        const segs = 48;
+
+        // Full circle in shadow color (base)
+        const shPoints: number[] = [];
+        for (let i = 0; i <= segs; i++) {
+            const a = (i / segs) * 360 * Math.PI / 180;
+            shPoints.push(cx + Math.cos(a) * r, cy + Math.sin(a) * r);
+        }
+
+        // Highlight arc on top-left only (~140°), drawn on top of the shadow circle
+        const hiPoints: number[] = [];
+        const hiSegs = Math.round(segs * 140 / 360);
+        for (let i = 0; i <= hiSegs; i++) {
+            const a = (200 + (i / hiSegs) * 140) * Math.PI / 180;
+            hiPoints.push(cx + Math.cos(a) * r, cy + Math.sin(a) * r);
+        }
+
+        return {
+            shadow: { points: shPoints, stroke: sh, strokeWidth: sw, lineCap: 'round', lineJoin: 'round' },
+            highlight: { points: hiPoints, stroke: hi, strokeWidth: sw, lineCap: 'round', lineJoin: 'round' },
+        };
+    }
+
+    if (settings.roomShape === "roundedRectangle") {
+        const cr = (rs - inset * 2) * 0.2;
+        const x1 = inset, y1 = inset;
+        const x2 = rs - inset, y2 = rs - inset;
+        const segs = 10;
+
+        // Generate perimeter clockwise starting from bottom-left diagonal (135°).
+        // This way the first half = left + top (highlight), second half = right + bottom (shadow).
+        const perimeter: number[] = [];
+
+        // Bottom-left corner: 135° → 180° (half corner)
+        for (let i = 0; i <= segs / 2; i++) {
+            const a = (135 + (i / (segs / 2)) * 45) * Math.PI / 180;
+            perimeter.push(x1 + cr + Math.cos(a) * cr, y2 - cr + Math.sin(a) * cr);
+        }
+        // Top-left corner: 180° → 270° (full corner)
+        for (let i = 1; i <= segs; i++) {
+            const a = (180 + (i / segs) * 90) * Math.PI / 180;
+            perimeter.push(x1 + cr + Math.cos(a) * cr, y1 + cr + Math.sin(a) * cr);
+        }
+        // Top-right corner: 270° → 315° (half corner)
+        for (let i = 1; i <= segs / 2; i++) {
+            const a = (270 + (i / (segs / 2)) * 45) * Math.PI / 180;
+            perimeter.push(x2 - cr + Math.cos(a) * cr, y1 + cr + Math.sin(a) * cr);
+        }
+
+        const hiPoints = perimeter.slice();
+
+        // Continue for shadow: top-right 315° → 360° (half corner)
+        const shPerimeter: number[] = [];
+        for (let i = 0; i <= segs / 2; i++) {
+            const a = (315 + (i / (segs / 2)) * 45) * Math.PI / 180;
+            shPerimeter.push(x2 - cr + Math.cos(a) * cr, y1 + cr + Math.sin(a) * cr);
+        }
+        // Bottom-right corner: 0° → 90° (full corner)
+        for (let i = 1; i <= segs; i++) {
+            const a = (i / segs) * 90 * Math.PI / 180;
+            shPerimeter.push(x2 - cr + Math.cos(a) * cr, y2 - cr + Math.sin(a) * cr);
+        }
+        // Bottom-left corner: 90° → 135° (half corner)
+        for (let i = 1; i <= segs / 2; i++) {
+            const a = (90 + (i / (segs / 2)) * 45) * Math.PI / 180;
+            shPerimeter.push(x1 + cr + Math.cos(a) * cr, y2 - cr + Math.sin(a) * cr);
+        }
+
+        return {
+            highlight: { points: hiPoints, stroke: hi, strokeWidth: sw, lineCap: 'round', lineJoin: 'round' },
+            shadow: { points: shPerimeter, stroke: sh, strokeWidth: sw, lineCap: 'round', lineJoin: 'round' },
+        };
+    }
+
+    // Plain rectangle: simple L-shapes
     return {
-        points: isLight ? [0, 0, rs, 0, rs, rs] : [0, 0, 0, rs, rs, rs],
-        stroke: isLight ? '#000000' : '#ffffff',
-        strokeWidth: settings.lineWidth,
+        highlight: {
+            points: [inset, rs - inset, inset, inset, rs - inset, inset],
+            stroke: hi,
+            strokeWidth: sw,
+        },
+        shadow: {
+            points: [inset, rs - inset, rs - inset, rs - inset, rs - inset, inset],
+            stroke: sh,
+            strokeWidth: sw,
+        },
     };
 }
