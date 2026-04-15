@@ -10,6 +10,7 @@ import {CullingManager} from "../CullingManager";
 import {InteractionHandler} from "../InteractionHandler";
 import {TypedEventEmitter} from "../TypedEventEmitter";
 import {KonvaBackend, KonvaLayerNode} from "../backend/KonvaBackend";
+import type {InteractiveBackend} from "./MapRenderer";
 import type {DrawingBackend, GroupNode, LayerNode} from "../backend/DrawingBackend";
 import {drawExitDataToCanvas} from "../scene/ExitDataRenderer";
 import {computeHighlight, computePositionMarker, computePathOverlay} from "../scene/OverlayStyle";
@@ -35,7 +36,7 @@ const currentRoomColor = 'rgb(120, 72, 0)';
  * - DOM container → stage attached to DOM, mouse/touch → viewport
  * - No container → headless stage, same viewport/culling, no input
  */
-export class KonvaRenderBackend {
+export class KonvaRenderBackend implements InteractiveBackend {
     readonly stage: Konva.Stage;
     readonly gridLayer: Konva.Layer;
     readonly linkLayer: Konva.Layer;
@@ -149,6 +150,19 @@ export class KonvaRenderBackend {
         if (this.container) {
             this.container.style.backgroundColor = this.state.settings.backgroundColor;
         }
+    }
+
+    exportCanvas(options?: { pixelRatio?: number }): HTMLCanvasElement | undefined {
+        if (this.state.currentArea === undefined || this.state.currentZIndex === undefined) return;
+        const stageCanvas = this.stage.toCanvas({ pixelRatio: options?.pixelRatio ?? 1 });
+        const composite = document.createElement('canvas');
+        composite.width = stageCanvas.width;
+        composite.height = stageCanvas.height;
+        const ctx = composite.getContext('2d')!;
+        ctx.fillStyle = this.state.settings.backgroundColor;
+        ctx.fillRect(0, 0, composite.width, composite.height);
+        ctx.drawImage(stageCanvas, 0, 0);
+        return composite;
     }
 
     // --- Viewport → Stage (one-way, called from onChange) ---

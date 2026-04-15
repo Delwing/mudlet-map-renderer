@@ -8,30 +8,60 @@ import type {SvgExportOptions} from "../SvgExporter";
 import {KonvaRenderBackend} from "./KonvaRenderBackend";
 import {SvgRenderBackend} from "./SvgRenderBackend";
 import type {CanvasExportOptions, CanvasExportOverlays} from "../HeadlessRenderer";
+import type {Viewport} from "../Viewport";
+import type {CullingManager} from "../CullingManager";
+import type {TypedEventEmitter} from "../TypedEventEmitter";
+
+/** Contract for interactive render backends. */
+export interface InteractiveBackend {
+    readonly viewport: Viewport;
+    readonly culling: CullingManager;
+    readonly events: TypedEventEmitter<RendererEventMap>;
+    updateBackground(): void;
+    refresh(): void;
+    /** Render a specific region to canvas (for headless / bounded export). */
+    toCanvas(options: { width: number; height: number; roomId?: number; padding?: number }): any;
+    /** Capture the current viewport as a canvas with background fill. */
+    exportCanvas(options?: { pixelRatio?: number }): HTMLCanvasElement | undefined;
+    destroy?(): void;
+}
 
 /**
  * Unified map renderer facade.
- *
- * - `new MapRenderer(mapReader)` — headless (no DOM, same rendering pipeline)
- * - `new MapRenderer(mapReader, settings, container)` — interactive (DOM + mouse/touch)
- *
- * Both modes share the same stage, viewport, culling, and scene graph.
- * The only difference: interactive mode adds mouse/touch event listeners.
  *
  * All public methods mutate MapState. State events drive the rendering backend.
  */
 export class MapRenderer {
     readonly state: MapState;
-    readonly backend: KonvaRenderBackend;
+    readonly backend: InteractiveBackend;
 
     get settings(): Settings {
         return this.state.settings;
     }
 
-    constructor(mapReader: MapReader, settings?: Settings, container?: HTMLDivElement) {
+    /**
+     * @param mapReader       Map data source.
+     * @param settings        Renderer settings. Defaults to `createSettings()`.
+     * @param container       DOM element for interactive rendering. Omit for headless.
+     * @param backendFactory  Optional factory that receives the `MapState` and returns
+     *   a custom `InteractiveBackend`. When omitted, a `KonvaRenderBackend` is created.
+     *
+     *   ```ts
+     *   new MapRenderer(mapReader, settings, container,
+     *       (state) => new PaperRenderBackend(state, container));
+     *   ```
+     */
+    constructor(
+        mapReader: MapReader,
+        settings?: Settings,
+        container?: HTMLDivElement,
+        backendFactory?: (state: MapState) => InteractiveBackend,
+    ) {
         const resolvedSettings = settings ?? createSettings();
         this.state = new MapState(mapReader, resolvedSettings);
-        this.backend = new KonvaRenderBackend(this.state, container);
+        this.backend = backendFactory
+            ? backendFactory(this.state)
+            : new KonvaRenderBackend(this.state, container);
     }
 
     // --- State mutations (emit events → backend reacts) ---
@@ -109,29 +139,16 @@ export class MapRenderer {
     }
 
     exportPng(options?: { pixelRatio?: number }): string | undefined {
-        const canvas = this.compositeStageCanvas(options?.pixelRatio);
+        const canvas = this.backend.exportCanvas(options);
         return canvas?.toDataURL('image/png');
     }
 
     exportPngBlob(options?: { pixelRatio?: number }): Promise<Blob> | undefined {
-        const canvas = this.compositeStageCanvas(options?.pixelRatio);
+        const canvas = this.backend.exportCanvas(options);
         if (!canvas) return;
         return new Promise<Blob>((resolve) => {
             canvas.toBlob((blob: Blob | null) => { if (blob) resolve(blob); }, 'image/png');
         });
-    }
-
-    private compositeStageCanvas(pixelRatio?: number): HTMLCanvasElement | undefined {
-        if (this.state.currentArea === undefined || this.state.currentZIndex === undefined) return;
-        const stageCanvas = this.backend.stage.toCanvas({pixelRatio: pixelRatio ?? 1});
-        const composite = document.createElement('canvas');
-        composite.width = stageCanvas.width;
-        composite.height = stageCanvas.height;
-        const ctx = composite.getContext('2d')!;
-        ctx.fillStyle = this.state.settings.backgroundColor;
-        ctx.fillRect(0, 0, composite.width, composite.height);
-        ctx.drawImage(stageCanvas, 0, 0);
-        return composite;
     }
 
     renderToCanvas(options: CanvasExportOptions & { overlays?: CanvasExportOverlays }): any {

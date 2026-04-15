@@ -168,6 +168,9 @@ async function initialize() {
     }
 
     pathFinder = new PathFinder(mapReader);
+
+    // Read backend preference from URL
+    const params = new URLSearchParams(window.location.search);
     renderer = new MapRenderer(mapReader, settings, stageElement);
 
     // Controls & perf
@@ -191,8 +194,7 @@ async function initialize() {
     });
 
     // Starting room
-    const params = new URLSearchParams(window.location.search);
-    const requestedRoomId = parseRoomId(params.get("roomId") ?? params.get("room"));
+    const requestedRoomId = parseRoomId(params.get("roomId") ?? params.get("room") ?? undefined);
     let startingRoomId = DEFAULT_STARTING_ROOM_ID;
     let initialStatus = "";
 

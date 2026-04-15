@@ -5,6 +5,7 @@ export type { Settings, RendererEventMap } from "./Renderer";
 
 // --- New unified MapRenderer ---
 export { MapRenderer } from './rendering/MapRenderer';
+export type { InteractiveBackend } from './rendering/MapRenderer';
 export { MapState } from './MapState';
 export type { MapStateEventMap, HighlightEntry, PathEntry } from './MapState';
 export { KonvaRenderBackend } from './rendering/KonvaRenderBackend';
