@@ -155,7 +155,10 @@ function updateDestinationGuidance() {
 
 // --- Sketch backend helpers ---
 
-function applySketchMode() {
+function applySketchMode(enabled: boolean) {
+    sketchEnabled = enabled;
+    const sketchColorInput = document.getElementById("sketch-color") as HTMLInputElement | null;
+    if (sketchColorInput) sketchColor = sketchColorInput.value;
     if (sketchEnabled) {
         const jitter = settings.lineWidth * 0.6;
         renderer.setDrawingBackend(new SketchyBackend(new KonvaBackend(), jitter, sketchColor));
@@ -195,25 +198,9 @@ async function initialize() {
             renderer.clearPaths();
             renderer.renderPath(currentDestinationPath, pathColor);
         }
-    });
+    }, applySketchMode);
     initPerfMonitor(settings);
     initContextMenu(stageElement, renderer, mapReader, moveToRoom, (msg) => updateStatus(roomStatusElement, msg));
-
-    // Sketch toggle (demo-side — recreates renderer with/without decorator)
-    const sketchToggle = document.getElementById("sketch-toggle") as HTMLInputElement | null;
-    const sketchColorInput = document.getElementById("sketch-color") as HTMLInputElement | null;
-    const sketchColorLabel = document.getElementById("sketch-color-label") as HTMLElement | null;
-
-    sketchToggle?.addEventListener("change", () => {
-        sketchEnabled = sketchToggle.checked;
-        if (sketchColorLabel) sketchColorLabel.style.display = sketchEnabled ? '' : 'none';
-        applySketchMode();
-    });
-
-    sketchColorInput?.addEventListener("input", () => {
-        sketchColor = sketchColorInput.value;
-        if (sketchEnabled) applySketchMode();
-    });
 
     // Walker
     walker = new Walker(mapReader, pathFinder, walkerStatusElement, walkerToggleButton, {

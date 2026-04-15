@@ -29,7 +29,7 @@ function describeCullingMode(mode: CullingMode) {
     }
 }
 
-export function initControls(settings: Settings, renderer: MapRenderer, getCurrentRoomId: () => number, pathFinder?: PathFinder, onAlgorithmChange?: () => void, onPathColorChange?: (color: string) => void) {
+export function initControls(settings: Settings, renderer: MapRenderer, getCurrentRoomId: () => number, pathFinder?: PathFinder, onAlgorithmChange?: () => void, onPathColorChange?: (color: string) => void, onSketchModeChange?: (enabled: boolean) => void) {
     const explorationToggle = document.getElementById("exploration-toggle") as HTMLInputElement | null;
     const instantMoveToggle = document.getElementById("instant-move-toggle") as HTMLInputElement | null;
     const highlightToggle = document.getElementById("highlight-toggle") as HTMLInputElement | null;
@@ -131,6 +131,9 @@ export function initControls(settings: Settings, renderer: MapRenderer, getCurre
     if (playerMarkerDashEnabled) playerMarkerDashEnabled.checked = settings.playerMarker.dashEnabled;
     if (playerMarkerMatchShape) playerMarkerMatchShape.checked = settings.playerMarker.matchRoomShape;
     if (pathfindingAlgorithmSelect && pathFinder) pathfindingAlgorithmSelect.value = pathFinder.algorithm;
+    const sketchColorLabel = document.getElementById("sketch-color-label") as HTMLElement | null;
+    const sketchColorInput = document.getElementById("sketch-color") as HTMLInputElement | null;
+
     if (renderModeSelect) {
         if (settings.frameMode) renderModeSelect.value = "frame";
         else if (settings.coloredMode) renderModeSelect.value = "colored";
@@ -293,7 +296,16 @@ export function initControls(settings: Settings, renderer: MapRenderer, getCurre
         const mode = renderModeSelect.value;
         settings.frameMode = mode === "frame";
         settings.coloredMode = mode === "colored";
-        renderer.refresh();
+        const isPencil = mode === "pencil";
+        if (sketchColorLabel) sketchColorLabel.style.display = isPencil ? '' : 'none';
+        onSketchModeChange?.(isPencil);
+        if (!isPencil) renderer.refresh();
+    });
+
+    sketchColorInput?.addEventListener("input", () => {
+        if (renderModeSelect?.value === "pencil") {
+            onSketchModeChange?.(true);
+        }
     });
 
     embossToggle?.addEventListener("change", () => {
