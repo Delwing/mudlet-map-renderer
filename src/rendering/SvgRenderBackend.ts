@@ -1,7 +1,8 @@
 import {SvgBackend, SvgGroupNode, SvgLayerNode} from "../backend/SvgBackend";
 import {ScenePipeline} from "../ScenePipeline";
 import {computeHighlight, computePositionMarker, computePathOverlay} from "../scene/OverlayStyle";
-import {renderHighlight, renderPositionMarker, renderPathOverlay} from "../scene/OverlayRenderer";
+import {computeAmbientLight} from "../scene/AmbientLightStyle";
+import {renderHighlight, renderPositionMarker, renderPathOverlay, renderAmbientLight} from "../scene/OverlayRenderer";
 import type {SvgOverlays} from "../SvgTypes";
 import type {MapState} from "../MapState";
 import type {DrawingBackend} from "../backend/DrawingBackend";
@@ -98,6 +99,17 @@ export class SvgRenderBackend {
                 }
             }
             if (overlays.position) {
+                // Ambient light (before position marker so it appears behind)
+                if (settings.ambientLight.enabled) {
+                    const room = this.state.mapReader.getRoom(overlays.position.roomId);
+                    if (room) {
+                        const alData = computeAmbientLight(room.x, room.y, viewportBounds, settings);
+                        const alGroup = renderAmbientLight(svgBackend, alData) as SvgGroupNode;
+                        const alSvg = alGroup.toSvg();
+                        if (alSvg) lines.push(alSvg);
+                    }
+                }
+
                 const room = this.state.mapReader.getRoom(overlays.position.roomId);
                 if (room) {
                     const data = computePositionMarker(room, settings);

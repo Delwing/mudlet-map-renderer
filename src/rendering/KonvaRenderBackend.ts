@@ -13,12 +13,14 @@ import {KonvaBackend, KonvaLayerNode} from "../backend/KonvaBackend";
 import type {InteractiveBackend} from "./MapRenderer";
 import type {DrawingBackend, GroupNode, LayerNode} from "../backend/DrawingBackend";
 import {computeHighlight, computePositionMarker, computePathOverlay} from "../scene/OverlayStyle";
+import {computeAmbientLight} from "../scene/AmbientLightStyle";
 import {computeStubs} from "../scene/StubStyle";
 import {computeSpecialExits} from "../scene/SpecialExitStyle";
 import {computeInnerExits} from "../scene/InnerExitStyle";
 import {
     renderHighlight, renderPositionMarker, renderPathOverlay,
     renderSpecialExitGroup, renderStubsGroup, renderInnerExitsGroup,
+    renderAmbientLight,
 } from "../scene/OverlayRenderer";
 import ExplorationArea from "../reader/ExplorationArea";
 
@@ -56,6 +58,7 @@ export class KonvaRenderBackend implements InteractiveBackend {
     private lastBuildResult?: SceneBuildResult;
 
     private positionMarker?: GroupNode;
+    private ambientLightNode?: GroupNode;
     private highlightShapes: Map<number, GroupNode> = new Map();
     private pathShapes: GroupNode[] = [];
     private currentRoomOverlay: GroupNode[] = [];
@@ -184,6 +187,10 @@ export class KonvaRenderBackend implements InteractiveBackend {
             this.positionMarker.destroy();
             this.positionMarker = undefined;
         }
+        if (this.ambientLightNode) {
+            this.ambientLightNode.destroy();
+            this.ambientLightNode = undefined;
+        }
         this.stage.destroy();
 
         // Clear renderer events
@@ -218,6 +225,7 @@ export class KonvaRenderBackend implements InteractiveBackend {
         this.stage.batchDraw();
         this.pipeline.gridRenderer.render(this.viewport.getViewportBounds());
         this.culling.scheduleCulling();
+        this.refreshAmbientLight();
     }
 
     // --- Canvas export ---
@@ -394,6 +402,10 @@ export class KonvaRenderBackend implements InteractiveBackend {
                 this.positionMarker.destroy();
                 this.positionMarker = undefined;
             }
+            if (this.ambientLightNode) {
+                this.ambientLightNode.destroy();
+                this.ambientLightNode = undefined;
+            }
             this.positionLayerNode.batchDraw();
             this.clearCurrentRoomOverlay();
             this.overlayLayerNode.batchDraw();
@@ -409,6 +421,7 @@ export class KonvaRenderBackend implements InteractiveBackend {
         }
 
         this.updateCurrentRoomOverlay(room);
+        this.applyAmbientLight(room);
         this.applyPositionMarker(room);
     }
 
@@ -419,6 +432,26 @@ export class KonvaRenderBackend implements InteractiveBackend {
         const data = computePositionMarker(room, this.state.settings);
         this.positionMarker = renderPositionMarker(this.drawingBackend, data);
         this.positionLayerNode.addNode(this.positionMarker);
+    }
+
+    private applyAmbientLight(room: MapData.Room) {
+        if (this.ambientLightNode) {
+            this.ambientLightNode.destroy();
+            this.ambientLightNode = undefined;
+        }
+        if (!this.state.settings.ambientLight.enabled) return;
+
+        const bounds = this.viewport.getViewportBounds();
+        const data = computeAmbientLight(room.x, room.y, bounds, this.state.settings);
+        this.ambientLightNode = renderAmbientLight(this.drawingBackend, data);
+        this.overlayLayerNode.addNode(this.ambientLightNode);
+        this.overlayLayerNode.batchDraw();
+    }
+
+    private refreshAmbientLight() {
+        if (!this.state.settings.ambientLight.enabled || this.state.positionRoomId === undefined) return;
+        const room = this.state.mapReader.getRoom(this.state.positionRoomId);
+        if (room) this.applyAmbientLight(room);
     }
 
     private clearCurrentRoomOverlay() {

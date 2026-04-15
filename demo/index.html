@@ -177,8 +177,32 @@
                     <input type="checkbox" id="uniform-level-size-toggle">
                     <span>Uniform level size</span>
                 </label>
+                <label class="check-label">
+                    <input type="checkbox" id="ambient-light-toggle">
+                    <span>Ambient lighting</span>
+                </label>
             </div>
         </div>
+
+        <!-- Ambient Lighting -->
+        <details class="panel-section collapsible">
+            <summary class="section-title">Ambient Lighting</summary>
+            <div class="details-body">
+                <label class="color-label">
+                    <input type="color" id="ambient-light-color" value="#ffcc44">
+                    <span>Light color</span>
+                </label>
+                <label class="select-label">
+                    <span>Radius: <span id="ambient-light-radius-value">12</span></span>
+                    <input type="range" id="ambient-light-radius" min="3" max="40" step="1" value="12">
+                </label>
+                <label class="select-label">
+                    <span>Intensity: <span id="ambient-light-intensity-value">0.70</span></span>
+                    <input type="range" id="ambient-light-intensity" min="0.1" max="1.0" step="0.05" value="0.7">
+                </label>
+            </div>
+        </details>
+
 
         <!-- Player Marker -->
         <details class="panel-section collapsible">

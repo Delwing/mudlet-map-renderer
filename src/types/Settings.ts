@@ -122,6 +122,23 @@ export type PlayerMarkerStyle = {
 };
 
 /**
+ * Style configuration for the ambient lighting effect.
+ * Renders concentric rings of light around the player position,
+ * dimming rooms farther from the player.
+ */
+export type AmbientLightStyle = {
+    /** Whether the ambient lighting effect is enabled. */
+    enabled: boolean;
+    /** Hex color for the light tint (e.g., "#ffcc44" for warm lantern light). */
+    color: string;
+    /** Radius in map units for the light falloff. Rooms outside this radius are fully dimmed. */
+    radius: number;
+    /** Maximum opacity of the darkness overlay outside the light (0.0-1.0). */
+    intensity: number;
+};
+
+
+/**
  * Settings for map rendering.
  * All properties can be modified at runtime to change the map's appearance and behavior.
  * Create with {@link createSettings} and pass to the renderer constructor.
@@ -177,6 +194,8 @@ export type Settings = {
     fontFamily: string;
     /** When true, uses bounds from all z-levels for viewport sizing, not just the current level. Default: false */
     uniformLevelSize: boolean;
+    /** Configuration for the ambient lighting effect around the player position. */
+    ambientLight: AmbientLightStyle;
 };
 
 /** Creates a new Settings object with default values. */
@@ -217,5 +236,11 @@ export function createSettings(): Settings {
         areaName: true,
         fontFamily: 'sans-serif',
         uniformLevelSize: false,
+        ambientLight: {
+            enabled: false,
+            color: '#ffcc44',
+            radius: 12,
+            intensity: 0.7,
+        },
     };
 }

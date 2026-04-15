@@ -1,5 +1,6 @@
 import type {DrawingBackend, GroupNode} from "../backend/DrawingBackend";
 import type {HighlightData, PositionMarkerData, PathOverlayData} from "./OverlayStyle";
+import type {AmbientLightData} from "./AmbientLightStyle";
 import type {SpecialExitData} from "./SpecialExitStyle";
 import type {StubData} from "./StubStyle";
 import type {TriangleData} from "./InnerExitStyle";
@@ -149,5 +150,21 @@ export function renderInnerExitsGroup(backend: DrawingBackend, triangles: Triang
             strokeWidth: tri.strokeWidth,
         });
     }
+    return group;
+}
+
+/**
+ * Render ambient lighting vignette as a single image with smooth radial gradient.
+ * The vignette darkens rooms far from center while leaving nearby rooms clear.
+ */
+export function renderAmbientLight(backend: DrawingBackend, data: AmbientLightData): GroupNode {
+    const group = backend.createGroup(0, 0);
+    backend.addImage(group, {
+        x: data.cx - data.displaySize / 2,
+        y: data.cy - data.displaySize / 2,
+        width: data.displaySize,
+        height: data.displaySize,
+        src: data.src,
+    });
     return group;
 }

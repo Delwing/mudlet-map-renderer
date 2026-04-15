@@ -52,6 +52,12 @@ export function initControls(settings: Settings, renderer: MapRenderer, getCurre
     const embossToggle = document.getElementById("emboss-toggle") as HTMLInputElement | null;
     const areaNameToggle = document.getElementById("area-name-toggle") as HTMLInputElement | null;
     const uniformLevelSizeToggle = document.getElementById("uniform-level-size-toggle") as HTMLInputElement | null;
+    const ambientLightToggle = document.getElementById("ambient-light-toggle") as HTMLInputElement | null;
+    const ambientLightColor = document.getElementById("ambient-light-color") as HTMLInputElement | null;
+    const ambientLightRadius = document.getElementById("ambient-light-radius") as HTMLInputElement | null;
+    const ambientLightRadiusValue = document.getElementById("ambient-light-radius-value") as HTMLSpanElement | null;
+    const ambientLightIntensity = document.getElementById("ambient-light-intensity") as HTMLInputElement | null;
+    const ambientLightIntensityValue = document.getElementById("ambient-light-intensity-value") as HTMLSpanElement | null;
     const savePngBtn = document.getElementById("save-png-btn") as HTMLButtonElement | null;
     const saveSvgBtn = document.getElementById("save-svg-btn") as HTMLButtonElement | null;
 
@@ -114,7 +120,16 @@ export function initControls(settings: Settings, renderer: MapRenderer, getCurre
     if (embossToggle) embossToggle.checked = settings.emboss;
     if (areaNameToggle) areaNameToggle.checked = settings.areaName;
     if (uniformLevelSizeToggle) uniformLevelSizeToggle.checked = settings.uniformLevelSize;
-
+    if (ambientLightToggle) ambientLightToggle.checked = settings.ambientLight.enabled;
+    if (ambientLightColor) ambientLightColor.value = settings.ambientLight.color;
+    if (ambientLightRadius && ambientLightRadiusValue) {
+        ambientLightRadius.value = settings.ambientLight.radius.toString();
+        ambientLightRadiusValue.textContent = settings.ambientLight.radius.toString();
+    }
+    if (ambientLightIntensity && ambientLightIntensityValue) {
+        ambientLightIntensity.value = settings.ambientLight.intensity.toString();
+        ambientLightIntensityValue.textContent = settings.ambientLight.intensity.toFixed(2);
+    }
     updateCullingStatus();
 
     // --- Event listeners ---
@@ -260,6 +275,32 @@ export function initControls(settings: Settings, renderer: MapRenderer, getCurre
         renderer.refresh();
     });
 
+
+    // --- Ambient Lighting ---
+
+    ambientLightToggle?.addEventListener("change", () => {
+        settings.ambientLight.enabled = ambientLightToggle.checked;
+        renderer.setPosition(getCurrentRoomId());
+    });
+
+    ambientLightColor?.addEventListener("input", () => {
+        settings.ambientLight.color = ambientLightColor.value;
+        renderer.setPosition(getCurrentRoomId());
+    });
+
+    ambientLightRadius?.addEventListener("input", () => {
+        const value = parseFloat(ambientLightRadius.value);
+        settings.ambientLight.radius = value;
+        if (ambientLightRadiusValue) ambientLightRadiusValue.textContent = value.toString();
+        renderer.setPosition(getCurrentRoomId());
+    });
+
+    ambientLightIntensity?.addEventListener("input", () => {
+        const value = parseFloat(ambientLightIntensity.value);
+        settings.ambientLight.intensity = value;
+        if (ambientLightIntensityValue) ambientLightIntensityValue.textContent = value.toFixed(2);
+        renderer.setPosition(getCurrentRoomId());
+    });
 
     savePngBtn?.addEventListener("click", async () => {
         const blob = renderer.exportPngBlob({ pixelRatio: 2 });
