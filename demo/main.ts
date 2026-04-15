@@ -45,6 +45,7 @@ let savedBackgroundColor: string;
 let savedLineColor: string;
 let savedFontFamily: string;
 let updateTerrainRooms: () => void = () => {};
+let updateFogOfWar: () => void = () => {};
 
 // --- Helpers ---
 
@@ -70,6 +71,7 @@ function moveToRoom(room: MapData.Room) {
     populateLevelSelector(room.area, room.z);
     updateDestinationGuidance();
     updateTerrainRooms();
+    updateFogOfWar();
 }
 
 function updateAreaStatus(areaId: number) {
@@ -288,6 +290,7 @@ async function initialize() {
     }, applyRenderMode, mapReader);
     const explorationToggle = controlsResult.explorationToggle;
     updateTerrainRooms = controlsResult.updateTerrainRooms;
+    updateFogOfWar = controlsResult.updateFogOfWar;
     initPerfMonitor(settings);
     initContextMenu(stageElement, renderer, mapReader, moveToRoom, (msg) => updateStatus(roomStatusElement, msg));
 
@@ -352,6 +355,7 @@ async function initialize() {
         renderer.fitArea();
         updateAreaStatus(areaId);
         updateTerrainRooms();
+        updateFogOfWar();
         updateStatus(roomStatusElement, `Switched to area: ${area.getAreaName()}`);
     });
 
@@ -364,6 +368,7 @@ async function initialize() {
         renderer.drawArea(areaId, z);
         renderer.fitArea();
         updateTerrainRooms();
+        updateFogOfWar();
     });
 
     explorationToggle?.addEventListener("change", () => {

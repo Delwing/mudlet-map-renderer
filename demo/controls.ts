@@ -5,6 +5,7 @@ import {WeatherOverlay} from "./WeatherOverlay";
 import type {WeatherType} from "./WeatherOverlay";
 import {TerrainOverlay} from "./TerrainOverlay";
 import type {TerrainEffectType, TerrainRoom} from "./TerrainOverlay";
+import {FogOfWarOverlay} from "./FogOfWarOverlay";
 
 function rgbToHex(rgb: string): string {
     const match = rgb.match(/(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
@@ -462,6 +463,62 @@ export function initControls(settings: Settings, renderer: MapRenderer, getCurre
         }
     });
 
+    // --- Fog of War (overlay plugin) ---
+
+    let fogOfWar = new FogOfWarOverlay();
+    const fogToggle = document.getElementById("fog-of-war-toggle") as HTMLInputElement | null;
+
+    function updateFogOfWar() {
+        if (!mapReader || !fogToggle?.checked) return;
+        const areaEl = document.getElementById("area-select") as HTMLSelectElement | null;
+        const levelEl = document.getElementById("level-select") as HTMLSelectElement | null;
+        let areaId = areaEl ? parseInt(areaEl.value, 10) : NaN;
+        let z = levelEl ? parseInt(levelEl.value, 10) : NaN;
+        if (isNaN(areaId) || isNaN(z)) {
+            const currentRoom = mapReader.getRoom(getCurrentRoomId());
+            if (!currentRoom) return;
+            areaId = currentRoom.area;
+            z = currentRoom.z;
+        }
+        const area = mapReader.getArea(areaId);
+        const plane = area?.getPlane(z);
+        const planeRooms = plane?.getRooms() ?? [];
+
+        // Reveal rooms the player has visited + connections between them
+        const visited = mapReader.getVisitedRooms?.() as Set<number> | undefined;
+        const visitedSet = new Set<number>();
+        const revealed: { x: number; y: number }[] = [];
+        for (const room of planeRooms) {
+            if (!visited || visited.has(room.id)) {
+                revealed.push({x: room.x, y: room.y});
+                visitedSet.add(room.id);
+            }
+        }
+        // Build connections between visited rooms
+        const connections: { x1: number; y1: number; x2: number; y2: number }[] = [];
+        for (const room of planeRooms) {
+            if (!visitedSet.has(room.id)) continue;
+            for (const targetId of Object.values(room.exits)) {
+                if (!visitedSet.has(targetId)) continue;
+                const target = mapReader.getRoom(targetId);
+                if (target && target.z === z) {
+                    connections.push({x1: room.x, y1: room.y, x2: target.x, y2: target.y});
+                }
+            }
+        }
+        fogOfWar.setRevealedRooms(revealed, connections);
+    }
+
+    fogToggle?.addEventListener("change", () => {
+        if (fogToggle.checked) {
+            fogOfWar = new FogOfWarOverlay();
+            renderer.addOverlayPlugin('fog-of-war', fogOfWar);
+            updateFogOfWar();
+        } else {
+            renderer.removeOverlayPlugin('fog-of-war');
+        }
+    });
+
     savePngBtn?.addEventListener("click", async () => {
         const blob = renderer.exportPngBlob({ pixelRatio: 2 });
         if (!blob) return;
@@ -495,7 +552,7 @@ export function initControls(settings: Settings, renderer: MapRenderer, getCurre
         hud?.classList.toggle("collapsed");
     });
 
-    return { explorationToggle, updateCullingStatus, updateTerrainRooms };
+    return { explorationToggle, updateCullingStatus, updateTerrainRooms, updateFogOfWar };
 }
 
 export function initPerfMonitor(settings: Settings) {
