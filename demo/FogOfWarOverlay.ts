@@ -85,10 +85,10 @@ export class FogOfWarOverlay implements OverlayPlugin {
         if (this.layer) this.layer.batchDraw();
     }
 
-    updateViewport(bounds: ViewportBounds, scale?: number, coordinateTransform?: CoordinateTransform) {
+    updateViewport(bounds: ViewportBounds, scale: number, coordinateTransform?: CoordinateTransform) {
         this.bounds = bounds;
-        if (scale !== undefined) this.scale = scale;
-        this.coordTransform = coordinateTransform;
+        this.scale = scale;
+        if (coordinateTransform) this.coordTransform = coordinateTransform;
         this.dirty = true;
     }
 

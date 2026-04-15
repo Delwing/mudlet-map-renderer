@@ -470,6 +470,7 @@ export function initControls(settings: Settings, renderer: MapRenderer, getCurre
 
     function updateFogOfWar() {
         if (!mapReader || !fogToggle?.checked) return;
+        fogOfWar.setStyle({color: settings.backgroundColor});
         const areaEl = document.getElementById("area-select") as HTMLSelectElement | null;
         const levelEl = document.getElementById("level-select") as HTMLSelectElement | null;
         let areaId = areaEl ? parseInt(areaEl.value, 10) : NaN;

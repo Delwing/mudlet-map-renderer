@@ -14,18 +14,24 @@ import type {CullingManager} from "../CullingManager";
 import type {TypedEventEmitter} from "../TypedEventEmitter";
 import type {OverlayPlugin} from "../types/OverlayPlugin";
 
+type CoordFn = (x: number, y: number) => { x: number; y: number };
+const IDENTITY_TRANSFORM: CoordFn = (x, y) => ({x, y});
+
 /** Contract for interactive render backends. */
 export interface InteractiveBackend {
     readonly viewport: Viewport;
     readonly culling: CullingManager;
     readonly events: TypedEventEmitter<RendererEventMap>;
     setDrawingBackend(backend: DrawingBackend): void;
+    setCoordinateTransform(forward: CoordFn, oldInverse: CoordFn, newInverse: CoordFn): void;
     updateBackground(): void;
     refresh(): void;
     /** Render a specific region to canvas (for headless / bounded export). */
     toCanvas(options: { width: number; height: number; roomId?: number; padding?: number }): any;
     /** Capture the current viewport as a canvas with background fill. */
     exportCanvas(options?: { pixelRatio?: number }): HTMLCanvasElement | undefined;
+    addOverlayPlugin(id: string, plugin: import("../types/OverlayPlugin").OverlayPlugin): void;
+    removeOverlayPlugin(id: string): void;
     destroy(): void;
 }
 
@@ -38,7 +44,9 @@ export class MapRenderer {
     readonly state: MapState;
     readonly backend: InteractiveBackend;
     private readonly svgDrawingBackendFactory?: (innerSvgBackend: DrawingBackend) => DrawingBackend;
-    private coordinateTransform: ((x: number, y: number) => { x: number; y: number }) | null = null;
+    private drawingBackendFactory?: (inner: DrawingBackend) => DrawingBackend;
+    private coordinateTransform: CoordFn = IDENTITY_TRANSFORM;
+    private coordinateTransformInverse: CoordFn = IDENTITY_TRANSFORM;
 
     get settings(): Settings {
         return this.state.settings;
@@ -132,6 +140,16 @@ export class MapRenderer {
 
     setDrawingBackend(backend: DrawingBackend) {
         this.backend.setDrawingBackend(backend);
+        this.drawingBackendFactory = undefined;
+    }
+
+    /**
+     * Set a factory that wraps a raw DrawingBackend with decorators.
+     * Used for both interactive rendering (wraps KonvaBackend) and SVG export (wraps SvgBackend).
+     * Pass `null` to reset to default.
+     */
+    setDrawingBackendFactory(factory: ((inner: DrawingBackend) => DrawingBackend) | null) {
+        this.drawingBackendFactory = factory ?? undefined;
     }
 
     updateBackground() {
@@ -148,18 +166,11 @@ export class MapRenderer {
      * @see OverlayPlugin
      */
     addOverlayPlugin(id: string, plugin: OverlayPlugin) {
-        if ('addOverlayPlugin' in this.backend) {
-            (this.backend as KonvaRenderBackend).addOverlayPlugin(id, plugin);
-        }
+        this.backend.addOverlayPlugin(id, plugin);
     }
 
-    /**
-     * Remove a previously added overlay plugin by id.
-     */
     removeOverlayPlugin(id: string) {
-        if ('removeOverlayPlugin' in this.backend) {
-            (this.backend as KonvaRenderBackend).removeOverlayPlugin(id);
-        }
+        this.backend.removeOverlayPlugin(id);
     }
 
     // --- Export ---
@@ -169,7 +180,8 @@ export class MapRenderer {
             ...options,
             overlays: this.state.getOverlaysForArea(options?.overlays),
         };
-        const svgBackend = new SvgRenderBackend(this.state, this.svgDrawingBackendFactory);
+        const factory = this.drawingBackendFactory ?? this.svgDrawingBackendFactory;
+        const svgBackend = new SvgRenderBackend(this.state, factory);
         return svgBackend.exportSvg(mergedOptions);
     }
 
@@ -228,7 +240,6 @@ export class MapRenderer {
             minY: hasAreaName ? b.minY - 7 : b.minY,
             maxY: b.maxY,
         };
-        if (!this.coordinateTransform) return raw;
         // Transform the 4 corners and compute the AABB in rendered space
         const fn = this.coordinateTransform;
         const c1 = fn(raw.minX, raw.minY);
@@ -265,12 +276,12 @@ export class MapRenderer {
         this.backend.viewport.minZoom = value;
     }
 
-    setCullingTransform(fn: ((x: number, y: number) => { x: number; y: number }) | null) {
-        this.coordinateTransform = fn;
-        this.backend.culling.setCoordinateTransform(fn);
-        if ('setCoordinateTransform' in this.backend) {
-            (this.backend as KonvaRenderBackend).setCoordinateTransform(fn);
-        }
+    setCullingTransform(forward: CoordFn, inverse: CoordFn) {
+        const oldInverse = this.coordinateTransformInverse;
+        this.coordinateTransform = forward;
+        this.coordinateTransformInverse = inverse;
+        this.backend.culling.setCoordinateTransform(forward);
+        this.backend.setCoordinateTransform(forward, oldInverse, inverse);
     }
 
     setCullingMode(mode: CullingMode) {

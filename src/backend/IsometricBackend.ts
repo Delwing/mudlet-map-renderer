@@ -30,6 +30,17 @@ function buildTransform(angleDeg: number): IsoTransform {
     ];
 }
 
+function buildInverseTransform(angleDeg: number): IsoTransform {
+    const rad = (angleDeg * Math.PI) / 180;
+    const cosA = Math.cos(rad);
+    const sinA = Math.sin(rad);
+    // Inverse: undo Y squish (×2) then reverse rotation
+    return (u, v) => [
+        u * cosA + 2 * v * sinA,
+        -u * sinA + 2 * v * cosA,
+    ];
+}
+
 const CIRCLE_SEGMENTS = 32;
 
 /**
@@ -58,6 +69,7 @@ export class IsometricBackend implements DrawingBackend {
     private readonly inner: DrawingBackend;
     private readonly depth: number;
     private readonly iso: IsoTransform;
+    private readonly isoInv: IsoTransform;
 
     /**
      * @param inner    The backend to delegate to after iso-transforming coordinates.
@@ -66,12 +78,14 @@ export class IsometricBackend implements DrawingBackend {
     constructor(inner: DrawingBackend, options?: { depth?: number; rotation?: IsometricRotation } | number) {
         this.inner = inner;
         if (typeof options === 'number') {
-            // Backwards compat: new IsometricBackend(inner, depth)
             this.depth = options;
             this.iso = buildTransform(0);
+            this.isoInv = buildInverseTransform(0);
         } else {
+            const rotation = options?.rotation ?? 0;
             this.depth = options?.depth ?? 0.18;
-            this.iso = buildTransform(options?.rotation ?? 0);
+            this.iso = buildTransform(rotation);
+            this.isoInv = buildInverseTransform(rotation);
         }
     }
 
@@ -121,7 +135,7 @@ export class IsometricBackend implements DrawingBackend {
             return;
         }
 
-        // Cube side faces (drawn first so top face overlaps)
+        // Cube with side faces: fill each face separately, then draw the visible outline
         if (this.depth > 0 && fill) {
             const d = this.depth;
             // Find the bottom-most vertex (highest Y) for the cube extrusion
@@ -130,32 +144,40 @@ export class IsometricBackend implements DrawingBackend {
                 if (diamond[i * 2 + 1] > diamond[bottomIdx * 2 + 1]) bottomIdx = i;
             }
             const bX = diamond[bottomIdx * 2], bY = diamond[bottomIdx * 2 + 1];
-
-            // Right neighbour of bottom vertex
-            const rIdx = (bottomIdx + 3) % 4; // prev in winding = right side
+            const rIdx = (bottomIdx + 3) % 4;
             const rX = diamond[rIdx * 2], rY = diamond[rIdx * 2 + 1];
-
-            // Left neighbour of bottom vertex
-            const lIdx = (bottomIdx + 1) % 4; // next in winding = left side
+            const lIdx = (bottomIdx + 1) % 4;
             const lX = diamond[lIdx * 2], lY = diamond[lIdx * 2 + 1];
+            const tIdx = (bottomIdx + 2) % 4;
+            const tX = diamond[tIdx * 2], tY = diamond[tIdx * 2 + 1];
 
-            // Right face
+            // 1. Fill all three faces (no strokes)
             this.inner.addPolygon(parent, {
                 vertices: [rX, rY, bX, bY, bX, bY + d, rX, rY + d],
                 fill: darkenColor(fill, 0.2),
-                stroke,
-                strokeWidth: strokeWidth ? strokeWidth * 0.5 : undefined,
             });
-            // Left face
             this.inner.addPolygon(parent, {
                 vertices: [bX, bY, lX, lY, lX, lY + d, bX, bY + d],
                 fill: darkenColor(fill, 0.4),
-                stroke,
-                strokeWidth: strokeWidth ? strokeWidth * 0.5 : undefined,
             });
+            this.inner.addPolygon(parent, {vertices: diamond, fill});
+
+            // 2. Draw the visible outline: top diamond edges + outer side edges
+            if (stroke && strokeWidth) {
+                const sw = strokeWidth;
+                // Top face: top two edges (top→right, left→top)
+                this.inner.addLine(parent, {points: [tX, tY, rX, rY], stroke, strokeWidth: sw});
+                this.inner.addLine(parent, {points: [lX, lY, tX, tY], stroke, strokeWidth: sw});
+                // Side outer edges: right down, left down, bottom across
+                this.inner.addLine(parent, {points: [rX, rY, rX, rY + d], stroke, strokeWidth: sw});
+                this.inner.addLine(parent, {points: [lX, lY, lX, lY + d], stroke, strokeWidth: sw});
+                this.inner.addLine(parent, {points: [rX, rY + d, bX, bY + d], stroke, strokeWidth: sw});
+                this.inner.addLine(parent, {points: [bX, bY + d, lX, lY + d], stroke, strokeWidth: sw});
+            }
+            return;
         }
 
-        // Top face diamond
+        // Flat diamond (no depth)
         this.inner.addPolygon(parent, {vertices: diamond, fill, stroke, strokeWidth});
     }
 
@@ -299,6 +321,14 @@ export class IsometricBackend implements DrawingBackend {
         const iso = this.iso;
         return (x, y) => {
             const [ox, oy] = iso(x, y);
+            return {x: ox, y: oy};
+        };
+    }
+
+    getInverseTransform(): (x: number, y: number) => { x: number; y: number } {
+        const inv = this.isoInv;
+        return (x, y) => {
+            const [ox, oy] = inv(x, y);
             return {x: ox, y: oy};
         };
     }

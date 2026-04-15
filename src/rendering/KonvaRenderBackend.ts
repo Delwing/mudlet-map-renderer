@@ -67,7 +67,8 @@ export class KonvaRenderBackend implements InteractiveBackend {
     private interactionHandler?: InteractionHandler;
     private origSetSize?: (w: number, h: number) => void;
     private destroyed = false;
-    private coordinateTransform: ((x: number, y: number) => { x: number; y: number }) | null = null;
+    private coordinateTransform: (x: number, y: number) => { x: number; y: number } = (x, y) => ({x, y});
+    private coordinateInverse: (x: number, y: number) => { x: number; y: number } = (x, y) => ({x, y});
     private overlayPlugins: Map<string, OverlayPlugin> = new Map();
 
     constructor(state: MapState, container?: HTMLDivElement, drawingBackend?: DrawingBackend) {
@@ -148,14 +149,38 @@ export class KonvaRenderBackend implements InteractiveBackend {
             linkLayer: new KonvaLayerNode(this.linkLayer),
             roomLayer: new KonvaLayerNode(this.roomLayer),
         });
+        this.pipeline.gridRenderer.setInverseTransform(this.coordinateInverse);
     }
 
-    setCoordinateTransform(fn: ((x: number, y: number) => { x: number; y: number }) | null) {
-        this.coordinateTransform = fn;
+    setCoordinateTransform(
+        forward: (x: number, y: number) => { x: number; y: number },
+        oldInverse: (x: number, y: number) => { x: number; y: number },
+        newInverse: (x: number, y: number) => { x: number; y: number },
+    ) {
+        this.coordinateTransform = forward;
+        this.coordinateInverse = newInverse;
+        this.pipeline.gridRenderer.setInverseTransform(newInverse);
+
+        // Reposition viewport so the same map point stays at screen center
+        const scale = this.viewport.getScale();
+        const screenCX = this.viewport.width / 2;
+        const screenCY = this.viewport.height / 2;
+
+        // Screen center → old rendered space → map space → new rendered space
+        const oldRX = (screenCX - this.viewport.position.x) / scale;
+        const oldRY = (screenCY - this.viewport.position.y) / scale;
+        const map = oldInverse(oldRX, oldRY);
+        const nr = forward(map.x, map.y);
+
+        this.viewport.position = {
+            x: screenCX - nr.x * scale,
+            y: screenCY - nr.y * scale,
+        };
+        this.applyViewportToStage();
     }
 
     private mapPoint(x: number, y: number): { x: number; y: number } {
-        return this.coordinateTransform ? this.coordinateTransform(x, y) : {x, y};
+        return this.coordinateTransform(x, y);
     }
 
     get exitRenderer() {
@@ -243,7 +268,7 @@ export class KonvaRenderBackend implements InteractiveBackend {
         this.refreshAmbientLight();
         const vpBounds = this.viewport.getViewportBounds();
         for (const plugin of this.overlayPlugins.values()) {
-            plugin.updateViewport(vpBounds, scale, this.coordinateTransform ?? undefined);
+            plugin.updateViewport(vpBounds, scale, this.coordinateTransform);
         }
     }
 
@@ -349,7 +374,7 @@ export class KonvaRenderBackend implements InteractiveBackend {
         this.removeOverlayPlugin(id);
         plugin.attach(this.overlayLayer);
         this.overlayPlugins.set(id, plugin);
-        plugin.updateViewport(this.viewport.getViewportBounds(), this.viewport.getScale(), this.coordinateTransform ?? undefined);
+        plugin.updateViewport(this.viewport.getViewportBounds(), this.viewport.getScale(), this.coordinateTransform);
     }
 
     removeOverlayPlugin(id: string) {

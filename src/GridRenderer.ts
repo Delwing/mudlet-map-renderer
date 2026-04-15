@@ -12,11 +12,17 @@ export class GridRenderer {
     private readonly settings: Settings;
     private readonly backend: DrawingBackend;
     private cachedBounds: { left: number; right: number; top: number; bottom: number } | null = null;
+    private inverseTransform: (x: number, y: number) => { x: number; y: number } = (x, y) => ({x, y});
 
     constructor(layer: LayerNode, settings: Settings, backend: DrawingBackend) {
         this.layer = layer;
         this.settings = settings;
         this.backend = backend;
+    }
+
+    setInverseTransform(fn: (x: number, y: number) => { x: number; y: number }) {
+        this.inverseTransform = fn;
+        this.invalidateCache();
     }
 
     invalidateCache() {
@@ -33,13 +39,24 @@ export class GridRenderer {
             return;
         }
 
-        const {minX, maxX, minY, maxY} = viewportBounds;
+        // Viewport bounds are in rendered space. Inverse-transform to Cartesian
+        // to find the grid range that covers the visible area.
+        const inv = this.inverseTransform;
+        const {minX: vMinX, maxX: vMaxX, minY: vMinY, maxY: vMaxY} = viewportBounds;
+        const c1 = inv(vMinX, vMinY);
+        const c2 = inv(vMaxX, vMinY);
+        const c3 = inv(vMaxX, vMaxY);
+        const c4 = inv(vMinX, vMaxY);
+        const cartMinX = Math.min(c1.x, c2.x, c3.x, c4.x);
+        const cartMaxX = Math.max(c1.x, c2.x, c3.x, c4.x);
+        const cartMinY = Math.min(c1.y, c2.y, c3.y, c4.y);
+        const cartMaxY = Math.max(c1.y, c2.y, c3.y, c4.y);
 
         const buffer = this.settings.gridSize * 2;
-        const left = Math.floor((Math.min(minX, maxX) - buffer) / this.settings.gridSize) * this.settings.gridSize;
-        const right = Math.ceil((Math.max(minX, maxX) + buffer) / this.settings.gridSize) * this.settings.gridSize;
-        const top = Math.floor((Math.min(minY, maxY) - buffer) / this.settings.gridSize) * this.settings.gridSize;
-        const bottom = Math.ceil((Math.max(minY, maxY) + buffer) / this.settings.gridSize) * this.settings.gridSize;
+        const left = Math.floor((cartMinX - buffer) / this.settings.gridSize) * this.settings.gridSize;
+        const right = Math.ceil((cartMaxX + buffer) / this.settings.gridSize) * this.settings.gridSize;
+        const top = Math.floor((cartMinY - buffer) / this.settings.gridSize) * this.settings.gridSize;
+        const bottom = Math.ceil((cartMaxY + buffer) / this.settings.gridSize) * this.settings.gridSize;
 
         const cached = this.cachedBounds;
         if (cached && cached.left === left && cached.right === right && cached.top === top && cached.bottom === bottom) {

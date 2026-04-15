@@ -36,8 +36,8 @@ export type CoordinateTransform = (x: number, y: number) => { x: number; y: numb
 export interface OverlayPlugin {
     /** Called once when the plugin is added to the renderer. Draw on this layer. */
     attach(layer: Konva.Layer): void;
-    /** Called on every pan/zoom with the visible map bounds, pixel scale, and optional coordinate transform (e.g. isometric projection). */
-    updateViewport(bounds: ViewportBounds, scale: number, coordinateTransform?: CoordinateTransform): void;
+    /** Called on every pan/zoom with the visible map bounds, pixel scale, and coordinate transform (identity by default, isometric when active). */
+    updateViewport(bounds: ViewportBounds, scale: number, coordinateTransform: CoordinateTransform): void;
     /** Called when the plugin is removed or the renderer is destroyed. Clean up Konva nodes. */
     destroy(): void;
 }

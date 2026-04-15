@@ -96,7 +96,7 @@ export class CullingManager {
     private standaloneExitBoundsRoomSize?: number;
     private cullingScheduled = false;
     private perfMonitor = new PerfMonitor();
-    private coordinateTransform: CoordinateTransform | null = null;
+    private coordinateTransform: CoordinateTransform = (x, y) => ({x, y});
 
     constructor(
         stageInfo: StageInfo,
@@ -110,16 +110,15 @@ export class CullingManager {
         this.settings = settings;
     }
 
-    setCoordinateTransform(fn: CoordinateTransform | null) {
+    setCoordinateTransform(fn: CoordinateTransform) {
         this.coordinateTransform = fn;
     }
 
     private transformPoint(x: number, y: number): { x: number; y: number } {
-        return this.coordinateTransform ? this.coordinateTransform(x, y) : {x, y};
+        return this.coordinateTransform(x, y);
     }
 
     private transformBounds(b: Bounds): Bounds {
-        if (!this.coordinateTransform) return b;
         const fn = this.coordinateTransform;
         const c1 = fn(b.x, b.y);
         const c2 = fn(b.x + b.width, b.y);

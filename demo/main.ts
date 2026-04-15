@@ -1,4 +1,15 @@
-import {MapRenderer, createSettings, PathFinder, KonvaBackend, SketchyBackend, ParchmentBackend, BlueprintBackend, NeonBackend, IsometricBackend} from "@src";
+import {
+    MapRenderer,
+    createSettings,
+    PathFinder,
+    KonvaBackend,
+    SketchyBackend,
+    ParchmentBackend,
+    BlueprintBackend,
+    NeonBackend,
+    IsometricBackend,
+    DrawingBackend
+} from "@src";
 import type {Settings} from "@src";
 import MapReader from "@src/reader/MapReader";
 import {initControls, initPerfMonitor} from "./controls";
@@ -179,26 +190,28 @@ function applyRenderMode(mode: string) {
     settings.backgroundColor = savedBackgroundColor;
     settings.lineColor = savedLineColor;
     settings.fontFamily = savedFontFamily;
-    renderer.setCullingTransform(null);
+    // Build the decorator chain as a factory (inner backend → wrapped backend).
+    // Used for both Konva (interactive) and SVG (export).
+    type BackendFactory = (inner: DrawingBackend) => DrawingBackend;
+    const identity = (x: number, y: number) => ({x, y});
+    let factory: BackendFactory = (inner) => inner;
+    let forward = identity;
+    let inverse = identity;
 
     switch (mode) {
-        case "pencil": {
-            renderer.setDrawingBackend(new SketchyBackend(new KonvaBackend(), jitter, sketchColor));
+        case "pencil":
+            factory = (inner) => new SketchyBackend(inner, jitter, sketchColor);
             settings.backgroundColor = '#ffffff';
             break;
-        }
-        case "parchment": {
-            renderer.setDrawingBackend(new ParchmentBackend(new KonvaBackend()));
+        case "parchment":
+            factory = (inner) => new ParchmentBackend(inner);
             settings.backgroundColor = '#f4e4c1';
             settings.lineColor = '#5c4033';
             settings.fontFamily = 'Georgia, serif';
             break;
-        }
         case "parchment-pencil": {
             const pencilColor = '#4a3728';
-            renderer.setDrawingBackend(
-                new SketchyBackend(new ParchmentBackend(new KonvaBackend()), jitter, pencilColor),
-            );
+            factory = (inner) => new SketchyBackend(new ParchmentBackend(inner), jitter, pencilColor);
             settings.backgroundColor = '#f4e4c1';
             settings.lineColor = '#5c4033';
             settings.fontFamily = 'Georgia, serif';
@@ -207,54 +220,47 @@ function applyRenderMode(mode: string) {
         case "isometric": {
             const depth = settings.roomSize * 0.3;
             const rotation = getIsoRotation();
-            const iso = new IsometricBackend(new KonvaBackend(), {depth, rotation});
-            renderer.setDrawingBackend(iso);
-            renderer.setCullingTransform(iso.getTransform());
+            const isoProto = new IsometricBackend(new KonvaBackend(), {depth, rotation});
+            forward = isoProto.getTransform();
+            inverse = isoProto.getInverseTransform();
+            factory = (inner) => new IsometricBackend(inner, {depth, rotation});
             break;
         }
         case "isometric-parchment": {
             const depth = settings.roomSize * 0.3;
             const pencilColor = '#4a3728';
             const rotation = getIsoRotation();
-            const iso = new IsometricBackend(
-                new SketchyBackend(new ParchmentBackend(new KonvaBackend()), jitter, pencilColor),
+            const isoProto = new IsometricBackend(new KonvaBackend(), {depth, rotation});
+            forward = isoProto.getTransform();
+            inverse = isoProto.getInverseTransform();
+            factory = (inner) => new IsometricBackend(
+                new SketchyBackend(new ParchmentBackend(inner), jitter, pencilColor),
                 {depth, rotation},
             );
-            renderer.setDrawingBackend(iso);
-            renderer.setCullingTransform(iso.getTransform());
             settings.backgroundColor = '#f4e4c1';
             settings.lineColor = '#5c4033';
             settings.fontFamily = 'Georgia, serif';
             break;
         }
-        case "blueprint": {
-            renderer.setDrawingBackend(new BlueprintBackend(new KonvaBackend()));
+        case "blueprint":
+            factory = (inner) => new BlueprintBackend(inner);
             settings.backgroundColor = '#0a1628';
             settings.lineColor = '#4a7ab5';
             settings.fontFamily = '"Courier New", monospace';
             break;
-        }
-        case "neon": {
-            renderer.setDrawingBackend(new NeonBackend(new KonvaBackend()));
+        case "neon":
+            factory = (inner) => new NeonBackend(inner);
             settings.backgroundColor = '#0a0a0f';
             settings.lineColor = '#00ffaa';
             break;
-        }
-        default: {
-            renderer.setDrawingBackend(new KonvaBackend());
-            break;
-        }
     }
+
+    renderer.setCullingTransform(forward, inverse);
+    renderer.setDrawingBackend(factory(new KonvaBackend()));
+    renderer.setDrawingBackendFactory(factory);
 
     renderer.updateBackground();
     renderer.refresh();
-    if (isIso) {
-        if (currentRoomId) {
-            renderer.centerOn(currentRoomId, true);
-        } else {
-            renderer.fitArea();
-        }
-    }
 }
 
 // --- Initialization ---
