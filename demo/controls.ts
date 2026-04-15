@@ -10,6 +10,16 @@ function rgbToHex(rgb: string): string {
     return `#${((1 << 24) | (r << 16) | (g << 8) | b).toString(16).slice(1)}`;
 }
 
+function parseRgba(rgba: string): { hex: string; alpha: number } {
+    const match = rgba.match(/(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,?\s*([\d.]*)/);
+    if (!match) return { hex: '#cccccc', alpha: 0.15 };
+    const r = parseInt(match[1], 10);
+    const g = parseInt(match[2], 10);
+    const b = parseInt(match[3], 10);
+    const a = match[4] ? parseFloat(match[4]) : 1;
+    return { hex: `#${((1 << 24) | (r << 16) | (g << 8) | b).toString(16).slice(1)}`, alpha: a };
+}
+
 function describeCullingMode(mode: CullingMode) {
     switch (mode) {
         case "none": return "No culling";
@@ -24,6 +34,9 @@ export function initControls(settings: Settings, renderer: MapRenderer, getCurre
     const instantMoveToggle = document.getElementById("instant-move-toggle") as HTMLInputElement | null;
     const highlightToggle = document.getElementById("highlight-toggle") as HTMLInputElement | null;
     const gridToggle = document.getElementById("grid-toggle") as HTMLInputElement | null;
+    const gridColorInput = document.getElementById("grid-color") as HTMLInputElement | null;
+    const gridOpacity = document.getElementById("grid-opacity") as HTMLInputElement | null;
+    const gridOpacityValue = document.getElementById("grid-opacity-value") as HTMLSpanElement | null;
     const roomShapeSelect = document.getElementById("room-shape") as HTMLSelectElement | null;
     const cullingModeSelect = document.getElementById("culling-mode") as HTMLSelectElement | null;
     const backgroundColorInput = document.getElementById("background-color") as HTMLInputElement | null;
@@ -73,6 +86,12 @@ export function initControls(settings: Settings, renderer: MapRenderer, getCurre
     if (instantMoveToggle) instantMoveToggle.checked = settings.instantMapMove;
     if (highlightToggle) highlightToggle.checked = settings.highlightCurrentRoom;
     if (gridToggle) gridToggle.checked = settings.gridEnabled;
+    const parsedGrid = parseRgba(settings.gridColor);
+    if (gridColorInput) gridColorInput.value = parsedGrid.hex;
+    if (gridOpacity && gridOpacityValue) {
+        gridOpacity.value = parsedGrid.alpha.toString();
+        gridOpacityValue.textContent = parsedGrid.alpha.toFixed(2);
+    }
     if (backgroundColorInput) backgroundColorInput.value = settings.backgroundColor;
     if (lineColorInput) lineColorInput.value = rgbToHex(settings.lineColor);
     if (labelRenderModeSelect) {
@@ -146,6 +165,23 @@ export function initControls(settings: Settings, renderer: MapRenderer, getCurre
     gridToggle?.addEventListener("change", () => {
         settings.gridEnabled = gridToggle.checked;
         renderer.refresh();
+    });
+
+    const updateGridColor = () => {
+        const hex = gridColorInput?.value ?? parsedGrid.hex;
+        const alpha = gridOpacity ? parseFloat(gridOpacity.value) : parsedGrid.alpha;
+        const r = parseInt(hex.slice(1, 3), 16);
+        const g = parseInt(hex.slice(3, 5), 16);
+        const b = parseInt(hex.slice(5, 7), 16);
+        settings.gridColor = `rgba(${r}, ${g}, ${b}, ${alpha})`;
+        renderer.refresh();
+    };
+
+    gridColorInput?.addEventListener("input", updateGridColor);
+
+    gridOpacity?.addEventListener("input", () => {
+        if (gridOpacityValue) gridOpacityValue.textContent = parseFloat(gridOpacity.value).toFixed(2);
+        updateGridColor();
     });
 
     roomShapeSelect?.addEventListener("change", () => {

@@ -183,6 +183,22 @@ export class SketchyBackend implements DrawingBackend {
         return this.inner.createGroup(x, y);
     }
 
+    /**
+     * Return the pencil color, preserving alpha from the original color if present.
+     */
+    private applyPencilWithAlpha(original: string | undefined): string {
+        if (!original) return this.pencil;
+        const alphaMatch = original.match(/,\s*([\d.]+)\s*\)$/);
+        if (!alphaMatch) return this.pencil;
+        const alpha = parseFloat(alphaMatch[1]);
+        if (alpha >= 1) return this.pencil;
+        // Parse pencil hex to rgb and apply the original alpha
+        const r = parseInt(this.pencil.slice(1, 3), 16);
+        const g = parseInt(this.pencil.slice(3, 5), 16);
+        const b = parseInt(this.pencil.slice(5, 7), 16);
+        return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    }
+
     addRect(parent: GroupNode, config: RectConfig): void {
 
         const j = this.jitter;
@@ -237,7 +253,8 @@ export class SketchyBackend implements DrawingBackend {
         const rng = createRng(seed);
 
         const wobbly = wobblePolyline(config.points, j, rng);
-        this.inner.addLine(parent, { ...config, points: wobbly, stroke: this.pencil });
+        const stroke = this.applyPencilWithAlpha(config.stroke);
+        this.inner.addLine(parent, { ...config, points: wobbly, stroke });
     }
 
     addPolygon(parent: GroupNode, config: PolygonConfig): void {
