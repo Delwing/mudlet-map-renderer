@@ -250,10 +250,10 @@ export class MapRenderer {
         };
     }
 
-    fitArea() {
+    fitArea(insets?: { top?: number; right?: number; bottom?: number; left?: number }) {
         const bounds = this.getAreaBounds();
         if (!bounds) return;
-        this.backend.viewport.fitToMapBounds(bounds.minX, bounds.maxX, bounds.minY, bounds.maxY);
+        this.backend.viewport.fitToMapBounds(bounds.minX, bounds.maxX, bounds.minY, bounds.maxY, insets);
     }
 
     get centerOnResize(): boolean {

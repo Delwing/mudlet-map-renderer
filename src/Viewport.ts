@@ -163,15 +163,30 @@ export class Viewport {
 
     /**
      * Fit the viewport to show the given map bounds with padding.
+     * Optional `insets` (screen pixels) reserve space at each edge — content
+     * is fit and centered within the rect remaining after the insets.
      */
-    fitToMapBounds(minX: number, maxX: number, minY: number, maxY: number) {
+    fitToMapBounds(
+        minX: number,
+        maxX: number,
+        minY: number,
+        maxY: number,
+        insets?: { top?: number; right?: number; bottom?: number; left?: number },
+    ) {
         const mapW = maxX - minX;
         const mapH = maxY - minY;
         if (mapW <= 0 || mapH <= 0) return;
 
+        const top = insets?.top ?? 0;
+        const right = insets?.right ?? 0;
+        const bottom = insets?.bottom ?? 0;
+        const left = insets?.left ?? 0;
+        const availW = Math.max(1, this.width - left - right);
+        const availH = Math.max(1, this.height - top - bottom);
+
         const padding = 2;
-        const zoomX = this.width / ((mapW + padding * 2) * BASE_SCALE);
-        const zoomY = this.height / ((mapH + padding * 2) * BASE_SCALE);
+        const zoomX = availW / ((mapW + padding * 2) * BASE_SCALE);
+        const zoomY = availH / ((mapH + padding * 2) * BASE_SCALE);
         const fitZoom = Math.min(zoomX, zoomY);
 
         this.zoom = Math.max(0.05, Math.min(5, fitZoom));
@@ -181,8 +196,8 @@ export class Viewport {
         const centerMapX = (minX + maxX) / 2;
         const centerMapY = (minY + maxY) / 2;
         this.position = {
-            x: this.width / 2 - centerMapX * scale,
-            y: this.height / 2 - centerMapY * scale,
+            x: left + availW / 2 - centerMapX * scale,
+            y: top + availH / 2 - centerMapY * scale,
         };
         this.notify();
     }
