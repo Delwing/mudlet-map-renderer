@@ -120,6 +120,7 @@ export class InteractionHandler {
             if (!pointerDown || e.pointerId !== pointerId) return;
             const rect = container.getBoundingClientRect();
             viewport.updateDrag(e.clientX - rect.left, e.clientY - rect.top);
+            this.events.emit('pan', viewport.getViewportBounds());
         });
 
         this.listen(container, 'pointerup', (e) => {
@@ -173,6 +174,7 @@ export class InteractionHandler {
                 const touch = touches[0];
                 const rect = container.getBoundingClientRect();
                 viewport.updateDrag(touch.clientX - rect.left, touch.clientY - rect.top);
+                this.events.emit('pan', viewport.getViewportBounds());
             }
         });
 
