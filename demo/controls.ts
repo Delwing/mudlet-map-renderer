@@ -72,6 +72,7 @@ export function initControls(settings: Settings, renderer: MapRenderer, getCurre
     const embossToggle = document.getElementById("emboss-toggle") as HTMLInputElement | null;
     const areaNameToggle = document.getElementById("area-name-toggle") as HTMLInputElement | null;
     const uniformLevelSizeToggle = document.getElementById("uniform-level-size-toggle") as HTMLInputElement | null;
+    const bordersToggle = document.getElementById("borders-toggle") as HTMLInputElement | null;
     const ambientLightToggle = document.getElementById("ambient-light-toggle") as HTMLInputElement | null;
     const ambientLightColor = document.getElementById("ambient-light-color") as HTMLInputElement | null;
     const ambientLightRadius = document.getElementById("ambient-light-radius") as HTMLInputElement | null;
@@ -150,6 +151,7 @@ export function initControls(settings: Settings, renderer: MapRenderer, getCurre
     if (embossToggle) embossToggle.checked = settings.emboss;
     if (areaNameToggle) areaNameToggle.checked = settings.areaName;
     if (uniformLevelSizeToggle) uniformLevelSizeToggle.checked = settings.uniformLevelSize;
+    if (bordersToggle) bordersToggle.checked = settings.borders;
     if (ambientLightToggle) ambientLightToggle.checked = settings.ambientLight.enabled;
     if (ambientLightColor) ambientLightColor.value = settings.ambientLight.color;
     if (ambientLightRadius && ambientLightRadiusValue) {
@@ -344,6 +346,11 @@ export function initControls(settings: Settings, renderer: MapRenderer, getCurre
 
     uniformLevelSizeToggle?.addEventListener("change", () => {
         settings.uniformLevelSize = uniformLevelSizeToggle.checked;
+        renderer.refresh();
+    });
+
+    bordersToggle?.addEventListener("change", () => {
+        settings.borders = bordersToggle.checked;
         renderer.refresh();
     });
 
