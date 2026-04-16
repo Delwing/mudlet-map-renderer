@@ -67,6 +67,7 @@ export function initControls(settings: Settings, renderer: MapRenderer, getCurre
     const pathColorInput = document.getElementById("path-color") as HTMLInputElement | null;
     const playerMarkerDashEnabled = document.getElementById("player-marker-dash-enabled") as HTMLInputElement | null;
     const renderModeSelect = document.getElementById("render-mode") as HTMLSelectElement | null;
+    const locationStyleSelect = document.getElementById("location-style") as HTMLSelectElement | null;
     const playerMarkerMatchShape = document.getElementById("player-marker-match-shape") as HTMLInputElement | null;
     const embossToggle = document.getElementById("emboss-toggle") as HTMLInputElement | null;
     const areaNameToggle = document.getElementById("area-name-toggle") as HTMLInputElement | null;
@@ -140,11 +141,12 @@ export function initControls(settings: Settings, renderer: MapRenderer, getCurre
     const sketchColorLabel = document.getElementById("sketch-color-label") as HTMLElement | null;
     const sketchColorInput = document.getElementById("sketch-color") as HTMLInputElement | null;
 
-    if (renderModeSelect) {
-        if (settings.frameMode) renderModeSelect.value = "frame";
-        else if (settings.coloredMode) renderModeSelect.value = "colored";
-        else renderModeSelect.value = "normal";
+    if (locationStyleSelect) {
+        if (settings.frameMode) locationStyleSelect.value = "frame";
+        else if (settings.coloredMode) locationStyleSelect.value = "colored";
+        else locationStyleSelect.value = "normal";
     }
+    if (renderModeSelect) renderModeSelect.value = "normal";
     if (embossToggle) embossToggle.checked = settings.emboss;
     if (areaNameToggle) areaNameToggle.checked = settings.areaName;
     if (uniformLevelSizeToggle) uniformLevelSizeToggle.checked = settings.uniformLevelSize;
@@ -298,10 +300,15 @@ export function initControls(settings: Settings, renderer: MapRenderer, getCurre
         onPathColorChange?.(pathColorInput.value);
     });
 
+    locationStyleSelect?.addEventListener("change", () => {
+        const style = locationStyleSelect.value;
+        settings.frameMode = style === "frame";
+        settings.coloredMode = style === "colored";
+        renderer.refresh();
+    });
+
     renderModeSelect?.addEventListener("change", () => {
         const mode = renderModeSelect.value;
-        settings.frameMode = mode === "frame";
-        settings.coloredMode = mode === "colored";
         const showPencilColor = mode === "pencil" || mode === "parchment-pencil";
         if (sketchColorLabel) sketchColorLabel.style.display = showPencilColor ? '' : 'none';
         onRenderModeChange?.(mode);

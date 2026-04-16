@@ -1,8 +1,9 @@
 import Konva from "konva";
 import type {
-    DrawingBackend, GroupNode, LayerNode,
+    DrawingBackend, GroupNode, LayerNode, CoordFn,
     RectConfig, CircleConfig, LineConfig, PolygonConfig, TextConfig, ImageConfig,
 } from "./DrawingBackend";
+import {IDENTITY_TRANSFORM} from "./DrawingBackend";
 
 /**
  * Wraps a Konva.Group as a GroupNode.
@@ -226,5 +227,13 @@ export class KonvaBackend implements DrawingBackend {
 
     getExitDepthOffset(): { x: number; y: number } {
         return { x: 0, y: 0 };
+    }
+
+    getTransform(): CoordFn {
+        return IDENTITY_TRANSFORM;
+    }
+
+    getInverseTransform(): CoordFn {
+        return IDENTITY_TRANSFORM;
     }
 }

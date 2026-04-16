@@ -1,9 +1,10 @@
 import MapReader from "./reader/MapReader";
 import type {Settings} from "./types/Settings";
 import type {DrawingBackend, GroupNode} from "./backend/DrawingBackend";
+import {IDENTITY_TRANSFORM} from "./backend/DrawingBackend";
 import {measureTextBaselineOffset} from "./utils/textMeasure";
 import {computeRoomColors, computeEmboss} from "./scene/RoomStyle";
-import {lightenColor} from "./utils/color";
+import {darkenColor} from "./utils/color";
 
 /**
  * Creates visual room groups via a DrawingBackend — shape, emboss, and symbol.
@@ -24,44 +25,12 @@ export class RoomShapeRenderer {
     createRoomGroup(room: MapData.Room, options?: {
         strokeOverride?: string;
     }): GroupNode {
-        const {fillColor, strokeColor, borderWidth, symbolColor, envColor} = computeRoomColors(
+        const {fillColor, strokeColor, borderWidth, symbolColor} = computeRoomColors(
             room, this.mapReader, this.settings, options?.strokeOverride,
         );
 
         const rs = this.settings.roomSize;
         const group = this.backend.createGroup(room.x - rs / 2, room.y - rs / 2);
-
-        // Border glow in colored mode: soft luminous halos behind the border stroke
-        if (this.settings.coloredMode && borderWidth > 0) {
-            const match = envColor.match(/(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
-            if (match) {
-                const brightColor = lightenColor(envColor, 0.6);
-                const bm = brightColor.match(/(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
-                const br = bm ? bm[1] : match[1], bg = bm ? bm[2] : match[2], bb = bm ? bm[3] : match[3];
-                const inset = borderWidth / 2;
-                const baseRadius = rs / 2 - inset;
-                const baseCorner = this.settings.roomShape === "roundedRectangle" ? (rs - borderWidth) * 0.2 : 0;
-                const glowLayers = [
-                    {width: borderWidth * 3, r: match[1], g: match[2], b: match[3], alpha: 0.35},
-                    {width: borderWidth * 1.2, r: br, g: bg, b: bb, alpha: 0.6},
-                ];
-                for (const gl of glowLayers) {
-                    const glowStroke = `rgba(${gl.r}, ${gl.g}, ${gl.b}, ${gl.alpha})`;
-                    if (this.settings.roomShape === "circle") {
-                        this.backend.addCircle(group, {
-                            cx: rs / 2, cy: rs / 2, radius: baseRadius,
-                            stroke: glowStroke, strokeWidth: gl.width,
-                        });
-                    } else {
-                        this.backend.addRect(group, {
-                            x: inset, y: inset, width: rs - borderWidth, height: rs - borderWidth,
-                            stroke: glowStroke, strokeWidth: gl.width,
-                            cornerRadius: baseCorner,
-                        });
-                    }
-                }
-            }
-        }
 
         // Inset shape by half the stroke width so the border stays inside the room bounds.
         const inset = borderWidth / 2;
@@ -70,7 +39,48 @@ export class RoomShapeRenderer {
         // When emboss is active, skip the regular border — the emboss lines serve as the border
         const drawBorder = emboss ? 0 : borderWidth;
 
-        if (this.settings.roomShape === "circle") {
+        // Colored mode draws two concentric rings (outer dark, inner bright) entirely
+        // inside the room footprint. Skip on warped backends (iso) — those render
+        // rooms as cubes whose silhouette already conveys structure, and extra rect
+        // calls would render as flat diamonds outside the cube footprint.
+        const isFlatBackend = this.backend.getTransform() === IDENTITY_TRANSFORM;
+        const multiRing = this.settings.coloredMode && drawBorder > 0 && isFlatBackend;
+        const cornerOf = (ins: number) =>
+            this.settings.roomShape === "roundedRectangle" ? Math.max(0, (rs - 2 * ins) * 0.2) : 0;
+
+        if (multiRing) {
+            const ringColors = [darkenColor(strokeColor, 0.5), strokeColor];
+            const fillInset = borderWidth * 2;
+
+            if (this.settings.roomShape === "circle") {
+                this.backend.addCircle(group, {
+                    cx: rs / 2, cy: rs / 2, radius: rs / 2 - fillInset,
+                    fill: fillColor,
+                });
+            } else {
+                this.backend.addRect(group, {
+                    x: fillInset, y: fillInset, width: rs - fillInset * 2, height: rs - fillInset * 2,
+                    fill: fillColor,
+                    cornerRadius: cornerOf(fillInset),
+                });
+            }
+
+            for (let i = 0; i < ringColors.length; i++) {
+                const ins = borderWidth / 2 + i * borderWidth;
+                if (this.settings.roomShape === "circle") {
+                    this.backend.addCircle(group, {
+                        cx: rs / 2, cy: rs / 2, radius: rs / 2 - ins,
+                        stroke: ringColors[i], strokeWidth: borderWidth,
+                    });
+                } else {
+                    this.backend.addRect(group, {
+                        x: ins, y: ins, width: rs - ins * 2, height: rs - ins * 2,
+                        stroke: ringColors[i], strokeWidth: borderWidth,
+                        cornerRadius: cornerOf(ins),
+                    });
+                }
+            }
+        } else if (this.settings.roomShape === "circle") {
             this.backend.addCircle(group, {
                 cx: rs / 2, cy: rs / 2, radius: rs / 2 - inset,
                 fill: fillColor, stroke: drawBorder ? strokeColor : undefined, strokeWidth: drawBorder,

@@ -193,10 +193,7 @@ function applyRenderMode(mode: string) {
     // Build the decorator chain as a factory (inner backend → wrapped backend).
     // Used for both Konva (interactive) and SVG (export).
     type BackendFactory = (inner: DrawingBackend) => DrawingBackend;
-    const identity = (x: number, y: number) => ({x, y});
     let factory: BackendFactory = (inner) => inner;
-    let forward = identity;
-    let inverse = identity;
 
     switch (mode) {
         case "pencil":
@@ -220,9 +217,6 @@ function applyRenderMode(mode: string) {
         case "isometric": {
             const depth = settings.roomSize * 0.3;
             const rotation = getIsoRotation();
-            const isoProto = new IsometricBackend(new KonvaBackend(), {depth, rotation});
-            forward = isoProto.getTransform();
-            inverse = isoProto.getInverseTransform();
             factory = (inner) => new IsometricBackend(inner, {depth, rotation});
             break;
         }
@@ -230,9 +224,6 @@ function applyRenderMode(mode: string) {
             const depth = settings.roomSize * 0.3;
             const pencilColor = '#4a3728';
             const rotation = getIsoRotation();
-            const isoProto = new IsometricBackend(new KonvaBackend(), {depth, rotation});
-            forward = isoProto.getTransform();
-            inverse = isoProto.getInverseTransform();
             factory = (inner) => new IsometricBackend(
                 new SketchyBackend(new ParchmentBackend(inner), jitter, pencilColor),
                 {depth, rotation},
@@ -255,7 +246,6 @@ function applyRenderMode(mode: string) {
             break;
     }
 
-    renderer.setCullingTransform(forward, inverse);
     renderer.setDrawingBackend(factory(new KonvaBackend()));
     renderer.setDrawingBackendFactory(factory);
 

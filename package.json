@@ -1,6 +1,6 @@
 {
   "name": "mudlet-map-renderer",
-  "version": "0.29.2-konva",
+  "version": "0.30.0-konva",
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -22,6 +22,7 @@
     "demo:build": "vite build --config vite.demo.config.ts",
     "demo:preview": "vite preview --config vite.demo.config.ts",
     "demo:headless": "tsx --tsconfig demo/tsconfig.json demo/headless.ts",
+    "snapshot-review": "tsx scripts/snapshot-review.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:visual": "playwright test",

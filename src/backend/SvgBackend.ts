@@ -1,7 +1,8 @@
 import type {
-    DrawingBackend, GroupNode, LayerNode,
+    DrawingBackend, GroupNode, LayerNode, CoordFn,
     RectConfig, CircleConfig, LineConfig, PolygonConfig, TextConfig, ImageConfig,
 } from "./DrawingBackend";
+import {IDENTITY_TRANSFORM} from "./DrawingBackend";
 
 function escapeXml(s: string): string {
     return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -177,5 +178,13 @@ export class SvgBackend implements DrawingBackend {
 
     getExitDepthOffset(): { x: number; y: number } {
         return { x: 0, y: 0 };
+    }
+
+    getTransform(): CoordFn {
+        return IDENTITY_TRANSFORM;
+    }
+
+    getInverseTransform(): CoordFn {
+        return IDENTITY_TRANSFORM;
     }
 }

@@ -1,5 +1,5 @@
 import type {
-    DrawingBackend, GroupNode,
+    DrawingBackend, GroupNode, CoordFn,
     RectConfig, CircleConfig, LineConfig, PolygonConfig, TextConfig, ImageConfig,
 } from "./DrawingBackend";
 import {darkenColor} from "../utils/color";
@@ -314,10 +314,7 @@ export class IsometricBackend implements DrawingBackend {
         });
     }
 
-    /**
-     * Returns the iso transform function for use with CullingManager.setCoordinateTransform().
-     */
-    getTransform(): (x: number, y: number) => { x: number; y: number } {
+    getTransform(): CoordFn {
         const iso = this.iso;
         return (x, y) => {
             const [ox, oy] = iso(x, y);
@@ -325,7 +322,7 @@ export class IsometricBackend implements DrawingBackend {
         };
     }
 
-    getInverseTransform(): (x: number, y: number) => { x: number; y: number } {
+    getInverseTransform(): CoordFn {
         const inv = this.isoInv;
         return (x, y) => {
             const [ox, oy] = inv(x, y);

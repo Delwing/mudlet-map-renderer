@@ -1,5 +1,5 @@
 import type {
-    DrawingBackend, GroupNode,
+    DrawingBackend, GroupNode, CoordFn,
     RectConfig, CircleConfig, LineConfig, PolygonConfig, TextConfig, ImageConfig,
 } from "./DrawingBackend";
 
@@ -128,5 +128,13 @@ export class BlueprintBackend implements DrawingBackend {
 
     getExitDepthOffset(): { x: number; y: number } {
         return this.inner.getExitDepthOffset();
+    }
+
+    getTransform(): CoordFn {
+        return this.inner.getTransform();
+    }
+
+    getInverseTransform(): CoordFn {
+        return this.inner.getInverseTransform();
     }
 }

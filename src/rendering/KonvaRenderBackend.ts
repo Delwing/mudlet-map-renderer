@@ -11,7 +11,8 @@ import {InteractionHandler} from "../InteractionHandler";
 import {TypedEventEmitter} from "../TypedEventEmitter";
 import {KonvaBackend, KonvaLayerNode} from "../backend/KonvaBackend";
 import type {InteractiveBackend} from "./MapRenderer";
-import type {DrawingBackend, GroupNode, LayerNode} from "../backend/DrawingBackend";
+import type {DrawingBackend, GroupNode, LayerNode, CoordFn} from "../backend/DrawingBackend";
+import {IDENTITY_TRANSFORM} from "../backend/DrawingBackend";
 import {computeHighlight, computePositionMarker, computePathOverlay} from "../scene/OverlayStyle";
 import {computeAmbientLight} from "../scene/AmbientLightStyle";
 import {computeStubs} from "../scene/StubStyle";
@@ -67,8 +68,12 @@ export class KonvaRenderBackend implements InteractiveBackend {
     private interactionHandler?: InteractionHandler;
     private origSetSize?: (w: number, h: number) => void;
     private destroyed = false;
-    private coordinateTransform: (x: number, y: number) => { x: number; y: number } = (x, y) => ({x, y});
-    private coordinateInverse: (x: number, y: number) => { x: number; y: number } = (x, y) => ({x, y});
+    private _coordinateTransform: CoordFn = IDENTITY_TRANSFORM;
+    private coordinateInverse: CoordFn = IDENTITY_TRANSFORM;
+
+    get coordinateTransform(): CoordFn {
+        return this._coordinateTransform;
+    }
     private overlayPlugins: Map<string, OverlayPlugin> = new Map();
 
     constructor(state: MapState, container?: HTMLDivElement, drawingBackend?: DrawingBackend) {
@@ -139,6 +144,7 @@ export class KonvaRenderBackend implements InteractiveBackend {
             }, this.events);
         }
 
+        this.applyDrawingBackendTransforms(this.drawingBackend);
         this.subscribeToState(state);
     }
 
@@ -149,16 +155,22 @@ export class KonvaRenderBackend implements InteractiveBackend {
             linkLayer: new KonvaLayerNode(this.linkLayer),
             roomLayer: new KonvaLayerNode(this.roomLayer),
         });
-        this.pipeline.gridRenderer.setInverseTransform(this.coordinateInverse);
+        this.applyDrawingBackendTransforms(backend);
     }
 
-    setCoordinateTransform(
-        forward: (x: number, y: number) => { x: number; y: number },
-        oldInverse: (x: number, y: number) => { x: number; y: number },
-        newInverse: (x: number, y: number) => { x: number; y: number },
-    ) {
-        this.coordinateTransform = forward;
+    /**
+     * Pull forward/inverse transforms from the drawing backend and propagate them
+     * to culling, grid rendering, and the viewport. Repositions the viewport so the
+     * same map point stays under the screen center across transform changes.
+     */
+    private applyDrawingBackendTransforms(backend: DrawingBackend) {
+        const forward = backend.getTransform();
+        const newInverse = backend.getInverseTransform();
+        const oldInverse = this.coordinateInverse;
+
+        this._coordinateTransform = forward;
         this.coordinateInverse = newInverse;
+        this.culling.setCoordinateTransform(forward);
         this.pipeline.gridRenderer.setInverseTransform(newInverse);
 
         // Reposition viewport so the same map point stays at screen center
@@ -180,7 +192,7 @@ export class KonvaRenderBackend implements InteractiveBackend {
     }
 
     private mapPoint(x: number, y: number): { x: number; y: number } {
-        return this.coordinateTransform(x, y);
+        return this._coordinateTransform(x, y);
     }
 
     get exitRenderer() {

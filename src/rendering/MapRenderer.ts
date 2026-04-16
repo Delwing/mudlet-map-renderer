@@ -7,23 +7,21 @@ import {MapState} from "../MapState";
 import type {SvgExportOptions} from "../SvgTypes";
 import {KonvaRenderBackend} from "./KonvaRenderBackend";
 import {SvgRenderBackend} from "./SvgRenderBackend";
-import type {DrawingBackend} from "../backend/DrawingBackend";
+import type {DrawingBackend, CoordFn} from "../backend/DrawingBackend";
 import type {CanvasExportOptions, CanvasExportOverlays} from "../HeadlessRenderer";
 import type {Viewport} from "../Viewport";
 import type {CullingManager} from "../CullingManager";
 import type {TypedEventEmitter} from "../TypedEventEmitter";
 import type {OverlayPlugin} from "../types/OverlayPlugin";
 
-type CoordFn = (x: number, y: number) => { x: number; y: number };
-const IDENTITY_TRANSFORM: CoordFn = (x, y) => ({x, y});
-
 /** Contract for interactive render backends. */
 export interface InteractiveBackend {
     readonly viewport: Viewport;
     readonly culling: CullingManager;
     readonly events: TypedEventEmitter<RendererEventMap>;
+    /** Forward map → render-space transform from the current drawing backend. */
+    readonly coordinateTransform: CoordFn;
     setDrawingBackend(backend: DrawingBackend): void;
-    setCoordinateTransform(forward: CoordFn, oldInverse: CoordFn, newInverse: CoordFn): void;
     updateBackground(): void;
     refresh(): void;
     /** Render a specific region to canvas (for headless / bounded export). */
@@ -45,8 +43,6 @@ export class MapRenderer {
     readonly backend: InteractiveBackend;
     private readonly svgDrawingBackendFactory?: (innerSvgBackend: DrawingBackend) => DrawingBackend;
     private drawingBackendFactory?: (inner: DrawingBackend) => DrawingBackend;
-    private coordinateTransform: CoordFn = IDENTITY_TRANSFORM;
-    private coordinateTransformInverse: CoordFn = IDENTITY_TRANSFORM;
 
     get settings(): Settings {
         return this.state.settings;
@@ -241,7 +237,7 @@ export class MapRenderer {
             maxY: b.maxY,
         };
         // Transform the 4 corners and compute the AABB in rendered space
-        const fn = this.coordinateTransform;
+        const fn = this.backend.coordinateTransform;
         const c1 = fn(raw.minX, raw.minY);
         const c2 = fn(raw.maxX, raw.minY);
         const c3 = fn(raw.maxX, raw.maxY);
@@ -274,14 +270,6 @@ export class MapRenderer {
 
     set minZoom(value: number) {
         this.backend.viewport.minZoom = value;
-    }
-
-    setCullingTransform(forward: CoordFn, inverse: CoordFn) {
-        const oldInverse = this.coordinateTransformInverse;
-        this.coordinateTransform = forward;
-        this.coordinateTransformInverse = inverse;
-        this.backend.culling.setCoordinateTransform(forward);
-        this.backend.setCoordinateTransform(forward, oldInverse, inverse);
     }
 
     setCullingMode(mode: CullingMode) {

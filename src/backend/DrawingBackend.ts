@@ -95,6 +95,11 @@ export interface ImageConfig {
     transform?: [number, number, number, number, number, number];
 }
 
+/** Forward/inverse 2D coordinate transform, used by backends that warp map space (e.g. isometric). */
+export type CoordFn = (x: number, y: number) => { x: number; y: number };
+
+export const IDENTITY_TRANSFORM: CoordFn = (x, y) => ({x, y});
+
 export interface DrawingBackend {
     createGroup(x: number, y: number): GroupNode;
     addRect(parent: GroupNode, config: RectConfig): void;
@@ -108,4 +113,13 @@ export interface DrawingBackend {
      * instead of the top face. Returns {x:0, y:0} for flat backends.
      */
     getExitDepthOffset(): { x: number; y: number };
+    /**
+     * Map-space → render-space transform. Identity for flat backends; non-identity
+     * for backends that warp coordinates (e.g. {@link IsometricBackend}).
+     * Decorators delegate to their inner backend.
+     * MapRenderer auto-applies this to culling and grid rendering when the backend is set.
+     */
+    getTransform(): CoordFn;
+    /** Inverse of {@link getTransform}. */
+    getInverseTransform(): CoordFn;
 }
