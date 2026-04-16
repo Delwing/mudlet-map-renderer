@@ -24,6 +24,9 @@ exports[`HeadlessRenderer > combined overlays > snapshot - position + highlights
 <polyline points="-2,-1.7125 -2,0" stroke="rgb(225, 255, 225)" stroke-width="0.025" stroke-dasharray="0.1 0.05" fill="none"/>
 <polyline points="-2,-1.7125 -2,-0.85" stroke="rgb(225, 255, 225)" stroke-width="0.034999999999999996" stroke-dasharray="0.1 0.05" fill="none"/>
 <polygon points="-2,-0.85 -2.165175212364053,-1.3219291781830087 -1.834824787635947,-1.3219291781830087" fill="rgb(155, 10, 10)" stroke="rgb(225, 255, 225)" stroke-width="0.034999999999999996"/>
+<polyline points="0.3,-2.3 0.8,-2.8" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
+<polyline points="2,1.7 2,1.2" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
+<polyline points="2.3,2 2.8,2" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
 <polyline points="6,0 7,-0.5 7.5,1" stroke="rgb(200, 50, 50)" stroke-width="0.025" stroke-dasharray="0.4 0.2" fill="none"/>
 <polygon points="7.5,1 7.32,0.76 7.5,0.7" fill="rgb(200, 50, 50)" stroke="rgb(200, 50, 50)" stroke-width="0.025"/>
 <polyline points="8,2 7,1.5 6.5,0.5" stroke="rgb(150, 150, 255)" stroke-width="0.025" stroke-dasharray="0.05 0.05" fill="none"/>
@@ -33,7 +36,6 @@ exports[`HeadlessRenderer > combined overlays > snapshot - position + highlights
 </g>
 <g transform="translate(-0.3,-2.3)">
 <rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<polyline points="0.6,0 1.1,-0.5" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
 </g>
 <g transform="translate(1.7,-0.3)">
 <rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
@@ -57,8 +59,6 @@ exports[`HeadlessRenderer > combined overlays > snapshot - position + highlights
 </g>
 <g transform="translate(1.7,1.7)">
 <rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<polyline points="0.30000000000000004,0 0.30000000000000004,-0.5" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
-<polyline points="0.5999999999999999,0.30000000000000004 1.0999999999999999,0.30000000000000004" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
 </g>
 <g transform="translate(3.7,-0.3)">
 <rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
@@ -116,6 +116,9 @@ exports[`HeadlessRenderer > drawArea + exportSvg > snapshot - basic area export 
 <polyline points="-2,-1.7125 -2,0" stroke="rgb(225, 255, 225)" stroke-width="0.025" stroke-dasharray="0.1 0.05" fill="none"/>
 <polyline points="-2,-1.7125 -2,-0.85" stroke="rgb(225, 255, 225)" stroke-width="0.034999999999999996" stroke-dasharray="0.1 0.05" fill="none"/>
 <polygon points="-2,-0.85 -2.165175212364053,-1.3219291781830087 -1.834824787635947,-1.3219291781830087" fill="rgb(155, 10, 10)" stroke="rgb(225, 255, 225)" stroke-width="0.034999999999999996"/>
+<polyline points="0.3,-2.3 0.8,-2.8" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
+<polyline points="2,1.7 2,1.2" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
+<polyline points="2.3,2 2.8,2" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
 <polyline points="6,0 7,-0.5 7.5,1" stroke="rgb(200, 50, 50)" stroke-width="0.025" stroke-dasharray="0.4 0.2" fill="none"/>
 <polygon points="7.5,1 7.32,0.76 7.5,0.7" fill="rgb(200, 50, 50)" stroke="rgb(200, 50, 50)" stroke-width="0.025"/>
 <polyline points="8,2 7,1.5 6.5,0.5" stroke="rgb(150, 150, 255)" stroke-width="0.025" stroke-dasharray="0.05 0.05" fill="none"/>
@@ -125,7 +128,6 @@ exports[`HeadlessRenderer > drawArea + exportSvg > snapshot - basic area export 
 </g>
 <g transform="translate(-0.3,-2.3)">
 <rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<polyline points="0.6,0 1.1,-0.5" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
 </g>
 <g transform="translate(1.7,-0.3)">
 <rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
@@ -149,8 +151,6 @@ exports[`HeadlessRenderer > drawArea + exportSvg > snapshot - basic area export 
 </g>
 <g transform="translate(1.7,1.7)">
 <rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<polyline points="0.30000000000000004,0 0.30000000000000004,-0.5" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
-<polyline points="0.5999999999999999,0.30000000000000004 1.0999999999999999,0.30000000000000004" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
 </g>
 <g transform="translate(3.7,-0.3)">
 <rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
@@ -197,6 +197,9 @@ exports[`HeadlessRenderer > highlights > snapshot - multiple highlights 1`] = `
 <polyline points="-2,-1.7125 -2,0" stroke="rgb(225, 255, 225)" stroke-width="0.025" stroke-dasharray="0.1 0.05" fill="none"/>
 <polyline points="-2,-1.7125 -2,-0.85" stroke="rgb(225, 255, 225)" stroke-width="0.034999999999999996" stroke-dasharray="0.1 0.05" fill="none"/>
 <polygon points="-2,-0.85 -2.165175212364053,-1.3219291781830087 -1.834824787635947,-1.3219291781830087" fill="rgb(155, 10, 10)" stroke="rgb(225, 255, 225)" stroke-width="0.034999999999999996"/>
+<polyline points="0.3,-2.3 0.8,-2.8" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
+<polyline points="2,1.7 2,1.2" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
+<polyline points="2.3,2 2.8,2" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
 <polyline points="6,0 7,-0.5 7.5,1" stroke="rgb(200, 50, 50)" stroke-width="0.025" stroke-dasharray="0.4 0.2" fill="none"/>
 <polygon points="7.5,1 7.32,0.76 7.5,0.7" fill="rgb(200, 50, 50)" stroke="rgb(200, 50, 50)" stroke-width="0.025"/>
 <polyline points="8,2 7,1.5 6.5,0.5" stroke="rgb(150, 150, 255)" stroke-width="0.025" stroke-dasharray="0.05 0.05" fill="none"/>
@@ -206,7 +209,6 @@ exports[`HeadlessRenderer > highlights > snapshot - multiple highlights 1`] = `
 </g>
 <g transform="translate(-0.3,-2.3)">
 <rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<polyline points="0.6,0 1.1,-0.5" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
 </g>
 <g transform="translate(1.7,-0.3)">
 <rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
@@ -230,8 +232,6 @@ exports[`HeadlessRenderer > highlights > snapshot - multiple highlights 1`] = `
 </g>
 <g transform="translate(1.7,1.7)">
 <rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<polyline points="0.30000000000000004,0 0.30000000000000004,-0.5" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
-<polyline points="0.5999999999999999,0.30000000000000004 1.0999999999999999,0.30000000000000004" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
 </g>
 <g transform="translate(3.7,-0.3)">
 <rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
@@ -286,6 +286,9 @@ exports[`HeadlessRenderer > highlights > snapshot - single highlight 1`] = `
 <polyline points="-2,-1.7125 -2,0" stroke="rgb(225, 255, 225)" stroke-width="0.025" stroke-dasharray="0.1 0.05" fill="none"/>
 <polyline points="-2,-1.7125 -2,-0.85" stroke="rgb(225, 255, 225)" stroke-width="0.034999999999999996" stroke-dasharray="0.1 0.05" fill="none"/>
 <polygon points="-2,-0.85 -2.165175212364053,-1.3219291781830087 -1.834824787635947,-1.3219291781830087" fill="rgb(155, 10, 10)" stroke="rgb(225, 255, 225)" stroke-width="0.034999999999999996"/>
+<polyline points="0.3,-2.3 0.8,-2.8" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
+<polyline points="2,1.7 2,1.2" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
+<polyline points="2.3,2 2.8,2" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
 <polyline points="6,0 7,-0.5 7.5,1" stroke="rgb(200, 50, 50)" stroke-width="0.025" stroke-dasharray="0.4 0.2" fill="none"/>
 <polygon points="7.5,1 7.32,0.76 7.5,0.7" fill="rgb(200, 50, 50)" stroke="rgb(200, 50, 50)" stroke-width="0.025"/>
 <polyline points="8,2 7,1.5 6.5,0.5" stroke="rgb(150, 150, 255)" stroke-width="0.025" stroke-dasharray="0.05 0.05" fill="none"/>
@@ -295,7 +298,6 @@ exports[`HeadlessRenderer > highlights > snapshot - single highlight 1`] = `
 </g>
 <g transform="translate(-0.3,-2.3)">
 <rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<polyline points="0.6,0 1.1,-0.5" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
 </g>
 <g transform="translate(1.7,-0.3)">
 <rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
@@ -319,8 +321,6 @@ exports[`HeadlessRenderer > highlights > snapshot - single highlight 1`] = `
 </g>
 <g transform="translate(1.7,1.7)">
 <rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<polyline points="0.30000000000000004,0 0.30000000000000004,-0.5" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
-<polyline points="0.5999999999999999,0.30000000000000004 1.0999999999999999,0.30000000000000004" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
 </g>
 <g transform="translate(3.7,-0.3)">
 <rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
@@ -371,6 +371,9 @@ exports[`HeadlessRenderer > paths > snapshot - path overlay 1`] = `
 <polyline points="-2,-1.7125 -2,0" stroke="rgb(225, 255, 225)" stroke-width="0.025" stroke-dasharray="0.1 0.05" fill="none"/>
 <polyline points="-2,-1.7125 -2,-0.85" stroke="rgb(225, 255, 225)" stroke-width="0.034999999999999996" stroke-dasharray="0.1 0.05" fill="none"/>
 <polygon points="-2,-0.85 -2.165175212364053,-1.3219291781830087 -1.834824787635947,-1.3219291781830087" fill="rgb(155, 10, 10)" stroke="rgb(225, 255, 225)" stroke-width="0.034999999999999996"/>
+<polyline points="0.3,-2.3 0.8,-2.8" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
+<polyline points="2,1.7 2,1.2" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
+<polyline points="2.3,2 2.8,2" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
 <polyline points="6,0 7,-0.5 7.5,1" stroke="rgb(200, 50, 50)" stroke-width="0.025" stroke-dasharray="0.4 0.2" fill="none"/>
 <polygon points="7.5,1 7.32,0.76 7.5,0.7" fill="rgb(200, 50, 50)" stroke="rgb(200, 50, 50)" stroke-width="0.025"/>
 <polyline points="8,2 7,1.5 6.5,0.5" stroke="rgb(150, 150, 255)" stroke-width="0.025" stroke-dasharray="0.05 0.05" fill="none"/>
@@ -380,7 +383,6 @@ exports[`HeadlessRenderer > paths > snapshot - path overlay 1`] = `
 </g>
 <g transform="translate(-0.3,-2.3)">
 <rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<polyline points="0.6,0 1.1,-0.5" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
 </g>
 <g transform="translate(1.7,-0.3)">
 <rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
@@ -404,8 +406,6 @@ exports[`HeadlessRenderer > paths > snapshot - path overlay 1`] = `
 </g>
 <g transform="translate(1.7,1.7)">
 <rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<polyline points="0.30000000000000004,0 0.30000000000000004,-0.5" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
-<polyline points="0.5999999999999999,0.30000000000000004 1.0999999999999999,0.30000000000000004" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
 </g>
 <g transform="translate(3.7,-0.3)">
 <rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
@@ -454,6 +454,9 @@ exports[`HeadlessRenderer > paths > snapshot - path with custom color 1`] = `
 <polyline points="-2,-1.7125 -2,0" stroke="rgb(225, 255, 225)" stroke-width="0.025" stroke-dasharray="0.1 0.05" fill="none"/>
 <polyline points="-2,-1.7125 -2,-0.85" stroke="rgb(225, 255, 225)" stroke-width="0.034999999999999996" stroke-dasharray="0.1 0.05" fill="none"/>
 <polygon points="-2,-0.85 -2.165175212364053,-1.3219291781830087 -1.834824787635947,-1.3219291781830087" fill="rgb(155, 10, 10)" stroke="rgb(225, 255, 225)" stroke-width="0.034999999999999996"/>
+<polyline points="0.3,-2.3 0.8,-2.8" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
+<polyline points="2,1.7 2,1.2" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
+<polyline points="2.3,2 2.8,2" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
 <polyline points="6,0 7,-0.5 7.5,1" stroke="rgb(200, 50, 50)" stroke-width="0.025" stroke-dasharray="0.4 0.2" fill="none"/>
 <polygon points="7.5,1 7.32,0.76 7.5,0.7" fill="rgb(200, 50, 50)" stroke="rgb(200, 50, 50)" stroke-width="0.025"/>
 <polyline points="8,2 7,1.5 6.5,0.5" stroke="rgb(150, 150, 255)" stroke-width="0.025" stroke-dasharray="0.05 0.05" fill="none"/>
@@ -463,7 +466,6 @@ exports[`HeadlessRenderer > paths > snapshot - path with custom color 1`] = `
 </g>
 <g transform="translate(-0.3,-2.3)">
 <rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<polyline points="0.6,0 1.1,-0.5" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
 </g>
 <g transform="translate(1.7,-0.3)">
 <rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
@@ -487,8 +489,6 @@ exports[`HeadlessRenderer > paths > snapshot - path with custom color 1`] = `
 </g>
 <g transform="translate(1.7,1.7)">
 <rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<polyline points="0.30000000000000004,0 0.30000000000000004,-0.5" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
-<polyline points="0.5999999999999999,0.30000000000000004 1.0999999999999999,0.30000000000000004" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
 </g>
 <g transform="translate(3.7,-0.3)">
 <rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
@@ -537,6 +537,9 @@ exports[`HeadlessRenderer > position > snapshot - with position marker 1`] = `
 <polyline points="-2,-1.7125 -2,0" stroke="rgb(225, 255, 225)" stroke-width="0.025" stroke-dasharray="0.1 0.05" fill="none"/>
 <polyline points="-2,-1.7125 -2,-0.85" stroke="rgb(225, 255, 225)" stroke-width="0.034999999999999996" stroke-dasharray="0.1 0.05" fill="none"/>
 <polygon points="-2,-0.85 -2.165175212364053,-1.3219291781830087 -1.834824787635947,-1.3219291781830087" fill="rgb(155, 10, 10)" stroke="rgb(225, 255, 225)" stroke-width="0.034999999999999996"/>
+<polyline points="0.3,-2.3 0.8,-2.8" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
+<polyline points="2,1.7 2,1.2" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
+<polyline points="2.3,2 2.8,2" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
 <polyline points="6,0 7,-0.5 7.5,1" stroke="rgb(200, 50, 50)" stroke-width="0.025" stroke-dasharray="0.4 0.2" fill="none"/>
 <polygon points="7.5,1 7.32,0.76 7.5,0.7" fill="rgb(200, 50, 50)" stroke="rgb(200, 50, 50)" stroke-width="0.025"/>
 <polyline points="8,2 7,1.5 6.5,0.5" stroke="rgb(150, 150, 255)" stroke-width="0.025" stroke-dasharray="0.05 0.05" fill="none"/>
@@ -546,7 +549,6 @@ exports[`HeadlessRenderer > position > snapshot - with position marker 1`] = `
 </g>
 <g transform="translate(-0.3,-2.3)">
 <rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<polyline points="0.6,0 1.1,-0.5" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
 </g>
 <g transform="translate(1.7,-0.3)">
 <rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
@@ -570,8 +572,6 @@ exports[`HeadlessRenderer > position > snapshot - with position marker 1`] = `
 </g>
 <g transform="translate(1.7,1.7)">
 <rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<polyline points="0.30000000000000004,0 0.30000000000000004,-0.5" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
-<polyline points="0.5999999999999999,0.30000000000000004 1.0999999999999999,0.30000000000000004" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
 </g>
 <g transform="translate(3.7,-0.3)">
 <rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>

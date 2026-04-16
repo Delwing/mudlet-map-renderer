@@ -313,8 +313,18 @@ export class KonvaRenderBackend implements InteractiveBackend {
         const savedOnChange = this.viewport.onChange;
         this.viewport.onChange = undefined;
 
-        // Frame for export
-        const bounds = this.state.computeExportBounds(area, plane, options.roomId, padding);
+        // Frame for export — use transformed bounds so iso/transformed renders fill the canvas
+        const rawBounds = this.state.computeExportBounds(area, plane, options.roomId, padding);
+        const fn = this._coordinateTransform;
+        const c1 = fn(rawBounds.x, rawBounds.y);
+        const c2 = fn(rawBounds.x + rawBounds.w, rawBounds.y);
+        const c3 = fn(rawBounds.x + rawBounds.w, rawBounds.y + rawBounds.h);
+        const c4 = fn(rawBounds.x, rawBounds.y + rawBounds.h);
+        const tMinX = Math.min(c1.x, c2.x, c3.x, c4.x);
+        const tMaxX = Math.max(c1.x, c2.x, c3.x, c4.x);
+        const tMinY = Math.min(c1.y, c2.y, c3.y, c4.y);
+        const tMaxY = Math.max(c1.y, c2.y, c3.y, c4.y);
+        const bounds = {x: tMinX, y: tMinY, w: tMaxX - tMinX, h: tMaxY - tMinY};
         const scaleX = width / bounds.w;
         const scaleY = height / bounds.h;
         const scale = Math.min(scaleX, scaleY);

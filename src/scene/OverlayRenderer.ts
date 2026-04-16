@@ -101,7 +101,8 @@ export function renderPathOverlay(backend: DrawingBackend, data: PathOverlayData
  * Render special exits through DrawingBackend.
  */
 export function renderSpecialExitGroup(backend: DrawingBackend, se: SpecialExitData): GroupNode {
-    const group = backend.createGroup(0, 0);
+    const depthOff = backend.getExitDepthOffset();
+    const group = backend.createGroup(depthOff.x, depthOff.y);
     backend.addLine(group, {
         points: se.line.points,
         stroke: se.line.stroke, strokeWidth: se.line.strokeWidth,
@@ -128,7 +129,8 @@ export function renderSpecialExitGroup(backend: DrawingBackend, se: SpecialExitD
  * Render stub lines through DrawingBackend into a group (at absolute coordinates).
  */
 export function renderStubsGroup(backend: DrawingBackend, stubs: StubData[]): GroupNode {
-    const group = backend.createGroup(0, 0);
+    const depthOff = backend.getExitDepthOffset();
+    const group = backend.createGroup(depthOff.x, depthOff.y);
     for (const stub of stubs) {
         backend.addLine(group, {
             points: [stub.x1, stub.y1, stub.x2, stub.y2],

@@ -24,6 +24,9 @@ exports[`SvgRenderBackend > basic export > snapshot - default settings 1`] = `
 <polyline points="-2,-1.7125 -2,0" stroke="rgb(225, 255, 225)" stroke-width="0.025" stroke-dasharray="0.1 0.05" fill="none"/>
 <polyline points="-2,-1.7125 -2,-0.85" stroke="rgb(225, 255, 225)" stroke-width="0.034999999999999996" stroke-dasharray="0.1 0.05" fill="none"/>
 <polygon points="-2,-0.85 -2.165175212364053,-1.3219291781830087 -1.834824787635947,-1.3219291781830087" fill="rgb(155, 10, 10)" stroke="rgb(225, 255, 225)" stroke-width="0.034999999999999996"/>
+<polyline points="0.3,-2.3 0.8,-2.8" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
+<polyline points="2,1.7 2,1.2" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
+<polyline points="2.3,2 2.8,2" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
 <polyline points="6,0 7,-0.5 7.5,1" stroke="rgb(200, 50, 50)" stroke-width="0.025" stroke-dasharray="0.4 0.2" fill="none"/>
 <polygon points="7.5,1 7.32,0.76 7.5,0.7" fill="rgb(200, 50, 50)" stroke="rgb(200, 50, 50)" stroke-width="0.025"/>
 <polyline points="8,2 7,1.5 6.5,0.5" stroke="rgb(150, 150, 255)" stroke-width="0.025" stroke-dasharray="0.05 0.05" fill="none"/>
@@ -33,7 +36,6 @@ exports[`SvgRenderBackend > basic export > snapshot - default settings 1`] = `
 </g>
 <g transform="translate(-0.3,-2.3)">
 <rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<polyline points="0.6,0 1.1,-0.5" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
 </g>
 <g transform="translate(1.7,-0.3)">
 <rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
@@ -57,8 +59,6 @@ exports[`SvgRenderBackend > basic export > snapshot - default settings 1`] = `
 </g>
 <g transform="translate(1.7,1.7)">
 <rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<polyline points="0.30000000000000004,0 0.30000000000000004,-0.5" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
-<polyline points="0.5999999999999999,0.30000000000000004 1.0999999999999999,0.30000000000000004" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
 </g>
 <g transform="translate(3.7,-0.3)">
 <rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
@@ -185,6 +185,9 @@ exports[`SvgRenderBackend > grid > snapshot - grid enabled 1`] = `
 <polyline points="-2,-1.7125 -2,0" stroke="rgb(225, 255, 225)" stroke-width="0.025" stroke-dasharray="0.1 0.05" fill="none"/>
 <polyline points="-2,-1.7125 -2,-0.85" stroke="rgb(225, 255, 225)" stroke-width="0.034999999999999996" stroke-dasharray="0.1 0.05" fill="none"/>
 <polygon points="-2,-0.85 -2.165175212364053,-1.3219291781830087 -1.834824787635947,-1.3219291781830087" fill="rgb(155, 10, 10)" stroke="rgb(225, 255, 225)" stroke-width="0.034999999999999996"/>
+<polyline points="0.3,-2.3 0.8,-2.8" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
+<polyline points="2,1.7 2,1.2" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
+<polyline points="2.3,2 2.8,2" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
 <polyline points="6,0 7,-0.5 7.5,1" stroke="rgb(200, 50, 50)" stroke-width="0.025" stroke-dasharray="0.4 0.2" fill="none"/>
 <polygon points="7.5,1 7.32,0.76 7.5,0.7" fill="rgb(200, 50, 50)" stroke="rgb(200, 50, 50)" stroke-width="0.025"/>
 <polyline points="8,2 7,1.5 6.5,0.5" stroke="rgb(150, 150, 255)" stroke-width="0.025" stroke-dasharray="0.05 0.05" fill="none"/>
@@ -194,7 +197,6 @@ exports[`SvgRenderBackend > grid > snapshot - grid enabled 1`] = `
 </g>
 <g transform="translate(-0.3,-2.3)">
 <rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<polyline points="0.6,0 1.1,-0.5" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
 </g>
 <g transform="translate(1.7,-0.3)">
 <rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
@@ -218,8 +220,6 @@ exports[`SvgRenderBackend > grid > snapshot - grid enabled 1`] = `
 </g>
 <g transform="translate(1.7,1.7)">
 <rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<polyline points="0.30000000000000004,0 0.30000000000000004,-0.5" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
-<polyline points="0.5999999999999999,0.30000000000000004 1.0999999999999999,0.30000000000000004" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
 </g>
 <g transform="translate(3.7,-0.3)">
 <rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
@@ -266,6 +266,9 @@ exports[`SvgRenderBackend > overlays > snapshot - highlights 1`] = `
 <polyline points="-2,-1.7125 -2,0" stroke="rgb(225, 255, 225)" stroke-width="0.025" stroke-dasharray="0.1 0.05" fill="none"/>
 <polyline points="-2,-1.7125 -2,-0.85" stroke="rgb(225, 255, 225)" stroke-width="0.034999999999999996" stroke-dasharray="0.1 0.05" fill="none"/>
 <polygon points="-2,-0.85 -2.165175212364053,-1.3219291781830087 -1.834824787635947,-1.3219291781830087" fill="rgb(155, 10, 10)" stroke="rgb(225, 255, 225)" stroke-width="0.034999999999999996"/>
+<polyline points="0.3,-2.3 0.8,-2.8" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
+<polyline points="2,1.7 2,1.2" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
+<polyline points="2.3,2 2.8,2" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
 <polyline points="6,0 7,-0.5 7.5,1" stroke="rgb(200, 50, 50)" stroke-width="0.025" stroke-dasharray="0.4 0.2" fill="none"/>
 <polygon points="7.5,1 7.32,0.76 7.5,0.7" fill="rgb(200, 50, 50)" stroke="rgb(200, 50, 50)" stroke-width="0.025"/>
 <polyline points="8,2 7,1.5 6.5,0.5" stroke="rgb(150, 150, 255)" stroke-width="0.025" stroke-dasharray="0.05 0.05" fill="none"/>
@@ -275,7 +278,6 @@ exports[`SvgRenderBackend > overlays > snapshot - highlights 1`] = `
 </g>
 <g transform="translate(-0.3,-2.3)">
 <rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<polyline points="0.6,0 1.1,-0.5" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
 </g>
 <g transform="translate(1.7,-0.3)">
 <rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
@@ -299,8 +301,6 @@ exports[`SvgRenderBackend > overlays > snapshot - highlights 1`] = `
 </g>
 <g transform="translate(1.7,1.7)">
 <rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<polyline points="0.30000000000000004,0 0.30000000000000004,-0.5" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
-<polyline points="0.5999999999999999,0.30000000000000004 1.0999999999999999,0.30000000000000004" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
 </g>
 <g transform="translate(3.7,-0.3)">
 <rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
@@ -355,6 +355,9 @@ exports[`SvgRenderBackend > overlays > snapshot - path overlay 1`] = `
 <polyline points="-2,-1.7125 -2,0" stroke="rgb(225, 255, 225)" stroke-width="0.025" stroke-dasharray="0.1 0.05" fill="none"/>
 <polyline points="-2,-1.7125 -2,-0.85" stroke="rgb(225, 255, 225)" stroke-width="0.034999999999999996" stroke-dasharray="0.1 0.05" fill="none"/>
 <polygon points="-2,-0.85 -2.165175212364053,-1.3219291781830087 -1.834824787635947,-1.3219291781830087" fill="rgb(155, 10, 10)" stroke="rgb(225, 255, 225)" stroke-width="0.034999999999999996"/>
+<polyline points="0.3,-2.3 0.8,-2.8" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
+<polyline points="2,1.7 2,1.2" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
+<polyline points="2.3,2 2.8,2" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
 <polyline points="6,0 7,-0.5 7.5,1" stroke="rgb(200, 50, 50)" stroke-width="0.025" stroke-dasharray="0.4 0.2" fill="none"/>
 <polygon points="7.5,1 7.32,0.76 7.5,0.7" fill="rgb(200, 50, 50)" stroke="rgb(200, 50, 50)" stroke-width="0.025"/>
 <polyline points="8,2 7,1.5 6.5,0.5" stroke="rgb(150, 150, 255)" stroke-width="0.025" stroke-dasharray="0.05 0.05" fill="none"/>
@@ -364,7 +367,6 @@ exports[`SvgRenderBackend > overlays > snapshot - path overlay 1`] = `
 </g>
 <g transform="translate(-0.3,-2.3)">
 <rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<polyline points="0.6,0 1.1,-0.5" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
 </g>
 <g transform="translate(1.7,-0.3)">
 <rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
@@ -388,8 +390,6 @@ exports[`SvgRenderBackend > overlays > snapshot - path overlay 1`] = `
 </g>
 <g transform="translate(1.7,1.7)">
 <rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<polyline points="0.30000000000000004,0 0.30000000000000004,-0.5" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
-<polyline points="0.5999999999999999,0.30000000000000004 1.0999999999999999,0.30000000000000004" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
 </g>
 <g transform="translate(3.7,-0.3)">
 <rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
@@ -438,6 +438,9 @@ exports[`SvgRenderBackend > overlays > snapshot - position marker 1`] = `
 <polyline points="-2,-1.7125 -2,0" stroke="rgb(225, 255, 225)" stroke-width="0.025" stroke-dasharray="0.1 0.05" fill="none"/>
 <polyline points="-2,-1.7125 -2,-0.85" stroke="rgb(225, 255, 225)" stroke-width="0.034999999999999996" stroke-dasharray="0.1 0.05" fill="none"/>
 <polygon points="-2,-0.85 -2.165175212364053,-1.3219291781830087 -1.834824787635947,-1.3219291781830087" fill="rgb(155, 10, 10)" stroke="rgb(225, 255, 225)" stroke-width="0.034999999999999996"/>
+<polyline points="0.3,-2.3 0.8,-2.8" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
+<polyline points="2,1.7 2,1.2" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
+<polyline points="2.3,2 2.8,2" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
 <polyline points="6,0 7,-0.5 7.5,1" stroke="rgb(200, 50, 50)" stroke-width="0.025" stroke-dasharray="0.4 0.2" fill="none"/>
 <polygon points="7.5,1 7.32,0.76 7.5,0.7" fill="rgb(200, 50, 50)" stroke="rgb(200, 50, 50)" stroke-width="0.025"/>
 <polyline points="8,2 7,1.5 6.5,0.5" stroke="rgb(150, 150, 255)" stroke-width="0.025" stroke-dasharray="0.05 0.05" fill="none"/>
@@ -447,7 +450,6 @@ exports[`SvgRenderBackend > overlays > snapshot - position marker 1`] = `
 </g>
 <g transform="translate(-0.3,-2.3)">
 <rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<polyline points="0.6,0 1.1,-0.5" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
 </g>
 <g transform="translate(1.7,-0.3)">
 <rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
@@ -471,8 +473,6 @@ exports[`SvgRenderBackend > overlays > snapshot - position marker 1`] = `
 </g>
 <g transform="translate(1.7,1.7)">
 <rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<polyline points="0.30000000000000004,0 0.30000000000000004,-0.5" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
-<polyline points="0.5999999999999999,0.30000000000000004 1.0999999999999999,0.30000000000000004" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
 </g>
 <g transform="translate(3.7,-0.3)">
 <rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
@@ -520,6 +520,9 @@ exports[`SvgRenderBackend > rendering modes > snapshot - colored + emboss 1`] = 
 <polyline points="-2,-1.7125 -2,0" stroke="rgb(225, 255, 225)" stroke-width="0.025" stroke-dasharray="0.1 0.05" fill="none"/>
 <polyline points="-2,-1.7125 -2,-0.85" stroke="rgb(225, 255, 225)" stroke-width="0.034999999999999996" stroke-dasharray="0.1 0.05" fill="none"/>
 <polygon points="-2,-0.85 -2.165175212364053,-1.3219291781830087 -1.834824787635947,-1.3219291781830087" fill="rgb(155, 10, 10)" stroke="rgb(225, 255, 225)" stroke-width="0.034999999999999996"/>
+<polyline points="0.3,-2.3 0.8,-2.8" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
+<polyline points="2,1.7 2,1.2" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
+<polyline points="2.3,2 2.8,2" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
 <polyline points="6,0 7,-0.5 7.5,1" stroke="rgb(200, 50, 50)" stroke-width="0.025" stroke-dasharray="0.4 0.2" fill="none"/>
 <polygon points="7.5,1 7.32,0.76 7.5,0.7" fill="rgb(200, 50, 50)" stroke="rgb(200, 50, 50)" stroke-width="0.025"/>
 <polyline points="8,2 7,1.5 6.5,0.5" stroke="rgb(150, 150, 255)" stroke-width="0.025" stroke-dasharray="0.05 0.05" fill="none"/>
@@ -533,7 +536,6 @@ exports[`SvgRenderBackend > rendering modes > snapshot - colored + emboss 1`] = 
 <rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(64, 64, 64)" stroke-width="0"/>
 <polyline points="0.0125,0.5875 0.5875,0.5875 0.5875,0.0125" stroke="rgb(35, 35, 35)" stroke-width="0.025" fill="none"/>
 <polyline points="0.0125,0.5875 0.0125,0.0125 0.5875,0.0125" stroke="rgb(131, 131, 131)" stroke-width="0.025" fill="none"/>
-<polyline points="0.6,0 1.1,-0.5" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
 </g>
 <g transform="translate(1.7,-0.3)">
 <rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(100, 80, 20)" stroke-width="0"/>
@@ -571,8 +573,6 @@ exports[`SvgRenderBackend > rendering modes > snapshot - colored + emboss 1`] = 
 <rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(100, 80, 20)" stroke-width="0"/>
 <polyline points="0.0125,0.5875 0.5875,0.5875 0.5875,0.0125" stroke="rgb(55, 44, 11)" stroke-width="0.025" fill="none"/>
 <polyline points="0.0125,0.5875 0.0125,0.0125 0.5875,0.0125" stroke="rgb(154, 141, 102)" stroke-width="0.025" fill="none"/>
-<polyline points="0.30000000000000004,0 0.30000000000000004,-0.5" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
-<polyline points="0.5999999999999999,0.30000000000000004 1.0999999999999999,0.30000000000000004" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
 </g>
 <g transform="translate(3.7,-0.3)">
 <rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(64, 64, 64)" stroke-width="0"/>
@@ -627,6 +627,9 @@ exports[`SvgRenderBackend > rendering modes > snapshot - colored mode 1`] = `
 <polyline points="-2,-1.7125 -2,0" stroke="rgb(225, 255, 225)" stroke-width="0.025" stroke-dasharray="0.1 0.05" fill="none"/>
 <polyline points="-2,-1.7125 -2,-0.85" stroke="rgb(225, 255, 225)" stroke-width="0.034999999999999996" stroke-dasharray="0.1 0.05" fill="none"/>
 <polygon points="-2,-0.85 -2.165175212364053,-1.3219291781830087 -1.834824787635947,-1.3219291781830087" fill="rgb(155, 10, 10)" stroke="rgb(225, 255, 225)" stroke-width="0.034999999999999996"/>
+<polyline points="0.3,-2.3 0.8,-2.8" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
+<polyline points="2,1.7 2,1.2" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
+<polyline points="2.3,2 2.8,2" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
 <polyline points="6,0 7,-0.5 7.5,1" stroke="rgb(200, 50, 50)" stroke-width="0.025" stroke-dasharray="0.4 0.2" fill="none"/>
 <polygon points="7.5,1 7.32,0.76 7.5,0.7" fill="rgb(200, 50, 50)" stroke="rgb(200, 50, 50)" stroke-width="0.025"/>
 <polyline points="8,2 7,1.5 6.5,0.5" stroke="rgb(150, 150, 255)" stroke-width="0.025" stroke-dasharray="0.05 0.05" fill="none"/>
@@ -640,7 +643,6 @@ exports[`SvgRenderBackend > rendering modes > snapshot - colored mode 1`] = `
 <rect x="0.05" y="0.05" width="0.5" height="0.5" fill="rgb(64, 64, 64)"/>
 <rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="none" stroke="rgb(71, 71, 71)" stroke-width="0.025"/>
 <rect x="0.037500000000000006" y="0.037500000000000006" width="0.5249999999999999" height="0.5249999999999999" fill="none" stroke="rgb(141, 141, 141)" stroke-width="0.025"/>
-<polyline points="0.6,0 1.1,-0.5" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
 </g>
 <g transform="translate(1.7,-0.3)">
 <rect x="0.05" y="0.05" width="0.5" height="0.5" fill="rgb(100, 80, 20)"/>
@@ -678,8 +680,6 @@ exports[`SvgRenderBackend > rendering modes > snapshot - colored mode 1`] = `
 <rect x="0.05" y="0.05" width="0.5" height="0.5" fill="rgb(100, 80, 20)"/>
 <rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="none" stroke="rgb(103, 85, 31)" stroke-width="0.025"/>
 <rect x="0.037500000000000006" y="0.037500000000000006" width="0.5249999999999999" height="0.5249999999999999" fill="none" stroke="rgb(206, 170, 62)" stroke-width="0.025"/>
-<polyline points="0.30000000000000004,0 0.30000000000000004,-0.5" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
-<polyline points="0.5999999999999999,0.30000000000000004 1.0999999999999999,0.30000000000000004" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
 </g>
 <g transform="translate(3.7,-0.3)">
 <rect x="0.05" y="0.05" width="0.5" height="0.5" fill="rgb(64, 64, 64)"/>
@@ -734,6 +734,9 @@ exports[`SvgRenderBackend > rendering modes > snapshot - emboss mode 1`] = `
 <polyline points="-2,-1.7125 -2,0" stroke="rgb(225, 255, 225)" stroke-width="0.025" stroke-dasharray="0.1 0.05" fill="none"/>
 <polyline points="-2,-1.7125 -2,-0.85" stroke="rgb(225, 255, 225)" stroke-width="0.034999999999999996" stroke-dasharray="0.1 0.05" fill="none"/>
 <polygon points="-2,-0.85 -2.165175212364053,-1.3219291781830087 -1.834824787635947,-1.3219291781830087" fill="rgb(155, 10, 10)" stroke="rgb(225, 255, 225)" stroke-width="0.034999999999999996"/>
+<polyline points="0.3,-2.3 0.8,-2.8" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
+<polyline points="2,1.7 2,1.2" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
+<polyline points="2.3,2 2.8,2" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
 <polyline points="6,0 7,-0.5 7.5,1" stroke="rgb(200, 50, 50)" stroke-width="0.025" stroke-dasharray="0.4 0.2" fill="none"/>
 <polygon points="7.5,1 7.32,0.76 7.5,0.7" fill="rgb(200, 50, 50)" stroke="rgb(200, 50, 50)" stroke-width="0.025"/>
 <polyline points="8,2 7,1.5 6.5,0.5" stroke="rgb(150, 150, 255)" stroke-width="0.025" stroke-dasharray="0.05 0.05" fill="none"/>
@@ -747,7 +750,6 @@ exports[`SvgRenderBackend > rendering modes > snapshot - emboss mode 1`] = `
 <rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(128,128,128)" stroke-width="0"/>
 <polyline points="0.0125,0.5875 0.5875,0.5875 0.5875,0.0125" stroke="rgb(70, 70, 70)" stroke-width="0.025" fill="none"/>
 <polyline points="0.0125,0.5875 0.0125,0.0125 0.5875,0.0125" stroke="rgb(172, 172, 172)" stroke-width="0.025" fill="none"/>
-<polyline points="0.6,0 1.1,-0.5" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
 </g>
 <g transform="translate(1.7,-0.3)">
 <rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(200,160,40)" stroke-width="0"/>
@@ -785,8 +787,6 @@ exports[`SvgRenderBackend > rendering modes > snapshot - emboss mode 1`] = `
 <rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(200,160,40)" stroke-width="0"/>
 <polyline points="0.0125,0.5875 0.5875,0.5875 0.5875,0.0125" stroke="rgb(110, 88, 22)" stroke-width="0.025" fill="none"/>
 <polyline points="0.0125,0.5875 0.0125,0.0125 0.5875,0.0125" stroke="rgb(219, 193, 115)" stroke-width="0.025" fill="none"/>
-<polyline points="0.30000000000000004,0 0.30000000000000004,-0.5" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
-<polyline points="0.5999999999999999,0.30000000000000004 1.0999999999999999,0.30000000000000004" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
 </g>
 <g transform="translate(3.7,-0.3)">
 <rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(128,128,128)" stroke-width="0"/>
@@ -841,6 +841,9 @@ exports[`SvgRenderBackend > rendering modes > snapshot - frame + circle 1`] = `
 <polyline points="-2,-1.7125 -2,0" stroke="rgb(225, 255, 225)" stroke-width="0.025" stroke-dasharray="0.1 0.05" fill="none"/>
 <polyline points="-2,-1.7125 -2,-0.85" stroke="rgb(225, 255, 225)" stroke-width="0.034999999999999996" stroke-dasharray="0.1 0.05" fill="none"/>
 <polygon points="-2,-0.85 -2.165175212364053,-1.3219291781830087 -1.834824787635947,-1.3219291781830087" fill="rgb(155, 10, 10)" stroke="rgb(225, 255, 225)" stroke-width="0.034999999999999996"/>
+<polyline points="0.21213203435596426,-2.2121320343559643 0.8,-2.8" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
+<polyline points="2,1.7 2,1.2" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
+<polyline points="2.3,2 2.8,2" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
 <polyline points="6,0 7,-0.5 7.5,1" stroke="rgb(200, 50, 50)" stroke-width="0.025" stroke-dasharray="0.4 0.2" fill="none"/>
 <polygon points="7.5,1 7.32,0.76 7.5,0.7" fill="rgb(200, 50, 50)" stroke="rgb(200, 50, 50)" stroke-width="0.025"/>
 <polyline points="8,2 7,1.5 6.5,0.5" stroke="rgb(150, 150, 255)" stroke-width="0.025" stroke-dasharray="0.05 0.05" fill="none"/>
@@ -850,7 +853,6 @@ exports[`SvgRenderBackend > rendering modes > snapshot - frame + circle 1`] = `
 </g>
 <g transform="translate(-0.3,-2.3)">
 <circle cx="0.3" cy="0.3" r="0.2875" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
-<polyline points="0.5121320343559642,0.08786796564403554 1.1,-0.5" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
 </g>
 <g transform="translate(1.7,-0.3)">
 <circle cx="0.3" cy="0.3" r="0.2875" fill="#000000" stroke="rgb(200,160,40)" stroke-width="0.025"/>
@@ -874,8 +876,6 @@ exports[`SvgRenderBackend > rendering modes > snapshot - frame + circle 1`] = `
 </g>
 <g transform="translate(1.7,1.7)">
 <circle cx="0.3" cy="0.3" r="0.2875" fill="#000000" stroke="rgb(200,160,40)" stroke-width="0.025"/>
-<polyline points="0.30000000000000004,0 0.30000000000000004,-0.5" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
-<polyline points="0.5999999999999999,0.30000000000000004 1.0999999999999999,0.30000000000000004" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
 </g>
 <g transform="translate(3.7,-0.3)">
 <circle cx="0.3" cy="0.3" r="0.2875" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
@@ -922,6 +922,9 @@ exports[`SvgRenderBackend > rendering modes > snapshot - frame mode 1`] = `
 <polyline points="-2,-1.7125 -2,0" stroke="rgb(225, 255, 225)" stroke-width="0.025" stroke-dasharray="0.1 0.05" fill="none"/>
 <polyline points="-2,-1.7125 -2,-0.85" stroke="rgb(225, 255, 225)" stroke-width="0.034999999999999996" stroke-dasharray="0.1 0.05" fill="none"/>
 <polygon points="-2,-0.85 -2.165175212364053,-1.3219291781830087 -1.834824787635947,-1.3219291781830087" fill="rgb(155, 10, 10)" stroke="rgb(225, 255, 225)" stroke-width="0.034999999999999996"/>
+<polyline points="0.3,-2.3 0.8,-2.8" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
+<polyline points="2,1.7 2,1.2" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
+<polyline points="2.3,2 2.8,2" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
 <polyline points="6,0 7,-0.5 7.5,1" stroke="rgb(200, 50, 50)" stroke-width="0.025" stroke-dasharray="0.4 0.2" fill="none"/>
 <polygon points="7.5,1 7.32,0.76 7.5,0.7" fill="rgb(200, 50, 50)" stroke="rgb(200, 50, 50)" stroke-width="0.025"/>
 <polyline points="8,2 7,1.5 6.5,0.5" stroke="rgb(150, 150, 255)" stroke-width="0.025" stroke-dasharray="0.05 0.05" fill="none"/>
@@ -931,7 +934,6 @@ exports[`SvgRenderBackend > rendering modes > snapshot - frame mode 1`] = `
 </g>
 <g transform="translate(-0.3,-2.3)">
 <rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
-<polyline points="0.6,0 1.1,-0.5" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
 </g>
 <g transform="translate(1.7,-0.3)">
 <rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="#000000" stroke="rgb(200,160,40)" stroke-width="0.025"/>
@@ -955,8 +957,6 @@ exports[`SvgRenderBackend > rendering modes > snapshot - frame mode 1`] = `
 </g>
 <g transform="translate(1.7,1.7)">
 <rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="#000000" stroke="rgb(200,160,40)" stroke-width="0.025"/>
-<polyline points="0.30000000000000004,0 0.30000000000000004,-0.5" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
-<polyline points="0.5999999999999999,0.30000000000000004 1.0999999999999999,0.30000000000000004" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
 </g>
 <g transform="translate(3.7,-0.3)">
 <rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="#000000" stroke="rgb(128,128,128)" stroke-width="0.025"/>
@@ -1003,6 +1003,9 @@ exports[`SvgRenderBackend > room shapes > snapshot - circle rooms 1`] = `
 <polyline points="-2,-1.7125 -2,0" stroke="rgb(225, 255, 225)" stroke-width="0.025" stroke-dasharray="0.1 0.05" fill="none"/>
 <polyline points="-2,-1.7125 -2,-0.85" stroke="rgb(225, 255, 225)" stroke-width="0.034999999999999996" stroke-dasharray="0.1 0.05" fill="none"/>
 <polygon points="-2,-0.85 -2.165175212364053,-1.3219291781830087 -1.834824787635947,-1.3219291781830087" fill="rgb(155, 10, 10)" stroke="rgb(225, 255, 225)" stroke-width="0.034999999999999996"/>
+<polyline points="0.21213203435596426,-2.2121320343559643 0.8,-2.8" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
+<polyline points="2,1.7 2,1.2" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
+<polyline points="2.3,2 2.8,2" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
 <polyline points="6,0 7,-0.5 7.5,1" stroke="rgb(200, 50, 50)" stroke-width="0.025" stroke-dasharray="0.4 0.2" fill="none"/>
 <polygon points="7.5,1 7.32,0.76 7.5,0.7" fill="rgb(200, 50, 50)" stroke="rgb(200, 50, 50)" stroke-width="0.025"/>
 <polyline points="8,2 7,1.5 6.5,0.5" stroke="rgb(150, 150, 255)" stroke-width="0.025" stroke-dasharray="0.05 0.05" fill="none"/>
@@ -1012,7 +1015,6 @@ exports[`SvgRenderBackend > room shapes > snapshot - circle rooms 1`] = `
 </g>
 <g transform="translate(-0.3,-2.3)">
 <circle cx="0.3" cy="0.3" r="0.2875" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<polyline points="0.5121320343559642,0.08786796564403554 1.1,-0.5" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
 </g>
 <g transform="translate(1.7,-0.3)">
 <circle cx="0.3" cy="0.3" r="0.2875" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
@@ -1036,8 +1038,6 @@ exports[`SvgRenderBackend > room shapes > snapshot - circle rooms 1`] = `
 </g>
 <g transform="translate(1.7,1.7)">
 <circle cx="0.3" cy="0.3" r="0.2875" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<polyline points="0.30000000000000004,0 0.30000000000000004,-0.5" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
-<polyline points="0.5999999999999999,0.30000000000000004 1.0999999999999999,0.30000000000000004" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
 </g>
 <g transform="translate(3.7,-0.3)">
 <circle cx="0.3" cy="0.3" r="0.2875" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
@@ -1084,6 +1084,9 @@ exports[`SvgRenderBackend > room shapes > snapshot - rounded rectangle rooms 1`]
 <polyline points="-2,-1.7125 -2,0" stroke="rgb(225, 255, 225)" stroke-width="0.025" stroke-dasharray="0.1 0.05" fill="none"/>
 <polyline points="-2,-1.7125 -2,-0.85" stroke="rgb(225, 255, 225)" stroke-width="0.034999999999999996" stroke-dasharray="0.1 0.05" fill="none"/>
 <polygon points="-2,-0.85 -2.165175212364053,-1.3219291781830087 -1.834824787635947,-1.3219291781830087" fill="rgb(155, 10, 10)" stroke="rgb(225, 255, 225)" stroke-width="0.034999999999999996"/>
+<polyline points="0.2648528137423857,-2.264852813742386 0.8,-2.8" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
+<polyline points="2,1.7 2,1.2" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
+<polyline points="2.3,2 2.8,2" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
 <polyline points="6,0 7,-0.5 7.5,1" stroke="rgb(200, 50, 50)" stroke-width="0.025" stroke-dasharray="0.4 0.2" fill="none"/>
 <polygon points="7.5,1 7.32,0.76 7.5,0.7" fill="rgb(200, 50, 50)" stroke="rgb(200, 50, 50)" stroke-width="0.025"/>
 <polyline points="8,2 7,1.5 6.5,0.5" stroke="rgb(150, 150, 255)" stroke-width="0.025" stroke-dasharray="0.05 0.05" fill="none"/>
@@ -1093,7 +1096,6 @@ exports[`SvgRenderBackend > room shapes > snapshot - rounded rectangle rooms 1`]
 </g>
 <g transform="translate(-0.3,-2.3)">
 <rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025" rx="0.11499999999999999" ry="0.11499999999999999"/>
-<polyline points="0.5648528137423856,0.03514718625761404 1.1,-0.5" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
 </g>
 <g transform="translate(1.7,-0.3)">
 <rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025" rx="0.11499999999999999" ry="0.11499999999999999"/>
@@ -1117,8 +1119,6 @@ exports[`SvgRenderBackend > room shapes > snapshot - rounded rectangle rooms 1`]
 </g>
 <g transform="translate(1.7,1.7)">
 <rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025" rx="0.11499999999999999" ry="0.11499999999999999"/>
-<polyline points="0.30000000000000004,0 0.30000000000000004,-0.5" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
-<polyline points="0.5999999999999999,0.30000000000000004 1.0999999999999999,0.30000000000000004" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
 </g>
 <g transform="translate(3.7,-0.3)">
 <rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025" rx="0.11499999999999999" ry="0.11499999999999999"/>
@@ -1165,6 +1165,9 @@ exports[`SvgRenderBackend > visual options > snapshot - area name shown 1`] = `
 <polyline points="-2,-1.7125 -2,0" stroke="rgb(225, 255, 225)" stroke-width="0.025" stroke-dasharray="0.1 0.05" fill="none"/>
 <polyline points="-2,-1.7125 -2,-0.85" stroke="rgb(225, 255, 225)" stroke-width="0.034999999999999996" stroke-dasharray="0.1 0.05" fill="none"/>
 <polygon points="-2,-0.85 -2.165175212364053,-1.3219291781830087 -1.834824787635947,-1.3219291781830087" fill="rgb(155, 10, 10)" stroke="rgb(225, 255, 225)" stroke-width="0.034999999999999996"/>
+<polyline points="0.3,-2.3 0.8,-2.8" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
+<polyline points="2,1.7 2,1.2" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
+<polyline points="2.3,2 2.8,2" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
 <polyline points="6,0 7,-0.5 7.5,1" stroke="rgb(200, 50, 50)" stroke-width="0.025" stroke-dasharray="0.4 0.2" fill="none"/>
 <polygon points="7.5,1 7.32,0.76 7.5,0.7" fill="rgb(200, 50, 50)" stroke="rgb(200, 50, 50)" stroke-width="0.025"/>
 <polyline points="8,2 7,1.5 6.5,0.5" stroke="rgb(150, 150, 255)" stroke-width="0.025" stroke-dasharray="0.05 0.05" fill="none"/>
@@ -1174,7 +1177,6 @@ exports[`SvgRenderBackend > visual options > snapshot - area name shown 1`] = `
 </g>
 <g transform="translate(-0.3,-2.3)">
 <rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<polyline points="0.6,0 1.1,-0.5" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
 </g>
 <g transform="translate(1.7,-0.3)">
 <rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
@@ -1198,8 +1200,6 @@ exports[`SvgRenderBackend > visual options > snapshot - area name shown 1`] = `
 </g>
 <g transform="translate(1.7,1.7)">
 <rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
-<polyline points="0.30000000000000004,0 0.30000000000000004,-0.5" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
-<polyline points="0.5999999999999999,0.30000000000000004 1.0999999999999999,0.30000000000000004" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
 </g>
 <g transform="translate(3.7,-0.3)">
 <rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
@@ -1246,6 +1246,9 @@ exports[`SvgRenderBackend > visual options > snapshot - no borders 1`] = `
 <polyline points="-2,-1.7 -2,0" stroke="rgb(225, 255, 225)" stroke-width="0.025" stroke-dasharray="0.1 0.05" fill="none"/>
 <polyline points="-2,-1.7 -2,-0.85" stroke="rgb(225, 255, 225)" stroke-width="0.034999999999999996" stroke-dasharray="0.1 0.05" fill="none"/>
 <polygon points="-2,-0.85 -2.165175212364053,-1.3219291781830087 -1.834824787635947,-1.3219291781830087" fill="rgb(155, 10, 10)" stroke="rgb(225, 255, 225)" stroke-width="0.034999999999999996"/>
+<polyline points="0.3,-2.3 0.8,-2.8" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
+<polyline points="2,1.7 2,1.2" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
+<polyline points="2.3,2 2.8,2" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
 <polyline points="6,0 7,-0.5 7.5,1" stroke="rgb(200, 50, 50)" stroke-width="0.025" stroke-dasharray="0.4 0.2" fill="none"/>
 <polygon points="7.5,1 7.32,0.76 7.5,0.7" fill="rgb(200, 50, 50)" stroke="rgb(200, 50, 50)" stroke-width="0.025"/>
 <polyline points="8,2 7,1.5 6.5,0.5" stroke="rgb(150, 150, 255)" stroke-width="0.025" stroke-dasharray="0.05 0.05" fill="none"/>
@@ -1255,7 +1258,6 @@ exports[`SvgRenderBackend > visual options > snapshot - no borders 1`] = `
 </g>
 <g transform="translate(-0.3,-2.3)">
 <rect x="0" y="0" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke-width="0"/>
-<polyline points="0.6,0 1.1,-0.5" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
 </g>
 <g transform="translate(1.7,-0.3)">
 <rect x="0" y="0" width="0.6" height="0.6" fill="rgb(200,160,40)" stroke-width="0"/>
@@ -1279,8 +1281,6 @@ exports[`SvgRenderBackend > visual options > snapshot - no borders 1`] = `
 </g>
 <g transform="translate(1.7,1.7)">
 <rect x="0" y="0" width="0.6" height="0.6" fill="rgb(200,160,40)" stroke-width="0"/>
-<polyline points="0.30000000000000004,0 0.30000000000000004,-0.5" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
-<polyline points="0.5999999999999999,0.30000000000000004 1.0999999999999999,0.30000000000000004" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
 </g>
 <g transform="translate(3.7,-0.3)">
 <rect x="0" y="0" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke-width="0"/>

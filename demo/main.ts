@@ -15,6 +15,7 @@ import MapReader from "@src/reader/MapReader";
 import {initControls, initPerfMonitor} from "./controls";
 import {initContextMenu} from "./context-menu";
 import {Walker} from "./walker";
+import {DemoPreview} from "./Preview";
 import {
     getDirectionFromKeyboardEvent,
     getDirectionalExitTarget,
@@ -51,6 +52,7 @@ let destinationRoomId: number | undefined;
 let currentDestinationPath: number[] | undefined;
 let pathColor = '#66E64D';
 let walker!: Walker;
+let preview!: DemoPreview;
 let sketchColor = '#444444';
 let savedBackgroundColor: string;
 let savedLineColor: string;
@@ -251,6 +253,7 @@ function applyRenderMode(mode: string) {
 
     renderer.updateBackground();
     renderer.refresh();
+    preview?.refresh();
 }
 
 // --- Initialization ---
@@ -275,6 +278,7 @@ async function initialize() {
     savedLineColor = settings.lineColor;
     savedFontFamily = settings.fontFamily;
     renderer = new MapRenderer(mapReader, settings, stageElement);
+    preview = new DemoPreview(stageElement, renderer);
 
     // Controls & perf
     const controlsResult = initControls(settings, renderer, () => currentRoomId, pathFinder, updateDestinationGuidance, (color) => {
@@ -320,6 +324,8 @@ async function initialize() {
 
     if (startingRoom) {
         moveToRoom(startingRoom);
+        renderer.fitArea();
+        preview.refresh();
         walker.stop("Walker is stopped. Press Start to begin.");
         if (walkerToggleButton) walkerToggleButton.disabled = false;
     } else {
@@ -363,6 +369,7 @@ async function initialize() {
         renderer.clearPosition();
         renderer.drawArea(areaId, z);
         renderer.fitArea();
+        preview?.refresh();
         updateTerrainRooms();
         updateFogOfWar();
     });

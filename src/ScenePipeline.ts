@@ -151,18 +151,20 @@ export class ScenePipeline {
                 areaExitHitZones.push(zone);
             });
 
-            // Stubs → room group (relative coordinates)
-            const gx = room.x - rs / 2;
-            const gy = room.y - rs / 2;
+            // Stubs → link layer (so they render under rooms, like exits)
             for (const stub of computeStubs(room, this.settings)) {
-                this.backend.addLine(roomNode, {
-                    points: [stub.x1 - gx, stub.y1 - gy, stub.x2 - gx, stub.y2 - gy],
+                const stubGroup = this.backend.createGroup(depthOff.x, depthOff.y);
+                this.backend.addLine(stubGroup, {
+                    points: [stub.x1, stub.y1, stub.x2, stub.y2],
                     stroke: stub.stroke,
                     strokeWidth: stub.strokeWidth,
                 });
+                this.linkLayer.addNode(stubGroup);
             }
 
             // Inner exits → room group (relative coordinates)
+            const gx = room.x - rs / 2;
+            const gy = room.y - rs / 2;
             const {triangles} = computeInnerExits(room, this.mapReader, this.settings);
             for (const tri of triangles) {
                 const relVertices: number[] = [];
