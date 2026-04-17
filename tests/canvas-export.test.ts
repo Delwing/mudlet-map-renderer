@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { MapRenderer } from '../src/rendering/MapRenderer';
 import { CanvasExporter } from '../src/export/CanvasExporter';
+import { canvasToBytes } from '../src/export/canvasToBytes';
 import { createSettings } from '../src/types/Settings';
 import { createTestMapReader } from './helpers';
 
@@ -13,7 +14,7 @@ function exportArea(settingsOverrides?: Partial<ReturnType<typeof createSettings
     const renderer = new MapRenderer(reader, settings);
     renderer.drawArea(1, 0);
     const canvas = renderer.export(new CanvasExporter({ width: WIDTH, height: HEIGHT }));
-    return (canvas as unknown as import('canvas').Canvas).toBuffer('image/png');
+    return canvasToBytes(canvas!);
 }
 
 function renderWithOverlays(overlays: any) {
@@ -22,7 +23,7 @@ function renderWithOverlays(overlays: any) {
     const renderer = new MapRenderer(reader, settings);
     renderer.drawArea(1, 0);
     const canvas = renderer.export(new CanvasExporter({ width: WIDTH, height: HEIGHT, overlays }));
-    return (canvas as unknown as import('canvas').Canvas).toBuffer('image/png');
+    return canvasToBytes(canvas!);
 }
 
 function renderArea(areaId: number, zIndex: number, opts?: any) {
@@ -31,7 +32,7 @@ function renderArea(areaId: number, zIndex: number, opts?: any) {
     const renderer = new MapRenderer(reader, settings);
     renderer.drawArea(areaId, zIndex);
     const canvas = renderer.export(new CanvasExporter({ width: WIDTH, height: HEIGHT, ...opts }));
-    return (canvas as unknown as import('canvas').Canvas).toBuffer('image/png');
+    return canvasToBytes(canvas!);
 }
 
 describe('CanvasExporter', () => {

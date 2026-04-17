@@ -2,7 +2,7 @@ import "konva/canvas-backend";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-import { MapRenderer, createSettings, PathFinder, SvgExporter, CanvasExporter } from "@src";
+import { MapRenderer, createSettings, PathFinder, SvgExporter, CanvasExporter, canvasToBytes } from "@src";
 import MapReader from "@src/reader/MapReader";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -268,11 +268,7 @@ async function main() {
             process.exit(1);
         }
 
-        // `ExportCanvas` describes only the portable surface; in Node the
-        // runtime value is a node-canvas `Canvas` with a synchronous `toBuffer`.
-        const nodeCanvas = canvas as unknown as import('canvas').Canvas;
-        const buffer = nodeCanvas.toBuffer("image/png");
-        fs.writeFileSync(outputPath, buffer);
+        fs.writeFileSync(outputPath, canvasToBytes(canvas));
         console.log(`PNG (${args.width}x${args.height}) written to ${outputPath}`);
     }
 }

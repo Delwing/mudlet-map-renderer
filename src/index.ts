@@ -47,6 +47,7 @@ export { PngExporter, PngBlobExporter } from './export/PngExporter';
 export type { PngExportOptions } from './export/PngExporter';
 export { CanvasExporter } from './export/CanvasExporter';
 export type { CanvasExportOptions } from './export/CanvasExporter';
+export { canvasToBytes } from './export/canvasToBytes';
 
 // --- Overlays ---
 export type { SceneOverlay } from './overlay/SceneOverlay';

@@ -261,6 +261,12 @@ const canvas = renderer.export(new CanvasExporter({
   roomId: 1234,
   padding: 5,
 }));
+
+// Canvas → bytes (portable: works in browser + Node, synchronous)
+import { canvasToBytes } from 'mudlet-map-renderer';
+const png = canvasToBytes(canvas!);
+// fs.writeFileSync('out.png', png);  // Node
+// new Blob([png], { type: 'image/png' });  // Browser
 ```
 
 Style + export compose: the style currently applied with `setStyle` is passed
