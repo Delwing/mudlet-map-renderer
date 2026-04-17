@@ -11,7 +11,7 @@ type RectCommand = { type: 'rect'; x: number; y: number; w: number; h: number; f
 type CircleCommand = { type: 'circle'; cx: number; cy: number; r: number; fill?: string; stroke?: string; sw: number; dash?: number[] };
 type LineCommand = { type: 'line'; points: number[]; stroke?: string; sw: number; dash?: number[]; lineCap?: string; lineJoin?: string; alpha?: number };
 type PolygonCommand = { type: 'polygon'; vertices: number[]; fill?: string; stroke?: string; sw: number };
-type TextCommand = { type: 'text'; x: number; y: number; text: string; fontSize: number; fontFamily: string; fontStyle: string; fill: string; align: string; vAlign: string; w: number; h: number; transform?: [number, number, number, number, number, number] };
+type TextCommand = { type: 'text'; x: number; y: number; text: string; fontSize: number; fontFamily: string; fontStyle: string; fill: string; align: string; vAlign: string; w: number; h: number; baselineRatio?: number; transform?: [number, number, number, number, number, number] };
 type ImageCommand = { type: 'image'; x: number; y: number; w: number; h: number; image: HTMLImageElement | any; transform?: [number, number, number, number, number, number] };
 
 type DrawCommand = RectCommand | CircleCommand | LineCommand | PolygonCommand | TextCommand | ImageCommand;
@@ -102,19 +102,35 @@ function replayCommand(ctx: CanvasRenderingContext2D, cmd: DrawCommand) {
             ctx.save();
             ctx.font = font;
             ctx.fillStyle = cmd.fill;
+            // Use pixel-measured baselineRatio when available: the browser's
+            // textBaseline='middle' uses font-wide metrics, which mis-centers
+            // glyphs whose visual bounds differ from the font em-box (e.g. "T").
+            const hasBaselineRatio = cmd.baselineRatio !== undefined;
             if (cmd.transform) {
                 ctx.transform(...cmd.transform);
                 ctx.scale(1 / TEXT_SCALE, 1 / TEXT_SCALE);
                 ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillText(cmd.text, cmd.w * TEXT_SCALE / 2, cmd.h * TEXT_SCALE / 2);
+                if (hasBaselineRatio) {
+                    ctx.textBaseline = 'alphabetic';
+                    const by = (cmd.h / 2 + cmd.baselineRatio! * cmd.fontSize) * TEXT_SCALE;
+                    ctx.fillText(cmd.text, cmd.w * TEXT_SCALE / 2, by);
+                } else {
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(cmd.text, cmd.w * TEXT_SCALE / 2, cmd.h * TEXT_SCALE / 2);
+                }
             } else if (cmd.w > 0 && cmd.h > 0) {
                 ctx.textAlign = (cmd.align || 'left') as CanvasTextAlign;
-                ctx.textBaseline = cmd.vAlign === 'middle' ? 'middle' : 'top';
                 const tx = cmd.align === 'center' ? cmd.x + cmd.w / 2 : cmd.x;
-                const ty = cmd.vAlign === 'middle' ? cmd.y + cmd.h / 2 : cmd.y;
                 ctx.scale(1 / TEXT_SCALE, 1 / TEXT_SCALE);
-                ctx.fillText(cmd.text, tx * TEXT_SCALE, ty * TEXT_SCALE);
+                if (cmd.vAlign === 'middle' && hasBaselineRatio) {
+                    ctx.textBaseline = 'alphabetic';
+                    const ty = cmd.y + cmd.h / 2 + cmd.baselineRatio! * cmd.fontSize;
+                    ctx.fillText(cmd.text, tx * TEXT_SCALE, ty * TEXT_SCALE);
+                } else {
+                    ctx.textBaseline = cmd.vAlign === 'middle' ? 'middle' : 'top';
+                    const ty = cmd.vAlign === 'middle' ? cmd.y + cmd.h / 2 : cmd.y;
+                    ctx.fillText(cmd.text, tx * TEXT_SCALE, ty * TEXT_SCALE);
+                }
             } else {
                 ctx.textAlign = 'left';
                 ctx.textBaseline = 'top';
@@ -364,6 +380,7 @@ export class CanvasBackend implements DrawingBackend {
             vAlign: config.verticalAlign ?? 'top',
             w: config.width ?? 0,
             h: config.height ?? 0,
+            baselineRatio: config.baselineRatio,
             transform: config.transform,
         });
     }
