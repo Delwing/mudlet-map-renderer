@@ -1,4 +1,4 @@
-import {MapRenderer, CullingMode, RoomShape, PathFinder} from "@src";
+import {MapRenderer, CullingMode, RoomShape, PathFinder, SvgExporter, PngBlobExporter} from "@src";
 import type {Settings, LabelRenderMode, PerfSnapshot, PathFindingAlgorithm} from "@src";
 import type MapReader from "@src/reader/MapReader";
 import {WeatherOverlay} from "./WeatherOverlay";
@@ -384,7 +384,7 @@ export function initControls(settings: Settings, renderer: MapRenderer, getCurre
     // --- Weather (overlay plugin) ---
 
     const weather = new WeatherOverlay();
-    renderer.addOverlayPlugin('weather', weather);
+    renderer.addLiveEffect('weather', weather);
 
     const weatherType = document.getElementById("weather-type") as HTMLSelectElement | null;
     const weatherIntensity = document.getElementById("weather-intensity") as HTMLInputElement | null;
@@ -470,10 +470,10 @@ export function initControls(settings: Settings, renderer: MapRenderer, getCurre
     terrainToggle?.addEventListener("change", () => {
         if (terrainToggle.checked) {
             terrain = new TerrainOverlay();
-            renderer.addOverlayPlugin('terrain', terrain);
+            renderer.addLiveEffect('terrain', terrain);
             updateTerrainRooms();
         } else {
-            renderer.removeOverlayPlugin('terrain');
+            renderer.removeLiveEffect('terrain');
         }
     });
 
@@ -527,15 +527,15 @@ export function initControls(settings: Settings, renderer: MapRenderer, getCurre
     fogToggle?.addEventListener("change", () => {
         if (fogToggle.checked) {
             fogOfWar = new FogOfWarOverlay();
-            renderer.addOverlayPlugin('fog-of-war', fogOfWar);
+            renderer.addLiveEffect('fog-of-war', fogOfWar);
             updateFogOfWar();
         } else {
-            renderer.removeOverlayPlugin('fog-of-war');
+            renderer.removeLiveEffect('fog-of-war');
         }
     });
 
     savePngBtn?.addEventListener("click", async () => {
-        const blob = renderer.exportPngBlob({ pixelRatio: 2 });
+        const blob = renderer.export(new PngBlobExporter(renderer.backend, { pixelRatio: 2 }));
         if (!blob) return;
         const resolved = await blob;
         const url = URL.createObjectURL(resolved);
@@ -547,7 +547,7 @@ export function initControls(settings: Settings, renderer: MapRenderer, getCurre
     });
 
     saveSvgBtn?.addEventListener("click", () => {
-        const svg = renderer.exportSvg();
+        const svg = renderer.export(new SvgExporter());
         if (!svg) return;
         const blob = new Blob([svg], { type: "image/svg+xml" });
         const url = URL.createObjectURL(blob);

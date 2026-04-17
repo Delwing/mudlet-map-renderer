@@ -1,6 +1,6 @@
 import Konva from "konva";
 import type {ViewportBounds} from "@src/types/Settings";
-import type {OverlayPlugin, CoordinateTransform} from "@src/types/OverlayPlugin";
+import type {LiveEffect, CoordinateTransform} from "@src";
 
 export type FogOfWarStyle = {
     /** Darkness opacity (0.0 - 1.0). Default: 0.85 */
@@ -24,12 +24,12 @@ type RevealedConnection = { x1: number; y1: number; x2: number; y2: number };
  *
  * ```ts
  * const fog = new FogOfWarOverlay();
- * renderer.addOverlayPlugin('fog-of-war', fog);
+ * renderer.addLiveEffect('fog-of-war', fog);
  * fog.setStyle({ intensity: 0.85, radius: 1.5 });
  * fog.setRevealedRooms([{ x: 5, y: 10 }, { x: 6, y: 10 }]);
  * ```
  */
-export class FogOfWarOverlay implements OverlayPlugin {
+export class FogOfWarOverlay implements LiveEffect {
     private layer!: Konva.Layer;
     private shape!: Konva.Shape;
     private style: FogOfWarStyle;
