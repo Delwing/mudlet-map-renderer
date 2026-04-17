@@ -146,6 +146,7 @@ export class KonvaRenderBackend implements InteractiveBackend {
                 clientToMapPoint: (cx, cy) => this.viewport.clientToMapPoint(cx, cy, container.getBoundingClientRect()),
                 findRoomAtPoint: (mx, my) => this.culling.findRoomAtMapPoint(mx, my),
                 getAreaExitHitZones: () => this.areaExitHitZones,
+                renderedToMapPoint: (x, y) => this.coordinateInverse(x, y),
             }, this.events);
         }
 

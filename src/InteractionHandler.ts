@@ -10,6 +10,13 @@ export type HitTestCallbacks = {
     clientToMapPoint: (clientX: number, clientY: number) => { x: number; y: number } | null;
     findRoomAtPoint: (mapX: number, mapY: number) => MapData.Room | null;
     getAreaExitHitZones: () => AreaExitHitZone[];
+    /**
+     * Inverse of the drawing backend's coordinate transform — maps a point from
+     * rendered space (what `clientToMapPoint` returns) back to untransformed map
+     * space. Needed for hit tests that compare against map-space bounds (e.g.
+     * area-exit hit zones) under decorators like IsometricStyle.
+     */
+    renderedToMapPoint: (x: number, y: number) => { x: number; y: number };
 };
 
 /**
@@ -364,8 +371,12 @@ export class InteractionHandler {
     }
 
     private findAreaExitAtClientPoint(clientX: number, clientY: number): AreaExitHitZone | null {
-        const mapPoint = this.hitTest.clientToMapPoint(clientX, clientY);
-        if (!mapPoint) return null;
+        const renderedPoint = this.hitTest.clientToMapPoint(clientX, clientY);
+        if (!renderedPoint) return null;
+        // Zone bounds are stored in pre-transform map space; click comes in as
+        // rendered space (iso-projected under IsometricStyle). Undo the decorator
+        // transform so AABB comparison works in both flat and iso modes.
+        const mapPoint = this.hitTest.renderedToMapPoint(renderedPoint.x, renderedPoint.y);
         const pad = this.settings.roomSize * 0.5;
         for (const zone of this.hitTest.getAreaExitHitZones()) {
             const b = zone.bounds;
