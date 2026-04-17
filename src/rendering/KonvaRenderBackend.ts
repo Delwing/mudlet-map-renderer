@@ -27,6 +27,7 @@ import {
 import ExplorationArea from "../reader/ExplorationArea";
 import type {LiveEffect} from "../overlay/LiveEffect";
 import type {SceneOverlay} from "../overlay/SceneOverlay";
+import type {ExportCanvas} from "../export/Exporter";
 
 const currentRoomColor = 'rgb(120, 72, 0)';
 
@@ -261,7 +262,7 @@ export class KonvaRenderBackend implements InteractiveBackend {
         }
     }
 
-    exportCanvas(options?: { pixelRatio?: number }): HTMLCanvasElement | undefined {
+    exportCanvas(options?: { pixelRatio?: number }): ExportCanvas | undefined {
         if (this.state.currentArea === undefined || this.state.currentZIndex === undefined) return;
         const stageCanvas = this.stage.toCanvas({ pixelRatio: options?.pixelRatio ?? 1 });
         const composite = document.createElement('canvas');
@@ -297,7 +298,12 @@ export class KonvaRenderBackend implements InteractiveBackend {
         height: number;
         roomId?: number;
         padding?: number;
-    }): any {
+        overlays?: {
+            position?: { roomId: number };
+            highlights?: Array<{ roomId: number; color: string }>;
+            paths?: Array<{ locations: number[]; color: string }>;
+        };
+    }): ExportCanvas | undefined {
         const {currentArea, currentZIndex, currentAreaInstance} = this.state;
         if (currentArea === undefined || currentZIndex === undefined || !currentAreaInstance) return;
 

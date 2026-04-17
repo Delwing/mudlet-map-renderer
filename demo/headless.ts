@@ -257,13 +257,13 @@ async function main() {
         console.log(`SVG written to ${outputPath}`);
     } else {
         // PNG via headless Konva (uses canvas package internally)
-        const canvas = renderer.export(new CanvasExporter(renderer.backend, {
+        const canvas = renderer.export(new CanvasExporter({
             width: args.width,
             height: args.height,
             roomId: args.room,
             padding: exportPadding,
         }));
-        if (!canvas) {
+        if (!canvas || !canvas.toBuffer) {
             console.error("PNG export failed.");
             process.exit(1);
         }

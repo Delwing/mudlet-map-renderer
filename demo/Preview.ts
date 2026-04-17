@@ -47,7 +47,7 @@ export class DemoPreview {
         const width = aspect >= 1 ? MAX_SIZE : Math.round(MAX_SIZE * aspect);
         const height = aspect >= 1 ? Math.round(MAX_SIZE / aspect) : MAX_SIZE;
 
-        const canvas: HTMLCanvasElement | undefined = this.renderer.backend.toCanvas({width, height, padding: 3});
+        const canvas = this.renderer.backend.toCanvas({width, height, padding: 3});
         if (!canvas) return;
 
         // Size the preview box to the area aspect ratio

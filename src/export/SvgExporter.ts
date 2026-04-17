@@ -5,9 +5,8 @@ import {computeAmbientLight} from "../scene/AmbientLightStyle";
 import {renderHighlight, renderPositionMarker, renderPathOverlay, renderAmbientLight} from "../scene/OverlayRenderer";
 import type {SvgExportOptions, SvgOverlays} from "../SvgTypes";
 import type {MapState} from "../MapState";
-import type {DrawingBackend, Style} from "../backend/DrawingBackend";
-import type {Exporter} from "./Exporter";
-import type {SceneOverlay} from "../overlay/SceneOverlay";
+import type {DrawingBackend} from "../backend/DrawingBackend";
+import type {Exporter, ExportContext} from "./Exporter";
 
 function escapeXml(s: string): string {
     return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -15,22 +14,16 @@ function escapeXml(s: string): string {
 }
 
 /**
- * Exports the current scene as an SVG string through the shared
- * {@link ScenePipeline}. The optional `style` applies the same decorator chain
- * used on the interactive canvas, so e.g. `Isometric` or `Parchment` renders
- * identically across targets.
- *
- * Applies any {@link SceneOverlay}s passed in `overlays`; interactive-only
- * `LiveEffect`s are ignored by design.
+ * Renders the current scene as an SVG string through the shared
+ * {@link ScenePipeline}. The context's style is applied so styled exports
+ * match the on-screen canvas; {@link SceneOverlay}s from the context are
+ * rendered into the SVG alongside the scene. `LiveEffect`s are intentionally
+ * ignored by design.
  */
 export class SvgExporter implements Exporter<string | undefined> {
     constructor(private readonly options: SvgExportOptions = {}) {}
 
-    render(
-        state: MapState,
-        style?: Style,
-        sceneOverlays?: Iterable<SceneOverlay>,
-    ): string | undefined {
+    render({state, style, sceneOverlays}: ExportContext): string | undefined {
         const {currentArea, currentZIndex, currentAreaInstance} = state;
         if (currentArea === undefined || currentZIndex === undefined || !currentAreaInstance) return;
 
@@ -43,7 +36,7 @@ export class SvgExporter implements Exporter<string | undefined> {
         const bounds = state.computeExportBounds(area, plane, this.options.roomId, padding);
 
         const rawSvgBackend = new SvgBackend();
-        const svgBackend: DrawingBackend = style ? style(rawSvgBackend) : rawSvgBackend;
+        const svgBackend: DrawingBackend = style(rawSvgBackend);
         const gridLayer = new SvgLayerNode();
         const linkLayer = new SvgLayerNode();
         const roomLayer = new SvgLayerNode();
@@ -73,16 +66,13 @@ export class SvgExporter implements Exporter<string | undefined> {
         const overlays = state.getOverlaysForArea(this.options.overlays);
         this.renderBuiltInOverlays(overlays, svgBackend, state, viewportBounds, lines);
 
-        // User-provided SceneOverlays render into an SVG group each.
-        if (sceneOverlays) {
-            for (const overlay of sceneOverlays) {
-                const out = overlay.render(svgBackend, state, viewportBounds);
-                const nodes = out === undefined ? [] : Array.isArray(out) ? out : [out];
-                for (const node of nodes) {
-                    if (node instanceof SvgGroupNode) {
-                        const svg = node.toSvg();
-                        if (svg) lines.push(svg);
-                    }
+        for (const overlay of sceneOverlays) {
+            const out = overlay.render(svgBackend, state, viewportBounds);
+            const nodes = out === undefined ? [] : Array.isArray(out) ? out : [out];
+            for (const node of nodes) {
+                if (node instanceof SvgGroupNode) {
+                    const svg = node.toSvg();
+                    if (svg) lines.push(svg);
                 }
             }
         }

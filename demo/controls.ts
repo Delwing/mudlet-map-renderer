@@ -535,7 +535,7 @@ export function initControls(settings: Settings, renderer: MapRenderer, getCurre
     });
 
     savePngBtn?.addEventListener("click", async () => {
-        const blob = renderer.export(new PngBlobExporter(renderer.backend, { pixelRatio: 2 }));
+        const blob = renderer.export(new PngBlobExporter({ pixelRatio: 2 }));
         if (!blob) return;
         const resolved = await blob;
         const url = URL.createObjectURL(resolved);

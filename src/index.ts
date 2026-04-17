@@ -43,7 +43,7 @@ export {
 export type { SketchyOptions, IsometricOptions } from './style';
 
 // --- Exporters (pluggable output formats) ---
-export type { Exporter } from './export/Exporter';
+export type { Exporter, ExportContext, ExportCanvas } from './export/Exporter';
 export { SvgExporter } from './export/SvgExporter';
 export { PngExporter, PngBlobExporter } from './export/PngExporter';
 export type { PngExportOptions } from './export/PngExporter';

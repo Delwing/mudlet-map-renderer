@@ -6,7 +6,7 @@ import { fileURLToPath } from "url";
 import { SvgExporter } from "../src/export/SvgExporter";
 import { CanvasExporter } from "../src/export/CanvasExporter";
 import { MapRenderer } from "../src/rendering/MapRenderer";
-import { MapState } from "../src/MapState";
+import type { MapState } from "../src/MapState";
 import { createSettings, type Settings } from "../src/types/Settings";
 import { createTestMapReader } from "../tests/helpers";
 
@@ -24,18 +24,15 @@ const HEIGHT = 300;
 // === Renderers (mirror tests/{svg-export,headless,canvas-export}.test.ts) ===
 
 function svgExport(overrides?: Partial<Settings>): string {
-    const reader = createTestMapReader();
-    const settings = { ...createSettings(), ...overrides };
-    const state = new MapState(reader, settings);
-    state.setArea(1, 0);
-    return new SvgExporter().render(state) ?? "";
+    const renderer = new MapRenderer(createTestMapReader(), { ...createSettings(), ...overrides });
+    renderer.drawArea(1, 0);
+    return renderer.export(new SvgExporter()) ?? "";
 }
 
 function svgExportWithState(setup: (s: MapState) => void, options?: any): string {
-    const reader = createTestMapReader();
-    const state = new MapState(reader, createSettings());
-    setup(state);
-    return new SvgExporter(options).render(state) ?? "";
+    const renderer = new MapRenderer(createTestMapReader(), createSettings());
+    setup(renderer.state);
+    return renderer.export(new SvgExporter(options)) ?? "";
 }
 
 function headlessSvg(setup: (r: MapRenderer) => void): string {
@@ -48,19 +45,19 @@ function headlessSvg(setup: (r: MapRenderer) => void): string {
 function canvasExport(overrides?: Partial<Settings>): Buffer {
     const renderer = new MapRenderer(createTestMapReader(), { ...createSettings(), ...overrides });
     renderer.drawArea(1, 0);
-    return renderer.export(new CanvasExporter(renderer.backend, { width: WIDTH, height: HEIGHT })).toBuffer("image/png");
+    return renderer.export(new CanvasExporter({ width: WIDTH, height: HEIGHT })).toBuffer("image/png");
 }
 
 function canvasWithOverlays(overlays: any): Buffer {
     const renderer = new MapRenderer(createTestMapReader(), createSettings());
     renderer.drawArea(1, 0);
-    return renderer.export(new CanvasExporter(renderer.backend, { width: WIDTH, height: HEIGHT, overlays })).toBuffer("image/png");
+    return renderer.export(new CanvasExporter({ width: WIDTH, height: HEIGHT, overlays })).toBuffer("image/png");
 }
 
 function canvasArea(areaId: number, z: number, opts?: any): Buffer {
     const renderer = new MapRenderer(createTestMapReader(), createSettings());
     renderer.drawArea(areaId, z);
-    return renderer.export(new CanvasExporter(renderer.backend, { width: WIDTH, height: HEIGHT, ...opts })).toBuffer("image/png");
+    return renderer.export(new CanvasExporter({ width: WIDTH, height: HEIGHT, ...opts })).toBuffer("image/png");
 }
 
 // === Scenarios ===

@@ -12,8 +12,8 @@ function exportArea(settingsOverrides?: Partial<ReturnType<typeof createSettings
     const settings = { ...createSettings(), ...settingsOverrides };
     const renderer = new MapRenderer(reader, settings);
     renderer.drawArea(1, 0);
-    const canvas = renderer.export(new CanvasExporter(renderer.backend, { width: WIDTH, height: HEIGHT }));
-    return canvas.toBuffer('image/png');
+    const canvas = renderer.export(new CanvasExporter({ width: WIDTH, height: HEIGHT }));
+    return canvas!.toBuffer!('image/png');
 }
 
 function renderWithOverlays(overlays: any) {
@@ -21,8 +21,8 @@ function renderWithOverlays(overlays: any) {
     const settings = createSettings();
     const renderer = new MapRenderer(reader, settings);
     renderer.drawArea(1, 0);
-    const canvas = renderer.export(new CanvasExporter(renderer.backend, { width: WIDTH, height: HEIGHT, overlays }));
-    return canvas.toBuffer('image/png');
+    const canvas = renderer.export(new CanvasExporter({ width: WIDTH, height: HEIGHT, overlays }));
+    return canvas!.toBuffer!('image/png');
 }
 
 function renderArea(areaId: number, zIndex: number, opts?: any) {
@@ -30,8 +30,8 @@ function renderArea(areaId: number, zIndex: number, opts?: any) {
     const settings = createSettings();
     const renderer = new MapRenderer(reader, settings);
     renderer.drawArea(areaId, zIndex);
-    const canvas = renderer.export(new CanvasExporter(renderer.backend, { width: WIDTH, height: HEIGHT, ...opts }));
-    return canvas.toBuffer('image/png');
+    const canvas = renderer.export(new CanvasExporter({ width: WIDTH, height: HEIGHT, ...opts }));
+    return canvas!.toBuffer!('image/png');
 }
 
 describe('CanvasExporter', () => {
@@ -147,7 +147,7 @@ describe('CanvasExporter', () => {
             const reader = createTestMapReader();
             const settings = createSettings();
             const renderer = new MapRenderer(reader, settings);
-            expect(renderer.export(new CanvasExporter(renderer.backend, { width: WIDTH, height: HEIGHT }))).toBeUndefined();
+            expect(renderer.export(new CanvasExporter({ width: WIDTH, height: HEIGHT }))).toBeUndefined();
         });
     });
 });

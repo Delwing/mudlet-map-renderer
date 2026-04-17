@@ -249,13 +249,13 @@ const svgTyped    = renderer.export(new SvgExporter({
 }));
 
 // PNG data URL
-const pngUrl = renderer.export(new PngExporter(renderer.backend, { pixelRatio: 2 }));
+const pngUrl = renderer.export(new PngExporter({ pixelRatio: 2 }));
 
 // PNG as Blob
-const blob = await renderer.export(new PngBlobExporter(renderer.backend, { pixelRatio: 2 }));
+const blob = await renderer.export(new PngBlobExporter({ pixelRatio: 2 }));
 
 // Canvas at a specific size/region (headless-friendly)
-const canvas = renderer.export(new CanvasExporter(renderer.backend, {
+const canvas = renderer.export(new CanvasExporter({
   width: 1920,
   height: 1080,
   roomId: 1234,
@@ -280,9 +280,7 @@ renderer.drawArea(42, 0);
 renderer.state.positionRoomId = 1234;  // mark player position without auto-centering
 
 const svg = renderer.export(new SvgExporter({ padding: 5 }));
-const canvas = renderer.export(new CanvasExporter(renderer.backend, {
-  width: 1920, height: 1080,
-}));
+const canvas = renderer.export(new CanvasExporter({ width: 1920, height: 1080 }));
 ```
 
 ### Overlays
@@ -467,9 +465,9 @@ MudletMapReader.exportJson(map, 'map.json');
 | Exporter | Output |
 |---|---|
 | `SvgExporter({ roomId?, padding?, overlays? })` | `string` — SVG document |
-| `PngExporter(backend, { pixelRatio? })` | `string` — PNG data URL (rasterizes current viewport) |
-| `PngBlobExporter(backend, { pixelRatio? })` | `Promise<Blob>` — PNG Blob |
-| `CanvasExporter(backend, { width, height, roomId?, padding?, overlays? })` | canvas — reframes to fit; headless-friendly |
+| `PngExporter({ pixelRatio? })` | `string` — PNG data URL (rasterizes current viewport) |
+| `PngBlobExporter({ pixelRatio? })` | `Promise<Blob>` — PNG Blob |
+| `CanvasExporter({ width, height, roomId?, padding?, overlays? })` | `ExportCanvas` — reframes to fit; headless-friendly |
 
 ### Styles
 

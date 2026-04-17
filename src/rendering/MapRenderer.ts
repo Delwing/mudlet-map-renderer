@@ -13,7 +13,7 @@ import type {CullingManager} from "../CullingManager";
 import type {TypedEventEmitter} from "../TypedEventEmitter";
 import type {LiveEffect} from "../overlay/LiveEffect";
 import type {SceneOverlay} from "../overlay/SceneOverlay";
-import type {Exporter} from "../export/Exporter";
+import type {Exporter, ExportContext, ExportCanvas} from "../export/Exporter";
 
 /** Contract for interactive render backends. */
 export interface InteractiveBackend {
@@ -36,9 +36,9 @@ export interface InteractiveBackend {
             highlights?: Array<{ roomId: number; color: string }>;
             paths?: Array<{ locations: number[]; color: string }>;
         };
-    }): any;
+    }): ExportCanvas | undefined;
     /** Capture the current viewport as a canvas with background fill. */
-    exportCanvas(options?: { pixelRatio?: number }): HTMLCanvasElement | undefined;
+    exportCanvas(options?: { pixelRatio?: number }): ExportCanvas | undefined;
     addLiveEffect(id: string, effect: LiveEffect): void;
     removeLiveEffect(id: string): void;
     addSceneOverlay(id: string, overlay: SceneOverlay): void;
@@ -210,14 +210,20 @@ export class MapRenderer {
      * Run an {@link Exporter} against the current scene and return its output.
      *
      * ```ts
-     * const svg  = renderer.export(new SvgExporter({padding: 5}));
-     * const url  = renderer.export(new PngExporter(renderer.backend, {pixelRatio: 2}));
-     * const blob = await renderer.export(new PngBlobExporter(renderer.backend));
-     * const canvas = renderer.export(new CanvasExporter(renderer.backend, {width, height}));
+     * const svg    = renderer.export(new SvgExporter({ padding: 5 }));
+     * const url    = renderer.export(new PngExporter({ pixelRatio: 2 }));
+     * const blob   = await renderer.export(new PngBlobExporter());
+     * const canvas = renderer.export(new CanvasExporter({ width, height }));
      * ```
      */
     export<T>(exporter: Exporter<T>): T {
-        return exporter.render(this.state, this.currentStyle, this.backend.getSceneOverlays());
+        const context: ExportContext = {
+            state: this.state,
+            backend: this.backend,
+            style: this.currentStyle,
+            sceneOverlays: this.backend.getSceneOverlays(),
+        };
+        return exporter.render(context);
     }
 
     // --- Viewport & interaction ---
