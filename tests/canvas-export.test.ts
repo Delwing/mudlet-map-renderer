@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { HeadlessRenderer } from '../src/HeadlessRenderer';
+import { MapRenderer } from '../src/rendering/MapRenderer';
+import { CanvasExporter } from '../src/export/CanvasExporter';
 import { createSettings } from '../src/types/Settings';
 import { createTestMapReader } from './helpers';
 
@@ -9,27 +10,27 @@ const HEIGHT = 300;
 function exportArea(settingsOverrides?: Partial<ReturnType<typeof createSettings>>) {
     const reader = createTestMapReader();
     const settings = { ...createSettings(), ...settingsOverrides };
-    const renderer = new HeadlessRenderer(reader, settings);
+    const renderer = new MapRenderer(reader, settings);
     renderer.drawArea(1, 0);
-    const canvas = renderer.renderToCanvas({ width: WIDTH, height: HEIGHT });
+    const canvas = renderer.export(new CanvasExporter(renderer.backend, { width: WIDTH, height: HEIGHT }));
     return canvas.toBuffer('image/png');
 }
 
 function renderWithOverlays(overlays: any) {
     const reader = createTestMapReader();
     const settings = createSettings();
-    const renderer = new HeadlessRenderer(reader, settings);
+    const renderer = new MapRenderer(reader, settings);
     renderer.drawArea(1, 0);
-    const canvas = renderer.renderToCanvas({ width: WIDTH, height: HEIGHT, overlays });
+    const canvas = renderer.export(new CanvasExporter(renderer.backend, { width: WIDTH, height: HEIGHT, overlays }));
     return canvas.toBuffer('image/png');
 }
 
 function renderArea(areaId: number, zIndex: number, opts?: any) {
     const reader = createTestMapReader();
     const settings = createSettings();
-    const renderer = new HeadlessRenderer(reader, settings);
+    const renderer = new MapRenderer(reader, settings);
     renderer.drawArea(areaId, zIndex);
-    const canvas = renderer.renderToCanvas({ width: WIDTH, height: HEIGHT, ...opts });
+    const canvas = renderer.export(new CanvasExporter(renderer.backend, { width: WIDTH, height: HEIGHT, ...opts }));
     return canvas.toBuffer('image/png');
 }
 
@@ -145,8 +146,8 @@ describe('CanvasExporter', () => {
         it('returns undefined before drawArea', () => {
             const reader = createTestMapReader();
             const settings = createSettings();
-            const renderer = new HeadlessRenderer(reader, settings);
-            expect(renderer.renderToCanvas({ width: WIDTH, height: HEIGHT })).toBeUndefined();
+            const renderer = new MapRenderer(reader, settings);
+            expect(renderer.export(new CanvasExporter(renderer.backend, { width: WIDTH, height: HEIGHT }))).toBeUndefined();
         });
     });
 });

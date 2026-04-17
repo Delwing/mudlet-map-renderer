@@ -1,5 +1,5 @@
 import type {
-    DrawingBackend, ExportDrawingBackend,
+    DrawingBackend,
     GroupNode, LayerNode, CoordFn,
     RectConfig, CircleConfig, LineConfig, PolygonConfig, TextConfig, ImageConfig,
 } from "./DrawingBackend";
@@ -83,8 +83,7 @@ export class SvgLayerNode implements LayerNode {
  * SVG implementation of DrawingBackend.
  * Creates SVG elements as strings instead of Konva nodes.
  */
-export class SvgBackend implements ExportDrawingBackend {
-    readonly __backendKind = 'export' as const;
+export class SvgBackend implements DrawingBackend {
 
     createGroup(x: number, y: number): SvgGroupNode {
         return new SvgGroupNode(x, y);

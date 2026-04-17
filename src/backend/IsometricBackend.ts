@@ -2,7 +2,7 @@ import type {
     DrawingBackend, GroupNode, CoordFn,
     RectConfig, CircleConfig, LineConfig, PolygonConfig, TextConfig, ImageConfig,
 } from "./DrawingBackend";
-import {BaseDecoratorBackend} from "./DrawingBackend";
+import {BaseStyle} from "./DrawingBackend";
 import {darkenColor} from "../utils/color";
 
 /**
@@ -67,7 +67,7 @@ const CIRCLE_SEGMENTS = 32;
  * ```
  */
 export class IsometricBackend<Inner extends DrawingBackend = DrawingBackend>
-    extends BaseDecoratorBackend<Inner> {
+    extends BaseStyle<Inner> {
 
     private readonly depth: number;
     private readonly iso: IsoTransform;

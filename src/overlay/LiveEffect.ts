@@ -1,6 +1,8 @@
 import type Konva from "konva";
 import type {ViewportBounds} from "../types/Settings";
-import type {CoordinateTransform} from "../types/OverlayPlugin";
+
+/** Map-space → render-space coordinate transform. */
+export type CoordinateTransform = (x: number, y: number) => { x: number; y: number };
 
 /**
  * Interactive-only animated effect. A {@link LiveEffect} receives a live Konva
@@ -8,10 +10,7 @@ import type {CoordinateTransform} from "../types/OverlayPlugin";
  * animation loop.
  *
  * Exporters (SVG, PNG, PDF, …) skip `LiveEffect`s by design — use
- * {@link SceneOverlay} when you need an overlay to appear in exports.
- *
- * The attach → updateViewport (repeated) → destroy lifecycle matches the
- * former `OverlayPlugin` interface, which is preserved as a deprecated alias.
+ * `SceneOverlay` when you need an overlay to appear in exports.
  *
  * ```ts
  * class PulseEffect implements LiveEffect {

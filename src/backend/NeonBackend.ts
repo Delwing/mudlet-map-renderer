@@ -2,7 +2,7 @@ import type {
     DrawingBackend, GroupNode,
     RectConfig, CircleConfig, LineConfig, PolygonConfig, TextConfig,
 } from "./DrawingBackend";
-import {BaseDecoratorBackend} from "./DrawingBackend";
+import {BaseStyle} from "./DrawingBackend";
 
 /** Bright cyan-green used for text. */
 const TEXT_COLOR = '#00ffd0';
@@ -118,7 +118,7 @@ function toNeonStroke(color: string): string {
  * ```
  */
 export class NeonBackend<Inner extends DrawingBackend = DrawingBackend>
-    extends BaseDecoratorBackend<Inner> {
+    extends BaseStyle<Inner> {
 
     addRect(parent: GroupNode, config: RectConfig): void {
         // Glow pass: wider translucent neon stroke, no fill

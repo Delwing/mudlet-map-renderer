@@ -4,23 +4,16 @@ import type {ViewportBounds, RendererEventMap, CullingMode} from "../types/Setti
 import {createSettings} from "../types/Settings";
 import type {Settings} from "../types/Settings";
 import {MapState} from "../MapState";
-import type {SvgExportOptions} from "../SvgTypes";
 import {KonvaRenderBackend} from "./KonvaRenderBackend";
-import type {
-    DrawingBackend, InteractiveDrawingBackend, CoordFn, Style,
-} from "../backend/DrawingBackend";
+import type {DrawingBackend, CoordFn, Style} from "../backend/DrawingBackend";
 import {identityStyle} from "../backend/DrawingBackend";
 import {CanvasBackend} from "../backend/CanvasBackend";
-import type {CanvasExportOptions, CanvasExportOverlays} from "../HeadlessRenderer";
 import type {Viewport} from "../Viewport";
 import type {CullingManager} from "../CullingManager";
 import type {TypedEventEmitter} from "../TypedEventEmitter";
-import type {OverlayPlugin} from "../types/OverlayPlugin";
 import type {LiveEffect} from "../overlay/LiveEffect";
 import type {SceneOverlay} from "../overlay/SceneOverlay";
 import type {Exporter} from "../export/Exporter";
-import {SvgExporter} from "../export/SvgExporter";
-import {PngExporter, PngBlobExporter} from "../export/PngExporter";
 
 /** Contract for interactive render backends. */
 export interface InteractiveBackend {
@@ -29,11 +22,21 @@ export interface InteractiveBackend {
     readonly events: TypedEventEmitter<RendererEventMap>;
     /** Forward map → render-space transform from the current drawing backend. */
     readonly coordinateTransform: CoordFn;
-    setDrawingBackend(backend: InteractiveDrawingBackend): void;
+    setDrawingBackend(backend: DrawingBackend): void;
     updateBackground(): void;
     refresh(): void;
     /** Render a specific region to canvas (for headless / bounded export). */
-    toCanvas(options: { width: number; height: number; roomId?: number; padding?: number }): any;
+    toCanvas(options: {
+        width: number;
+        height: number;
+        roomId?: number;
+        padding?: number;
+        overlays?: {
+            position?: { roomId: number };
+            highlights?: Array<{ roomId: number; color: string }>;
+            paths?: Array<{ locations: number[]; color: string }>;
+        };
+    }): any;
     /** Capture the current viewport as a canvas with background fill. */
     exportCanvas(options?: { pixelRatio?: number }): HTMLCanvasElement | undefined;
     addLiveEffect(id: string, effect: LiveEffect): void;
@@ -41,17 +44,22 @@ export interface InteractiveBackend {
     addSceneOverlay(id: string, overlay: SceneOverlay): void;
     removeSceneOverlay(id: string): void;
     getSceneOverlays(): Iterable<SceneOverlay>;
-    /** @deprecated Use {@link addLiveEffect}. */
-    addOverlayPlugin(id: string, plugin: OverlayPlugin): void;
-    /** @deprecated Use {@link removeLiveEffect}. */
-    removeOverlayPlugin(id: string): void;
     destroy(): void;
 }
 
 /**
  * Unified map renderer facade.
  *
- * All public methods mutate MapState. State events drive the rendering backend.
+ * Public surface is intentionally narrow:
+ * - **State mutations** (`drawArea`, `setPosition`, `renderHighlight`, …) emit
+ *   events through `MapState` that the interactive backend reacts to.
+ * - **{@link setStyle}** applies a target-agnostic visual transformation to the
+ *   interactive canvas and every exporter.
+ * - **{@link export}** runs an {@link Exporter} plug-in and returns its output
+ *   (SVG string, PNG data URL, canvas, PDF bytes, …). New formats are added by
+ *   shipping new `Exporter<T>` implementations — no new methods on this class.
+ * - **{@link addSceneOverlay}** / **{@link addLiveEffect}** distinguish scene
+ *   content (appears everywhere) from animated effects (interactive only).
  */
 export class MapRenderer {
     readonly state: MapState;
@@ -68,29 +76,18 @@ export class MapRenderer {
      * @param container       DOM element for interactive rendering. Omit for headless.
      * @param backendFactory  Optional factory that receives the `MapState` and returns
      *   a custom `InteractiveBackend`. When omitted, a `KonvaRenderBackend` is created.
-     * @param drawingBackend  Optional DrawingBackend for interactive scene rendering.
-     *   Must be an `InteractiveDrawingBackend` — i.e. {@link CanvasBackend} or a decorator
-     *   chain over one (e.g. `new SketchyBackend(new CanvasBackend(), 0.015, '#444')`).
-     *   Defaults to a fresh `CanvasBackend()`.
-     * @param svgDrawingBackendFactory  @deprecated Set a {@link Style} via
-     *   {@link setStyle} instead — one style drives every output path.
      */
     constructor(
         mapReader: MapReader,
         settings?: Settings,
         container?: HTMLDivElement,
         backendFactory?: (state: MapState) => InteractiveBackend,
-        drawingBackend?: InteractiveDrawingBackend,
-        svgDrawingBackendFactory?: (innerSvgBackend: DrawingBackend) => DrawingBackend,
     ) {
         const resolvedSettings = settings ?? createSettings();
         this.state = new MapState(mapReader, resolvedSettings);
         this.backend = backendFactory
             ? backendFactory(this.state)
-            : new KonvaRenderBackend(this.state, container, drawingBackend);
-        if (svgDrawingBackendFactory) {
-            this.currentStyle = svgDrawingBackendFactory as unknown as Style;
-        }
+            : new KonvaRenderBackend(this.state, container);
     }
 
     destroy() {
@@ -151,41 +148,31 @@ export class MapRenderer {
         this.state.refreshPosition();
     }
 
+    // --- Style ---
+
     /**
-     * Apply a {@link Style} to all rendering paths — interactive canvas, SVG export,
-     * PNG export. One style, every output. Pass `identityStyle` (or call {@link clearStyle})
-     * to remove the current style.
+     * Apply a {@link Style} to the interactive canvas and every export path.
      *
      * ```ts
      * import {compose, Parchment, Sketchy} from 'mudlet-map-renderer';
      * renderer.setStyle(compose(Parchment, Sketchy({jitter: 0.012, color: '#4a3728'})));
      * ```
+     *
+     * Pass `identityStyle` (or call {@link clearStyle}) to remove the current style.
      */
     setStyle(style: Style) {
         this.currentStyle = style;
-        const styledInteractive = style(new CanvasBackend());
-        this.backend.setDrawingBackend(styledInteractive);
+        this.backend.setDrawingBackend(style(new CanvasBackend()));
     }
 
-    /** Remove the current style. Equivalent to `setStyle(identityStyle)`. */
+    /** Equivalent to `setStyle(identityStyle)`. */
     clearStyle() {
         this.setStyle(identityStyle);
     }
 
-    /** Returns the style currently applied (defaults to {@link identityStyle}). */
+    /** Returns the style currently applied (defaults to identity). */
     getStyle(): Style {
         return this.currentStyle;
-    }
-
-    /** @deprecated Use {@link setStyle}. */
-    setDrawingBackend(backend: InteractiveDrawingBackend) {
-        this.backend.setDrawingBackend(backend);
-        this.currentStyle = identityStyle;
-    }
-
-    /** @deprecated Use {@link setStyle}. */
-    setDrawingBackendFactory(factory: ((inner: DrawingBackend) => DrawingBackend) | null) {
-        this.currentStyle = (factory ?? identityStyle) as unknown as Style;
     }
 
     updateBackground() {
@@ -197,10 +184,9 @@ export class MapRenderer {
         this.backend.refresh();
     }
 
-    /**
-     * Add a {@link SceneOverlay} — target-agnostic, appears in every output
-     * (interactive canvas, SVG, PNG, and any custom exporter).
-     */
+    // --- Overlays ---
+
+    /** Target-agnostic overlay; appears in every output including exporters. */
     addSceneOverlay(id: string, overlay: SceneOverlay) {
         this.backend.addSceneOverlay(id, overlay);
     }
@@ -209,10 +195,7 @@ export class MapRenderer {
         this.backend.removeSceneOverlay(id);
     }
 
-    /**
-     * Add a {@link LiveEffect} — interactive-only animated effect. Skipped by
-     * exporters. For export-compatible overlays use {@link addSceneOverlay}.
-     */
+    /** Interactive-only animated effect; skipped by exporters. */
     addLiveEffect(id: string, effect: LiveEffect) {
         this.backend.addLiveEffect(id, effect);
     }
@@ -221,51 +204,20 @@ export class MapRenderer {
         this.backend.removeLiveEffect(id);
     }
 
-    /** @deprecated Use {@link addLiveEffect} (identical behaviour) or {@link addSceneOverlay}. */
-    addOverlayPlugin(id: string, plugin: OverlayPlugin) {
-        this.backend.addLiveEffect(id, plugin);
-    }
-
-    /** @deprecated Use {@link removeLiveEffect}. */
-    removeOverlayPlugin(id: string) {
-        this.backend.removeLiveEffect(id);
-    }
-
     // --- Export ---
 
     /**
      * Run an {@link Exporter} against the current scene and return its output.
      *
-     * New output formats (PDF, tile atlases, JSON scene graph, …) are added by
-     * shipping a new `Exporter<T>` — no changes to `MapRenderer` required.
-     *
      * ```ts
      * const svg  = renderer.export(new SvgExporter({padding: 5}));
      * const url  = renderer.export(new PngExporter(renderer.backend, {pixelRatio: 2}));
      * const blob = await renderer.export(new PngBlobExporter(renderer.backend));
+     * const canvas = renderer.export(new CanvasExporter(renderer.backend, {width, height}));
      * ```
      */
     export<T>(exporter: Exporter<T>): T {
         return exporter.render(this.state, this.currentStyle, this.backend.getSceneOverlays());
-    }
-
-    /** @deprecated Use `renderer.export(new SvgExporter(options))`. */
-    exportSvg(options?: SvgExportOptions): string | undefined {
-        return this.export(new SvgExporter(options));
-    }
-
-    /** @deprecated Use `renderer.export(new PngExporter(renderer.backend, options))`. */
-    exportPng(options?: { pixelRatio?: number }): string | undefined {
-        return this.export(new PngExporter(this.backend, options));
-    }
-
-    /** @deprecated Use `renderer.export(new PngBlobExporter(renderer.backend, options))`. */
-    exportPngBlob(options?: { pixelRatio?: number }): Promise<Blob> | undefined {
-        return this.export(new PngBlobExporter(this.backend, options));
-    }
-
-    renderToCanvas(options: CanvasExportOptions & { overlays?: CanvasExportOverlays }): any {
-        return this.backend.toCanvas(options);
     }
 
     // --- Viewport & interaction ---
@@ -306,7 +258,6 @@ export class MapRenderer {
             minY: hasAreaName ? b.minY - 7 : b.minY,
             maxY: b.maxY,
         };
-        // Transform the 4 corners and compute the AABB in rendered space
         const fn = this.backend.coordinateTransform;
         const c1 = fn(raw.minX, raw.minY);
         const c2 = fn(raw.maxX, raw.minY);

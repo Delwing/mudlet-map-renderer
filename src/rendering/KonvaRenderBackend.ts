@@ -12,7 +12,7 @@ import {TypedEventEmitter} from "../TypedEventEmitter";
 import {KonvaLayerNode} from "../backend/KonvaBackend";
 import {CanvasBackend, RecordingLayerNode} from "../backend/CanvasBackend";
 import type {InteractiveBackend} from "./MapRenderer";
-import type {DrawingBackend, InteractiveDrawingBackend, GroupNode, LayerNode, CoordFn} from "../backend/DrawingBackend";
+import type {DrawingBackend, GroupNode, LayerNode, CoordFn} from "../backend/DrawingBackend";
 import {IDENTITY_TRANSFORM} from "../backend/DrawingBackend";
 import {computeHighlight, computePositionMarker, computePathOverlay} from "../scene/OverlayStyle";
 import {computeAmbientLight} from "../scene/AmbientLightStyle";
@@ -25,7 +25,6 @@ import {
     renderAmbientLight,
 } from "../scene/OverlayRenderer";
 import ExplorationArea from "../reader/ExplorationArea";
-import type {OverlayPlugin} from "../types/OverlayPlugin";
 import type {LiveEffect} from "../overlay/LiveEffect";
 import type {SceneOverlay} from "../overlay/SceneOverlay";
 
@@ -77,11 +76,11 @@ export class KonvaRenderBackend implements InteractiveBackend {
     get coordinateTransform(): CoordFn {
         return this._coordinateTransform;
     }
-    private overlayPlugins: Map<string, LiveEffect> = new Map();
+    private liveEffects: Map<string, LiveEffect> = new Map();
     private sceneOverlays: Map<string, SceneOverlay> = new Map();
     private sceneOverlayNodes: GroupNode[] = [];
 
-    constructor(state: MapState, container?: HTMLDivElement, drawingBackend?: InteractiveDrawingBackend) {
+    constructor(state: MapState, container?: HTMLDivElement, drawingBackend?: DrawingBackend) {
         this.state = state;
         this.container = container;
 
@@ -155,7 +154,7 @@ export class KonvaRenderBackend implements InteractiveBackend {
         this.subscribeToState(state);
     }
 
-    setDrawingBackend(backend: InteractiveDrawingBackend) {
+    setDrawingBackend(backend: DrawingBackend) {
         this.drawingBackend = backend;
         this.pipeline = new ScenePipeline(this.state.mapReader, this.state.settings, backend, {
             gridLayer: new RecordingLayerNode(this.gridLayer),
@@ -225,8 +224,8 @@ export class KonvaRenderBackend implements InteractiveBackend {
         this.interactionHandler?.destroy();
 
         // Stop overlay plugins
-        for (const plugin of this.overlayPlugins.values()) plugin.destroy();
-        this.overlayPlugins.clear();
+        for (const plugin of this.liveEffects.values()) plugin.destroy();
+        this.liveEffects.clear();
 
         // Cancel any running viewport animation
         this.viewport.cancelAnimation();
@@ -286,7 +285,7 @@ export class KonvaRenderBackend implements InteractiveBackend {
         this.culling.scheduleCulling();
         this.refreshAmbientLight();
         const vpBounds = this.viewport.getViewportBounds();
-        for (const plugin of this.overlayPlugins.values()) {
+        for (const plugin of this.liveEffects.values()) {
             plugin.updateViewport(vpBounds, scale, this.coordinateTransform);
         }
     }
@@ -403,15 +402,15 @@ export class KonvaRenderBackend implements InteractiveBackend {
     addLiveEffect(id: string, effect: LiveEffect) {
         this.removeLiveEffect(id);
         effect.attach(this.overlayLayer);
-        this.overlayPlugins.set(id, effect);
+        this.liveEffects.set(id, effect);
         effect.updateViewport(this.viewport.getViewportBounds(), this.viewport.getScale(), this.coordinateTransform);
     }
 
     removeLiveEffect(id: string) {
-        const existing = this.overlayPlugins.get(id);
+        const existing = this.liveEffects.get(id);
         if (existing) {
             existing.destroy();
-            this.overlayPlugins.delete(id);
+            this.liveEffects.delete(id);
         }
     }
 
@@ -448,16 +447,6 @@ export class KonvaRenderBackend implements InteractiveBackend {
         this.overlayLayer.batchDraw();
     }
 
-    /** @deprecated Use {@link addLiveEffect} (same behaviour) or {@link addSceneOverlay} for exporter-compatible overlays. */
-    addOverlayPlugin(id: string, plugin: OverlayPlugin) {
-        this.addLiveEffect(id, plugin);
-    }
-
-    /** @deprecated Use {@link removeLiveEffect}. */
-    removeOverlayPlugin(id: string) {
-        this.removeLiveEffect(id);
-    }
-
     private subscribeToState(state: MapState) {
         state.events.on('area', () => {
             this.refresh();
@@ -491,7 +480,7 @@ export class KonvaRenderBackend implements InteractiveBackend {
 
     // --- Scene lifecycle ---
 
-    private buildScene(area: Area, plane: Plane, zIndex: number, viewportBounds?: import("../Renderer").ViewportBounds): SceneBuildResult {
+    private buildScene(area: Area, plane: Plane, zIndex: number, viewportBounds?: import("../types/Settings").ViewportBounds): SceneBuildResult {
         this.positionLayer.destroyChildren();
         this.positionMarker = undefined;
         this.clearOverlayShapes();

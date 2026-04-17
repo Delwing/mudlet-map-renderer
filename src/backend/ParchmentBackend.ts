@@ -2,7 +2,7 @@ import type {
     DrawingBackend, GroupNode,
     RectConfig, CircleConfig, LineConfig, PolygonConfig, TextConfig,
 } from "./DrawingBackend";
-import {BaseDecoratorBackend} from "./DrawingBackend";
+import {BaseStyle} from "./DrawingBackend";
 
 /** Dark brown ink used for strokes and outlines. */
 const INK = '#4a3728';
@@ -91,7 +91,7 @@ function toInk(color: string): string {
  * ```
  */
 export class ParchmentBackend<Inner extends DrawingBackend = DrawingBackend>
-    extends BaseDecoratorBackend<Inner> {
+    extends BaseStyle<Inner> {
 
     addRect(parent: GroupNode, config: RectConfig): void {
         this.inner.addRect(parent, {

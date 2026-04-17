@@ -2,7 +2,7 @@ import type {
     DrawingBackend, GroupNode,
     RectConfig, CircleConfig, LineConfig, PolygonConfig, TextConfig,
 } from "./DrawingBackend";
-import {BaseDecoratorBackend} from "./DrawingBackend";
+import {BaseStyle} from "./DrawingBackend";
 
 /** Light cyan used for strokes and lines. */
 const LINE_COLOR = '#c0deff';
@@ -78,7 +78,7 @@ function toLine(color: string): string {
  * ```
  */
 export class BlueprintBackend<Inner extends DrawingBackend = DrawingBackend>
-    extends BaseDecoratorBackend<Inner> {
+    extends BaseStyle<Inner> {
 
     addRect(parent: GroupNode, config: RectConfig): void {
         this.inner.addRect(parent, {

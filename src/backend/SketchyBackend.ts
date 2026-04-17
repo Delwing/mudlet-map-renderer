@@ -2,7 +2,7 @@ import type {
     DrawingBackend, GroupNode,
     RectConfig, CircleConfig, LineConfig, PolygonConfig, TextConfig,
 } from "./DrawingBackend";
-import {BaseDecoratorBackend} from "./DrawingBackend";
+import {BaseStyle} from "./DrawingBackend";
 
 /**
  * Simple seeded PRNG (linear congruential).
@@ -165,7 +165,7 @@ function wobblePolygonEdges(vertices: number[], jitter: number, rng: () => numbe
  * ```
  */
 export class SketchyBackend<Inner extends DrawingBackend = DrawingBackend>
-    extends BaseDecoratorBackend<Inner> {
+    extends BaseStyle<Inner> {
 
     private readonly jitter: number;
     private readonly pencil: string;

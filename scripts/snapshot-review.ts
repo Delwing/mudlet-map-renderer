@@ -3,8 +3,9 @@ import { writeFileSync, mkdirSync, readFileSync, existsSync, rmSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 
-import { SvgRenderBackend } from "../src/rendering/SvgRenderBackend";
-import { HeadlessRenderer } from "../src/HeadlessRenderer";
+import { SvgExporter } from "../src/export/SvgExporter";
+import { CanvasExporter } from "../src/export/CanvasExporter";
+import { MapRenderer } from "../src/rendering/MapRenderer";
 import { MapState } from "../src/MapState";
 import { createSettings, type Settings } from "../src/types/Settings";
 import { createTestMapReader } from "../tests/helpers";
@@ -27,39 +28,39 @@ function svgExport(overrides?: Partial<Settings>): string {
     const settings = { ...createSettings(), ...overrides };
     const state = new MapState(reader, settings);
     state.setArea(1, 0);
-    return new SvgRenderBackend(state).exportSvg() ?? "";
+    return new SvgExporter().render(state) ?? "";
 }
 
 function svgExportWithState(setup: (s: MapState) => void, options?: any): string {
     const reader = createTestMapReader();
     const state = new MapState(reader, createSettings());
     setup(state);
-    return new SvgRenderBackend(state).exportSvg(options) ?? "";
+    return new SvgExporter(options).render(state) ?? "";
 }
 
-function headlessSvg(setup: (r: HeadlessRenderer) => void): string {
-    const renderer = new HeadlessRenderer(createTestMapReader(), createSettings());
+function headlessSvg(setup: (r: MapRenderer) => void): string {
+    const renderer = new MapRenderer(createTestMapReader(), createSettings());
     renderer.drawArea(1, 0);
     setup(renderer);
-    return renderer.exportSvg() ?? "";
+    return renderer.export(new SvgExporter()) ?? "";
 }
 
 function canvasExport(overrides?: Partial<Settings>): Buffer {
-    const renderer = new HeadlessRenderer(createTestMapReader(), { ...createSettings(), ...overrides });
+    const renderer = new MapRenderer(createTestMapReader(), { ...createSettings(), ...overrides });
     renderer.drawArea(1, 0);
-    return renderer.renderToCanvas({ width: WIDTH, height: HEIGHT }).toBuffer("image/png");
+    return renderer.export(new CanvasExporter(renderer.backend, { width: WIDTH, height: HEIGHT })).toBuffer("image/png");
 }
 
 function canvasWithOverlays(overlays: any): Buffer {
-    const renderer = new HeadlessRenderer(createTestMapReader(), createSettings());
+    const renderer = new MapRenderer(createTestMapReader(), createSettings());
     renderer.drawArea(1, 0);
-    return renderer.renderToCanvas({ width: WIDTH, height: HEIGHT, overlays }).toBuffer("image/png");
+    return renderer.export(new CanvasExporter(renderer.backend, { width: WIDTH, height: HEIGHT, overlays })).toBuffer("image/png");
 }
 
 function canvasArea(areaId: number, z: number, opts?: any): Buffer {
-    const renderer = new HeadlessRenderer(createTestMapReader(), createSettings());
+    const renderer = new MapRenderer(createTestMapReader(), createSettings());
     renderer.drawArea(areaId, z);
-    return renderer.renderToCanvas({ width: WIDTH, height: HEIGHT, ...opts }).toBuffer("image/png");
+    return renderer.export(new CanvasExporter(renderer.backend, { width: WIDTH, height: HEIGHT, ...opts })).toBuffer("image/png");
 }
 
 // === Scenarios ===
@@ -131,7 +132,7 @@ const scenarios: Scenario[] = [
       render: () => headlessSvg(() => {}) },
     { key: "HeadlessRenderer > position > snapshot - with position marker 1",
       name: "headless-position", ext: "svg", snapFile: HEADLESS_SNAP,
-      render: () => headlessSvg(r => r.setPosition(1)) },
+      render: () => headlessSvg(r => { r.state.positionRoomId = 1; }) },
     { key: "HeadlessRenderer > highlights > snapshot - single highlight 1",
       name: "headless-highlight-single", ext: "svg", snapFile: HEADLESS_SNAP,
       render: () => headlessSvg(r => r.renderHighlight(1, "#ff0000")) },
@@ -147,7 +148,7 @@ const scenarios: Scenario[] = [
     { key: "HeadlessRenderer > combined overlays > snapshot - position + highlights + path 1",
       name: "headless-combined", ext: "svg", snapFile: HEADLESS_SNAP,
       render: () => headlessSvg(r => {
-          r.setPosition(1);
+          r.state.positionRoomId = 1;
           r.renderHighlight(3, "#ff0000");
           r.renderHighlight(6, "#0000ff");
           r.renderPath([6, 2, 1, 3], "#66E64D");

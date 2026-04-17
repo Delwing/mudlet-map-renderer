@@ -34,8 +34,8 @@ function getLabelColor(color: MapData.Color): string {
  * Backend-agnostic scene composition pipeline.
  * Drives a DrawingBackend + LayerNode to render the full map scene.
  *
- * Both KonvaRenderBackend and SvgRenderBackend use this same pipeline
- * with their respective DrawingBackend implementations.
+ * Both the interactive KonvaRenderBackend and exporters (SvgExporter,
+ * CanvasExporter, …) drive this pipeline with their respective DrawingBackend.
  */
 export class ScenePipeline {
     private readonly mapReader: MapReader;
