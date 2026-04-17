@@ -279,9 +279,17 @@ Writing a new exporter — e.g. PDF — means shipping a class that implements
 
 ### Headless rendering (no DOM)
 
-For server-side or offscreen rendering, omit the container argument:
+For server-side or offscreen rendering (Node.js), install [`canvas`](https://www.npmjs.com/package/canvas) alongside this package and import Konva's canvas backend once at startup. `canvas` is a peer dependency — it isn't shipped transitively because browsers don't need it.
+
+```bash
+yarn add canvas
+```
 
 ```ts
+import "konva/canvas-backend";   // must run before creating a MapRenderer
+import { MapRenderer, createSettings, SvgExporter, PngBytesExporter } from "mudlet-map-renderer";
+
+// Omit the container argument for headless rendering.
 const renderer = new MapRenderer(mapReader, createSettings());
 
 renderer.drawArea(42, 0);
@@ -290,6 +298,8 @@ renderer.state.positionRoomId = 1234;  // mark player position without auto-cent
 const svg = renderer.export(new SvgExporter({ padding: 5 }));
 const png = renderer.export(new PngBytesExporter({ width: 1920, height: 1080 }));
 ```
+
+SVG export doesn't actually hit Konva, so if you only need SVG you can skip both the `canvas` install and the `konva/canvas-backend` import. PNG / canvas exporters and anything that builds a Konva stage do require them.
 
 ### Overlays
 

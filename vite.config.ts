@@ -19,8 +19,8 @@ export default defineConfig(({ command }) => ({
         lib: {
             entry: 'src/index.ts',
             name: 'mudlet-map-renderer',
-            fileName: (format) => (format === 'es' ? 'index.mjs' : 'index.cjs'),
-            formats: ['es', 'cjs']
+            fileName: () => 'index.mjs',
+            formats: ['es']
         },
         rollupOptions: {
             external: ['konva', 'canvas']
