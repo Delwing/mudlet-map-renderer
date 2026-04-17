@@ -286,7 +286,9 @@ export class KonvaRenderBackend implements InteractiveBackend {
         this.stage.scale({x: scale, y: scale});
         this.stage.position(this.viewport.position);
         this.stage.batchDraw();
+        const gridStart = performance.now();
         this.pipeline.gridRenderer.render(this.viewport.getViewportBounds());
+        this.culling.recordGridMs(performance.now() - gridStart);
         this.culling.scheduleCulling();
         const vpBounds = this.viewport.getViewportBounds();
         for (const cb of this.viewportSubscribers) cb();

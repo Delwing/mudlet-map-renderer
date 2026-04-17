@@ -97,6 +97,7 @@ export class CullingManager {
     private cullingScheduled = false;
     private perfMonitor = new PerfMonitor();
     private coordinateTransform: CoordinateTransform = (x, y) => ({x, y});
+    private lastGridMs = 0;
 
     constructor(
         stageInfo: StageInfo,
@@ -112,6 +113,10 @@ export class CullingManager {
 
     setCoordinateTransform(fn: CoordinateTransform) {
         this.coordinateTransform = fn;
+    }
+
+    recordGridMs(ms: number) {
+        this.lastGridMs = ms;
     }
 
     private transformPoint(x: number, y: number): { x: number; y: number } {
@@ -368,8 +373,10 @@ export class CullingManager {
 
         if (this.settings.perfCallback) {
             const cullingMs = performance.now() - perfStart;
+            const gridMs = this.lastGridMs;
+            this.lastGridMs = 0;
             this.perfMonitor.record({
-                cullingMs, gridMs: 0,
+                cullingMs, gridMs,
                 visibleRooms: this.visibleRooms.size,
                 totalRooms: this.roomNodes.size,
                 visibleExits: this.visibleStandaloneExitNodes.size,
