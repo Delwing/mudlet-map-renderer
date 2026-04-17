@@ -1,0 +1,18 @@
+# Normalize line endings to LF in the repo for all text files.
+# Overrides per-machine core.autocrlf so checkouts are consistent across
+# Linux / macOS / Windows contributors.
+* text=auto eol=lf
+
+# Binary formats — never touch.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.otf binary
+*.eot binary
+*.pdf binary
+*.zip binary
