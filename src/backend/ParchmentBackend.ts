@@ -1,7 +1,8 @@
 import type {
-    DrawingBackend, GroupNode, CoordFn,
-    RectConfig, CircleConfig, LineConfig, PolygonConfig, TextConfig, ImageConfig,
+    DrawingBackend, GroupNode,
+    RectConfig, CircleConfig, LineConfig, PolygonConfig, TextConfig,
 } from "./DrawingBackend";
+import {BaseDecoratorBackend} from "./DrawingBackend";
 
 /** Dark brown ink used for strokes and outlines. */
 const INK = '#4a3728';
@@ -89,16 +90,8 @@ function toInk(color: string): string {
  * settings.fontFamily = 'Georgia, serif';
  * ```
  */
-export class ParchmentBackend implements DrawingBackend {
-    private readonly inner: DrawingBackend;
-
-    constructor(inner: DrawingBackend) {
-        this.inner = inner;
-    }
-
-    createGroup(x: number, y: number): GroupNode {
-        return this.inner.createGroup(x, y);
-    }
+export class ParchmentBackend<Inner extends DrawingBackend = DrawingBackend>
+    extends BaseDecoratorBackend<Inner> {
 
     addRect(parent: GroupNode, config: RectConfig): void {
         this.inner.addRect(parent, {
@@ -133,21 +126,5 @@ export class ParchmentBackend implements DrawingBackend {
 
     addText(parent: GroupNode, config: TextConfig): void {
         this.inner.addText(parent, { ...config, fill: INK_TEXT });
-    }
-
-    addImage(parent: GroupNode, config: ImageConfig): void {
-        this.inner.addImage(parent, config);
-    }
-
-    getExitDepthOffset(): { x: number; y: number } {
-        return this.inner.getExitDepthOffset();
-    }
-
-    getTransform(): CoordFn {
-        return this.inner.getTransform();
-    }
-
-    getInverseTransform(): CoordFn {
-        return this.inner.getInverseTransform();
     }
 }

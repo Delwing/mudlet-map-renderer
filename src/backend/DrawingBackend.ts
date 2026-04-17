@@ -129,3 +129,103 @@ export interface DrawingBackend {
     /** Inverse of {@link getTransform}. */
     getInverseTransform(): CoordFn;
 }
+
+/**
+ * Phantom brand marking a backend as valid for interactive (on-screen) scene rendering.
+ * Produced by {@link CanvasBackend} and by decorators that wrap an interactive backend.
+ *
+ * {@link MapRenderer.setDrawingBackend} and {@link KonvaRenderBackend} require this brand,
+ * so mismatched stacks (e.g. a decorator over {@link KonvaBackend}) fail at compile time
+ * instead of silently no-oping at runtime.
+ */
+export interface InteractiveDrawingBackend extends DrawingBackend {
+    readonly __backendKind: 'interactive';
+}
+
+/**
+ * Phantom brand marking a backend as valid for SVG export.
+ * Produced by {@link SvgBackend} and by decorators that wrap an export backend.
+ */
+export interface ExportDrawingBackend extends DrawingBackend {
+    readonly __backendKind: 'export';
+}
+
+/**
+ * Carries a backend's brand ('interactive' | 'export') through a decorator.
+ * When `Inner` is unbranded (raw {@link DrawingBackend}), the decorator is also unbranded
+ * — which by design prevents passing such a stack to interactive or export APIs.
+ */
+export type PreserveBrand<Inner extends DrawingBackend> =
+    Inner extends InteractiveDrawingBackend ? 'interactive'
+    : Inner extends ExportDrawingBackend ? 'export'
+    : undefined;
+
+/**
+ * Abstract base for decorator backends. Forwards every DrawingBackend method to
+ * `this.inner` by default; subclasses override only the methods they transform.
+ *
+ * Propagates the wrapped backend's brand via `PreserveBrand<Inner>`, so
+ * `new ParchmentBackend(new CanvasBackend())` is typed as `InteractiveDrawingBackend`
+ * and `new ParchmentBackend(new SvgBackend())` as `ExportDrawingBackend`.
+ * A decorator over an unbranded leaf (e.g. legacy KonvaBackend) stays unbranded,
+ * so it cannot be passed to APIs requiring a specific brand.
+ */
+export abstract class BaseDecoratorBackend<Inner extends DrawingBackend = DrawingBackend>
+    implements DrawingBackend {
+
+    protected readonly inner: Inner;
+    readonly __backendKind!: PreserveBrand<Inner>;
+
+    constructor(inner: Inner) {
+        this.inner = inner;
+        // Runtime copy of the brand so consumers can discriminate if needed.
+        const kind = (inner as unknown as { __backendKind?: 'interactive' | 'export' }).__backendKind;
+        if (kind !== undefined) {
+            (this as unknown as { __backendKind: typeof kind }).__backendKind = kind;
+        }
+    }
+
+    createGroup(x: number, y: number): GroupNode {
+        return this.inner.createGroup(x, y);
+    }
+
+    addRect(parent: GroupNode, config: RectConfig): void {
+        this.inner.addRect(parent, config);
+    }
+
+    addCircle(parent: GroupNode, config: CircleConfig): void {
+        this.inner.addCircle(parent, config);
+    }
+
+    addLine(parent: GroupNode, config: LineConfig): void {
+        this.inner.addLine(parent, config);
+    }
+
+    addPolygon(parent: GroupNode, config: PolygonConfig): void {
+        this.inner.addPolygon(parent, config);
+    }
+
+    addText(parent: GroupNode, config: TextConfig): void {
+        this.inner.addText(parent, config);
+    }
+
+    addImage(parent: GroupNode, config: ImageConfig): void {
+        this.inner.addImage(parent, config);
+    }
+
+    supportsBatchExitRendering(): boolean {
+        return this.inner.supportsBatchExitRendering?.() ?? false;
+    }
+
+    getExitDepthOffset(): { x: number; y: number } {
+        return this.inner.getExitDepthOffset();
+    }
+
+    getTransform(): CoordFn {
+        return this.inner.getTransform();
+    }
+
+    getInverseTransform(): CoordFn {
+        return this.inner.getInverseTransform();
+    }
+}

@@ -1,6 +1,7 @@
 import Konva from "konva";
 import type {
-    DrawingBackend, GroupNode, LayerNode, CoordFn,
+    DrawingBackend, InteractiveDrawingBackend,
+    GroupNode, LayerNode, CoordFn,
     RectConfig, CircleConfig, LineConfig, PolygonConfig, TextConfig, ImageConfig,
 } from "./DrawingBackend";
 import {IDENTITY_TRANSFORM} from "./DrawingBackend";
@@ -309,7 +310,8 @@ function createImageElement(src: string): HTMLImageElement | any {
  * Drop-in replacement for KonvaBackend. Decorator backends wrap this
  * the same way they wrap KonvaBackend.
  */
-export class CanvasBackend implements DrawingBackend {
+export class CanvasBackend implements InteractiveDrawingBackend {
+    readonly __backendKind = 'interactive' as const;
 
     createGroup(x: number, y: number): RecordingGroupNode {
         return new RecordingGroupNode(x, y);

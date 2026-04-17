@@ -12,7 +12,7 @@ import {TypedEventEmitter} from "../TypedEventEmitter";
 import {KonvaLayerNode} from "../backend/KonvaBackend";
 import {CanvasBackend, RecordingLayerNode} from "../backend/CanvasBackend";
 import type {InteractiveBackend} from "./MapRenderer";
-import type {DrawingBackend, GroupNode, LayerNode, CoordFn} from "../backend/DrawingBackend";
+import type {DrawingBackend, InteractiveDrawingBackend, GroupNode, LayerNode, CoordFn} from "../backend/DrawingBackend";
 import {IDENTITY_TRANSFORM} from "../backend/DrawingBackend";
 import {computeHighlight, computePositionMarker, computePathOverlay} from "../scene/OverlayStyle";
 import {computeAmbientLight} from "../scene/AmbientLightStyle";
@@ -77,7 +77,7 @@ export class KonvaRenderBackend implements InteractiveBackend {
     }
     private overlayPlugins: Map<string, OverlayPlugin> = new Map();
 
-    constructor(state: MapState, container?: HTMLDivElement, drawingBackend?: DrawingBackend) {
+    constructor(state: MapState, container?: HTMLDivElement, drawingBackend?: InteractiveDrawingBackend) {
         this.state = state;
         this.container = container;
 
@@ -151,7 +151,7 @@ export class KonvaRenderBackend implements InteractiveBackend {
         this.subscribeToState(state);
     }
 
-    setDrawingBackend(backend: DrawingBackend) {
+    setDrawingBackend(backend: InteractiveDrawingBackend) {
         this.drawingBackend = backend;
         this.pipeline = new ScenePipeline(this.state.mapReader, this.state.settings, backend, {
             gridLayer: new RecordingLayerNode(this.gridLayer),

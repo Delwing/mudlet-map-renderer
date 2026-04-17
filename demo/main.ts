@@ -8,7 +8,9 @@ import {
     BlueprintBackend,
     NeonBackend,
     IsometricBackend,
-    DrawingBackend
+    DrawingBackend,
+    InteractiveDrawingBackend,
+    ExportDrawingBackend,
 } from "@src";
 import type {Settings} from "@src";
 import MapReader from "@src/reader/MapReader";
@@ -193,8 +195,15 @@ function applyRenderMode(mode: string) {
     settings.lineColor = savedLineColor;
     settings.fontFamily = savedFontFamily;
     // Build the decorator chain as a factory (inner backend → wrapped backend).
-    // Used for both Konva (interactive) and SVG (export).
-    type BackendFactory = (inner: DrawingBackend) => DrawingBackend;
+    // Used for both Canvas (interactive) and SVG (export).
+    //
+    // The factory is generic over the inner brand: `BaseDecoratorBackend` preserves
+    // 'interactive' / 'export' through the chain, so the result type matches the
+    // input brand and satisfies `setDrawingBackend`'s `InteractiveDrawingBackend`.
+    type BackendFactory = <I extends DrawingBackend>(inner: I) =>
+        I extends InteractiveDrawingBackend ? InteractiveDrawingBackend
+        : I extends ExportDrawingBackend ? ExportDrawingBackend
+        : DrawingBackend;
     let factory: BackendFactory = (inner) => inner;
 
     switch (mode) {

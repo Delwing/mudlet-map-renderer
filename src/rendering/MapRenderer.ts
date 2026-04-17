@@ -7,7 +7,7 @@ import {MapState} from "../MapState";
 import type {SvgExportOptions} from "../SvgTypes";
 import {KonvaRenderBackend} from "./KonvaRenderBackend";
 import {SvgRenderBackend} from "./SvgRenderBackend";
-import type {DrawingBackend, CoordFn} from "../backend/DrawingBackend";
+import type {DrawingBackend, InteractiveDrawingBackend, CoordFn} from "../backend/DrawingBackend";
 import type {CanvasExportOptions, CanvasExportOverlays} from "../HeadlessRenderer";
 import type {Viewport} from "../Viewport";
 import type {CullingManager} from "../CullingManager";
@@ -21,7 +21,7 @@ export interface InteractiveBackend {
     readonly events: TypedEventEmitter<RendererEventMap>;
     /** Forward map → render-space transform from the current drawing backend. */
     readonly coordinateTransform: CoordFn;
-    setDrawingBackend(backend: DrawingBackend): void;
+    setDrawingBackend(backend: InteractiveDrawingBackend): void;
     updateBackground(): void;
     refresh(): void;
     /** Render a specific region to canvas (for headless / bounded export). */
@@ -54,9 +54,10 @@ export class MapRenderer {
      * @param container       DOM element for interactive rendering. Omit for headless.
      * @param backendFactory  Optional factory that receives the `MapState` and returns
      *   a custom `InteractiveBackend`. When omitted, a `KonvaRenderBackend` is created.
-     * @param drawingBackend  Optional DrawingBackend for Konva rendering.
-     *   Must create GroupNodes compatible with KonvaLayerNode (i.e. wrap a KonvaBackend).
-     *   Use `new SketchyBackend(new KonvaBackend(), jitter, color)` for pencil style.
+     * @param drawingBackend  Optional DrawingBackend for interactive scene rendering.
+     *   Must be an `InteractiveDrawingBackend` — i.e. {@link CanvasBackend} or a decorator
+     *   chain over one (e.g. `new SketchyBackend(new CanvasBackend(), 0.015, '#444')`).
+     *   Defaults to a fresh `CanvasBackend()`.
      * @param svgDrawingBackendFactory  Optional factory for SVG export drawing backend.
      *   Receives the default SvgBackend and returns a wrapped one.
      */
@@ -65,7 +66,7 @@ export class MapRenderer {
         settings?: Settings,
         container?: HTMLDivElement,
         backendFactory?: (state: MapState) => InteractiveBackend,
-        drawingBackend?: DrawingBackend,
+        drawingBackend?: InteractiveDrawingBackend,
         svgDrawingBackendFactory?: (innerSvgBackend: DrawingBackend) => DrawingBackend,
     ) {
         const resolvedSettings = settings ?? createSettings();
@@ -134,7 +135,7 @@ export class MapRenderer {
         this.state.refreshPosition();
     }
 
-    setDrawingBackend(backend: DrawingBackend) {
+    setDrawingBackend(backend: InteractiveDrawingBackend) {
         this.backend.setDrawingBackend(backend);
         this.drawingBackendFactory = undefined;
     }

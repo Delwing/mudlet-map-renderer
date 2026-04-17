@@ -2,6 +2,7 @@ import type {
     DrawingBackend, GroupNode, CoordFn,
     RectConfig, CircleConfig, LineConfig, PolygonConfig, TextConfig, ImageConfig,
 } from "./DrawingBackend";
+import {BaseDecoratorBackend} from "./DrawingBackend";
 import {darkenColor} from "../utils/color";
 
 /**
@@ -65,8 +66,9 @@ const CIRCLE_SEGMENTS = 32;
  * );
  * ```
  */
-export class IsometricBackend implements DrawingBackend {
-    private readonly inner: DrawingBackend;
+export class IsometricBackend<Inner extends DrawingBackend = DrawingBackend>
+    extends BaseDecoratorBackend<Inner> {
+
     private readonly depth: number;
     private readonly iso: IsoTransform;
     private readonly isoInv: IsoTransform;
@@ -75,8 +77,8 @@ export class IsometricBackend implements DrawingBackend {
      * @param inner    The backend to delegate to after iso-transforming coordinates.
      * @param options  Depth (cube side face height, default 0.18) and rotation (0/90/180/270, default 0).
      */
-    constructor(inner: DrawingBackend, options?: { depth?: number; rotation?: IsometricRotation } | number) {
-        this.inner = inner;
+    constructor(inner: Inner, options?: { depth?: number; rotation?: IsometricRotation } | number) {
+        super(inner);
         if (typeof options === 'number') {
             this.depth = options;
             this.iso = buildTransform(0);

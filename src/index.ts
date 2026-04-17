@@ -20,7 +20,10 @@ export { MapState } from './MapState';
 export type { MapStateEventMap, HighlightEntry, PathEntry } from './MapState';
 export { KonvaRenderBackend } from './rendering/KonvaRenderBackend';
 export { Viewport } from './Viewport';
-export type { DrawingBackend } from './backend/DrawingBackend';
+export type {
+    DrawingBackend, InteractiveDrawingBackend, ExportDrawingBackend, PreserveBrand,
+} from './backend/DrawingBackend';
+export { BaseDecoratorBackend } from './backend/DrawingBackend';
 export { KonvaBackend } from './backend/KonvaBackend';
 export { CanvasBackend } from './backend/CanvasBackend';
 export { SketchyBackend } from './backend/SketchyBackend';
