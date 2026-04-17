@@ -1,5 +1,3 @@
-import type {Settings} from "../types/Settings";
-
 /**
  * Ambient light data: a single image containing a smooth radial vignette,
  * positioned centered on the player.
@@ -9,6 +7,13 @@ export type AmbientLightData = {
     cy: number;
     displaySize: number;
     src: string;
+};
+
+/** Tunable parameters for the ambient light vignette. */
+export type AmbientLightParams = {
+    color: string;
+    radius: number;
+    intensity: number;
 };
 
 // --- Vignette texture cache ---
@@ -91,9 +96,9 @@ export function computeAmbientLight(
     cx: number,
     cy: number,
     viewportBounds: { minX: number; maxX: number; minY: number; maxY: number },
-    settings: Settings,
+    params: AmbientLightParams,
 ): AmbientLightData {
-    const {radius, intensity, color} = settings.ambientLight;
+    const {radius, intensity, color} = params;
 
     const vw = viewportBounds.maxX - viewportBounds.minX;
     const vh = viewportBounds.maxY - viewportBounds.minY;

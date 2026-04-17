@@ -2,7 +2,7 @@
 export { createSettings } from './types/Settings';
 export type {
     Settings, ViewportBounds, RendererEventMap, PerfSnapshot,
-    CullingMode, RoomShape, LabelRenderMode, PlayerMarkerStyle, AmbientLightStyle,
+    CullingMode, RoomShape, LabelRenderMode, PlayerMarkerStyle,
     RoomClickEventDetail, RoomContextMenuEventDetail,
     ZoomChangeEventDetail, AreaExitClickEventDetail, PanEventDetail,
 } from './types/Settings';
@@ -50,8 +50,10 @@ export type { CanvasExportOptions, PngBytesExportOptions } from './export/Canvas
 export { canvasToBytes } from './export/canvasToBytes';
 
 // --- Overlays ---
-export type { SceneOverlay } from './overlay/SceneOverlay';
+export type { SceneOverlay, SceneOverlayContext } from './overlay/SceneOverlay';
 export type { LiveEffect, CoordinateTransform } from './overlay/LiveEffect';
+export { AmbientLightOverlay } from './overlay/AmbientLightOverlay';
+export type { AmbientLightOptions } from './overlay/AmbientLightOverlay';
 
 // --- Map data & pathfinding ---
 export { default as MapReader } from './reader/MapReader';

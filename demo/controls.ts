@@ -1,4 +1,4 @@
-import {MapRenderer, CullingMode, RoomShape, PathFinder, SvgExporter, PngBlobExporter} from "@src";
+import {MapRenderer, CullingMode, RoomShape, PathFinder, SvgExporter, PngBlobExporter, AmbientLightOverlay} from "@src";
 import type {Settings, LabelRenderMode, PerfSnapshot, PathFindingAlgorithm} from "@src";
 import type MapReader from "@src/reader/MapReader";
 import {WeatherOverlay} from "./WeatherOverlay";
@@ -152,15 +152,18 @@ export function initControls(settings: Settings, renderer: MapRenderer, getCurre
     if (areaNameToggle) areaNameToggle.checked = settings.areaName;
     if (uniformLevelSizeToggle) uniformLevelSizeToggle.checked = settings.uniformLevelSize;
     if (bordersToggle) bordersToggle.checked = settings.borders;
-    if (ambientLightToggle) ambientLightToggle.checked = settings.ambientLight.enabled;
-    if (ambientLightColor) ambientLightColor.value = settings.ambientLight.color;
+    const ambientLight = new AmbientLightOverlay();
+    let ambientLightEnabled = false;
+    const ambientParams = ambientLight.getOptions();
+    if (ambientLightToggle) ambientLightToggle.checked = ambientLightEnabled;
+    if (ambientLightColor) ambientLightColor.value = ambientParams.color;
     if (ambientLightRadius && ambientLightRadiusValue) {
-        ambientLightRadius.value = settings.ambientLight.radius.toString();
-        ambientLightRadiusValue.textContent = settings.ambientLight.radius.toString();
+        ambientLightRadius.value = ambientParams.radius.toString();
+        ambientLightRadiusValue.textContent = ambientParams.radius.toString();
     }
     if (ambientLightIntensity && ambientLightIntensityValue) {
-        ambientLightIntensity.value = settings.ambientLight.intensity.toString();
-        ambientLightIntensityValue.textContent = settings.ambientLight.intensity.toFixed(2);
+        ambientLightIntensity.value = ambientParams.intensity.toString();
+        ambientLightIntensityValue.textContent = ambientParams.intensity.toFixed(2);
     }
     updateCullingStatus();
 
@@ -358,27 +361,29 @@ export function initControls(settings: Settings, renderer: MapRenderer, getCurre
     // --- Ambient Lighting ---
 
     ambientLightToggle?.addEventListener("change", () => {
-        settings.ambientLight.enabled = ambientLightToggle.checked;
-        renderer.refresh();
+        if (ambientLightToggle.checked && !ambientLightEnabled) {
+            renderer.addSceneOverlay("ambient-light", ambientLight);
+            ambientLightEnabled = true;
+        } else if (!ambientLightToggle.checked && ambientLightEnabled) {
+            renderer.removeSceneOverlay("ambient-light");
+            ambientLightEnabled = false;
+        }
     });
 
     ambientLightColor?.addEventListener("input", () => {
-        settings.ambientLight.color = ambientLightColor.value;
-        renderer.refresh();
+        ambientLight.setOptions({color: ambientLightColor.value});
     });
 
     ambientLightRadius?.addEventListener("input", () => {
         const value = parseFloat(ambientLightRadius.value);
-        settings.ambientLight.radius = value;
+        ambientLight.setOptions({radius: value});
         if (ambientLightRadiusValue) ambientLightRadiusValue.textContent = value.toString();
-        renderer.refresh();
     });
 
     ambientLightIntensity?.addEventListener("input", () => {
         const value = parseFloat(ambientLightIntensity.value);
-        settings.ambientLight.intensity = value;
+        ambientLight.setOptions({intensity: value});
         if (ambientLightIntensityValue) ambientLightIntensityValue.textContent = value.toFixed(2);
-        renderer.refresh();
     });
 
     // --- Weather (overlay plugin) ---
