@@ -1,20 +1,28 @@
 import { describe, it, expect } from 'vitest';
-import { HeadlessRenderer } from '../src/HeadlessRenderer';
+import { MapRenderer } from '../src/rendering/MapRenderer';
+import { SvgExporter } from '../src/export/SvgExporter';
 import { createSettings } from '../src/types/Settings';
 import { createTestMapReader } from './helpers';
 
 function createRenderer() {
     const reader = createTestMapReader();
     const settings = createSettings();
-    return new HeadlessRenderer(reader, settings);
+    return new MapRenderer(reader, settings);
 }
 
+function exportSvg(renderer: MapRenderer, options?: Parameters<typeof SvgExporter.prototype.render>[0] | any) {
+    return renderer.export(new SvgExporter(options));
+}
+
+// Snapshot label kept as 'HeadlessRenderer' to match existing snapshot file;
+// the behaviour under test is `MapRenderer` + `SvgExporter` in headless mode
+// (constructor without a DOM container).
 describe('HeadlessRenderer', () => {
     describe('drawArea + exportSvg', () => {
         it('exports SVG after drawArea', () => {
             const renderer = createRenderer();
             renderer.drawArea(1, 0);
-            const svg = renderer.exportSvg();
+            const svg = renderer.export(new SvgExporter());
             expect(svg).toBeDefined();
             expect(svg).toContain('<svg');
             expect(svg).toContain('</svg>');
@@ -22,16 +30,16 @@ describe('HeadlessRenderer', () => {
 
         it('returns undefined before drawArea', () => {
             const renderer = createRenderer();
-            expect(renderer.exportSvg()).toBeUndefined();
+            expect(renderer.export(new SvgExporter())).toBeUndefined();
         });
 
         it('can switch areas', () => {
             const renderer = createRenderer();
             renderer.drawArea(1, 0);
-            const svg1 = renderer.exportSvg();
+            const svg1 = renderer.export(new SvgExporter());
 
             renderer.drawArea(2, 0);
-            const svg2 = renderer.exportSvg();
+            const svg2 = renderer.export(new SvgExporter());
 
             expect(svg1).not.toBe(svg2);
         });
@@ -39,7 +47,7 @@ describe('HeadlessRenderer', () => {
         it('snapshot - basic area export', () => {
             const renderer = createRenderer();
             renderer.drawArea(1, 0);
-            expect(renderer.exportSvg()).toMatchSnapshot();
+            expect(renderer.export(new SvgExporter())).toMatchSnapshot();
         });
     });
 
@@ -62,18 +70,18 @@ describe('HeadlessRenderer', () => {
         it('snapshot - with position marker', () => {
             const renderer = createRenderer();
             renderer.drawArea(1, 0);
-            renderer.setPosition(1);
-            expect(renderer.exportSvg()).toMatchSnapshot();
+            renderer.state.positionRoomId = 1;
+            expect(renderer.export(new SvgExporter())).toMatchSnapshot();
         });
 
         it('clearPosition removes marker', () => {
             const renderer = createRenderer();
             renderer.drawArea(1, 0);
-            renderer.setPosition(1);
-            const withPos = renderer.exportSvg();
+            renderer.state.positionRoomId = 1;
+            const withPos = renderer.export(new SvgExporter());
 
-            renderer.clearPosition();
-            const withoutPos = renderer.exportSvg();
+            renderer.state.positionRoomId = undefined;
+            const withoutPos = renderer.export(new SvgExporter());
 
             expect(withPos).not.toBe(withoutPos);
         });
@@ -81,13 +89,11 @@ describe('HeadlessRenderer', () => {
         it('position on different area/z is not included', () => {
             const renderer = createRenderer();
             renderer.drawArea(1, 0);
-            // Room 9 is on z=-1, so it shouldn't show on z=0
-            renderer.setPosition(9);
-            const svg = renderer.exportSvg();
-            // The SVG should be the same as without position
+            renderer.state.positionRoomId = 9;
+            const svg = renderer.export(new SvgExporter());
             const renderer2 = createRenderer();
             renderer2.drawArea(1, 0);
-            expect(svg).toBe(renderer2.exportSvg());
+            expect(svg).toBe(renderer2.export(new SvgExporter()));
         });
     });
 
@@ -96,7 +102,7 @@ describe('HeadlessRenderer', () => {
             const renderer = createRenderer();
             renderer.drawArea(1, 0);
             renderer.renderHighlight(1, '#ff0000');
-            expect(renderer.exportSvg()).toMatchSnapshot();
+            expect(renderer.export(new SvgExporter())).toMatchSnapshot();
         });
 
         it('snapshot - multiple highlights', () => {
@@ -104,7 +110,7 @@ describe('HeadlessRenderer', () => {
             renderer.drawArea(1, 0);
             renderer.renderHighlight(1, '#ff0000');
             renderer.renderHighlight(3, '#00ff00');
-            expect(renderer.exportSvg()).toMatchSnapshot();
+            expect(renderer.export(new SvgExporter())).toMatchSnapshot();
         });
 
         it('removeHighlight works', () => {
@@ -130,12 +136,12 @@ describe('HeadlessRenderer', () => {
         it('highlight on different area/z is not included', () => {
             const renderer = createRenderer();
             renderer.drawArea(1, 0);
-            renderer.renderHighlight(9, '#ff0000'); // z=-1 room
+            renderer.renderHighlight(9, '#ff0000');
 
             const renderer2 = createRenderer();
             renderer2.drawArea(1, 0);
 
-            expect(renderer.exportSvg()).toBe(renderer2.exportSvg());
+            expect(renderer.export(new SvgExporter())).toBe(renderer2.export(new SvgExporter()));
         });
     });
 
@@ -144,24 +150,24 @@ describe('HeadlessRenderer', () => {
             const renderer = createRenderer();
             renderer.drawArea(1, 0);
             renderer.renderPath([6, 2, 1, 3]);
-            expect(renderer.exportSvg()).toMatchSnapshot();
+            expect(renderer.export(new SvgExporter())).toMatchSnapshot();
         });
 
         it('snapshot - path with custom color', () => {
             const renderer = createRenderer();
             renderer.drawArea(1, 0);
             renderer.renderPath([1, 2, 6], '#ff0000');
-            expect(renderer.exportSvg()).toMatchSnapshot();
+            expect(renderer.export(new SvgExporter())).toMatchSnapshot();
         });
 
         it('clearPaths removes path overlays', () => {
             const renderer = createRenderer();
             renderer.drawArea(1, 0);
             renderer.renderPath([1, 2, 6]);
-            const withPath = renderer.exportSvg();
+            const withPath = renderer.export(new SvgExporter());
 
             renderer.clearPaths();
-            const withoutPath = renderer.exportSvg();
+            const withoutPath = renderer.export(new SvgExporter());
 
             expect(withPath).not.toBe(withoutPath);
         });
@@ -171,11 +177,11 @@ describe('HeadlessRenderer', () => {
         it('snapshot - position + highlights + path', () => {
             const renderer = createRenderer();
             renderer.drawArea(1, 0);
-            renderer.setPosition(1);
+            renderer.state.positionRoomId = 1;
             renderer.renderHighlight(3, '#ff0000');
             renderer.renderHighlight(6, '#0000ff');
             renderer.renderPath([6, 2, 1, 3], '#66E64D');
-            expect(renderer.exportSvg()).toMatchSnapshot();
+            expect(renderer.export(new SvgExporter())).toMatchSnapshot();
         });
     });
 
@@ -183,19 +189,18 @@ describe('HeadlessRenderer', () => {
         it('passes padding to SVG export', () => {
             const renderer = createRenderer();
             renderer.drawArea(1, 0);
-            const svgSmall = renderer.exportSvg({ padding: 1 });
-            const svgLarge = renderer.exportSvg({ padding: 10 });
-            // Larger padding = larger viewBox
+            const svgSmall = renderer.export(new SvgExporter({ padding: 1 }));
+            const svgLarge = renderer.export(new SvgExporter({ padding: 10 }));
             expect(svgSmall).not.toBe(svgLarge);
         });
 
         it('passes roomId focus to SVG export', () => {
             const renderer = createRenderer();
             renderer.drawArea(1, 0);
-            const svgFull = renderer.exportSvg();
-            const svgFocused = renderer.exportSvg({ roomId: 1, padding: 2 });
-            // Focused export has smaller viewBox
+            const svgFull = renderer.export(new SvgExporter());
+            const svgFocused = renderer.export(new SvgExporter({ roomId: 1, padding: 2 }));
             expect(svgFocused).not.toBe(svgFull);
         });
     });
 });
+void exportSvg;

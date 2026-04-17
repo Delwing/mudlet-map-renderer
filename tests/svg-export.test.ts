@@ -1,26 +1,26 @@
 import { describe, it, expect } from 'vitest';
-import { SvgRenderBackend } from '../src/rendering/SvgRenderBackend';
-import { MapState } from '../src/MapState';
+import { SvgExporter } from '../src/export/SvgExporter';
+import { MapRenderer } from '../src/rendering/MapRenderer';
+import type { MapState } from '../src/MapState';
 import { createSettings } from '../src/types/Settings';
 import { createTestMapReader } from './helpers';
 import type { Settings } from '../src/types/Settings';
+import type { SvgExportOptions } from '../src/SvgTypes';
 
 function exportArea(settingsOverrides?: Partial<Settings>) {
     const reader = createTestMapReader();
     const settings = { ...createSettings(), ...settingsOverrides };
-    const state = new MapState(reader, settings);
-    state.setArea(1, 0);
-    const backend = new SvgRenderBackend(state);
-    return backend.exportSvg();
+    const renderer = new MapRenderer(reader, settings);
+    renderer.drawArea(1, 0);
+    return renderer.export(new SvgExporter());
 }
 
-function exportWithState(setup: (state: MapState) => void, options?: Parameters<SvgRenderBackend['exportSvg']>[0]) {
+function exportWithState(setup: (state: MapState) => void, options?: SvgExportOptions) {
     const reader = createTestMapReader();
     const settings = createSettings();
-    const state = new MapState(reader, settings);
-    setup(state);
-    const backend = new SvgRenderBackend(state);
-    return backend.exportSvg(options);
+    const renderer = new MapRenderer(reader, settings);
+    setup(renderer.state);
+    return renderer.export(new SvgExporter(options));
 }
 
 describe('SvgRenderBackend', () => {

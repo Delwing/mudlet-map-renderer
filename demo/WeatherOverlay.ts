@@ -1,6 +1,6 @@
 import Konva from "konva";
 import type {ViewportBounds} from "@src/types/Settings";
-import type {OverlayPlugin, CoordinateTransform} from "@src/types/OverlayPlugin";
+import type {LiveEffect, CoordinateTransform} from "@src";
 
 export type WeatherType = "rain" | "snow" | "fog" | "dust" | "none";
 
@@ -40,7 +40,7 @@ const DEFAULT_OPACITY: Record<WeatherType, number> = {
     none: 0,
 };
 
-export class WeatherOverlay implements OverlayPlugin {
+export class WeatherOverlay implements LiveEffect {
     private layer!: Konva.Layer;
     private shape!: Konva.Shape;
     private particles: Particle[] = [];

@@ -186,36 +186,96 @@ For large maps, spatial culling hides off-screen rooms for better performance:
 renderer.setCullingMode('indexed');
 ```
 
-### Export
+### Styles
+
+A `Style` is a target-agnostic visual transformer. One style drives the
+interactive canvas *and* every exporter — set it once and it applies to SVG,
+PNG, and anything else you export.
 
 ```ts
-// SVG export
-const svg = renderer.exportSvg();
-const svgCentered = renderer.exportSvg({ roomId: 1234, padding: 5 });
+import {
+  compose, identityStyle,
+  Parchment, Blueprint, Neon, Sketchy, Isometric,
+} from 'mudlet-map-renderer';
 
-// SVG with explicit overlays
-const svgWithOverlays = renderer.exportSvg({
+// Single style
+renderer.setStyle(Parchment);
+
+// Compose a chain (left → right = inner → outer)
+renderer.setStyle(compose(
+  Parchment,
+  Sketchy({ jitter: 0.012, color: '#4a3728' }),
+  Isometric({ rotation: 30, depth: 0.18 }),
+));
+
+// Clear the current style
+renderer.setStyle(identityStyle);
+// or
+renderer.clearStyle();
+```
+
+Built-in styles:
+
+| Style | Effect |
+|---|---|
+| `Parchment` | Warm sepia / aged-paper palette |
+| `Blueprint` | White lines on deep blue |
+| `Neon` | Glowing neon outlines on dark background |
+| `Sketchy({ jitter, color })` | Hand-drawn pencil wobble |
+| `Isometric({ rotation?, depth? })` | 2:1 iso projection with optional cubes |
+
+Custom styles extend `BaseStyle<Inner>` and override only the draw calls they
+transform — see the built-ins for examples.
+
+### Export
+
+Exporters are plug-ins: a new output format is a new `Exporter<T>` class,
+not a new `MapRenderer` method.
+
+```ts
+import {
+  SvgExporter, PngExporter, PngBlobExporter, CanvasExporter,
+} from 'mudlet-map-renderer';
+
+// SVG (string)
+const svg         = renderer.export(new SvgExporter());
+const svgCentered = renderer.export(new SvgExporter({ roomId: 1234, padding: 5 }));
+const svgTyped    = renderer.export(new SvgExporter({
   overlays: {
     position: { roomId: 1234 },
     highlights: [{ roomId: 100, color: '#ff0000' }],
     paths: [{ locations: [101, 102, 103], color: '#00ff00' }],
   },
-});
+}));
 
-// PNG export (data URL)
-const pngDataUrl = renderer.exportPng({ pixelRatio: 2 });
+// PNG data URL
+const pngUrl = renderer.export(new PngExporter({ pixelRatio: 2 }));
 
-// PNG export (Blob)
-const blob = await renderer.exportPngBlob({ pixelRatio: 2 });
+// PNG as Blob
+const blob = await renderer.export(new PngBlobExporter({ pixelRatio: 2 }));
 
-// Canvas export (specific region)
-const canvas = renderer.renderToCanvas({
+// Headless PNG bytes at a specific size (portable — works in browser + Node)
+const png = renderer.export(new PngBytesExporter({
   width: 1920,
   height: 1080,
   roomId: 1234,
   padding: 5,
-});
+}));
+// fs.writeFileSync('out.png', png!);            // Node
+// new Blob([png!], { type: 'image/png' });      // Browser
+
+// Canvas handle (if you need to draw more on it, attach to DOM, etc.)
+const canvas = renderer.export(new CanvasExporter({
+  width: 1920,
+  height: 1080,
+}));
 ```
+
+Style + export compose: the style currently applied with `setStyle` is passed
+to every exporter, so the SVG, the PNG, and the on-screen canvas stay in sync.
+
+Writing a new exporter — e.g. PDF — means shipping a class that implements
+`Exporter<Uint8Array>`. No changes to `MapRenderer`.
 
 ### Headless rendering (no DOM)
 
@@ -225,10 +285,45 @@ For server-side or offscreen rendering, omit the container argument:
 const renderer = new MapRenderer(mapReader, createSettings());
 
 renderer.drawArea(42, 0);
-renderer.setPosition(1234);
+renderer.state.positionRoomId = 1234;  // mark player position without auto-centering
 
-const svg = renderer.exportSvg({ padding: 5 });
-const canvas = renderer.renderToCanvas({ width: 1920, height: 1080 });
+const svg = renderer.export(new SvgExporter({ padding: 5 }));
+const png = renderer.export(new PngBytesExporter({ width: 1920, height: 1080 }));
+```
+
+### Overlays
+
+Two kinds, picked by what you need:
+
+- **`SceneOverlay`** — target-agnostic, appears in every output (interactive
+  canvas + every exporter). Use for static scene content (badges, annotations).
+- **`LiveEffect`** — interactive canvas only, receives a Konva layer and
+  viewport updates for animation. Skipped by exporters.
+
+```ts
+import type { SceneOverlay, LiveEffect } from 'mudlet-map-renderer';
+
+// Scene overlay — uses target-agnostic draw primitives
+class BadgeOverlay implements SceneOverlay {
+  render(target, state, bounds) {
+    const g = target.createGroup(0, 0);
+    target.addCircle(g, { cx: 5, cy: 5, radius: 0.4, fill: '#ff0' });
+    return g;
+  }
+}
+
+renderer.addSceneOverlay('badge', new BadgeOverlay());
+renderer.removeSceneOverlay('badge');
+
+// Live effect — gets a Konva layer, interactive only
+class Pulse implements LiveEffect {
+  attach(layer) { /* add Konva shapes */ }
+  updateViewport(bounds, scale) { /* react to pan/zoom */ }
+  destroy() { /* cleanup */ }
+}
+
+renderer.addLiveEffect('pulse', new Pulse());
+renderer.removeLiveEffect('pulse');
 ```
 
 ### Cleanup
@@ -360,15 +455,40 @@ MudletMapReader.exportJson(map, 'map.json');
 | `setZoom(zoom)` | Set zoom level |
 | `zoomToCenter(zoom)` | Zoom keeping center fixed |
 | `fitArea()` | Fit the full area in view |
-| `exportSvg(options?)` | Export as SVG string |
-| `exportPng(options?)` | Export as PNG data URL |
-| `exportPngBlob(options?)` | Export as PNG Blob |
-| `renderToCanvas(options)` | Export a region to canvas |
+| `setStyle(style)` | Apply a visual style (interactive + exporters) |
+| `clearStyle()` | Remove the current style |
+| `export(exporter)` | Run an `Exporter<T>` and return its output |
+| `addSceneOverlay(id, overlay)` | Add a target-agnostic overlay |
+| `removeSceneOverlay(id)` | Remove a scene overlay |
+| `addLiveEffect(id, effect)` | Add an interactive-only animated effect |
+| `removeLiveEffect(id)` | Remove a live effect |
 | `refresh()` | Force a full re-render |
 | `on(event, handler)` | Subscribe to an event |
 | `off(event, handler)` | Unsubscribe from an event |
 | `setCullingMode(mode)` | Set culling strategy |
 | `destroy()` | Release all resources |
+
+### Exporters
+
+| Exporter | Output |
+|---|---|
+| `SvgExporter({ roomId?, padding?, overlays? })` | `string` — SVG document |
+| `PngExporter({ pixelRatio? })` | `string` — PNG data URL (current viewport) |
+| `PngBlobExporter({ pixelRatio? })` | `Promise<Blob>` — PNG Blob (browser only) |
+| `PngBytesExporter({ width, height, roomId?, padding?, overlays?, mimeType?, quality? })` | `Uint8Array` — headless PNG/JPEG bytes; portable (browser + Node) |
+| `CanvasExporter({ width, height, roomId?, padding?, overlays? })` | `ExportCanvas` — canvas handle; reframes to fit |
+
+### Styles
+
+| Style | Constructor / Usage |
+|---|---|
+| `Parchment` | `setStyle(Parchment)` |
+| `Blueprint` | `setStyle(Blueprint)` |
+| `Neon` | `setStyle(Neon)` |
+| `Sketchy(opts)` | `setStyle(Sketchy({ jitter, color }))` |
+| `Isometric(opts)` | `setStyle(Isometric({ rotation?, depth? }))` |
+| `compose(...)` | Chain multiple styles into one |
+| `identityStyle` | Pass-through; equivalent to `clearStyle()` |
 
 ### `PathFinder`
 

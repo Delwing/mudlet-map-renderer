@@ -1,9 +1,12 @@
 /**
- * Abstract interface for creating visual nodes.
- * Implement this to swap the rendering engine (Konva, PixiJS, raw Canvas2D, etc.).
+ * Low-level drawing primitives. A {@link DrawingBackend} is a thin abstraction
+ * over per-node draw calls. Leaf implementations target a specific rendering
+ * engine (Konva, raw Canvas2D, SVG strings, …); decorator implementations
+ * ({@link BaseStyle}) wrap another backend and transform the calls.
  *
- * GroupNode is the opaque handle returned by createGroup(). The culling system
- * and renderer use it for visibility toggling, positioning, and cleanup.
+ * End users should rarely touch this directly — prefer {@link Style} factories
+ * (Parchment, Sketchy(…), …) with {@link MapRenderer.setStyle}, and
+ * {@link Exporter} implementations with {@link MapRenderer.export}.
  */
 
 export interface GroupNode {
@@ -121,11 +124,98 @@ export interface DrawingBackend {
     getExitDepthOffset(): { x: number; y: number };
     /**
      * Map-space → render-space transform. Identity for flat backends; non-identity
-     * for backends that warp coordinates (e.g. {@link IsometricBackend}).
+     * for styles that warp coordinates (e.g. `IsometricStyle`).
      * Decorators delegate to their inner backend.
-     * MapRenderer auto-applies this to culling and grid rendering when the backend is set.
      */
     getTransform(): CoordFn;
     /** Inverse of {@link getTransform}. */
     getInverseTransform(): CoordFn;
+}
+
+/**
+ * Abstract base for style (decorator) backends. Forwards every
+ * {@link DrawingBackend} method to `this.inner` by default; subclasses override
+ * only the methods they transform. Generic over the wrapped inner type so
+ * tooling preserves specific types through chains where useful.
+ */
+export abstract class BaseStyle<Inner extends DrawingBackend = DrawingBackend>
+    implements DrawingBackend {
+
+    protected readonly inner: Inner;
+
+    constructor(inner: Inner) {
+        this.inner = inner;
+    }
+
+    createGroup(x: number, y: number): GroupNode {
+        return this.inner.createGroup(x, y);
+    }
+
+    addRect(parent: GroupNode, config: RectConfig): void {
+        this.inner.addRect(parent, config);
+    }
+
+    addCircle(parent: GroupNode, config: CircleConfig): void {
+        this.inner.addCircle(parent, config);
+    }
+
+    addLine(parent: GroupNode, config: LineConfig): void {
+        this.inner.addLine(parent, config);
+    }
+
+    addPolygon(parent: GroupNode, config: PolygonConfig): void {
+        this.inner.addPolygon(parent, config);
+    }
+
+    addText(parent: GroupNode, config: TextConfig): void {
+        this.inner.addText(parent, config);
+    }
+
+    addImage(parent: GroupNode, config: ImageConfig): void {
+        this.inner.addImage(parent, config);
+    }
+
+    supportsBatchExitRendering(): boolean {
+        return this.inner.supportsBatchExitRendering?.() ?? false;
+    }
+
+    getExitDepthOffset(): { x: number; y: number } {
+        return this.inner.getExitDepthOffset();
+    }
+
+    getTransform(): CoordFn {
+        return this.inner.getTransform();
+    }
+
+    getInverseTransform(): CoordFn {
+        return this.inner.getInverseTransform();
+    }
+}
+
+/**
+ * A {@link Style} is a target-agnostic transformer: given a {@link DrawingBackend}
+ * it returns a decorated one. The same style drives interactive canvas, SVG
+ * export, and any future target.
+ *
+ * Compose via {@link compose}; built-in styles live in `src/style`.
+ */
+export type Style = (target: DrawingBackend) => DrawingBackend;
+
+/** Identity style — passes the target through unchanged. Useful as a default. */
+export const identityStyle: Style = (t) => t;
+
+/**
+ * Compose a chain of {@link Style}s into a single Style.
+ *
+ * `compose(Parchment, Sketchy)` wraps with Parchment first, then Sketchy —
+ * Sketchy is the outermost decorator, i.e. its methods run first during rendering.
+ */
+export function compose(...styles: Style[]): Style {
+    if (styles.length === 0) return identityStyle;
+    if (styles.length === 1) return styles[0];
+    return (target) => {
+        let acc: DrawingBackend = target;
+        for (const style of styles) acc = style(acc);
+        return acc;
+    };
 }

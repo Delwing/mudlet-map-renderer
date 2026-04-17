@@ -1,5 +1,6 @@
 import type {
-    DrawingBackend, GroupNode, LayerNode, CoordFn,
+    DrawingBackend,
+    GroupNode, LayerNode, CoordFn,
     RectConfig, CircleConfig, LineConfig, PolygonConfig, TextConfig, ImageConfig,
 } from "./DrawingBackend";
 import {IDENTITY_TRANSFORM} from "./DrawingBackend";

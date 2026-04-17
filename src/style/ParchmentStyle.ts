@@ -1,7 +1,8 @@
 import type {
-    DrawingBackend, GroupNode, CoordFn,
-    RectConfig, CircleConfig, LineConfig, PolygonConfig, TextConfig, ImageConfig,
-} from "./DrawingBackend";
+    DrawingBackend, GroupNode,
+    RectConfig, CircleConfig, LineConfig, PolygonConfig, TextConfig,
+} from "../backend/DrawingBackend";
+import {BaseStyle} from "../backend/DrawingBackend";
 
 /** Dark brown ink used for strokes and outlines. */
 const INK = '#4a3728';
@@ -69,14 +70,14 @@ function toInk(color: string): string {
  * - **Text** uses a very dark brown for legibility.
  * - **Images** pass through unchanged.
  *
- * Composes naturally with {@link SketchyBackend} for the full old-map aesthetic:
+ * Composes naturally with {@link SketchyStyle} for the full old-map aesthetic:
  * ```ts
  * // Parchment colors only
- * const backend = new ParchmentBackend(new KonvaBackend());
+ * const backend = new ParchmentStyle(new CanvasBackend());
  *
  * // Parchment + hand-drawn wobble
- * const backend = new SketchyBackend(
- *     new ParchmentBackend(new KonvaBackend()),
+ * const backend = new SketchyStyle(
+ *     new ParchmentStyle(new CanvasBackend()),
  *     0.012, '#4a3728',
  * );
  * ```
@@ -89,16 +90,8 @@ function toInk(color: string): string {
  * settings.fontFamily = 'Georgia, serif';
  * ```
  */
-export class ParchmentBackend implements DrawingBackend {
-    private readonly inner: DrawingBackend;
-
-    constructor(inner: DrawingBackend) {
-        this.inner = inner;
-    }
-
-    createGroup(x: number, y: number): GroupNode {
-        return this.inner.createGroup(x, y);
-    }
+export class ParchmentStyle<Inner extends DrawingBackend = DrawingBackend>
+    extends BaseStyle<Inner> {
 
     addRect(parent: GroupNode, config: RectConfig): void {
         this.inner.addRect(parent, {
@@ -133,21 +126,5 @@ export class ParchmentBackend implements DrawingBackend {
 
     addText(parent: GroupNode, config: TextConfig): void {
         this.inner.addText(parent, { ...config, fill: INK_TEXT });
-    }
-
-    addImage(parent: GroupNode, config: ImageConfig): void {
-        this.inner.addImage(parent, config);
-    }
-
-    getExitDepthOffset(): { x: number; y: number } {
-        return this.inner.getExitDepthOffset();
-    }
-
-    getTransform(): CoordFn {
-        return this.inner.getTransform();
-    }
-
-    getInverseTransform(): CoordFn {
-        return this.inner.getInverseTransform();
     }
 }

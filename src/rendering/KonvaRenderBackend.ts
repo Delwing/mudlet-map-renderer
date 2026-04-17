@@ -25,7 +25,9 @@ import {
     renderAmbientLight,
 } from "../scene/OverlayRenderer";
 import ExplorationArea from "../reader/ExplorationArea";
-import type {OverlayPlugin} from "../types/OverlayPlugin";
+import type {LiveEffect} from "../overlay/LiveEffect";
+import type {SceneOverlay} from "../overlay/SceneOverlay";
+import type {ExportCanvas} from "../export/Exporter";
 
 const currentRoomColor = 'rgb(120, 72, 0)';
 
@@ -75,7 +77,9 @@ export class KonvaRenderBackend implements InteractiveBackend {
     get coordinateTransform(): CoordFn {
         return this._coordinateTransform;
     }
-    private overlayPlugins: Map<string, OverlayPlugin> = new Map();
+    private liveEffects: Map<string, LiveEffect> = new Map();
+    private sceneOverlays: Map<string, SceneOverlay> = new Map();
+    private sceneOverlayNodes: GroupNode[] = [];
 
     constructor(state: MapState, container?: HTMLDivElement, drawingBackend?: DrawingBackend) {
         this.state = state;
@@ -221,8 +225,8 @@ export class KonvaRenderBackend implements InteractiveBackend {
         this.interactionHandler?.destroy();
 
         // Stop overlay plugins
-        for (const plugin of this.overlayPlugins.values()) plugin.destroy();
-        this.overlayPlugins.clear();
+        for (const plugin of this.liveEffects.values()) plugin.destroy();
+        this.liveEffects.clear();
 
         // Cancel any running viewport animation
         this.viewport.cancelAnimation();
@@ -258,7 +262,7 @@ export class KonvaRenderBackend implements InteractiveBackend {
         }
     }
 
-    exportCanvas(options?: { pixelRatio?: number }): HTMLCanvasElement | undefined {
+    exportCanvas(options?: { pixelRatio?: number }): ExportCanvas | undefined {
         if (this.state.currentArea === undefined || this.state.currentZIndex === undefined) return;
         const stageCanvas = this.stage.toCanvas({ pixelRatio: options?.pixelRatio ?? 1 });
         const composite = document.createElement('canvas');
@@ -282,7 +286,7 @@ export class KonvaRenderBackend implements InteractiveBackend {
         this.culling.scheduleCulling();
         this.refreshAmbientLight();
         const vpBounds = this.viewport.getViewportBounds();
-        for (const plugin of this.overlayPlugins.values()) {
+        for (const plugin of this.liveEffects.values()) {
             plugin.updateViewport(vpBounds, scale, this.coordinateTransform);
         }
     }
@@ -294,7 +298,12 @@ export class KonvaRenderBackend implements InteractiveBackend {
         height: number;
         roomId?: number;
         padding?: number;
-    }): any {
+        overlays?: {
+            position?: { roomId: number };
+            highlights?: Array<{ roomId: number; color: string }>;
+            paths?: Array<{ locations: number[]; color: string }>;
+        };
+    }): ExportCanvas | undefined {
         const {currentArea, currentZIndex, currentAreaInstance} = this.state;
         if (currentArea === undefined || currentZIndex === undefined || !currentAreaInstance) return;
 
@@ -396,19 +405,52 @@ export class KonvaRenderBackend implements InteractiveBackend {
         }
     }
 
-    addOverlayPlugin(id: string, plugin: OverlayPlugin) {
-        this.removeOverlayPlugin(id);
-        plugin.attach(this.overlayLayer);
-        this.overlayPlugins.set(id, plugin);
-        plugin.updateViewport(this.viewport.getViewportBounds(), this.viewport.getScale(), this.coordinateTransform);
+    addLiveEffect(id: string, effect: LiveEffect) {
+        this.removeLiveEffect(id);
+        effect.attach(this.overlayLayer);
+        this.liveEffects.set(id, effect);
+        effect.updateViewport(this.viewport.getViewportBounds(), this.viewport.getScale(), this.coordinateTransform);
     }
 
-    removeOverlayPlugin(id: string) {
-        const existing = this.overlayPlugins.get(id);
+    removeLiveEffect(id: string) {
+        const existing = this.liveEffects.get(id);
         if (existing) {
             existing.destroy();
-            this.overlayPlugins.delete(id);
+            this.liveEffects.delete(id);
         }
+    }
+
+    addSceneOverlay(id: string, overlay: SceneOverlay) {
+        this.sceneOverlays.set(id, overlay);
+        this.renderSceneOverlays();
+    }
+
+    removeSceneOverlay(id: string) {
+        this.sceneOverlays.delete(id);
+        this.renderSceneOverlays();
+    }
+
+    /** Iterable of scene overlays — used by exporters to apply them over static outputs. */
+    getSceneOverlays(): Iterable<SceneOverlay> {
+        return this.sceneOverlays.values();
+    }
+
+    private renderSceneOverlays() {
+        for (const node of this.sceneOverlayNodes) node.destroy();
+        this.sceneOverlayNodes.length = 0;
+        if (this.sceneOverlays.size === 0) return;
+
+        const bounds = this.viewport.getViewportBounds();
+        for (const overlay of this.sceneOverlays.values()) {
+            const out = overlay.render(this.drawingBackend, this.state, bounds);
+            if (!out) continue;
+            const nodes = Array.isArray(out) ? out : [out];
+            for (const node of nodes) {
+                this.overlayLayerNode.addNode(node);
+                this.sceneOverlayNodes.push(node);
+            }
+        }
+        this.overlayLayer.batchDraw();
     }
 
     private subscribeToState(state: MapState) {
@@ -444,7 +486,7 @@ export class KonvaRenderBackend implements InteractiveBackend {
 
     // --- Scene lifecycle ---
 
-    private buildScene(area: Area, plane: Plane, zIndex: number, viewportBounds?: import("../Renderer").ViewportBounds): SceneBuildResult {
+    private buildScene(area: Area, plane: Plane, zIndex: number, viewportBounds?: import("../types/Settings").ViewportBounds): SceneBuildResult {
         this.positionLayer.destroyChildren();
         this.positionMarker = undefined;
         this.clearOverlayShapes();

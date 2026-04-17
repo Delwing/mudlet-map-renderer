@@ -1,7 +1,8 @@
 import type {
-    DrawingBackend, GroupNode, CoordFn,
-    RectConfig, CircleConfig, LineConfig, PolygonConfig, TextConfig, ImageConfig,
-} from "./DrawingBackend";
+    DrawingBackend, GroupNode,
+    RectConfig, CircleConfig, LineConfig, PolygonConfig, TextConfig,
+} from "../backend/DrawingBackend";
+import {BaseStyle} from "../backend/DrawingBackend";
 
 /** Bright cyan-green used for text. */
 const TEXT_COLOR = '#00ffd0';
@@ -116,16 +117,8 @@ function toNeonStroke(color: string): string {
  * settings.lineColor = '#00ffaa';
  * ```
  */
-export class NeonBackend implements DrawingBackend {
-    private readonly inner: DrawingBackend;
-
-    constructor(inner: DrawingBackend) {
-        this.inner = inner;
-    }
-
-    createGroup(x: number, y: number): GroupNode {
-        return this.inner.createGroup(x, y);
-    }
+export class NeonStyle<Inner extends DrawingBackend = DrawingBackend>
+    extends BaseStyle<Inner> {
 
     addRect(parent: GroupNode, config: RectConfig): void {
         // Glow pass: wider translucent neon stroke, no fill
@@ -193,21 +186,5 @@ export class NeonBackend implements DrawingBackend {
 
     addText(parent: GroupNode, config: TextConfig): void {
         this.inner.addText(parent, { ...config, fill: TEXT_COLOR });
-    }
-
-    addImage(parent: GroupNode, config: ImageConfig): void {
-        this.inner.addImage(parent, config);
-    }
-
-    getExitDepthOffset(): { x: number; y: number } {
-        return this.inner.getExitDepthOffset();
-    }
-
-    getTransform(): CoordFn {
-        return this.inner.getTransform();
-    }
-
-    getInverseTransform(): CoordFn {
-        return this.inner.getInverseTransform();
     }
 }

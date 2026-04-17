@@ -1,7 +1,8 @@
 import type {
-    DrawingBackend, GroupNode, CoordFn,
-    RectConfig, CircleConfig, LineConfig, PolygonConfig, TextConfig, ImageConfig,
-} from "./DrawingBackend";
+    DrawingBackend, GroupNode,
+    RectConfig, CircleConfig, LineConfig, PolygonConfig, TextConfig,
+} from "../backend/DrawingBackend";
+import {BaseStyle} from "../backend/DrawingBackend";
 
 /** Light cyan used for strokes and lines. */
 const LINE_COLOR = '#c0deff';
@@ -76,16 +77,8 @@ function toLine(color: string): string {
  * settings.fontFamily = '"Courier New", monospace';
  * ```
  */
-export class BlueprintBackend implements DrawingBackend {
-    private readonly inner: DrawingBackend;
-
-    constructor(inner: DrawingBackend) {
-        this.inner = inner;
-    }
-
-    createGroup(x: number, y: number): GroupNode {
-        return this.inner.createGroup(x, y);
-    }
+export class BlueprintStyle<Inner extends DrawingBackend = DrawingBackend>
+    extends BaseStyle<Inner> {
 
     addRect(parent: GroupNode, config: RectConfig): void {
         this.inner.addRect(parent, {
@@ -120,21 +113,5 @@ export class BlueprintBackend implements DrawingBackend {
 
     addText(parent: GroupNode, config: TextConfig): void {
         this.inner.addText(parent, { ...config, fill: TEXT_COLOR });
-    }
-
-    addImage(parent: GroupNode, config: ImageConfig): void {
-        this.inner.addImage(parent, config);
-    }
-
-    getExitDepthOffset(): { x: number; y: number } {
-        return this.inner.getExitDepthOffset();
-    }
-
-    getTransform(): CoordFn {
-        return this.inner.getTransform();
-    }
-
-    getInverseTransform(): CoordFn {
-        return this.inner.getInverseTransform();
     }
 }

@@ -4,15 +4,16 @@ import type {ViewportBounds, RendererEventMap, CullingMode} from "../types/Setti
 import {createSettings} from "../types/Settings";
 import type {Settings} from "../types/Settings";
 import {MapState} from "../MapState";
-import type {SvgExportOptions} from "../SvgTypes";
 import {KonvaRenderBackend} from "./KonvaRenderBackend";
-import {SvgRenderBackend} from "./SvgRenderBackend";
-import type {DrawingBackend, CoordFn} from "../backend/DrawingBackend";
-import type {CanvasExportOptions, CanvasExportOverlays} from "../HeadlessRenderer";
+import type {DrawingBackend, CoordFn, Style} from "../backend/DrawingBackend";
+import {identityStyle} from "../backend/DrawingBackend";
+import {CanvasBackend} from "../backend/CanvasBackend";
 import type {Viewport} from "../Viewport";
 import type {CullingManager} from "../CullingManager";
 import type {TypedEventEmitter} from "../TypedEventEmitter";
-import type {OverlayPlugin} from "../types/OverlayPlugin";
+import type {LiveEffect} from "../overlay/LiveEffect";
+import type {SceneOverlay} from "../overlay/SceneOverlay";
+import type {Exporter, ExportContext, ExportCanvas} from "../export/Exporter";
 
 /** Contract for interactive render backends. */
 export interface InteractiveBackend {
@@ -25,24 +26,45 @@ export interface InteractiveBackend {
     updateBackground(): void;
     refresh(): void;
     /** Render a specific region to canvas (for headless / bounded export). */
-    toCanvas(options: { width: number; height: number; roomId?: number; padding?: number }): any;
+    toCanvas(options: {
+        width: number;
+        height: number;
+        roomId?: number;
+        padding?: number;
+        overlays?: {
+            position?: { roomId: number };
+            highlights?: Array<{ roomId: number; color: string }>;
+            paths?: Array<{ locations: number[]; color: string }>;
+        };
+    }): ExportCanvas | undefined;
     /** Capture the current viewport as a canvas with background fill. */
-    exportCanvas(options?: { pixelRatio?: number }): HTMLCanvasElement | undefined;
-    addOverlayPlugin(id: string, plugin: import("../types/OverlayPlugin").OverlayPlugin): void;
-    removeOverlayPlugin(id: string): void;
+    exportCanvas(options?: { pixelRatio?: number }): ExportCanvas | undefined;
+    addLiveEffect(id: string, effect: LiveEffect): void;
+    removeLiveEffect(id: string): void;
+    addSceneOverlay(id: string, overlay: SceneOverlay): void;
+    removeSceneOverlay(id: string): void;
+    getSceneOverlays(): Iterable<SceneOverlay>;
     destroy(): void;
 }
 
 /**
  * Unified map renderer facade.
  *
- * All public methods mutate MapState. State events drive the rendering backend.
+ * Public surface is intentionally narrow:
+ * - **State mutations** (`drawArea`, `setPosition`, `renderHighlight`, …) emit
+ *   events through `MapState` that the interactive backend reacts to.
+ * - **{@link setStyle}** applies a target-agnostic visual transformation to the
+ *   interactive canvas and every exporter.
+ * - **{@link export}** runs an {@link Exporter} plug-in and returns its output
+ *   (SVG string, PNG data URL, canvas, PDF bytes, …). New formats are added by
+ *   shipping new `Exporter<T>` implementations — no new methods on this class.
+ * - **{@link addSceneOverlay}** / **{@link addLiveEffect}** distinguish scene
+ *   content (appears everywhere) from animated effects (interactive only).
  */
 export class MapRenderer {
     readonly state: MapState;
     readonly backend: InteractiveBackend;
-    private readonly svgDrawingBackendFactory?: (innerSvgBackend: DrawingBackend) => DrawingBackend;
-    private drawingBackendFactory?: (inner: DrawingBackend) => DrawingBackend;
+    private currentStyle: Style = identityStyle;
 
     get settings(): Settings {
         return this.state.settings;
@@ -54,26 +76,18 @@ export class MapRenderer {
      * @param container       DOM element for interactive rendering. Omit for headless.
      * @param backendFactory  Optional factory that receives the `MapState` and returns
      *   a custom `InteractiveBackend`. When omitted, a `KonvaRenderBackend` is created.
-     * @param drawingBackend  Optional DrawingBackend for Konva rendering.
-     *   Must create GroupNodes compatible with KonvaLayerNode (i.e. wrap a KonvaBackend).
-     *   Use `new SketchyBackend(new KonvaBackend(), jitter, color)` for pencil style.
-     * @param svgDrawingBackendFactory  Optional factory for SVG export drawing backend.
-     *   Receives the default SvgBackend and returns a wrapped one.
      */
     constructor(
         mapReader: MapReader,
         settings?: Settings,
         container?: HTMLDivElement,
         backendFactory?: (state: MapState) => InteractiveBackend,
-        drawingBackend?: DrawingBackend,
-        svgDrawingBackendFactory?: (innerSvgBackend: DrawingBackend) => DrawingBackend,
     ) {
         const resolvedSettings = settings ?? createSettings();
         this.state = new MapState(mapReader, resolvedSettings);
-        this.svgDrawingBackendFactory = svgDrawingBackendFactory;
         this.backend = backendFactory
             ? backendFactory(this.state)
-            : new KonvaRenderBackend(this.state, container, drawingBackend);
+            : new KonvaRenderBackend(this.state, container);
     }
 
     destroy() {
@@ -134,18 +148,31 @@ export class MapRenderer {
         this.state.refreshPosition();
     }
 
-    setDrawingBackend(backend: DrawingBackend) {
-        this.backend.setDrawingBackend(backend);
-        this.drawingBackendFactory = undefined;
-    }
+    // --- Style ---
 
     /**
-     * Set a factory that wraps a raw DrawingBackend with decorators.
-     * Used for both interactive rendering (wraps KonvaBackend) and SVG export (wraps SvgBackend).
-     * Pass `null` to reset to default.
+     * Apply a {@link Style} to the interactive canvas and every export path.
+     *
+     * ```ts
+     * import {compose, Parchment, Sketchy} from 'mudlet-map-renderer';
+     * renderer.setStyle(compose(Parchment, Sketchy({jitter: 0.012, color: '#4a3728'})));
+     * ```
+     *
+     * Pass `identityStyle` (or call {@link clearStyle}) to remove the current style.
      */
-    setDrawingBackendFactory(factory: ((inner: DrawingBackend) => DrawingBackend) | null) {
-        this.drawingBackendFactory = factory ?? undefined;
+    setStyle(style: Style) {
+        this.currentStyle = style;
+        this.backend.setDrawingBackend(style(new CanvasBackend()));
+    }
+
+    /** Equivalent to `setStyle(identityStyle)`. */
+    clearStyle() {
+        this.setStyle(identityStyle);
+    }
+
+    /** Returns the style currently applied (defaults to identity). */
+    getStyle(): Style {
+        return this.currentStyle;
     }
 
     updateBackground() {
@@ -157,45 +184,46 @@ export class MapRenderer {
         this.backend.refresh();
     }
 
-    /**
-     * Add a custom overlay plugin. It receives a Konva layer and viewport updates.
-     * @see OverlayPlugin
-     */
-    addOverlayPlugin(id: string, plugin: OverlayPlugin) {
-        this.backend.addOverlayPlugin(id, plugin);
+    // --- Overlays ---
+
+    /** Target-agnostic overlay; appears in every output including exporters. */
+    addSceneOverlay(id: string, overlay: SceneOverlay) {
+        this.backend.addSceneOverlay(id, overlay);
     }
 
-    removeOverlayPlugin(id: string) {
-        this.backend.removeOverlayPlugin(id);
+    removeSceneOverlay(id: string) {
+        this.backend.removeSceneOverlay(id);
+    }
+
+    /** Interactive-only animated effect; skipped by exporters. */
+    addLiveEffect(id: string, effect: LiveEffect) {
+        this.backend.addLiveEffect(id, effect);
+    }
+
+    removeLiveEffect(id: string) {
+        this.backend.removeLiveEffect(id);
     }
 
     // --- Export ---
 
-    exportSvg(options?: SvgExportOptions): string | undefined {
-        const mergedOptions: SvgExportOptions = {
-            ...options,
-            overlays: this.state.getOverlaysForArea(options?.overlays),
+    /**
+     * Run an {@link Exporter} against the current scene and return its output.
+     *
+     * ```ts
+     * const svg    = renderer.export(new SvgExporter({ padding: 5 }));
+     * const url    = renderer.export(new PngExporter({ pixelRatio: 2 }));
+     * const blob   = await renderer.export(new PngBlobExporter());
+     * const canvas = renderer.export(new CanvasExporter({ width, height }));
+     * ```
+     */
+    export<T>(exporter: Exporter<T>): T {
+        const context: ExportContext = {
+            state: this.state,
+            backend: this.backend,
+            style: this.currentStyle,
+            sceneOverlays: this.backend.getSceneOverlays(),
         };
-        const factory = this.drawingBackendFactory ?? this.svgDrawingBackendFactory;
-        const svgBackend = new SvgRenderBackend(this.state, factory);
-        return svgBackend.exportSvg(mergedOptions);
-    }
-
-    exportPng(options?: { pixelRatio?: number }): string | undefined {
-        const canvas = this.backend.exportCanvas(options);
-        return canvas?.toDataURL('image/png');
-    }
-
-    exportPngBlob(options?: { pixelRatio?: number }): Promise<Blob> | undefined {
-        const canvas = this.backend.exportCanvas(options);
-        if (!canvas) return;
-        return new Promise<Blob>((resolve) => {
-            canvas.toBlob((blob: Blob | null) => { if (blob) resolve(blob); }, 'image/png');
-        });
-    }
-
-    renderToCanvas(options: CanvasExportOptions & { overlays?: CanvasExportOverlays }): any {
-        return this.backend.toCanvas(options);
+        return exporter.render(context);
     }
 
     // --- Viewport & interaction ---
@@ -236,7 +264,6 @@ export class MapRenderer {
             minY: hasAreaName ? b.minY - 7 : b.minY,
             maxY: b.maxY,
         };
-        // Transform the 4 corners and compute the AABB in rendered space
         const fn = this.backend.coordinateTransform;
         const c1 = fn(raw.minX, raw.minY);
         const c2 = fn(raw.maxX, raw.minY);

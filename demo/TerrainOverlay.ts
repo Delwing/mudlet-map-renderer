@@ -1,6 +1,6 @@
 import Konva from "konva";
 import type {ViewportBounds} from "@src/types/Settings";
-import type {CoordinateTransform, OverlayPlugin} from "@src/types/OverlayPlugin";
+import type {CoordinateTransform, LiveEffect} from "@src";
 
 export type TerrainEffectType = "water" | "forest" | "lava" | "ice";
 
@@ -19,7 +19,7 @@ const EFFECT_COLORS: Record<TerrainEffectType, string> = {
     water: '#4488cc', forest: '#44aa44', lava: '#ff4400', ice: '#aaddff',
 };
 
-export class TerrainOverlay implements OverlayPlugin {
+export class TerrainOverlay implements LiveEffect {
     private layer!: Konva.Layer;
     private shape!: Konva.Shape;
     private rooms: TerrainRoom[] = [];

@@ -1,7 +1,8 @@
 import type {
-    DrawingBackend, GroupNode, CoordFn,
-    RectConfig, CircleConfig, LineConfig, PolygonConfig, TextConfig, ImageConfig,
-} from "./DrawingBackend";
+    DrawingBackend, GroupNode,
+    RectConfig, CircleConfig, LineConfig, PolygonConfig, TextConfig,
+} from "../backend/DrawingBackend";
+import {BaseStyle} from "../backend/DrawingBackend";
 
 /**
  * Simple seeded PRNG (linear congruential).
@@ -159,12 +160,13 @@ function wobblePolygonEdges(vertices: number[], jitter: number, rng: () => numbe
  *
  * Usage:
  * ```ts
- * const sketchy = new SketchyBackend(new KonvaBackend(), 0.015, '#444444');
+ * const sketchy = new SketchyStyle(new CanvasBackend(), 0.015, '#444444');
  * new ScenePipeline(mapReader, settings, sketchy, layers);
  * ```
  */
-export class SketchyBackend implements DrawingBackend {
-    private readonly inner: DrawingBackend;
+export class SketchyStyle<Inner extends DrawingBackend = DrawingBackend>
+    extends BaseStyle<Inner> {
+
     private readonly jitter: number;
     private readonly pencil: string;
 
@@ -173,14 +175,10 @@ export class SketchyBackend implements DrawingBackend {
      * @param jitter  Base jitter amount in map units (e.g. 0.015).
      * @param pencilColor  Color for all strokes/fills (e.g. '#444444').
      */
-    constructor(inner: DrawingBackend, jitter: number, pencilColor: string) {
-        this.inner = inner;
+    constructor(inner: Inner, jitter: number, pencilColor: string) {
+        super(inner);
         this.jitter = jitter;
         this.pencil = pencilColor;
-    }
-
-    createGroup(x: number, y: number): GroupNode {
-        return this.inner.createGroup(x, y);
     }
 
     /**
@@ -274,22 +272,6 @@ export class SketchyBackend implements DrawingBackend {
 
     addText(parent: GroupNode, config: TextConfig): void {
         this.inner.addText(parent, { ...config, fill: this.pencil });
-    }
-
-    addImage(parent: GroupNode, config: ImageConfig): void {
-        this.inner.addImage(parent, config);
-    }
-
-    getExitDepthOffset(): { x: number; y: number } {
-        return this.inner.getExitDepthOffset();
-    }
-
-    getTransform(): CoordFn {
-        return this.inner.getTransform();
-    }
-
-    getInverseTransform(): CoordFn {
-        return this.inner.getInverseTransform();
     }
 }
 

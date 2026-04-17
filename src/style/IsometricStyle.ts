@@ -1,7 +1,8 @@
 import type {
     DrawingBackend, GroupNode, CoordFn,
     RectConfig, CircleConfig, LineConfig, PolygonConfig, TextConfig, ImageConfig,
-} from "./DrawingBackend";
+} from "../backend/DrawingBackend";
+import {BaseStyle} from "../backend/DrawingBackend";
 import {darkenColor} from "../utils/color";
 
 /**
@@ -59,14 +60,15 @@ const CIRCLE_SEGMENTS = 32;
  * Composes with other decorators — recommended order:
  * ```ts
  * // Isometric cubes with parchment colors and hand-drawn wobble
- * new IsometricBackend(
- *     new SketchyBackend(new ParchmentBackend(new KonvaBackend()), 0.012, '#4a3728'),
+ * new IsometricStyle(
+ *     new SketchyStyle(new ParchmentStyle(new CanvasBackend()), 0.012, '#4a3728'),
  *     { depth: 0.18, rotation: 90 },
  * );
  * ```
  */
-export class IsometricBackend implements DrawingBackend {
-    private readonly inner: DrawingBackend;
+export class IsometricStyle<Inner extends DrawingBackend = DrawingBackend>
+    extends BaseStyle<Inner> {
+
     private readonly depth: number;
     private readonly iso: IsoTransform;
     private readonly isoInv: IsoTransform;
@@ -75,8 +77,8 @@ export class IsometricBackend implements DrawingBackend {
      * @param inner    The backend to delegate to after iso-transforming coordinates.
      * @param options  Depth (cube side face height, default 0.18) and rotation (0/90/180/270, default 0).
      */
-    constructor(inner: DrawingBackend, options?: { depth?: number; rotation?: IsometricRotation } | number) {
-        this.inner = inner;
+    constructor(inner: Inner, options?: { depth?: number; rotation?: IsometricRotation } | number) {
+        super(inner);
         if (typeof options === 'number') {
             this.depth = options;
             this.iso = buildTransform(0);

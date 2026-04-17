@@ -2,13 +2,9 @@ import {
     MapRenderer,
     createSettings,
     PathFinder,
-    CanvasBackend,
-    SketchyBackend,
-    ParchmentBackend,
-    BlueprintBackend,
-    NeonBackend,
-    IsometricBackend,
-    DrawingBackend
+    compose, identityStyle,
+    Parchment, Blueprint, Neon, Sketchy, Isometric,
+    type Style,
 } from "@src";
 import type {Settings} from "@src";
 import MapReader from "@src/reader/MapReader";
@@ -192,43 +188,39 @@ function applyRenderMode(mode: string) {
     settings.backgroundColor = savedBackgroundColor;
     settings.lineColor = savedLineColor;
     settings.fontFamily = savedFontFamily;
-    // Build the decorator chain as a factory (inner backend → wrapped backend).
-    // Used for both Konva (interactive) and SVG (export).
-    type BackendFactory = (inner: DrawingBackend) => DrawingBackend;
-    let factory: BackendFactory = (inner) => inner;
+
+    // A Style is target-agnostic: the same `style` drives the interactive canvas,
+    // SVG export, and PNG export. Adding new render modes is just `compose(...)`.
+    let style: Style = identityStyle;
 
     switch (mode) {
         case "pencil":
-            factory = (inner) => new SketchyBackend(inner, jitter, sketchColor);
+            style = Sketchy({jitter, color: sketchColor});
             settings.backgroundColor = '#ffffff';
             break;
         case "parchment":
-            factory = (inner) => new ParchmentBackend(inner);
+            style = Parchment;
             settings.backgroundColor = '#f4e4c1';
             settings.lineColor = '#5c4033';
             settings.fontFamily = 'Georgia, serif';
             break;
-        case "parchment-pencil": {
-            const pencilColor = '#4a3728';
-            factory = (inner) => new SketchyBackend(new ParchmentBackend(inner), jitter, pencilColor);
+        case "parchment-pencil":
+            style = compose(Parchment, Sketchy({jitter, color: '#4a3728'}));
             settings.backgroundColor = '#f4e4c1';
             settings.lineColor = '#5c4033';
             settings.fontFamily = 'Georgia, serif';
             break;
-        }
         case "isometric": {
             const depth = settings.roomSize * 0.3;
-            const rotation = getIsoRotation();
-            factory = (inner) => new IsometricBackend(inner, {depth, rotation});
+            style = Isometric({depth, rotation: getIsoRotation()});
             break;
         }
         case "isometric-parchment": {
             const depth = settings.roomSize * 0.3;
-            const pencilColor = '#4a3728';
-            const rotation = getIsoRotation();
-            factory = (inner) => new IsometricBackend(
-                new SketchyBackend(new ParchmentBackend(inner), jitter, pencilColor),
-                {depth, rotation},
+            style = compose(
+                Parchment,
+                Sketchy({jitter, color: '#4a3728'}),
+                Isometric({depth, rotation: getIsoRotation()}),
             );
             settings.backgroundColor = '#f4e4c1';
             settings.lineColor = '#5c4033';
@@ -236,21 +228,19 @@ function applyRenderMode(mode: string) {
             break;
         }
         case "blueprint":
-            factory = (inner) => new BlueprintBackend(inner);
+            style = Blueprint;
             settings.backgroundColor = '#0a1628';
             settings.lineColor = '#4a7ab5';
             settings.fontFamily = '"Courier New", monospace';
             break;
         case "neon":
-            factory = (inner) => new NeonBackend(inner);
+            style = Neon;
             settings.backgroundColor = '#0a0a0f';
             settings.lineColor = '#00ffaa';
             break;
     }
 
-    renderer.setDrawingBackend(factory(new CanvasBackend()));
-    renderer.setDrawingBackendFactory(factory);
-
+    renderer.setStyle(style);
     renderer.updateBackground();
     renderer.refresh();
     preview?.refresh();

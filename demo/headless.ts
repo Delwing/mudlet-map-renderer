@@ -2,7 +2,7 @@ import "konva/canvas-backend";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-import { MapRenderer, createSettings, PathFinder } from "@src";
+import { MapRenderer, createSettings, PathFinder, SvgExporter, PngBytesExporter } from "@src";
 import MapReader from "@src/reader/MapReader";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -248,7 +248,7 @@ async function main() {
     const exportPadding = args.padding ?? 3;
 
     if (args.format === "svg") {
-        const svg = renderer.exportSvg({ roomId: args.room, padding: exportPadding });
+        const svg = renderer.export(new SvgExporter({ roomId: args.room, padding: exportPadding }));
         if (!svg) {
             console.error("SVG export failed.");
             process.exit(1);
@@ -256,15 +256,18 @@ async function main() {
         fs.writeFileSync(outputPath, svg, "utf-8");
         console.log(`SVG written to ${outputPath}`);
     } else {
-        // PNG via headless Konva (uses canvas package internally)
-        const canvas = renderer.renderToCanvas({ width: args.width, height: args.height, roomId: args.room, padding: exportPadding });
-        if (!canvas) {
+        const png = renderer.export(new PngBytesExporter({
+            width: args.width,
+            height: args.height,
+            roomId: args.room,
+            padding: exportPadding,
+        }));
+        if (!png) {
             console.error("PNG export failed.");
             process.exit(1);
         }
 
-        const buffer = canvas.toBuffer("image/png");
-        fs.writeFileSync(outputPath, buffer);
+        fs.writeFileSync(outputPath, png);
         console.log(`PNG (${args.width}x${args.height}) written to ${outputPath}`);
     }
 }
