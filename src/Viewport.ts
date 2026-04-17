@@ -162,6 +162,36 @@ export class Viewport {
     }
 
     /**
+     * Compute the zoom level that would fit the given map bounds in the current
+     * viewport (with the same padding/insets as {@link fitToMapBounds}). Useful
+     * for updating `minZoom` to lock zoom-out to an area without changing the
+     * current zoom or position.
+     */
+    computeFitZoom(
+        minX: number,
+        maxX: number,
+        minY: number,
+        maxY: number,
+        insets?: { top?: number; right?: number; bottom?: number; left?: number },
+    ): number {
+        const mapW = maxX - minX;
+        const mapH = maxY - minY;
+        if (mapW <= 0 || mapH <= 0) return this.zoom;
+
+        const top = insets?.top ?? 0;
+        const right = insets?.right ?? 0;
+        const bottom = insets?.bottom ?? 0;
+        const left = insets?.left ?? 0;
+        const availW = Math.max(1, this.width - left - right);
+        const availH = Math.max(1, this.height - top - bottom);
+
+        const padding = 2;
+        const zoomX = availW / ((mapW + padding * 2) * BASE_SCALE);
+        const zoomY = availH / ((mapH + padding * 2) * BASE_SCALE);
+        return Math.max(0.05, Math.min(5, Math.min(zoomX, zoomY)));
+    }
+
+    /**
      * Fit the viewport to show the given map bounds with padding.
      * Optional `insets` (screen pixels) reserve space at each edge — content
      * is fit and centered within the rect remaining after the insets.
@@ -178,18 +208,11 @@ export class Viewport {
         if (mapW <= 0 || mapH <= 0) return;
 
         const top = insets?.top ?? 0;
-        const right = insets?.right ?? 0;
-        const bottom = insets?.bottom ?? 0;
         const left = insets?.left ?? 0;
-        const availW = Math.max(1, this.width - left - right);
-        const availH = Math.max(1, this.height - top - bottom);
+        const availW = Math.max(1, this.width - left - (insets?.right ?? 0));
+        const availH = Math.max(1, this.height - top - (insets?.bottom ?? 0));
 
-        const padding = 2;
-        const zoomX = availW / ((mapW + padding * 2) * BASE_SCALE);
-        const zoomY = availH / ((mapH + padding * 2) * BASE_SCALE);
-        const fitZoom = Math.min(zoomX, zoomY);
-
-        this.zoom = Math.max(0.05, Math.min(5, fitZoom));
+        this.zoom = this.computeFitZoom(minX, maxX, minY, maxY, insets);
         this.minZoom = this.zoom;
 
         const scale = this.getScale();

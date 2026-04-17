@@ -71,6 +71,7 @@ export function initControls(settings: Settings, renderer: MapRenderer, getCurre
     const playerMarkerMatchShape = document.getElementById("player-marker-match-shape") as HTMLInputElement | null;
     const embossToggle = document.getElementById("emboss-toggle") as HTMLInputElement | null;
     const areaNameToggle = document.getElementById("area-name-toggle") as HTMLInputElement | null;
+    const areaExitLabelsToggle = document.getElementById("area-exit-labels-toggle") as HTMLInputElement | null;
     const uniformLevelSizeToggle = document.getElementById("uniform-level-size-toggle") as HTMLInputElement | null;
     const bordersToggle = document.getElementById("borders-toggle") as HTMLInputElement | null;
     const ambientLightToggle = document.getElementById("ambient-light-toggle") as HTMLInputElement | null;
@@ -150,6 +151,7 @@ export function initControls(settings: Settings, renderer: MapRenderer, getCurre
     if (renderModeSelect) renderModeSelect.value = "normal";
     if (embossToggle) embossToggle.checked = settings.emboss;
     if (areaNameToggle) areaNameToggle.checked = settings.areaName;
+    if (areaExitLabelsToggle) areaExitLabelsToggle.checked = settings.areaExitLabels;
     if (uniformLevelSizeToggle) uniformLevelSizeToggle.checked = settings.uniformLevelSize;
     if (bordersToggle) bordersToggle.checked = settings.borders;
     const ambientLight = new AmbientLightOverlay();
@@ -344,6 +346,11 @@ export function initControls(settings: Settings, renderer: MapRenderer, getCurre
 
     areaNameToggle?.addEventListener("change", () => {
         settings.areaName = areaNameToggle.checked;
+        renderer.refresh();
+    });
+
+    areaExitLabelsToggle?.addEventListener("change", () => {
+        settings.areaExitLabels = areaExitLabelsToggle.checked;
         renderer.refresh();
     });
 

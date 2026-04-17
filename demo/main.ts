@@ -460,9 +460,20 @@ async function initialize() {
         }
         const area = mapReader.getArea(room.area);
         if (!area) return;
+        const previousArea = renderer.state.currentArea;
         populateLevelSelector(room.area, room.z);
         renderer.clearPosition();
         renderer.centerOn(targetRoomId);
+        if (previousArea !== room.area) {
+            // centerOn switched the area; recompute the zoom-out lock against the
+            // new area's bounds. No position/zoom change — just minZoom.
+            const bounds = renderer.getAreaBounds();
+            if (bounds) {
+                renderer.minZoom = renderer.backend.viewport.computeFitZoom(
+                    bounds.minX, bounds.maxX, bounds.minY, bounds.maxY,
+                );
+            }
+        }
         if (areaSelect) areaSelect.value = room.area.toString();
         if (levelSelect) levelSelect.value = room.z.toString();
         updateAreaStatus(room.area);

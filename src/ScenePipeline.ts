@@ -11,12 +11,22 @@ import type {ExitDrawData, ExitDrawArrow} from "./ExitRenderer";
 import {computeStubs} from "./scene/StubStyle";
 import {computeSpecialExits} from "./scene/SpecialExitStyle";
 import {computeInnerExits} from "./scene/InnerExitStyle";
+import {colorLightness} from "./utils/color";
 
 type Bounds = { x: number; y: number; width: number; height: number };
 
 export type RoomNodeEntry = { room: MapData.Room; group: GroupNode };
 export type StandaloneExitEntry = { group: GroupNode; bounds: Bounds; targetRoomId?: number };
-export type AreaExitHitZone = { bounds: Bounds; targetRoomId: number };
+export type AreaExitHitZone = {
+    bounds: Bounds;
+    targetRoomId: number;
+    /** Source room center — used to compute arrow direction for labels. Optional for back-compat. */
+    from?: { x: number; y: number };
+    /** Arrow tip / far endpoint — anchor for placed labels. Optional for back-compat. */
+    tip?: { x: number; y: number };
+    /** Stroke colour of the rendered arrow — used to colour area-exit labels. */
+    arrowColor?: string;
+};
 
 export type SceneBuildResult = {
     roomNodes: Map<number, RoomNodeEntry>;
@@ -28,6 +38,67 @@ function getLabelColor(color: MapData.Color): string {
     const alpha = (color?.alpha ?? 255) / 255;
     const clamp = (value: number) => Math.min(255, Math.max(0, value ?? 0));
     return `rgba(${clamp(color?.r)}, ${clamp(color?.g)}, ${clamp(color?.b)}, ${alpha})`;
+}
+
+/** Convert a `rgb(...)`, `rgba(...)`, or `#rrggbb` string to `rgba(r,g,b,alpha)`. */
+function colorWithAlpha(color: string, alpha: number): string {
+    const rgb = parseRgb(color);
+    if (!rgb) return color;
+    return `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${alpha})`;
+}
+
+/** Parse a `rgb(...)`, `rgba(...)`, or `#rrggbb` string into `{r, g, b}` (0–255). */
+function parseRgb(color: string): { r: number; g: number; b: number } | undefined {
+    const rgbMatch = color.match(/(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
+    if (rgbMatch) {
+        return { r: +rgbMatch[1], g: +rgbMatch[2], b: +rgbMatch[3] };
+    }
+    if (color.startsWith('#') && color.length >= 7) {
+        return {
+            r: parseInt(color.slice(1, 3), 16),
+            g: parseInt(color.slice(3, 5), 16),
+            b: parseInt(color.slice(5, 7), 16),
+        };
+    }
+    return undefined;
+}
+
+/** Flatten `fg` at `alpha` over `bg` into an opaque `rgb(...)` string. */
+function blendOverBackground(fg: string, bg: string, alpha: number): string {
+    const f = parseRgb(fg);
+    const b = parseRgb(bg);
+    if (!f || !b) return fg;
+    const r = Math.round(f.r * alpha + b.r * (1 - alpha));
+    const g = Math.round(f.g * alpha + b.g * (1 - alpha));
+    const bl = Math.round(f.b * alpha + b.b * (1 - alpha));
+    return `rgb(${r}, ${g}, ${bl})`;
+}
+
+/**
+ * Greedy single-link clustering: each point joins the first existing cluster
+ * with at least one member within `radius` (via the `tip` field), else starts
+ * a new cluster. O(n²) but n is small (dozens of area exits per map).
+ */
+function clusterByProximity<T extends { tip: { x: number; y: number } }>(
+    points: T[],
+    radius: number,
+): T[][] {
+    const r2 = radius * radius;
+    const clusters: T[][] = [];
+    outer: for (const p of points) {
+        for (const c of clusters) {
+            for (const q of c) {
+                const dx = p.tip.x - q.tip.x;
+                const dy = p.tip.y - q.tip.y;
+                if (dx * dx + dy * dy <= r2) {
+                    c.push(p);
+                    continue outer;
+                }
+            }
+        }
+        clusters.push([p]);
+    }
+    return clusters;
 }
 
 /**
@@ -95,10 +166,22 @@ export class ScenePipeline {
         // Area name
         this.renderAreaName(area, plane);
 
+        const areaExitHitZones = [...exitResult.areaExitHitZones, ...roomResult.areaExitHitZones];
+
+        // Area exit labels (one per spatial cluster of exits to the same target area).
+        // Labels themselves become clickable hit zones that navigate to the target area.
+        const labelHitZones = this.renderAreaExitLabels(
+            areaExitHitZones,
+            area.getAreaId(),
+            plane.getRooms() ?? [],
+            exitResult.standaloneExitNodes.map(n => n.bounds),
+        );
+        areaExitHitZones.push(...labelHitZones);
+
         return {
             roomNodes: roomResult.roomNodes,
             standaloneExitNodes: exitResult.standaloneExitNodes,
-            areaExitHitZones: [...exitResult.areaExitHitZones, ...roomResult.areaExitHitZones],
+            areaExitHitZones,
         };
     }
 
@@ -146,9 +229,25 @@ export class ScenePipeline {
                 this.linkLayer.addNode(seGroup);
             }
 
-            // Area exit hit zones from special exits
+            // Area exit hit zones from special exits (custom lines to other areas)
             this.exitRenderer.getSpecialExitAreaTargets(room).forEach(zone => {
-                areaExitHitZones.push(zone);
+                areaExitHitZones.push({
+                    bounds: zone.bounds,
+                    targetRoomId: zone.targetRoomId,
+                    from: zone.from,
+                    tip: zone.tip,
+                    arrowColor: zone.arrowColor,
+                });
+            });
+            // Area exit hit zones from inner exits (up/down/in/out to other areas)
+            this.exitRenderer.getInnerExitAreaTargets(room).forEach(zone => {
+                areaExitHitZones.push({
+                    bounds: zone.bounds,
+                    targetRoomId: zone.targetRoomId,
+                    from: zone.from,
+                    tip: zone.tip,
+                    arrowColor: zone.arrowColor,
+                });
             });
 
             // Stubs → link layer (so they render under rooms, like exits)
@@ -199,7 +298,13 @@ export class ScenePipeline {
             this.linkLayer.addNode(group);
             standaloneExitNodes.push({group, bounds: data.bounds, targetRoomId: data.targetRoomId});
             if (data.targetRoomId !== undefined) {
-                areaExitHitZones.push({bounds: data.bounds, targetRoomId: data.targetRoomId});
+                areaExitHitZones.push({
+                    bounds: data.bounds,
+                    targetRoomId: data.targetRoomId,
+                    from: data.from,
+                    tip: data.tip,
+                    arrowColor: data.arrowColor,
+                });
             }
         });
 
@@ -298,6 +403,265 @@ export class ScenePipeline {
 
             this.linkLayer.addNode(group);
         });
+    }
+
+    // --- Area Exit Labels ---
+
+    private renderAreaExitLabels(
+        hitZones: AreaExitHitZone[],
+        currentAreaId: number,
+        rooms: MapData.Room[],
+        exitLineBounds: Bounds[],
+    ): AreaExitHitZone[] {
+        const labelHitZones: AreaExitHitZone[] = [];
+        if (!this.settings.areaExitLabels || hitZones.length === 0) return labelHitZones;
+
+        type Point = {
+            tip: { x: number; y: number };
+            dir: { x: number; y: number };
+            color: string;
+            bounds: Bounds;
+            targetRoomId: number;
+        };
+        type Placement = {
+            cluster: Point[];
+            boxX: number; boxY: number; boxW: number; boxH: number;
+            color: string;
+        };
+
+        // Filter to cross-area exits with direction info, group by target area.
+        const byArea = new Map<number, Point[]>();
+        for (const zone of hitZones) {
+            if (!zone.tip || !zone.from) continue;
+            const targetRoom = this.mapReader.getRoom(zone.targetRoomId);
+            if (!targetRoom || targetRoom.area === currentAreaId) continue;
+            const dx = zone.tip.x - zone.from.x;
+            const dy = zone.tip.y - zone.from.y;
+            const len = Math.hypot(dx, dy) || 1;
+            const pt: Point = {
+                tip: zone.tip,
+                dir: { x: dx / len, y: dy / len },
+                color: zone.arrowColor ?? 'white',
+                bounds: zone.bounds,
+                targetRoomId: zone.targetRoomId,
+            };
+            const arr = byArea.get(targetRoom.area);
+            if (arr) arr.push(pt); else byArea.set(targetRoom.area, [pt]);
+        }
+
+        const CLUSTER_RADIUS = 10; // generous — same-area exits usually benefit from a single label
+        const MERGE_GAP = 2; // post-placement, merge same-area labels whose boxes are this close
+        const LABEL_GAP = 0.5;
+        const DIR_THRESHOLD = 0.4; // averaged direction below this magnitude → treat as "no preference"
+        const SPREAD_THRESHOLD = 3; // map units — tip spread above this means the cluster is wide
+                                    // enough that its centroid (the gap) beats any directional push
+        const fontSize = 0.3;
+        const padX = 0.18;
+        const padY = 0.1;
+        const charWidth = fontSize * 0.55;
+        const textHeight = fontSize * 1.1;
+        const cornerRadius = 0.18;
+        const FILL_ALPHA = 0.35;
+        const strokeWidth = 0.03;
+
+        // All rooms on this plane are obstacles for labels.
+        const rs = this.settings.roomSize;
+        const roomBoxes: Bounds[] = rooms.map(r => ({
+            x: r.x - rs / 2, y: r.y - rs / 2, width: rs, height: rs,
+        }));
+        // All area-exit arrow bounds are obstacles too — the placer excludes
+        // the current cluster's own arrows when checking.
+        const allArrowBounds: Bounds[] = hitZones.map(z => z.bounds);
+
+        const boxesOverlap = (a: { x: number; y: number; w: number; h: number },
+                              b: { x: number; y: number; w: number; h: number }) =>
+            a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+
+        /** True if boxes overlap OR are within `gap` units of each other (AABB gap check). */
+        const boxesCloseOrOverlap = (
+            a: { x: number; y: number; w: number; h: number },
+            b: { x: number; y: number; w: number; h: number },
+            gap: number,
+        ) => {
+            const dx = Math.max(0, Math.max(a.x, b.x) - Math.min(a.x + a.w, b.x + b.w));
+            const dy = Math.max(0, Math.max(a.y, b.y) - Math.min(a.y + a.h, b.y + b.h));
+            return Math.hypot(dx, dy) <= gap;
+        };
+
+        const overlapsAny = (
+            bx: number, by: number, bw: number, bh: number,
+            obstacles: Bounds[],
+        ) => {
+            for (const r of obstacles) {
+                if (bx < r.x + r.width && bx + bw > r.x && by < r.y + r.height && by + bh > r.y) return true;
+            }
+            return false;
+        };
+
+        // Compass ring used as fallback candidates, ordered (cardinals first).
+        const ring: Array<[number, number]> = [
+            [0, 1], [0, -1], [1, 0], [-1, 0],
+            [0.707, 0.707], [-0.707, 0.707], [0.707, -0.707], [-0.707, -0.707],
+        ];
+
+        const placeCluster = (cluster: Point[], name: string): Placement | undefined => {
+            const textWidth = name.length * charWidth;
+            const boxW = textWidth + padX * 2;
+            const boxH = textHeight + padY * 2;
+
+            let cxSum = 0, cySum = 0, dxSum = 0, dySum = 0;
+            const colorTally = new Map<string, number>();
+            for (const p of cluster) {
+                cxSum += p.tip.x; cySum += p.tip.y;
+                dxSum += p.dir.x; dySum += p.dir.y;
+                colorTally.set(p.color, (colorTally.get(p.color) ?? 0) + 1);
+            }
+            const n = cluster.length;
+            const cx = cxSum / n;
+            const cy = cySum / n;
+            const dLen = Math.hypot(dxSum, dySum);
+            const udx = dLen > 0 ? dxSum / dLen : 0;
+            const udy = dLen > 0 ? dySum / dLen : 0;
+
+            // Spread = max distance between any two tips in the cluster.
+            // Large spread → the cluster came from merging distant clumps, so its
+            // centroid is the natural spot and directional push looks off-center.
+            let spread = 0;
+            for (let i = 0; i < cluster.length; i++) {
+                for (let j = i + 1; j < cluster.length; j++) {
+                    const sx = cluster[i].tip.x - cluster[j].tip.x;
+                    const sy = cluster[i].tip.y - cluster[j].tip.y;
+                    const d = Math.hypot(sx, sy);
+                    if (d > spread) spread = d;
+                }
+            }
+            const preferCentroid = spread > SPREAD_THRESHOLD;
+            const hasPreferred = !preferCentroid && dLen / n >= DIR_THRESHOLD;
+
+            let color = 'white';
+            let bestCount = 0;
+            for (const [c, count] of colorTally) {
+                if (count > bestCount) { color = c; bestCount = count; }
+            }
+
+            // Obstacles include rooms, every area-exit arrow, and every regular
+            // link exit line — labels must not run through connecting lines either.
+            const obstacles = roomBoxes.concat(allArrowBounds).concat(exitLineBounds);
+
+            const offsetAlong = (dx: number, dy: number, extra = 0) =>
+                LABEL_GAP + extra + Math.abs(dx) * boxW / 2 + Math.abs(dy) * boxH / 2;
+
+            const candidates: Array<{ x: number; y: number }> = [];
+            if (hasPreferred) {
+                const off = offsetAlong(udx, udy);
+                candidates.push({ x: cx + udx * off, y: cy + udy * off });
+            }
+            // Try the raw centroid early — it often IS the empty gap between
+            // merged clumps, and in that case every directional push looks worse.
+            candidates.push({ x: cx, y: cy });
+            // Compass ring at three escape radii to handle dense maps.
+            for (const extra of [0, 0.6, 1.4]) {
+                for (const [dx, dy] of ring) {
+                    const off = offsetAlong(dx, dy, extra);
+                    candidates.push({ x: cx + dx * off, y: cy + dy * off });
+                }
+            }
+
+            // Return undefined if no candidate clears every obstacle — better to
+            // drop the label than draw it on top of rooms/arrows/lines.
+            for (const c of candidates) {
+                const bx = c.x - boxW / 2;
+                const by = c.y - boxH / 2;
+                if (!overlapsAny(bx, by, boxW, boxH, obstacles)) {
+                    return {
+                        cluster,
+                        boxX: bx, boxY: by,
+                        boxW, boxH,
+                        color,
+                    };
+                }
+            }
+            return undefined;
+        };
+
+        for (const [areaId, points] of byArea) {
+            const name = this.mapReader.getArea(areaId)?.getAreaName() || `Area ${areaId}`;
+
+            // Initial spatial clustering by arrow-tip proximity.
+            const rawClusters = clusterByProximity(points, CLUSTER_RADIUS);
+            let placements = rawClusters
+                .map(c => placeCluster(c, name))
+                .filter((p): p is Placement => p !== undefined);
+
+            // Merge placements whose final boxes collide — two distant clumps that
+            // both gravitated into the same empty gap become a single combined label.
+            let changed = true;
+            while (changed && placements.length > 1) {
+                changed = false;
+                outer: for (let i = 0; i < placements.length; i++) {
+                    for (let j = i + 1; j < placements.length; j++) {
+                        const a = { x: placements[i].boxX, y: placements[i].boxY, w: placements[i].boxW, h: placements[i].boxH };
+                        const b = { x: placements[j].boxX, y: placements[j].boxY, w: placements[j].boxW, h: placements[j].boxH };
+                        // Merge when labels are close enough to read as "two for the
+                        // same area" — not only when they literally overlap.
+                        if (boxesCloseOrOverlap(a, b, MERGE_GAP)) {
+                            const combined = [...placements[i].cluster, ...placements[j].cluster];
+                            const merged = placeCluster(combined, name);
+                            if (merged) {
+                                placements[i] = merged;
+                                placements.splice(j, 1);
+                            } else {
+                                // Combined placement couldn't find a clear spot — drop both.
+                                placements.splice(j, 1);
+                                placements.splice(i, 1);
+                            }
+                            changed = true;
+                            break outer;
+                        }
+                    }
+                }
+            }
+
+            for (const p of placements) {
+                const fill = colorWithAlpha(p.color, FILL_ALPHA);
+                // Pick text color against the *effective* label bg (fill alpha-blended
+                // over the map background), not the raw arrow color — otherwise a pale
+                // arrow color at low alpha still reads as dark and needs light text.
+                const effectiveBg = blendOverBackground(p.color, this.settings.backgroundColor, FILL_ALPHA);
+                const textColor = colorLightness(effectiveBg) > 0.55 ? '#000' : '#fff';
+                const group = this.backend.createGroup(0, 0);
+                this.backend.addRect(group, {
+                    x: p.boxX, y: p.boxY,
+                    width: p.boxW, height: p.boxH,
+                    fill,
+                    stroke: p.color,
+                    strokeWidth,
+                    cornerRadius,
+                });
+                this.backend.addText(group, {
+                    x: p.boxX + padX,
+                    y: p.boxY + padY,
+                    width: p.boxW - padX * 2,
+                    height: p.boxH - padY * 2,
+                    text: name,
+                    fontSize,
+                    fontFamily: this.settings.fontFamily,
+                    fill: textColor,
+                    align: 'center',
+                    verticalAlign: 'middle',
+                });
+                this.roomLayer.addNode(group);
+
+                // Label is clickable — navigate to the target area (any room from the
+                // cluster works since they all live there).
+                labelHitZones.push({
+                    bounds: { x: p.boxX, y: p.boxY, width: p.boxW, height: p.boxH },
+                    targetRoomId: p.cluster[0].targetRoomId,
+                });
+            }
+        }
+
+        return labelHitZones;
     }
 
     // --- Area Name ---

@@ -43,6 +43,12 @@ export type ExitDrawData = {
     bounds: { x: number; y: number; width: number; height: number };
     /** Set when this exit leads to a room in a different area (cross-area exit). */
     targetRoomId?: number;
+    /** Source room center in map coords — used to compute label direction. */
+    from?: { x: number; y: number };
+    /** Arrow tip / far endpoint in map coords — anchor for placed labels. */
+    tip?: { x: number; y: number };
+    /** Stroke colour of the rendered arrow — used to colour area-exit labels. */
+    arrowColor?: string;
 };
 
 function getDoorColor(doorType: 1 | 2 | 3) {
@@ -137,7 +143,21 @@ export default class ExitRenderer {
         const crossZTarget = sourceRoom.z !== targetRoom.z
             ? (sourceRoom.z === zIndex ? targetRoom.id : sourceRoom.id)
             : undefined;
-        return { lines, arrows: [], doors, bounds: { x: minX, y: minY, width: maxX - minX, height: maxY - minY }, targetRoomId: crossZTarget };
+        // Two-way cross-area exits also deserve area-exit metadata so labels can be placed.
+        const targetRoomId = crossZTarget ?? (sourceRoom.area !== targetRoom.area ? targetRoom.id : undefined);
+        const labelMeta = targetRoomId !== undefined
+            ? {
+                from: { x: sourceRoom.x, y: sourceRoom.y },
+                tip: { x: p2.x, y: p2.y },
+                arrowColor: this.mapReader.getColorValue(targetRoom.env),
+            }
+            : {};
+        return {
+            lines, arrows: [], doors,
+            bounds: { x: minX, y: minY, width: maxX - minX, height: maxY - minY },
+            targetRoomId,
+            ...labelMeta,
+        };
     }
 
     private renderOneWayExitData(exit: Exit, color: string, fromSide?: 'a' | 'b'): ExitDrawData | undefined {
@@ -163,6 +183,9 @@ export default class ExitRenderer {
                 doors: [],
                 bounds: { x: Math.min(start.x, end.x), y: Math.min(start.y, end.y), width: Math.abs(end.x - start.x), height: Math.abs(end.y - start.y) },
                 targetRoomId: targetRoom.id,
+                from: { x: sourceRoom.x, y: sourceRoom.y },
+                tip: { x: end.x, y: end.y },
+                arrowColor: stroke,
             };
         }
 
@@ -203,15 +226,75 @@ export default class ExitRenderer {
     /**
      * Returns hit-zone bounds for special exits (custom lines) that lead to rooms in another area.
      */
-    getSpecialExitAreaTargets(room: MapData.Room): { bounds: { x: number; y: number; width: number; height: number }; targetRoomId: number }[] {
-        const results: { bounds: { x: number; y: number; width: number; height: number }; targetRoomId: number }[] = [];
+    /**
+     * Hit zones for cross-area inner exits (up/down/in/out). These are drawn as
+     * triangles inside the room, not through the exit pipeline, so they need
+     * their own plumbing for area-exit labelling and clickability.
+     */
+    getInnerExitAreaTargets(room: MapData.Room): {
+        bounds: { x: number; y: number; width: number; height: number };
+        targetRoomId: number;
+        from: { x: number; y: number };
+        tip: { x: number; y: number };
+        arrowColor: string;
+    }[] {
+        const innerExits: MapData.direction[] = ['up', 'down', 'in', 'out'];
+        const rs = this.settings.roomSize;
+        const results: {
+            bounds: { x: number; y: number; width: number; height: number };
+            targetRoomId: number;
+            from: { x: number; y: number };
+            tip: { x: number; y: number };
+            arrowColor: string;
+        }[] = [];
+        for (const dir of innerExits) {
+            const targetId = room.exits[dir];
+            if (targetId === undefined) continue;
+            const targetRoom = this.mapReader.getRoom(targetId);
+            if (!targetRoom || targetRoom.area === room.area) continue;
+            // No natural 2D direction for up/down/in/out — anchor at the room and
+            // let the label placer fall back to compass ring placement.
+            results.push({
+                bounds: { x: room.x - rs / 4, y: room.y - rs / 4, width: rs / 2, height: rs / 2 },
+                targetRoomId: targetId,
+                from: { x: room.x, y: room.y },
+                tip: { x: room.x, y: room.y },
+                arrowColor: this.mapReader.getColorValue(targetRoom.env),
+            });
+        }
+        return results;
+    }
+
+    getSpecialExitAreaTargets(room: MapData.Room): {
+        bounds: { x: number; y: number; width: number; height: number };
+        targetRoomId: number;
+        from: { x: number; y: number };
+        tip: { x: number; y: number };
+        arrowColor: string;
+    }[] {
+        const results: {
+            bounds: { x: number; y: number; width: number; height: number };
+            targetRoomId: number;
+            from: { x: number; y: number };
+            tip: { x: number; y: number };
+            arrowColor: string;
+        }[] = [];
+        // shortTolong only covers the 8 cardinal directions, so up/down/in/out
+        // customLines need their own resolution.
+        const vertShortToLong: Record<string, MapData.direction> = {
+            u: 'up', d: 'down', i: 'in', o: 'out',
+        };
         for (const [dir, line] of Object.entries(room.customLines)) {
             let targetId: number | undefined = room.specialExits[dir];
             if (targetId === undefined) {
-                const longDir = shortTolong[dir];
+                const longDir = shortTolong[dir] ?? vertShortToLong[dir];
                 if (longDir) {
                     targetId = room.exits[longDir] ?? room.specialExits[longDir];
                 }
+            }
+            if (targetId === undefined) {
+                // Fallback: dir may already be the long form key.
+                targetId = room.exits[dir as MapData.direction] ?? room.specialExits[dir];
             }
             if (targetId === undefined) continue;
             const targetRoom = this.mapReader.getRoom(targetId);
@@ -225,7 +308,16 @@ export default class ExitRenderer {
                 minY = Math.min(minY, points[i + 1]);
                 maxY = Math.max(maxY, points[i + 1]);
             }
-            results.push({ bounds: { x: minX, y: minY, width: maxX - minX, height: maxY - minY }, targetRoomId: targetId });
+            // Tip = farthest custom-line vertex from the source room.
+            const lastIdx = points.length - 2;
+            const tip = { x: points[lastIdx], y: points[lastIdx + 1] };
+            results.push({
+                bounds: { x: minX, y: minY, width: maxX - minX, height: maxY - minY },
+                targetRoomId: targetId,
+                from: { x: room.x, y: room.y },
+                tip,
+                arrowColor: this.mapReader.getColorValue(targetRoom.env),
+            });
         }
         return results;
     }

@@ -178,6 +178,9 @@ export type Settings = {
     fontFamily: string;
     /** When true, uses bounds from all z-levels for viewport sizing, not just the current level. Default: false */
     uniformLevelSize: boolean;
+    /** When true, renders a small text label next to area-exit arrows showing the target area name.
+     *  Exits leading to the same target area are grouped — one label per area at the cluster centroid. Default: false */
+    areaExitLabels: boolean;
 };
 
 /** Creates a new Settings object with default values. */
@@ -218,5 +221,6 @@ export function createSettings(): Settings {
         areaName: true,
         fontFamily: 'sans-serif',
         uniformLevelSize: false,
+        areaExitLabels: false,
     };
 }
