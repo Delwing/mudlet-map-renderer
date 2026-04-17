@@ -4,8 +4,7 @@ import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 
 import { SvgExporter } from "../src/export/SvgExporter";
-import { CanvasExporter } from "../src/export/CanvasExporter";
-import { canvasToBytes } from "../src/export/canvasToBytes";
+import { PngBytesExporter } from "../src/export/CanvasExporter";
 import { MapRenderer } from "../src/rendering/MapRenderer";
 import type { MapState } from "../src/MapState";
 import { createSettings, type Settings } from "../src/types/Settings";
@@ -46,19 +45,19 @@ function headlessSvg(setup: (r: MapRenderer) => void): string {
 function canvasExport(overrides?: Partial<Settings>): Uint8Array {
     const renderer = new MapRenderer(createTestMapReader(), { ...createSettings(), ...overrides });
     renderer.drawArea(1, 0);
-    return canvasToBytes(renderer.export(new CanvasExporter({ width: WIDTH, height: HEIGHT }))!);
+    return renderer.export(new PngBytesExporter({ width: WIDTH, height: HEIGHT }))!;
 }
 
 function canvasWithOverlays(overlays: any): Uint8Array {
     const renderer = new MapRenderer(createTestMapReader(), createSettings());
     renderer.drawArea(1, 0);
-    return canvasToBytes(renderer.export(new CanvasExporter({ width: WIDTH, height: HEIGHT, overlays }))!);
+    return renderer.export(new PngBytesExporter({ width: WIDTH, height: HEIGHT, overlays }))!;
 }
 
 function canvasArea(areaId: number, z: number, opts?: any): Uint8Array {
     const renderer = new MapRenderer(createTestMapReader(), createSettings());
     renderer.drawArea(areaId, z);
-    return canvasToBytes(renderer.export(new CanvasExporter({ width: WIDTH, height: HEIGHT, ...opts }))!);
+    return renderer.export(new PngBytesExporter({ width: WIDTH, height: HEIGHT, ...opts }))!;
 }
 
 // === Scenarios ===

@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { MapRenderer } from '../src/rendering/MapRenderer';
-import { CanvasExporter } from '../src/export/CanvasExporter';
-import { canvasToBytes } from '../src/export/canvasToBytes';
+import { PngBytesExporter } from '../src/export/CanvasExporter';
 import { createSettings } from '../src/types/Settings';
 import { createTestMapReader } from './helpers';
 
@@ -13,8 +12,7 @@ function exportArea(settingsOverrides?: Partial<ReturnType<typeof createSettings
     const settings = { ...createSettings(), ...settingsOverrides };
     const renderer = new MapRenderer(reader, settings);
     renderer.drawArea(1, 0);
-    const canvas = renderer.export(new CanvasExporter({ width: WIDTH, height: HEIGHT }));
-    return canvasToBytes(canvas!);
+    return renderer.export(new PngBytesExporter({ width: WIDTH, height: HEIGHT }))!;
 }
 
 function renderWithOverlays(overlays: any) {
@@ -22,8 +20,7 @@ function renderWithOverlays(overlays: any) {
     const settings = createSettings();
     const renderer = new MapRenderer(reader, settings);
     renderer.drawArea(1, 0);
-    const canvas = renderer.export(new CanvasExporter({ width: WIDTH, height: HEIGHT, overlays }));
-    return canvasToBytes(canvas!);
+    return renderer.export(new PngBytesExporter({ width: WIDTH, height: HEIGHT, overlays }))!;
 }
 
 function renderArea(areaId: number, zIndex: number, opts?: any) {
@@ -31,8 +28,7 @@ function renderArea(areaId: number, zIndex: number, opts?: any) {
     const settings = createSettings();
     const renderer = new MapRenderer(reader, settings);
     renderer.drawArea(areaId, zIndex);
-    const canvas = renderer.export(new CanvasExporter({ width: WIDTH, height: HEIGHT, ...opts }));
-    return canvasToBytes(canvas!);
+    return renderer.export(new PngBytesExporter({ width: WIDTH, height: HEIGHT, ...opts }))!;
 }
 
 describe('CanvasExporter', () => {
@@ -148,7 +144,7 @@ describe('CanvasExporter', () => {
             const reader = createTestMapReader();
             const settings = createSettings();
             const renderer = new MapRenderer(reader, settings);
-            expect(renderer.export(new CanvasExporter({ width: WIDTH, height: HEIGHT }))).toBeUndefined();
+            expect(renderer.export(new PngBytesExporter({ width: WIDTH, height: HEIGHT }))).toBeUndefined();
         });
     });
 });

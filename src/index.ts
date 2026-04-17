@@ -45,8 +45,8 @@ export type { Exporter, ExportContext, ExportCanvas } from './export/Exporter';
 export { SvgExporter } from './export/SvgExporter';
 export { PngExporter, PngBlobExporter } from './export/PngExporter';
 export type { PngExportOptions } from './export/PngExporter';
-export { CanvasExporter } from './export/CanvasExporter';
-export type { CanvasExportOptions } from './export/CanvasExporter';
+export { CanvasExporter, PngBytesExporter } from './export/CanvasExporter';
+export type { CanvasExportOptions, PngBytesExportOptions } from './export/CanvasExporter';
 export { canvasToBytes } from './export/canvasToBytes';
 
 // --- Overlays ---

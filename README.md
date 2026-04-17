@@ -254,19 +254,21 @@ const pngUrl = renderer.export(new PngExporter({ pixelRatio: 2 }));
 // PNG as Blob
 const blob = await renderer.export(new PngBlobExporter({ pixelRatio: 2 }));
 
-// Canvas at a specific size/region (headless-friendly)
-const canvas = renderer.export(new CanvasExporter({
+// Headless PNG bytes at a specific size (portable — works in browser + Node)
+const png = renderer.export(new PngBytesExporter({
   width: 1920,
   height: 1080,
   roomId: 1234,
   padding: 5,
 }));
+// fs.writeFileSync('out.png', png!);            // Node
+// new Blob([png!], { type: 'image/png' });      // Browser
 
-// Canvas → bytes (portable: works in browser + Node, synchronous)
-import { canvasToBytes } from 'mudlet-map-renderer';
-const png = canvasToBytes(canvas!);
-// fs.writeFileSync('out.png', png);  // Node
-// new Blob([png], { type: 'image/png' });  // Browser
+// Canvas handle (if you need to draw more on it, attach to DOM, etc.)
+const canvas = renderer.export(new CanvasExporter({
+  width: 1920,
+  height: 1080,
+}));
 ```
 
 Style + export compose: the style currently applied with `setStyle` is passed
@@ -286,7 +288,7 @@ renderer.drawArea(42, 0);
 renderer.state.positionRoomId = 1234;  // mark player position without auto-centering
 
 const svg = renderer.export(new SvgExporter({ padding: 5 }));
-const canvas = renderer.export(new CanvasExporter({ width: 1920, height: 1080 }));
+const png = renderer.export(new PngBytesExporter({ width: 1920, height: 1080 }));
 ```
 
 ### Overlays
@@ -471,9 +473,10 @@ MudletMapReader.exportJson(map, 'map.json');
 | Exporter | Output |
 |---|---|
 | `SvgExporter({ roomId?, padding?, overlays? })` | `string` — SVG document |
-| `PngExporter({ pixelRatio? })` | `string` — PNG data URL (rasterizes current viewport) |
-| `PngBlobExporter({ pixelRatio? })` | `Promise<Blob>` — PNG Blob |
-| `CanvasExporter({ width, height, roomId?, padding?, overlays? })` | `ExportCanvas` — reframes to fit; headless-friendly |
+| `PngExporter({ pixelRatio? })` | `string` — PNG data URL (current viewport) |
+| `PngBlobExporter({ pixelRatio? })` | `Promise<Blob>` — PNG Blob (browser only) |
+| `PngBytesExporter({ width, height, roomId?, padding?, overlays?, mimeType?, quality? })` | `Uint8Array` — headless PNG/JPEG bytes; portable (browser + Node) |
+| `CanvasExporter({ width, height, roomId?, padding?, overlays? })` | `ExportCanvas` — canvas handle; reframes to fit |
 
 ### Styles
 
