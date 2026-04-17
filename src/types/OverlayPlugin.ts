@@ -33,6 +33,14 @@ import type {ViewportBounds} from "./Settings";
  */
 export type CoordinateTransform = (x: number, y: number) => { x: number; y: number };
 
+/**
+ * @deprecated Renamed to {@link LiveEffect}. Use `addLiveEffect` instead of
+ *   `addOverlayPlugin` for interactive-only effects, or implement
+ *   {@link SceneOverlay} for effects that should appear in SVG/PNG exports.
+ *
+ * Preserved as a type alias for back-compat; behaviour is identical to
+ * `LiveEffect`.
+ */
 export interface OverlayPlugin {
     /** Called once when the plugin is added to the renderer. Draw on this layer. */
     attach(layer: Konva.Layer): void;

@@ -229,3 +229,54 @@ export abstract class BaseDecoratorBackend<Inner extends DrawingBackend = Drawin
         return this.inner.getInverseTransform();
     }
 }
+
+/**
+ * Alias for {@link InteractiveDrawingBackend}. Preferred name in new code.
+ * A `Target` is a terminal draw-call sink — interactive targets render to an
+ * on-screen canvas, export targets produce a static string/bytes.
+ */
+export type InteractiveTarget = InteractiveDrawingBackend;
+
+/** Alias for {@link ExportDrawingBackend}. Preferred name in new code. */
+export type ExportTarget = ExportDrawingBackend;
+
+/** Alias for {@link BaseDecoratorBackend}. Preferred name in new code. */
+export const BaseStyle = BaseDecoratorBackend;
+export type BaseStyle<Inner extends DrawingBackend = DrawingBackend> = BaseDecoratorBackend<Inner>;
+
+/**
+ * A `Style` is a target-agnostic visual transformer: given any {@link DrawingBackend}
+ * it returns a decorated one that preserves the target's brand.
+ *
+ * The callable interface is overloaded so the return type brand matches the input
+ * brand: `style(canvasTarget)` yields `InteractiveTarget`, `style(svgTarget)` yields
+ * `ExportTarget`. One `Style` instance can therefore drive interactive, SVG, and
+ * any future target without change.
+ *
+ * Styles compose via {@link compose}. Built-in styles live in `src/style/*`.
+ */
+export interface Style {
+    (target: InteractiveTarget): InteractiveTarget;
+    (target: ExportTarget): ExportTarget;
+    (target: DrawingBackend): DrawingBackend;
+}
+
+/** Identity style — passes the target through unchanged. Useful as a default. */
+export const identityStyle: Style = (<T extends DrawingBackend>(t: T) => t) as Style;
+
+/**
+ * Compose a chain of {@link Style}s into a single Style.
+ *
+ * `compose(Parchment, Sketchy)` means: wrap the target with Parchment first,
+ * then wrap the result with Sketchy. The last style in the list is the outermost
+ * decorator — i.e. the one whose methods are called first during rendering.
+ */
+export function compose(...styles: Style[]): Style {
+    if (styles.length === 0) return identityStyle;
+    if (styles.length === 1) return styles[0];
+    return (<T extends DrawingBackend>(target: T): DrawingBackend => {
+        let acc: DrawingBackend = target;
+        for (const style of styles) acc = (style as (t: DrawingBackend) => DrawingBackend)(acc);
+        return acc;
+    }) as Style;
+}

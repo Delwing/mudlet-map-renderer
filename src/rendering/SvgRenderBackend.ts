@@ -1,126 +1,28 @@
-import {SvgBackend, SvgGroupNode, SvgLayerNode} from "../backend/SvgBackend";
-import {ScenePipeline} from "../ScenePipeline";
-import {computeHighlight, computePositionMarker, computePathOverlay} from "../scene/OverlayStyle";
-import {computeAmbientLight} from "../scene/AmbientLightStyle";
-import {renderHighlight, renderPositionMarker, renderPathOverlay, renderAmbientLight} from "../scene/OverlayRenderer";
-import type {SvgOverlays} from "../SvgTypes";
 import type {MapState} from "../MapState";
-import type {DrawingBackend} from "../backend/DrawingBackend";
-
-function escapeXml(s: string): string {
-    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-}
+import type {DrawingBackend, Style} from "../backend/DrawingBackend";
+import type {SvgOverlays} from "../SvgTypes";
+import {SvgExporter} from "../export/SvgExporter";
 
 /**
- * SVG rendering backend. Uses the shared ScenePipeline with SvgBackend
- * to produce SVG output through the same DrawingBackend interface as Konva.
+ * @deprecated Use {@link SvgExporter} via `renderer.export(new SvgExporter(options))`.
  *
- * Grid, labels, rooms (with stubs + inner exits), special exits, and area name
- * all go through ScenePipeline → DrawingBackend. Link exits and overlays are
- * serialized directly from pure data.
+ * Thin back-compat shim over {@link SvgExporter}. Preserved so the previous
+ * `new SvgRenderBackend(state, factory).exportSvg()` call shape keeps working
+ * — kept for existing tests and external scripts during the transition.
  */
 export class SvgRenderBackend {
     private readonly state: MapState;
-    private readonly drawingBackendFactory?: (inner: DrawingBackend) => DrawingBackend;
+    private readonly style?: Style;
 
-    constructor(state: MapState, drawingBackendFactory?: (innerSvgBackend: DrawingBackend) => DrawingBackend) {
+    constructor(
+        state: MapState,
+        drawingBackendFactory?: (innerSvgBackend: DrawingBackend) => DrawingBackend,
+    ) {
         this.state = state;
-        this.drawingBackendFactory = drawingBackendFactory;
+        this.style = drawingBackendFactory as unknown as Style | undefined;
     }
 
     exportSvg(options?: { roomId?: number; padding?: number; overlays?: SvgOverlays }): string | undefined {
-        const {currentArea, currentZIndex, currentAreaInstance} = this.state;
-        if (currentArea === undefined || currentZIndex === undefined || !currentAreaInstance) return;
-
-        const area = currentAreaInstance;
-        const plane = area.getPlane(currentZIndex);
-        if (!plane) return;
-
-        const settings = this.state.settings;
-        const padding = options?.padding ?? 3;
-        const bounds = this.state.computeExportBounds(area, plane, options?.roomId, padding);
-
-        // Set up SVG layers
-        const rawSvgBackend = new SvgBackend();
-        const svgBackend = this.drawingBackendFactory ? this.drawingBackendFactory(rawSvgBackend) : rawSvgBackend;
-        const gridLayer = new SvgLayerNode();
-        const linkLayer = new SvgLayerNode();
-        const roomLayer = new SvgLayerNode();
-
-        // Build scene through shared pipeline
-        const pipeline = new ScenePipeline(this.state.mapReader, settings, svgBackend, {
-            gridLayer, linkLayer, roomLayer,
-        });
-
-        const viewportBounds = {
-            minX: bounds.x, maxX: bounds.x + bounds.w,
-            minY: bounds.y, maxY: bounds.y + bounds.h,
-        };
-
-        pipeline.buildScene(area, plane, currentZIndex, viewportBounds);
-
-        // Assemble SVG
-        const lines: string[] = [];
-        lines.push(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="${bounds.x} ${bounds.y} ${bounds.w} ${bounds.h}">`);
-        lines.push(`<rect x="${bounds.x}" y="${bounds.y}" width="${bounds.w}" height="${bounds.h}" fill="${escapeXml(settings.backgroundColor)}"/>`);
-
-        // Grid layer
-        const gridSvg = gridLayer.toSvg();
-        if (gridSvg) lines.push(gridSvg);
-
-        // Link layer (labels + link exits + special exits — all from pipeline)
-        const linkSvg = linkLayer.toSvg();
-        if (linkSvg) lines.push(linkSvg);
-
-        // Room layer (rooms with stubs + inner exits + area name)
-        const roomSvg = roomLayer.toSvg();
-        if (roomSvg) lines.push(roomSvg);
-
-        // Overlays (rendered through DrawingBackend like KonvaRenderBackend)
-        const overlays = options?.overlays;
-        if (overlays) {
-            if (overlays.paths) {
-                for (const path of overlays.paths) {
-                    const data = computePathOverlay(this.state.mapReader, settings, path.locations, path.color, currentArea, currentZIndex);
-                    const group = renderPathOverlay(svgBackend, data) as SvgGroupNode;
-                    const svg = group.toSvg();
-                    if (svg) lines.push(svg);
-                }
-            }
-            if (overlays.highlights) {
-                for (const hl of overlays.highlights) {
-                    const room = this.state.mapReader.getRoom(hl.roomId);
-                    if (!room) continue;
-                    const data = computeHighlight(room, hl.color, settings);
-                    const group = renderHighlight(svgBackend, data) as SvgGroupNode;
-                    const svg = group.toSvg();
-                    if (svg) lines.push(svg);
-                }
-            }
-            if (overlays.position) {
-                // Ambient light (before position marker so it appears behind)
-                if (settings.ambientLight.enabled) {
-                    const room = this.state.mapReader.getRoom(overlays.position.roomId);
-                    if (room) {
-                        const alData = computeAmbientLight(room.x, room.y, viewportBounds, settings);
-                        const alGroup = renderAmbientLight(svgBackend, alData) as SvgGroupNode;
-                        const alSvg = alGroup.toSvg();
-                        if (alSvg) lines.push(alSvg);
-                    }
-                }
-
-                const room = this.state.mapReader.getRoom(overlays.position.roomId);
-                if (room) {
-                    const data = computePositionMarker(room, settings);
-                    const group = renderPositionMarker(svgBackend, data) as SvgGroupNode;
-                    const svg = group.toSvg();
-                    if (svg) lines.push(svg);
-                }
-            }
-        }
-
-        lines.push('</svg>');
-        return lines.join('\n');
+        return new SvgExporter(options).render(this.state, this.style);
     }
 }

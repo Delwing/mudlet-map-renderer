@@ -26,6 +26,8 @@ import {
 } from "../scene/OverlayRenderer";
 import ExplorationArea from "../reader/ExplorationArea";
 import type {OverlayPlugin} from "../types/OverlayPlugin";
+import type {LiveEffect} from "../overlay/LiveEffect";
+import type {SceneOverlay} from "../overlay/SceneOverlay";
 
 const currentRoomColor = 'rgb(120, 72, 0)';
 
@@ -75,7 +77,9 @@ export class KonvaRenderBackend implements InteractiveBackend {
     get coordinateTransform(): CoordFn {
         return this._coordinateTransform;
     }
-    private overlayPlugins: Map<string, OverlayPlugin> = new Map();
+    private overlayPlugins: Map<string, LiveEffect> = new Map();
+    private sceneOverlays: Map<string, SceneOverlay> = new Map();
+    private sceneOverlayNodes: GroupNode[] = [];
 
     constructor(state: MapState, container?: HTMLDivElement, drawingBackend?: InteractiveDrawingBackend) {
         this.state = state;
@@ -396,19 +400,62 @@ export class KonvaRenderBackend implements InteractiveBackend {
         }
     }
 
-    addOverlayPlugin(id: string, plugin: OverlayPlugin) {
-        this.removeOverlayPlugin(id);
-        plugin.attach(this.overlayLayer);
-        this.overlayPlugins.set(id, plugin);
-        plugin.updateViewport(this.viewport.getViewportBounds(), this.viewport.getScale(), this.coordinateTransform);
+    addLiveEffect(id: string, effect: LiveEffect) {
+        this.removeLiveEffect(id);
+        effect.attach(this.overlayLayer);
+        this.overlayPlugins.set(id, effect);
+        effect.updateViewport(this.viewport.getViewportBounds(), this.viewport.getScale(), this.coordinateTransform);
     }
 
-    removeOverlayPlugin(id: string) {
+    removeLiveEffect(id: string) {
         const existing = this.overlayPlugins.get(id);
         if (existing) {
             existing.destroy();
             this.overlayPlugins.delete(id);
         }
+    }
+
+    addSceneOverlay(id: string, overlay: SceneOverlay) {
+        this.sceneOverlays.set(id, overlay);
+        this.renderSceneOverlays();
+    }
+
+    removeSceneOverlay(id: string) {
+        this.sceneOverlays.delete(id);
+        this.renderSceneOverlays();
+    }
+
+    /** Iterable of scene overlays — used by exporters to apply them over static outputs. */
+    getSceneOverlays(): Iterable<SceneOverlay> {
+        return this.sceneOverlays.values();
+    }
+
+    private renderSceneOverlays() {
+        for (const node of this.sceneOverlayNodes) node.destroy();
+        this.sceneOverlayNodes.length = 0;
+        if (this.sceneOverlays.size === 0) return;
+
+        const bounds = this.viewport.getViewportBounds();
+        for (const overlay of this.sceneOverlays.values()) {
+            const out = overlay.render(this.drawingBackend, this.state, bounds);
+            if (!out) continue;
+            const nodes = Array.isArray(out) ? out : [out];
+            for (const node of nodes) {
+                this.overlayLayerNode.addNode(node);
+                this.sceneOverlayNodes.push(node);
+            }
+        }
+        this.overlayLayer.batchDraw();
+    }
+
+    /** @deprecated Use {@link addLiveEffect} (same behaviour) or {@link addSceneOverlay} for exporter-compatible overlays. */
+    addOverlayPlugin(id: string, plugin: OverlayPlugin) {
+        this.addLiveEffect(id, plugin);
+    }
+
+    /** @deprecated Use {@link removeLiveEffect}. */
+    removeOverlayPlugin(id: string) {
+        this.removeLiveEffect(id);
     }
 
     private subscribeToState(state: MapState) {
