@@ -124,7 +124,7 @@ export interface DrawingBackend {
     getExitDepthOffset(): { x: number; y: number };
     /**
      * Map-space → render-space transform. Identity for flat backends; non-identity
-     * for backends that warp coordinates (e.g. `IsometricBackend`).
+     * for styles that warp coordinates (e.g. `IsometricStyle`).
      * Decorators delegate to their inner backend.
      */
     getTransform(): CoordFn;

@@ -42,22 +42,26 @@ function headlessSvg(setup: (r: MapRenderer) => void): string {
     return renderer.export(new SvgExporter()) ?? "";
 }
 
+function toBuffer(c: unknown): Buffer {
+    return (c as import('canvas').Canvas).toBuffer("image/png");
+}
+
 function canvasExport(overrides?: Partial<Settings>): Buffer {
     const renderer = new MapRenderer(createTestMapReader(), { ...createSettings(), ...overrides });
     renderer.drawArea(1, 0);
-    return renderer.export(new CanvasExporter({ width: WIDTH, height: HEIGHT })).toBuffer("image/png");
+    return toBuffer(renderer.export(new CanvasExporter({ width: WIDTH, height: HEIGHT })));
 }
 
 function canvasWithOverlays(overlays: any): Buffer {
     const renderer = new MapRenderer(createTestMapReader(), createSettings());
     renderer.drawArea(1, 0);
-    return renderer.export(new CanvasExporter({ width: WIDTH, height: HEIGHT, overlays })).toBuffer("image/png");
+    return toBuffer(renderer.export(new CanvasExporter({ width: WIDTH, height: HEIGHT, overlays })));
 }
 
 function canvasArea(areaId: number, z: number, opts?: any): Buffer {
     const renderer = new MapRenderer(createTestMapReader(), createSettings());
     renderer.drawArea(areaId, z);
-    return renderer.export(new CanvasExporter({ width: WIDTH, height: HEIGHT, ...opts })).toBuffer("image/png");
+    return toBuffer(renderer.export(new CanvasExporter({ width: WIDTH, height: HEIGHT, ...opts })));
 }
 
 // === Scenarios ===

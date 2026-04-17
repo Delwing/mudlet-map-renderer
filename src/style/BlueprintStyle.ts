@@ -1,8 +1,8 @@
 import type {
     DrawingBackend, GroupNode,
     RectConfig, CircleConfig, LineConfig, PolygonConfig, TextConfig,
-} from "./DrawingBackend";
-import {BaseStyle} from "./DrawingBackend";
+} from "../backend/DrawingBackend";
+import {BaseStyle} from "../backend/DrawingBackend";
 
 /** Light cyan used for strokes and lines. */
 const LINE_COLOR = '#c0deff';
@@ -77,7 +77,7 @@ function toLine(color: string): string {
  * settings.fontFamily = '"Courier New", monospace';
  * ```
  */
-export class BlueprintBackend<Inner extends DrawingBackend = DrawingBackend>
+export class BlueprintStyle<Inner extends DrawingBackend = DrawingBackend>
     extends BaseStyle<Inner> {
 
     addRect(parent: GroupNode, config: RectConfig): void {

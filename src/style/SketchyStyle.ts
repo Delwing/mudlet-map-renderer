@@ -1,8 +1,8 @@
 import type {
     DrawingBackend, GroupNode,
     RectConfig, CircleConfig, LineConfig, PolygonConfig, TextConfig,
-} from "./DrawingBackend";
-import {BaseStyle} from "./DrawingBackend";
+} from "../backend/DrawingBackend";
+import {BaseStyle} from "../backend/DrawingBackend";
 
 /**
  * Simple seeded PRNG (linear congruential).
@@ -160,11 +160,11 @@ function wobblePolygonEdges(vertices: number[], jitter: number, rng: () => numbe
  *
  * Usage:
  * ```ts
- * const sketchy = new SketchyBackend(new KonvaBackend(), 0.015, '#444444');
+ * const sketchy = new SketchyStyle(new CanvasBackend(), 0.015, '#444444');
  * new ScenePipeline(mapReader, settings, sketchy, layers);
  * ```
  */
-export class SketchyBackend<Inner extends DrawingBackend = DrawingBackend>
+export class SketchyStyle<Inner extends DrawingBackend = DrawingBackend>
     extends BaseStyle<Inner> {
 
     private readonly jitter: number;

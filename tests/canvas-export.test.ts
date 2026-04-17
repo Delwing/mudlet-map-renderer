@@ -13,7 +13,7 @@ function exportArea(settingsOverrides?: Partial<ReturnType<typeof createSettings
     const renderer = new MapRenderer(reader, settings);
     renderer.drawArea(1, 0);
     const canvas = renderer.export(new CanvasExporter({ width: WIDTH, height: HEIGHT }));
-    return canvas!.toBuffer!('image/png');
+    return (canvas as unknown as import('canvas').Canvas).toBuffer('image/png');
 }
 
 function renderWithOverlays(overlays: any) {
@@ -22,7 +22,7 @@ function renderWithOverlays(overlays: any) {
     const renderer = new MapRenderer(reader, settings);
     renderer.drawArea(1, 0);
     const canvas = renderer.export(new CanvasExporter({ width: WIDTH, height: HEIGHT, overlays }));
-    return canvas!.toBuffer!('image/png');
+    return (canvas as unknown as import('canvas').Canvas).toBuffer('image/png');
 }
 
 function renderArea(areaId: number, zIndex: number, opts?: any) {
@@ -31,7 +31,7 @@ function renderArea(areaId: number, zIndex: number, opts?: any) {
     const renderer = new MapRenderer(reader, settings);
     renderer.drawArea(areaId, zIndex);
     const canvas = renderer.export(new CanvasExporter({ width: WIDTH, height: HEIGHT, ...opts }));
-    return canvas!.toBuffer!('image/png');
+    return (canvas as unknown as import('canvas').Canvas).toBuffer('image/png');
 }
 
 describe('CanvasExporter', () => {

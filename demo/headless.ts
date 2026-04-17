@@ -263,12 +263,15 @@ async function main() {
             roomId: args.room,
             padding: exportPadding,
         }));
-        if (!canvas || !canvas.toBuffer) {
+        if (!canvas) {
             console.error("PNG export failed.");
             process.exit(1);
         }
 
-        const buffer = canvas.toBuffer("image/png");
+        // `ExportCanvas` describes only the portable surface; in Node the
+        // runtime value is a node-canvas `Canvas` with a synchronous `toBuffer`.
+        const nodeCanvas = canvas as unknown as import('canvas').Canvas;
+        const buffer = nodeCanvas.toBuffer("image/png");
         fs.writeFileSync(outputPath, buffer);
         console.log(`PNG (${args.width}x${args.height}) written to ${outputPath}`);
     }

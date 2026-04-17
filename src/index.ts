@@ -28,13 +28,11 @@ export { BaseStyle, compose, identityStyle, IDENTITY_TRANSFORM } from './backend
 export { CanvasBackend } from './backend/CanvasBackend';
 export { SvgBackend, SvgGroupNode, SvgLayerNode } from './backend/SvgBackend';
 
-// --- Decorator classes (low-level; the Style factories below are preferred) ---
-export { SketchyBackend } from './backend/SketchyBackend';
-export { ParchmentBackend } from './backend/ParchmentBackend';
-export { BlueprintBackend } from './backend/BlueprintBackend';
-export { NeonBackend } from './backend/NeonBackend';
-export { IsometricBackend } from './backend/IsometricBackend';
-export type { IsometricRotation } from './backend/IsometricBackend';
+// --- Style classes (low-level; the Style factories below are preferred) ---
+export {
+    SketchyStyle, ParchmentStyle, BlueprintStyle, NeonStyle, IsometricStyle,
+} from './style';
+export type { IsometricRotation } from './style';
 
 // --- Styles (target-agnostic; preferred API) ---
 export {

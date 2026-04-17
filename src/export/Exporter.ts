@@ -35,19 +35,26 @@ export interface Exporter<T> {
 
 /**
  * Canvas returned by {@link InteractiveBackend.toCanvas} and
- * {@link CanvasExporter}. Structurally covers the browser `HTMLCanvasElement`
- * and the `canvas` package's Node-side Canvas — so library code stays engine-
- * agnostic and callers can use whichever serializer is available:
+ * {@link CanvasExporter}. Describes the portable surface common to the
+ * browser `HTMLCanvasElement` and the `canvas` package's Node-side Canvas:
  *
- *   - Browser: `canvas.toDataURL('image/png')`, `canvas.toBlob(cb)`
- *   - Node:    `canvas.toBuffer('image/png')`
+ *   - Portable:  `width`, `height`, `getContext`, `toDataURL`.
+ *   - Browser:   `toBlob(cb)` (optional here; use when serializing to a Blob).
+ *
+ * Platform-specific serializers (e.g. node-canvas's `toBuffer`) are intentionally
+ * not part of this interface. Cast when you need them:
+ *
+ * ```ts
+ * import type { Canvas } from 'canvas';
+ * const canvas = renderer.export(new CanvasExporter({width, height})) as unknown as Canvas;
+ * const png = canvas.toBuffer('image/png');
+ * ```
  */
 export interface ExportCanvas {
     readonly width: number;
     readonly height: number;
     getContext(contextId: '2d', options?: any): CanvasRenderingContext2D | null;
     toDataURL(type?: string, quality?: any): string;
+    /** Browser only; undefined in Node. */
     toBlob?(callback: (blob: Blob | null) => void, type?: string, quality?: any): void;
-    /** Node-canvas only. */
-    toBuffer?(mimeType?: string, config?: any): Uint8Array;
 }

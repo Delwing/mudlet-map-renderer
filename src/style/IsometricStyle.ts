@@ -1,8 +1,8 @@
 import type {
     DrawingBackend, GroupNode, CoordFn,
     RectConfig, CircleConfig, LineConfig, PolygonConfig, TextConfig, ImageConfig,
-} from "./DrawingBackend";
-import {BaseStyle} from "./DrawingBackend";
+} from "../backend/DrawingBackend";
+import {BaseStyle} from "../backend/DrawingBackend";
 import {darkenColor} from "../utils/color";
 
 /**
@@ -60,13 +60,13 @@ const CIRCLE_SEGMENTS = 32;
  * Composes with other decorators — recommended order:
  * ```ts
  * // Isometric cubes with parchment colors and hand-drawn wobble
- * new IsometricBackend(
- *     new SketchyBackend(new ParchmentBackend(new KonvaBackend()), 0.012, '#4a3728'),
+ * new IsometricStyle(
+ *     new SketchyStyle(new ParchmentStyle(new CanvasBackend()), 0.012, '#4a3728'),
  *     { depth: 0.18, rotation: 90 },
  * );
  * ```
  */
-export class IsometricBackend<Inner extends DrawingBackend = DrawingBackend>
+export class IsometricStyle<Inner extends DrawingBackend = DrawingBackend>
     extends BaseStyle<Inner> {
 
     private readonly depth: number;
