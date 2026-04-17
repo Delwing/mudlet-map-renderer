@@ -176,6 +176,22 @@ export class NeonStyle<Inner extends DrawingBackend = DrawingBackend>
         });
     }
 
+    addGridLine(parent: GroupNode, config: LineConfig): void {
+        if (config.stroke) {
+            const glowWidth = (config.strokeWidth ?? 1) * GLOW_WIDTH_MULT;
+            this.inner.addGridLine(parent, {
+                ...config,
+                stroke: toGlowStroke(config.stroke),
+                strokeWidth: glowWidth,
+                alpha: GLOW_ALPHA,
+            });
+        }
+        this.inner.addGridLine(parent, {
+            ...config,
+            stroke: config.stroke ? toNeonStroke(config.stroke) : undefined,
+        });
+    }
+
     addPolygon(parent: GroupNode, config: PolygonConfig): void {
         this.inner.addPolygon(parent, {
             ...config,

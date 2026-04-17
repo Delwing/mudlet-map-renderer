@@ -108,6 +108,15 @@ export interface DrawingBackend {
     addRect(parent: GroupNode, config: RectConfig): void;
     addCircle(parent: GroupNode, config: CircleConfig): void;
     addLine(parent: GroupNode, config: LineConfig): void;
+    /**
+     * Draw an infrastructure line (grid). Base backends render this identically
+     * to {@link addLine}. Style decorators only override it when their effect
+     * is meaningful for grid (e.g. IsometricStyle projects coordinates). Purely
+     * decorative decorators (SketchyStyle, ParchmentStyle) do not override and
+     * fall through to {@link BaseStyle}'s passthrough default, keeping grid
+     * rendering cheap.
+     */
+    addGridLine(parent: GroupNode, config: LineConfig): void;
     addPolygon(parent: GroupNode, config: PolygonConfig): void;
     addText(parent: GroupNode, config: TextConfig): void;
     addImage(parent: GroupNode, config: ImageConfig): void;
@@ -161,6 +170,10 @@ export abstract class BaseStyle<Inner extends DrawingBackend = DrawingBackend>
 
     addLine(parent: GroupNode, config: LineConfig): void {
         this.inner.addLine(parent, config);
+    }
+
+    addGridLine(parent: GroupNode, config: LineConfig): void {
+        this.inner.addGridLine(parent, config);
     }
 
     addPolygon(parent: GroupNode, config: PolygonConfig): void {

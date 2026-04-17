@@ -269,6 +269,10 @@ export class IsometricStyle<Inner extends DrawingBackend = DrawingBackend>
         this.inner.addLine(parent, {...config, points: this.isoFlatPoints(config.points)});
     }
 
+    addGridLine(parent: GroupNode, config: LineConfig): void {
+        this.inner.addGridLine(parent, {...config, points: this.isoFlatPoints(config.points)});
+    }
+
     addPolygon(parent: GroupNode, config: PolygonConfig): void {
         this.inner.addPolygon(parent, {...config, vertices: this.isoFlatPoints(config.vertices)});
     }

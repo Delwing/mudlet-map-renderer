@@ -219,6 +219,7 @@ function applyRenderMode(mode: string) {
             const depth = settings.roomSize * 0.3;
             style = compose(
                 Parchment,
+                Sketchy({jitter, color: '#4a3728'}),
                 Isometric({depth, rotation: getIsoRotation()}),
             );
             settings.backgroundColor = '#f4e4c1';

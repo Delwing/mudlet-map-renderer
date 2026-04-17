@@ -116,6 +116,13 @@ export class ParchmentStyle<Inner extends DrawingBackend = DrawingBackend>
         });
     }
 
+    addGridLine(parent: GroupNode, config: LineConfig): void {
+        this.inner.addGridLine(parent, {
+            ...config,
+            stroke: config.stroke ? toInk(config.stroke) : undefined,
+        });
+    }
+
     addPolygon(parent: GroupNode, config: PolygonConfig): void {
         this.inner.addPolygon(parent, {
             ...config,

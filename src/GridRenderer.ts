@@ -67,14 +67,14 @@ export class GridRenderer {
 
         const group = this.backend.createGroup(0, 0);
         for (let x = left; x <= right; x += this.settings.gridSize) {
-            this.backend.addLine(group, {
+            this.backend.addGridLine(group, {
                 points: [x, top, x, bottom],
                 stroke: this.settings.gridColor,
                 strokeWidth: this.settings.gridLineWidth,
             });
         }
         for (let y = top; y <= bottom; y += this.settings.gridSize) {
-            this.backend.addLine(group, {
+            this.backend.addGridLine(group, {
                 points: [left, y, right, y],
                 stroke: this.settings.gridColor,
                 strokeWidth: this.settings.gridLineWidth,

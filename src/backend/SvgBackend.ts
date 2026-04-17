@@ -114,6 +114,10 @@ export class SvgBackend implements DrawingBackend {
         parent.elements.push(el);
     }
 
+    addGridLine(parent: GroupNode, config: LineConfig) {
+        this.addLine(parent, config);
+    }
+
     addPolygon(parent: GroupNode, config: PolygonConfig) {
         if (!(parent instanceof SvgGroupNode)) return;
         const vertices = config.vertices;

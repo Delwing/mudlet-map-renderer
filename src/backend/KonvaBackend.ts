@@ -129,6 +129,10 @@ export class KonvaBackend implements DrawingBackend {
         }));
     }
 
+    addGridLine(parent: GroupNode, config: LineConfig) {
+        this.addLine(parent, config);
+    }
+
     addPolygon(parent: GroupNode, config: PolygonConfig) {
         if (!(parent instanceof KonvaGroupNode)) return;
         parent.konvaGroup.add(new Konva.Line({
