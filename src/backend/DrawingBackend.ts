@@ -109,6 +109,12 @@ export interface DrawingBackend {
     addText(parent: GroupNode, config: TextConfig): void;
     addImage(parent: GroupNode, config: ImageConfig): void;
     /**
+     * Whether this backend supports batch exit rendering via a single Canvas2D shape.
+     * When true, link exits are collected as ExitDrawData and drawn in one batched
+     * Konva.Shape sceneFunc instead of creating individual nodes per exit.
+     */
+    supportsBatchExitRendering?(): boolean;
+    /**
      * Cartesian offset for exit line groups so they connect at the cube base
      * instead of the top face. Returns {x:0, y:0} for flat backends.
      */

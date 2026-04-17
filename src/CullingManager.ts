@@ -189,6 +189,7 @@ export class CullingManager {
         });
     }
 
+
     findRoomAtMapPoint(mapX: number, mapY: number): MapData.Room | null {
         // Use a generous margin to cover iso diamonds (2x wider than Cartesian squares)
         const margin = this.settings.roomSize;

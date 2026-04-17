@@ -9,7 +9,8 @@ import {Viewport} from "../Viewport";
 import {CullingManager} from "../CullingManager";
 import {InteractionHandler} from "../InteractionHandler";
 import {TypedEventEmitter} from "../TypedEventEmitter";
-import {KonvaBackend, KonvaLayerNode} from "../backend/KonvaBackend";
+import {KonvaLayerNode} from "../backend/KonvaBackend";
+import {CanvasBackend, RecordingLayerNode} from "../backend/CanvasBackend";
 import type {InteractiveBackend} from "./MapRenderer";
 import type {DrawingBackend, GroupNode, LayerNode, CoordFn} from "../backend/DrawingBackend";
 import {IDENTITY_TRANSFORM} from "../backend/DrawingBackend";
@@ -105,22 +106,24 @@ export class KonvaRenderBackend implements InteractiveBackend {
         this.overlayLayer = new Konva.Layer({listening: false});
         this.stage.add(this.overlayLayer);
 
-        this.drawingBackend = drawingBackend ?? new KonvaBackend();
+        this.drawingBackend = drawingBackend ?? new CanvasBackend();
         this.positionLayerNode = new KonvaLayerNode(this.positionLayer);
         this.overlayLayerNode = new KonvaLayerNode(this.overlayLayer);
 
+        const sceneRoomLayer = new RecordingLayerNode(this.roomLayer);
+        const sceneLinkLayer = new RecordingLayerNode(this.linkLayer);
         this.pipeline = new ScenePipeline(state.mapReader, state.settings, this.drawingBackend, {
-            gridLayer: new KonvaLayerNode(this.gridLayer),
-            linkLayer: new KonvaLayerNode(this.linkLayer),
-            roomLayer: new KonvaLayerNode(this.roomLayer),
+            gridLayer: new RecordingLayerNode(this.gridLayer),
+            linkLayer: sceneLinkLayer,
+            roomLayer: sceneRoomLayer,
         });
 
         this.events = new TypedEventEmitter<RendererEventMap>(container);
 
         this.culling = new CullingManager(
             this.stage,
-            new KonvaLayerNode(this.roomLayer),
-            new KonvaLayerNode(this.linkLayer),
+            sceneRoomLayer,
+            sceneLinkLayer,
             state.settings,
         );
 
@@ -151,9 +154,9 @@ export class KonvaRenderBackend implements InteractiveBackend {
     setDrawingBackend(backend: DrawingBackend) {
         this.drawingBackend = backend;
         this.pipeline = new ScenePipeline(this.state.mapReader, this.state.settings, backend, {
-            gridLayer: new KonvaLayerNode(this.gridLayer),
-            linkLayer: new KonvaLayerNode(this.linkLayer),
-            roomLayer: new KonvaLayerNode(this.roomLayer),
+            gridLayer: new RecordingLayerNode(this.gridLayer),
+            linkLayer: new RecordingLayerNode(this.linkLayer),
+            roomLayer: new RecordingLayerNode(this.roomLayer),
         });
         this.applyDrawingBackendTransforms(backend);
     }

@@ -4,6 +4,7 @@ import type {
     RectConfig, CircleConfig, LineConfig, PolygonConfig, TextConfig, ImageConfig,
 } from "./DrawingBackend";
 import {IDENTITY_TRANSFORM} from "./DrawingBackend";
+import {RecordingGroupNode} from "./CanvasBackend";
 
 /**
  * Wraps a Konva.Group as a GroupNode.
@@ -53,6 +54,8 @@ export class KonvaLayerNode implements LayerNode {
     addNode(node: GroupNode) {
         if (node instanceof KonvaGroupNode) {
             this.konvaLayer.add(node.konvaGroup);
+        } else if (node instanceof RecordingGroupNode) {
+            this.konvaLayer.add(node.materialize());
         }
     }
 
@@ -223,6 +226,10 @@ export class KonvaBackend implements DrawingBackend {
                 listening: false,
             }));
         }
+    }
+
+    supportsBatchExitRendering(): boolean {
+        return true;
     }
 
     getExitDepthOffset(): { x: number; y: number } {

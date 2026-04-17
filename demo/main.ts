@@ -2,7 +2,7 @@ import {
     MapRenderer,
     createSettings,
     PathFinder,
-    KonvaBackend,
+    CanvasBackend,
     SketchyBackend,
     ParchmentBackend,
     BlueprintBackend,
@@ -248,7 +248,7 @@ function applyRenderMode(mode: string) {
             break;
     }
 
-    renderer.setDrawingBackend(factory(new KonvaBackend()));
+    renderer.setDrawingBackend(factory(new CanvasBackend()));
     renderer.setDrawingBackendFactory(factory);
 
     renderer.updateBackground();

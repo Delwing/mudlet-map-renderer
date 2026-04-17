@@ -22,6 +22,7 @@ export { KonvaRenderBackend } from './rendering/KonvaRenderBackend';
 export { Viewport } from './Viewport';
 export type { DrawingBackend } from './backend/DrawingBackend';
 export { KonvaBackend } from './backend/KonvaBackend';
+export { CanvasBackend } from './backend/CanvasBackend';
 export { SketchyBackend } from './backend/SketchyBackend';
 export { ParchmentBackend } from './backend/ParchmentBackend';
 export { BlueprintBackend } from './backend/BlueprintBackend';
