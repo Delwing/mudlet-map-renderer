@@ -181,6 +181,9 @@ export type Settings = {
     /** When true, renders a small text label next to area-exit arrows showing the target area name.
      *  Exits leading to the same target area are grouped — one label per area at the cluster centroid. Default: false */
     areaExitLabels: boolean;
+    /** Font size (in map units) for area-exit labels. Padding, corner radius, and stroke
+     *  scale proportionally. Default: 0.3 */
+    areaExitLabelFontSize: number;
 };
 
 /** Creates a new Settings object with default values. */
@@ -222,5 +225,6 @@ export function createSettings(): Settings {
         fontFamily: 'sans-serif',
         uniformLevelSize: false,
         areaExitLabels: false,
+        areaExitLabelFontSize: 0.3,
     };
 }

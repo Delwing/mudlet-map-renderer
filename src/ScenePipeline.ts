@@ -455,14 +455,14 @@ export class ScenePipeline {
         const DIR_THRESHOLD = 0.4; // averaged direction below this magnitude → treat as "no preference"
         const SPREAD_THRESHOLD = 3; // map units — tip spread above this means the cluster is wide
                                     // enough that its centroid (the gap) beats any directional push
-        const fontSize = 0.3;
-        const padX = 0.18;
-        const padY = 0.1;
+        const fontSize = this.settings.areaExitLabelFontSize;
+        const padX = fontSize * 0.6;
+        const padY = fontSize * 0.333;
         const charWidth = fontSize * 0.55;
         const textHeight = fontSize * 1.1;
-        const cornerRadius = 0.18;
+        const cornerRadius = fontSize * 0.6;
         const FILL_ALPHA = 0.35;
-        const strokeWidth = 0.03;
+        const strokeWidth = fontSize * 0.1;
 
         // All rooms on this plane are obstacles for labels.
         const rs = this.settings.roomSize;
@@ -504,21 +504,28 @@ export class ScenePipeline {
             [0.707, 0.707], [-0.707, 0.707], [0.707, -0.707], [-0.707, -0.707],
         ];
 
-        const placeCluster = (cluster: Point[], name: string): Placement | undefined => {
+        const placeCluster = (
+            cluster: Point[],
+            name: string,
+            hintCenter?: { x: number; y: number },
+        ): Placement | undefined => {
             const textWidth = name.length * charWidth;
             const boxW = textWidth + padX * 2;
             const boxH = textHeight + padY * 2;
 
             let cxSum = 0, cySum = 0, dxSum = 0, dySum = 0;
+            let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
             const colorTally = new Map<string, number>();
             for (const p of cluster) {
                 cxSum += p.tip.x; cySum += p.tip.y;
                 dxSum += p.dir.x; dySum += p.dir.y;
+                if (p.tip.x < minX) minX = p.tip.x;
+                if (p.tip.x > maxX) maxX = p.tip.x;
+                if (p.tip.y < minY) minY = p.tip.y;
+                if (p.tip.y > maxY) maxY = p.tip.y;
                 colorTally.set(p.color, (colorTally.get(p.color) ?? 0) + 1);
             }
             const n = cluster.length;
-            const cx = cxSum / n;
-            const cy = cySum / n;
             const dLen = Math.hypot(dxSum, dySum);
             const udx = dLen > 0 ? dxSum / dLen : 0;
             const udy = dLen > 0 ? dySum / dLen : 0;
@@ -535,8 +542,20 @@ export class ScenePipeline {
                     if (d > spread) spread = d;
                 }
             }
-            const preferCentroid = spread > SPREAD_THRESHOLD;
-            const hasPreferred = !preferCentroid && dLen / n >= DIR_THRESHOLD;
+            const useSpreadMidpoint = spread > SPREAD_THRESHOLD;
+            // A consistent direction-of-travel is meaningful even when the
+            // cluster is spread — e.g. a column of rooms all exiting east.
+            // Spread perpendicular to travel doesn't invalidate the push.
+            const hasPreferred = dLen / n >= DIR_THRESHOLD;
+
+            // Anchor precedence:
+            //   1) hintCenter — merge pass passes the midpoint between colliding boxes.
+            //   2) Wide clusters — use the tip bounding-box midpoint (unbiased by
+            //      arrow count; the weighted centroid pulls toward whichever
+            //      sub-group has more arrows).
+            //   3) Tight clusters — weighted centroid is fine, sub-groups don't exist.
+            const cx = hintCenter?.x ?? (useSpreadMidpoint ? (minX + maxX) / 2 : cxSum / n);
+            const cy = hintCenter?.y ?? (useSpreadMidpoint ? (minY + maxY) / 2 : cySum / n);
 
             let color = 'white';
             let bestCount = 0;
@@ -606,7 +625,12 @@ export class ScenePipeline {
                         // same area" — not only when they literally overlap.
                         if (boxesCloseOrOverlap(a, b, MERGE_GAP)) {
                             const combined = [...placements[i].cluster, ...placements[j].cluster];
-                            const merged = placeCluster(combined, name);
+                            const midpoint = {
+                                x: (a.x + a.w / 2 + b.x + b.w / 2) / 2,
+                                y: (a.y + a.h / 2 + b.y + b.h / 2) / 2,
+                            };
+                            const merged = placeCluster(combined, name, midpoint)
+                                ?? placeCluster(combined, name);
                             if (merged) {
                                 placements[i] = merged;
                                 placements.splice(j, 1);
@@ -678,7 +702,7 @@ export class ScenePipeline {
             text: name,
             fontSize: 2.5,
             fontFamily: this.settings.fontFamily,
-            fill: 'white',
+            fill: this.settings.lineColor,
         });
         this.roomLayer.addNode(group);
     }

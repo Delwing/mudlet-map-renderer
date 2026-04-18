@@ -72,6 +72,8 @@ export function initControls(settings: Settings, renderer: MapRenderer, getCurre
     const embossToggle = document.getElementById("emboss-toggle") as HTMLInputElement | null;
     const areaNameToggle = document.getElementById("area-name-toggle") as HTMLInputElement | null;
     const areaExitLabelsToggle = document.getElementById("area-exit-labels-toggle") as HTMLInputElement | null;
+    const areaExitLabelSizeSlider = document.getElementById("area-exit-label-size-slider") as HTMLInputElement | null;
+    const areaExitLabelSizeValue = document.getElementById("area-exit-label-size-value") as HTMLSpanElement | null;
     const uniformLevelSizeToggle = document.getElementById("uniform-level-size-toggle") as HTMLInputElement | null;
     const bordersToggle = document.getElementById("borders-toggle") as HTMLInputElement | null;
     const ambientLightToggle = document.getElementById("ambient-light-toggle") as HTMLInputElement | null;
@@ -152,6 +154,10 @@ export function initControls(settings: Settings, renderer: MapRenderer, getCurre
     if (embossToggle) embossToggle.checked = settings.emboss;
     if (areaNameToggle) areaNameToggle.checked = settings.areaName;
     if (areaExitLabelsToggle) areaExitLabelsToggle.checked = settings.areaExitLabels;
+    if (areaExitLabelSizeSlider && areaExitLabelSizeValue) {
+        areaExitLabelSizeSlider.value = settings.areaExitLabelFontSize.toString();
+        areaExitLabelSizeValue.textContent = settings.areaExitLabelFontSize.toFixed(2);
+    }
     if (uniformLevelSizeToggle) uniformLevelSizeToggle.checked = settings.uniformLevelSize;
     if (bordersToggle) bordersToggle.checked = settings.borders;
     const ambientLight = new AmbientLightOverlay();
@@ -351,6 +357,13 @@ export function initControls(settings: Settings, renderer: MapRenderer, getCurre
 
     areaExitLabelsToggle?.addEventListener("change", () => {
         settings.areaExitLabels = areaExitLabelsToggle.checked;
+        renderer.refresh();
+    });
+
+    areaExitLabelSizeSlider?.addEventListener("input", () => {
+        const v = parseFloat(areaExitLabelSizeSlider.value);
+        settings.areaExitLabelFontSize = v;
+        if (areaExitLabelSizeValue) areaExitLabelSizeValue.textContent = v.toFixed(2);
         renderer.refresh();
     });
 
