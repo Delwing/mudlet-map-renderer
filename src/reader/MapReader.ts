@@ -37,13 +37,16 @@ export default class MapReader {
 
     constructor(map: MapData.Map, envs: MapData.Env[]) {
         map.forEach(area => {
-            area.rooms.forEach(room => {
-                room.y = -room.y;
+            const clonedArea: MapData.Area = {
+                ...area,
+                rooms: area.rooms.map(room => ({ ...room, y: -room.y })),
+            };
+            clonedArea.rooms.forEach(room => {
                 this.rooms[room.id] = room;
-            })
+            });
             const areaId = parseInt(area.areaId);
-            this.areas[areaId] = new Area(area);
-            this.areaSources[areaId] = area;
+            this.areas[areaId] = new Area(clonedArea);
+            this.areaSources[areaId] = clonedArea;
         })
         this.colors = envs.reduce((acc, c) => ({
             ...acc,
