@@ -1,6 +1,7 @@
 # Demo Output Reference
 
-Commands used to generate each file:
+To regenerate every file listed here: `yarn demo:regenerate`.
+Commands used to generate each file individually:
 
 ## PNG – Room centered (default room 3287, Verden area)
 

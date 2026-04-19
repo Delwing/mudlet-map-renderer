@@ -31,53 +31,53 @@ exports[`HeadlessRenderer > combined overlays > snapshot - position + highlights
 <polygon points="7.5,1 7.32,0.76 7.5,0.7" fill="rgb(200, 50, 50)" stroke="rgb(200, 50, 50)" stroke-width="0.025"/>
 <polyline points="8,2 7,1.5 6.5,0.5" stroke="rgb(150, 150, 255)" stroke-width="0.025" stroke-dasharray="0.05 0.05" fill="none"/>
 <g transform="translate(-0.3,-0.3)">
-<rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 <polygon points="0.3,0.354 0.44549226783578566,0.498 0.15450773216421435,0.498" fill="rgba(25,25,25, 0.6)" stroke="rgba(25,25,25)" stroke-width="0.025"/>
 </g>
 <g transform="translate(-0.3,-2.3)">
-<rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 </g>
 <g transform="translate(1.7,-0.3)">
-<rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 <text x="0.3" y="0.45749999999999996" font-size="0.44999999999999996" font-family="sans-serif" font-weight="bold" fill="rgba(25,25,25)" text-anchor="middle" dominant-baseline="auto">S</text>
 </g>
 <g transform="translate(-2.3,-0.3)">
-<rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(30,120,30)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(30,120,30)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 </g>
 <g transform="translate(-0.3,1.7)">
-<rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 </g>
 <g transform="translate(-0.3,-4.3)">
-<rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 </g>
 <g transform="translate(3.7,-2.3)">
-<rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 <polygon points="0.2999999999999998,0.246 0.15450773216421432,0.10199999999999987 0.4454922678357853,0.10199999999999987" fill="rgba(25,25,25, 0.6)" stroke="rgba(25,25,25)" stroke-width="0.025"/>
 </g>
 <g transform="translate(-4.3,1.7)">
-<rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(30,120,30)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(30,120,30)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 </g>
 <g transform="translate(1.7,1.7)">
-<rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 </g>
 <g transform="translate(3.7,-0.3)">
-<rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 <polygon points="0.246,0.3 0.10199999999999987,0.44549226783578566 0.10199999999999987,0.15450773216421435" fill="rgba(25,25,25, 0.6)" stroke="rgb(226, 205, 59)" stroke-width="0.025"/>
 <polygon points="0.3540000000000001,0.3 0.4980000000000002,0.15450773216421432 0.4980000000000002,0.44549226783578566" fill="rgba(25,25,25, 0.6)" stroke="rgb(226, 205, 59)" stroke-width="0.025"/>
 </g>
 <g transform="translate(5.7,-0.3)">
-<rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(80,60,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(80,60,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 <text x="0.3" y="0.45749999999999996" font-size="0.44999999999999996" font-family="sans-serif" font-weight="bold" fill="rgba(225,255,255)" text-anchor="middle" dominant-baseline="auto">X</text>
 <polygon points="0.05399999999999938,0.3 0.1979999999999995,0.15450773216421432 0.1979999999999995,0.44549226783578566" fill="rgba(225,255,255, 0.6)" stroke="rgb(10, 155, 10)" stroke-width="0.025"/>
 <polygon points="0.5460000000000003,0.3 0.40200000000000014,0.44549226783578566 0.40200000000000014,0.15450773216421435" fill="rgba(225,255,255, 0.6)" stroke="rgb(10, 155, 10)" stroke-width="0.025"/>
 </g>
 <g transform="translate(7.7,1.7)">
-<rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(80,60,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(80,60,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 </g>
 <g transform="translate(-2.3,-2.3)">
-<rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 </g>
-<text x="-7.5" y="-8.5" font-size="2.5" font-family="sans-serif" fill="white" text-anchor="start" dominant-baseline="auto">Test Village</text>
+<text x="-7.5" y="-8.5" font-size="2.5" font-family="sans-serif" fill="rgb(225, 255, 225)" text-anchor="start" dominant-baseline="auto">Test Village</text>
 <polyline points="0,-4 0,-3.7 0,-2.3 0,-2 0,-1.7 0,-0.3 0,0 0.3,0 1.7,0 2,0" stroke="black" stroke-width="0.2" stroke-linecap="round" stroke-linejoin="round" opacity="0.8" fill="none"/>
 <polyline points="0,-4 0,-3.7 0,-2.3 0,-2 0,-1.7 0,-0.3 0,0 0.3,0 1.7,0 2,0" stroke="#66E64D" stroke-width="0.1" stroke-linecap="round" stroke-linejoin="round" opacity="0.8" fill="none"/>
 <polyline points="1.5725,-0.4275 2.4275,-0.4275" stroke="#ff0000" stroke-width="0.1" stroke-dasharray="0.05 0.05" stroke-linecap="butt" fill="none"/>
@@ -123,53 +123,53 @@ exports[`HeadlessRenderer > drawArea + exportSvg > snapshot - basic area export 
 <polygon points="7.5,1 7.32,0.76 7.5,0.7" fill="rgb(200, 50, 50)" stroke="rgb(200, 50, 50)" stroke-width="0.025"/>
 <polyline points="8,2 7,1.5 6.5,0.5" stroke="rgb(150, 150, 255)" stroke-width="0.025" stroke-dasharray="0.05 0.05" fill="none"/>
 <g transform="translate(-0.3,-0.3)">
-<rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 <polygon points="0.3,0.354 0.44549226783578566,0.498 0.15450773216421435,0.498" fill="rgba(25,25,25, 0.6)" stroke="rgba(25,25,25)" stroke-width="0.025"/>
 </g>
 <g transform="translate(-0.3,-2.3)">
-<rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 </g>
 <g transform="translate(1.7,-0.3)">
-<rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 <text x="0.3" y="0.45749999999999996" font-size="0.44999999999999996" font-family="sans-serif" font-weight="bold" fill="rgba(25,25,25)" text-anchor="middle" dominant-baseline="auto">S</text>
 </g>
 <g transform="translate(-2.3,-0.3)">
-<rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(30,120,30)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(30,120,30)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 </g>
 <g transform="translate(-0.3,1.7)">
-<rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 </g>
 <g transform="translate(-0.3,-4.3)">
-<rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 </g>
 <g transform="translate(3.7,-2.3)">
-<rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 <polygon points="0.2999999999999998,0.246 0.15450773216421432,0.10199999999999987 0.4454922678357853,0.10199999999999987" fill="rgba(25,25,25, 0.6)" stroke="rgba(25,25,25)" stroke-width="0.025"/>
 </g>
 <g transform="translate(-4.3,1.7)">
-<rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(30,120,30)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(30,120,30)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 </g>
 <g transform="translate(1.7,1.7)">
-<rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 </g>
 <g transform="translate(3.7,-0.3)">
-<rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 <polygon points="0.246,0.3 0.10199999999999987,0.44549226783578566 0.10199999999999987,0.15450773216421435" fill="rgba(25,25,25, 0.6)" stroke="rgb(226, 205, 59)" stroke-width="0.025"/>
 <polygon points="0.3540000000000001,0.3 0.4980000000000002,0.15450773216421432 0.4980000000000002,0.44549226783578566" fill="rgba(25,25,25, 0.6)" stroke="rgb(226, 205, 59)" stroke-width="0.025"/>
 </g>
 <g transform="translate(5.7,-0.3)">
-<rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(80,60,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(80,60,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 <text x="0.3" y="0.45749999999999996" font-size="0.44999999999999996" font-family="sans-serif" font-weight="bold" fill="rgba(225,255,255)" text-anchor="middle" dominant-baseline="auto">X</text>
 <polygon points="0.05399999999999938,0.3 0.1979999999999995,0.15450773216421432 0.1979999999999995,0.44549226783578566" fill="rgba(225,255,255, 0.6)" stroke="rgb(10, 155, 10)" stroke-width="0.025"/>
 <polygon points="0.5460000000000003,0.3 0.40200000000000014,0.44549226783578566 0.40200000000000014,0.15450773216421435" fill="rgba(225,255,255, 0.6)" stroke="rgb(10, 155, 10)" stroke-width="0.025"/>
 </g>
 <g transform="translate(7.7,1.7)">
-<rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(80,60,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(80,60,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 </g>
 <g transform="translate(-2.3,-2.3)">
-<rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 </g>
-<text x="-7.5" y="-8.5" font-size="2.5" font-family="sans-serif" fill="white" text-anchor="start" dominant-baseline="auto">Test Village</text>
+<text x="-7.5" y="-8.5" font-size="2.5" font-family="sans-serif" fill="rgb(225, 255, 225)" text-anchor="start" dominant-baseline="auto">Test Village</text>
 </svg>"
 `;
 
@@ -204,53 +204,53 @@ exports[`HeadlessRenderer > highlights > snapshot - multiple highlights 1`] = `
 <polygon points="7.5,1 7.32,0.76 7.5,0.7" fill="rgb(200, 50, 50)" stroke="rgb(200, 50, 50)" stroke-width="0.025"/>
 <polyline points="8,2 7,1.5 6.5,0.5" stroke="rgb(150, 150, 255)" stroke-width="0.025" stroke-dasharray="0.05 0.05" fill="none"/>
 <g transform="translate(-0.3,-0.3)">
-<rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 <polygon points="0.3,0.354 0.44549226783578566,0.498 0.15450773216421435,0.498" fill="rgba(25,25,25, 0.6)" stroke="rgba(25,25,25)" stroke-width="0.025"/>
 </g>
 <g transform="translate(-0.3,-2.3)">
-<rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 </g>
 <g transform="translate(1.7,-0.3)">
-<rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 <text x="0.3" y="0.45749999999999996" font-size="0.44999999999999996" font-family="sans-serif" font-weight="bold" fill="rgba(25,25,25)" text-anchor="middle" dominant-baseline="auto">S</text>
 </g>
 <g transform="translate(-2.3,-0.3)">
-<rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(30,120,30)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(30,120,30)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 </g>
 <g transform="translate(-0.3,1.7)">
-<rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 </g>
 <g transform="translate(-0.3,-4.3)">
-<rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 </g>
 <g transform="translate(3.7,-2.3)">
-<rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 <polygon points="0.2999999999999998,0.246 0.15450773216421432,0.10199999999999987 0.4454922678357853,0.10199999999999987" fill="rgba(25,25,25, 0.6)" stroke="rgba(25,25,25)" stroke-width="0.025"/>
 </g>
 <g transform="translate(-4.3,1.7)">
-<rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(30,120,30)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(30,120,30)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 </g>
 <g transform="translate(1.7,1.7)">
-<rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 </g>
 <g transform="translate(3.7,-0.3)">
-<rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 <polygon points="0.246,0.3 0.10199999999999987,0.44549226783578566 0.10199999999999987,0.15450773216421435" fill="rgba(25,25,25, 0.6)" stroke="rgb(226, 205, 59)" stroke-width="0.025"/>
 <polygon points="0.3540000000000001,0.3 0.4980000000000002,0.15450773216421432 0.4980000000000002,0.44549226783578566" fill="rgba(25,25,25, 0.6)" stroke="rgb(226, 205, 59)" stroke-width="0.025"/>
 </g>
 <g transform="translate(5.7,-0.3)">
-<rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(80,60,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(80,60,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 <text x="0.3" y="0.45749999999999996" font-size="0.44999999999999996" font-family="sans-serif" font-weight="bold" fill="rgba(225,255,255)" text-anchor="middle" dominant-baseline="auto">X</text>
 <polygon points="0.05399999999999938,0.3 0.1979999999999995,0.15450773216421432 0.1979999999999995,0.44549226783578566" fill="rgba(225,255,255, 0.6)" stroke="rgb(10, 155, 10)" stroke-width="0.025"/>
 <polygon points="0.5460000000000003,0.3 0.40200000000000014,0.44549226783578566 0.40200000000000014,0.15450773216421435" fill="rgba(225,255,255, 0.6)" stroke="rgb(10, 155, 10)" stroke-width="0.025"/>
 </g>
 <g transform="translate(7.7,1.7)">
-<rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(80,60,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(80,60,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 </g>
 <g transform="translate(-2.3,-2.3)">
-<rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 </g>
-<text x="-7.5" y="-8.5" font-size="2.5" font-family="sans-serif" fill="white" text-anchor="start" dominant-baseline="auto">Test Village</text>
+<text x="-7.5" y="-8.5" font-size="2.5" font-family="sans-serif" fill="rgb(225, 255, 225)" text-anchor="start" dominant-baseline="auto">Test Village</text>
 <polyline points="-0.4275,-0.4275 0.4275,-0.4275" stroke="#ff0000" stroke-width="0.1" stroke-dasharray="0.05 0.05" stroke-linecap="butt" fill="none"/>
 <polyline points="0.4275,-0.4275 0.4275,0.4275" stroke="#ff0000" stroke-width="0.1" stroke-dasharray="0.05 0.05" stroke-linecap="butt" fill="none"/>
 <polyline points="0.4275,0.4275 -0.4275,0.4275" stroke="#ff0000" stroke-width="0.1" stroke-dasharray="0.05 0.05" stroke-linecap="butt" fill="none"/>
@@ -293,53 +293,53 @@ exports[`HeadlessRenderer > highlights > snapshot - single highlight 1`] = `
 <polygon points="7.5,1 7.32,0.76 7.5,0.7" fill="rgb(200, 50, 50)" stroke="rgb(200, 50, 50)" stroke-width="0.025"/>
 <polyline points="8,2 7,1.5 6.5,0.5" stroke="rgb(150, 150, 255)" stroke-width="0.025" stroke-dasharray="0.05 0.05" fill="none"/>
 <g transform="translate(-0.3,-0.3)">
-<rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 <polygon points="0.3,0.354 0.44549226783578566,0.498 0.15450773216421435,0.498" fill="rgba(25,25,25, 0.6)" stroke="rgba(25,25,25)" stroke-width="0.025"/>
 </g>
 <g transform="translate(-0.3,-2.3)">
-<rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 </g>
 <g transform="translate(1.7,-0.3)">
-<rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 <text x="0.3" y="0.45749999999999996" font-size="0.44999999999999996" font-family="sans-serif" font-weight="bold" fill="rgba(25,25,25)" text-anchor="middle" dominant-baseline="auto">S</text>
 </g>
 <g transform="translate(-2.3,-0.3)">
-<rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(30,120,30)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(30,120,30)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 </g>
 <g transform="translate(-0.3,1.7)">
-<rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 </g>
 <g transform="translate(-0.3,-4.3)">
-<rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 </g>
 <g transform="translate(3.7,-2.3)">
-<rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 <polygon points="0.2999999999999998,0.246 0.15450773216421432,0.10199999999999987 0.4454922678357853,0.10199999999999987" fill="rgba(25,25,25, 0.6)" stroke="rgba(25,25,25)" stroke-width="0.025"/>
 </g>
 <g transform="translate(-4.3,1.7)">
-<rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(30,120,30)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(30,120,30)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 </g>
 <g transform="translate(1.7,1.7)">
-<rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 </g>
 <g transform="translate(3.7,-0.3)">
-<rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 <polygon points="0.246,0.3 0.10199999999999987,0.44549226783578566 0.10199999999999987,0.15450773216421435" fill="rgba(25,25,25, 0.6)" stroke="rgb(226, 205, 59)" stroke-width="0.025"/>
 <polygon points="0.3540000000000001,0.3 0.4980000000000002,0.15450773216421432 0.4980000000000002,0.44549226783578566" fill="rgba(25,25,25, 0.6)" stroke="rgb(226, 205, 59)" stroke-width="0.025"/>
 </g>
 <g transform="translate(5.7,-0.3)">
-<rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(80,60,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(80,60,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 <text x="0.3" y="0.45749999999999996" font-size="0.44999999999999996" font-family="sans-serif" font-weight="bold" fill="rgba(225,255,255)" text-anchor="middle" dominant-baseline="auto">X</text>
 <polygon points="0.05399999999999938,0.3 0.1979999999999995,0.15450773216421432 0.1979999999999995,0.44549226783578566" fill="rgba(225,255,255, 0.6)" stroke="rgb(10, 155, 10)" stroke-width="0.025"/>
 <polygon points="0.5460000000000003,0.3 0.40200000000000014,0.44549226783578566 0.40200000000000014,0.15450773216421435" fill="rgba(225,255,255, 0.6)" stroke="rgb(10, 155, 10)" stroke-width="0.025"/>
 </g>
 <g transform="translate(7.7,1.7)">
-<rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(80,60,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(80,60,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 </g>
 <g transform="translate(-2.3,-2.3)">
-<rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 </g>
-<text x="-7.5" y="-8.5" font-size="2.5" font-family="sans-serif" fill="white" text-anchor="start" dominant-baseline="auto">Test Village</text>
+<text x="-7.5" y="-8.5" font-size="2.5" font-family="sans-serif" fill="rgb(225, 255, 225)" text-anchor="start" dominant-baseline="auto">Test Village</text>
 <polyline points="-0.4275,-0.4275 0.4275,-0.4275" stroke="#ff0000" stroke-width="0.1" stroke-dasharray="0.05 0.05" stroke-linecap="butt" fill="none"/>
 <polyline points="0.4275,-0.4275 0.4275,0.4275" stroke="#ff0000" stroke-width="0.1" stroke-dasharray="0.05 0.05" stroke-linecap="butt" fill="none"/>
 <polyline points="0.4275,0.4275 -0.4275,0.4275" stroke="#ff0000" stroke-width="0.1" stroke-dasharray="0.05 0.05" stroke-linecap="butt" fill="none"/>
@@ -378,53 +378,53 @@ exports[`HeadlessRenderer > paths > snapshot - path overlay 1`] = `
 <polygon points="7.5,1 7.32,0.76 7.5,0.7" fill="rgb(200, 50, 50)" stroke="rgb(200, 50, 50)" stroke-width="0.025"/>
 <polyline points="8,2 7,1.5 6.5,0.5" stroke="rgb(150, 150, 255)" stroke-width="0.025" stroke-dasharray="0.05 0.05" fill="none"/>
 <g transform="translate(-0.3,-0.3)">
-<rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 <polygon points="0.3,0.354 0.44549226783578566,0.498 0.15450773216421435,0.498" fill="rgba(25,25,25, 0.6)" stroke="rgba(25,25,25)" stroke-width="0.025"/>
 </g>
 <g transform="translate(-0.3,-2.3)">
-<rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 </g>
 <g transform="translate(1.7,-0.3)">
-<rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 <text x="0.3" y="0.45749999999999996" font-size="0.44999999999999996" font-family="sans-serif" font-weight="bold" fill="rgba(25,25,25)" text-anchor="middle" dominant-baseline="auto">S</text>
 </g>
 <g transform="translate(-2.3,-0.3)">
-<rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(30,120,30)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(30,120,30)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 </g>
 <g transform="translate(-0.3,1.7)">
-<rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 </g>
 <g transform="translate(-0.3,-4.3)">
-<rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 </g>
 <g transform="translate(3.7,-2.3)">
-<rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 <polygon points="0.2999999999999998,0.246 0.15450773216421432,0.10199999999999987 0.4454922678357853,0.10199999999999987" fill="rgba(25,25,25, 0.6)" stroke="rgba(25,25,25)" stroke-width="0.025"/>
 </g>
 <g transform="translate(-4.3,1.7)">
-<rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(30,120,30)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(30,120,30)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 </g>
 <g transform="translate(1.7,1.7)">
-<rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 </g>
 <g transform="translate(3.7,-0.3)">
-<rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 <polygon points="0.246,0.3 0.10199999999999987,0.44549226783578566 0.10199999999999987,0.15450773216421435" fill="rgba(25,25,25, 0.6)" stroke="rgb(226, 205, 59)" stroke-width="0.025"/>
 <polygon points="0.3540000000000001,0.3 0.4980000000000002,0.15450773216421432 0.4980000000000002,0.44549226783578566" fill="rgba(25,25,25, 0.6)" stroke="rgb(226, 205, 59)" stroke-width="0.025"/>
 </g>
 <g transform="translate(5.7,-0.3)">
-<rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(80,60,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(80,60,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 <text x="0.3" y="0.45749999999999996" font-size="0.44999999999999996" font-family="sans-serif" font-weight="bold" fill="rgba(225,255,255)" text-anchor="middle" dominant-baseline="auto">X</text>
 <polygon points="0.05399999999999938,0.3 0.1979999999999995,0.15450773216421432 0.1979999999999995,0.44549226783578566" fill="rgba(225,255,255, 0.6)" stroke="rgb(10, 155, 10)" stroke-width="0.025"/>
 <polygon points="0.5460000000000003,0.3 0.40200000000000014,0.44549226783578566 0.40200000000000014,0.15450773216421435" fill="rgba(225,255,255, 0.6)" stroke="rgb(10, 155, 10)" stroke-width="0.025"/>
 </g>
 <g transform="translate(7.7,1.7)">
-<rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(80,60,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(80,60,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 </g>
 <g transform="translate(-2.3,-2.3)">
-<rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 </g>
-<text x="-7.5" y="-8.5" font-size="2.5" font-family="sans-serif" fill="white" text-anchor="start" dominant-baseline="auto">Test Village</text>
+<text x="-7.5" y="-8.5" font-size="2.5" font-family="sans-serif" fill="rgb(225, 255, 225)" text-anchor="start" dominant-baseline="auto">Test Village</text>
 <polyline points="0,-4 0,-3.7 0,-2.3 0,-2 0,-1.7 0,-0.3 0,0 0.3,0 1.7,0 2,0" stroke="black" stroke-width="0.2" stroke-linecap="round" stroke-linejoin="round" opacity="0.8" fill="none"/>
 <polyline points="0,-4 0,-3.7 0,-2.3 0,-2 0,-1.7 0,-0.3 0,0 0.3,0 1.7,0 2,0" stroke="#66E64D" stroke-width="0.1" stroke-linecap="round" stroke-linejoin="round" opacity="0.8" fill="none"/>
 </svg>"
@@ -461,53 +461,53 @@ exports[`HeadlessRenderer > paths > snapshot - path with custom color 1`] = `
 <polygon points="7.5,1 7.32,0.76 7.5,0.7" fill="rgb(200, 50, 50)" stroke="rgb(200, 50, 50)" stroke-width="0.025"/>
 <polyline points="8,2 7,1.5 6.5,0.5" stroke="rgb(150, 150, 255)" stroke-width="0.025" stroke-dasharray="0.05 0.05" fill="none"/>
 <g transform="translate(-0.3,-0.3)">
-<rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 <polygon points="0.3,0.354 0.44549226783578566,0.498 0.15450773216421435,0.498" fill="rgba(25,25,25, 0.6)" stroke="rgba(25,25,25)" stroke-width="0.025"/>
 </g>
 <g transform="translate(-0.3,-2.3)">
-<rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 </g>
 <g transform="translate(1.7,-0.3)">
-<rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 <text x="0.3" y="0.45749999999999996" font-size="0.44999999999999996" font-family="sans-serif" font-weight="bold" fill="rgba(25,25,25)" text-anchor="middle" dominant-baseline="auto">S</text>
 </g>
 <g transform="translate(-2.3,-0.3)">
-<rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(30,120,30)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(30,120,30)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 </g>
 <g transform="translate(-0.3,1.7)">
-<rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 </g>
 <g transform="translate(-0.3,-4.3)">
-<rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 </g>
 <g transform="translate(3.7,-2.3)">
-<rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 <polygon points="0.2999999999999998,0.246 0.15450773216421432,0.10199999999999987 0.4454922678357853,0.10199999999999987" fill="rgba(25,25,25, 0.6)" stroke="rgba(25,25,25)" stroke-width="0.025"/>
 </g>
 <g transform="translate(-4.3,1.7)">
-<rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(30,120,30)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(30,120,30)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 </g>
 <g transform="translate(1.7,1.7)">
-<rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 </g>
 <g transform="translate(3.7,-0.3)">
-<rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 <polygon points="0.246,0.3 0.10199999999999987,0.44549226783578566 0.10199999999999987,0.15450773216421435" fill="rgba(25,25,25, 0.6)" stroke="rgb(226, 205, 59)" stroke-width="0.025"/>
 <polygon points="0.3540000000000001,0.3 0.4980000000000002,0.15450773216421432 0.4980000000000002,0.44549226783578566" fill="rgba(25,25,25, 0.6)" stroke="rgb(226, 205, 59)" stroke-width="0.025"/>
 </g>
 <g transform="translate(5.7,-0.3)">
-<rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(80,60,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(80,60,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 <text x="0.3" y="0.45749999999999996" font-size="0.44999999999999996" font-family="sans-serif" font-weight="bold" fill="rgba(225,255,255)" text-anchor="middle" dominant-baseline="auto">X</text>
 <polygon points="0.05399999999999938,0.3 0.1979999999999995,0.15450773216421432 0.1979999999999995,0.44549226783578566" fill="rgba(225,255,255, 0.6)" stroke="rgb(10, 155, 10)" stroke-width="0.025"/>
 <polygon points="0.5460000000000003,0.3 0.40200000000000014,0.44549226783578566 0.40200000000000014,0.15450773216421435" fill="rgba(225,255,255, 0.6)" stroke="rgb(10, 155, 10)" stroke-width="0.025"/>
 </g>
 <g transform="translate(7.7,1.7)">
-<rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(80,60,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(80,60,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 </g>
 <g transform="translate(-2.3,-2.3)">
-<rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 </g>
-<text x="-7.5" y="-8.5" font-size="2.5" font-family="sans-serif" fill="white" text-anchor="start" dominant-baseline="auto">Test Village</text>
+<text x="-7.5" y="-8.5" font-size="2.5" font-family="sans-serif" fill="rgb(225, 255, 225)" text-anchor="start" dominant-baseline="auto">Test Village</text>
 <polyline points="0,0 0,-0.3 0,-1.7 0,-2 0,-2.3 0,-3.7 0,-4" stroke="black" stroke-width="0.2" stroke-linecap="round" stroke-linejoin="round" opacity="0.8" fill="none"/>
 <polyline points="0,0 0,-0.3 0,-1.7 0,-2 0,-2.3 0,-3.7 0,-4" stroke="#ff0000" stroke-width="0.1" stroke-linecap="round" stroke-linejoin="round" opacity="0.8" fill="none"/>
 </svg>"
@@ -544,53 +544,53 @@ exports[`HeadlessRenderer > position > snapshot - with position marker 1`] = `
 <polygon points="7.5,1 7.32,0.76 7.5,0.7" fill="rgb(200, 50, 50)" stroke="rgb(200, 50, 50)" stroke-width="0.025"/>
 <polyline points="8,2 7,1.5 6.5,0.5" stroke="rgb(150, 150, 255)" stroke-width="0.025" stroke-dasharray="0.05 0.05" fill="none"/>
 <g transform="translate(-0.3,-0.3)">
-<rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 <polygon points="0.3,0.354 0.44549226783578566,0.498 0.15450773216421435,0.498" fill="rgba(25,25,25, 0.6)" stroke="rgba(25,25,25)" stroke-width="0.025"/>
 </g>
 <g transform="translate(-0.3,-2.3)">
-<rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 </g>
 <g transform="translate(1.7,-0.3)">
-<rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 <text x="0.3" y="0.45749999999999996" font-size="0.44999999999999996" font-family="sans-serif" font-weight="bold" fill="rgba(25,25,25)" text-anchor="middle" dominant-baseline="auto">S</text>
 </g>
 <g transform="translate(-2.3,-0.3)">
-<rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(30,120,30)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(30,120,30)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 </g>
 <g transform="translate(-0.3,1.7)">
-<rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 </g>
 <g transform="translate(-0.3,-4.3)">
-<rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 </g>
 <g transform="translate(3.7,-2.3)">
-<rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 <polygon points="0.2999999999999998,0.246 0.15450773216421432,0.10199999999999987 0.4454922678357853,0.10199999999999987" fill="rgba(25,25,25, 0.6)" stroke="rgba(25,25,25)" stroke-width="0.025"/>
 </g>
 <g transform="translate(-4.3,1.7)">
-<rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(30,120,30)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(30,120,30)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 </g>
 <g transform="translate(1.7,1.7)">
-<rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 </g>
 <g transform="translate(3.7,-0.3)">
-<rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 <polygon points="0.246,0.3 0.10199999999999987,0.44549226783578566 0.10199999999999987,0.15450773216421435" fill="rgba(25,25,25, 0.6)" stroke="rgb(226, 205, 59)" stroke-width="0.025"/>
 <polygon points="0.3540000000000001,0.3 0.4980000000000002,0.15450773216421432 0.4980000000000002,0.44549226783578566" fill="rgba(25,25,25, 0.6)" stroke="rgb(226, 205, 59)" stroke-width="0.025"/>
 </g>
 <g transform="translate(5.7,-0.3)">
-<rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(80,60,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(80,60,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 <text x="0.3" y="0.45749999999999996" font-size="0.44999999999999996" font-family="sans-serif" font-weight="bold" fill="rgba(225,255,255)" text-anchor="middle" dominant-baseline="auto">X</text>
 <polygon points="0.05399999999999938,0.3 0.1979999999999995,0.15450773216421432 0.1979999999999995,0.44549226783578566" fill="rgba(225,255,255, 0.6)" stroke="rgb(10, 155, 10)" stroke-width="0.025"/>
 <polygon points="0.5460000000000003,0.3 0.40200000000000014,0.44549226783578566 0.40200000000000014,0.15450773216421435" fill="rgba(225,255,255, 0.6)" stroke="rgb(10, 155, 10)" stroke-width="0.025"/>
 </g>
 <g transform="translate(7.7,1.7)">
-<rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(80,60,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(80,60,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 </g>
 <g transform="translate(-2.3,-2.3)">
-<rect x="0.0125" y="0.0125" width="0.575" height="0.575" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<rect x="0" y="0" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 </g>
-<text x="-7.5" y="-8.5" font-size="2.5" font-family="sans-serif" fill="white" text-anchor="start" dominant-baseline="auto">Test Village</text>
+<text x="-7.5" y="-8.5" font-size="2.5" font-family="sans-serif" fill="rgb(225, 255, 225)" text-anchor="start" dominant-baseline="auto">Test Village</text>
 <circle cx="0" cy="0" r="0.51" fill="none" stroke="rgba(0, 229, 178, 1)" stroke-width="0.1" stroke-dasharray="0.05 0.05"/>
 </svg>"
 `;
