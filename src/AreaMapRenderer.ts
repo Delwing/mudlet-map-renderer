@@ -166,7 +166,7 @@ export class AreaMapRenderer {
     }
 
     setZoom(zoom: number): boolean {
-        const clamped = Math.max(0.1, Math.min(5, zoom));
+        const clamped = Math.max(0.1, zoom);
         if (this.currentZoom === clamped) {
             return false;
         }

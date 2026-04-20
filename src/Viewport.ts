@@ -43,7 +43,7 @@ export class Viewport {
     }
 
     setZoom(zoom: number): boolean {
-        const clamped = Math.max(this.minZoom, Math.min(5, zoom));
+        const clamped = Math.max(this.minZoom, zoom);
         if (this.zoom === clamped) return false;
         this.zoom = clamped;
         this.notify();
@@ -54,7 +54,7 @@ export class Viewport {
      * Zoom keeping the center of the viewport fixed.
      */
     zoomToCenter(zoom: number): boolean {
-        const clamped = Math.max(this.minZoom, Math.min(5, zoom));
+        const clamped = Math.max(this.minZoom, zoom);
         if (this.zoom === clamped) return false;
 
         const oldScale = this.getScale();
@@ -88,7 +88,7 @@ export class Viewport {
             y: (screenY - this.position.y) / oldScale,
         };
 
-        const clamped = Math.max(this.minZoom, Math.min(5, zoom));
+        const clamped = Math.max(this.minZoom, zoom);
         if (this.zoom === clamped) return false;
         this.zoom = clamped;
 
@@ -188,7 +188,7 @@ export class Viewport {
         const padding = 2;
         const zoomX = availW / ((mapW + padding * 2) * BASE_SCALE);
         const zoomY = availH / ((mapH + padding * 2) * BASE_SCALE);
-        return Math.max(0.05, Math.min(5, Math.min(zoomX, zoomY)));
+        return Math.min(zoomX, zoomY);
     }
 
     /**
