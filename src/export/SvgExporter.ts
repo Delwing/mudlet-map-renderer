@@ -39,9 +39,10 @@ export class SvgExporter implements Exporter<string | undefined> {
         const gridLayer = new SvgLayerNode();
         const linkLayer = new SvgLayerNode();
         const roomLayer = new SvgLayerNode();
+        const topLabelLayer = new SvgLayerNode();
 
         const pipeline = new ScenePipeline(state.mapReader, settings, svgBackend, {
-            gridLayer, linkLayer, roomLayer,
+            gridLayer, linkLayer, roomLayer, topLabelLayer,
         });
 
         const viewportBounds = {
@@ -75,6 +76,9 @@ export class SvgExporter implements Exporter<string | undefined> {
                 }
             }
         }
+
+        const topLabelSvg = topLabelLayer.toSvg();
+        if (topLabelSvg) lines.push(topLabelSvg);
 
         lines.push('</svg>');
         return lines.join('\n');

@@ -1,5 +1,5 @@
 import type {Settings} from "../types/Settings";
-import {darkenColor, lightenColor, colorLightness} from "../utils/color";
+import {darkenColor, lightenColor} from "../utils/color";
 import MapReader from "../reader/MapReader";
 
 export type RoomColors = {
@@ -41,9 +41,10 @@ export function computeRoomColors(
         ? ((settings.frameMode || settings.coloredMode) ? brightEnvColor : strokeOverride)
         : ((settings.frameMode || settings.coloredMode) ? brightEnvColor : settings.lineColor);
     const borderWidth = settings.borders ? settings.lineWidth : 0;
-    const symbolColor = (settings.frameMode || settings.coloredMode)
-        ? brightEnvColor
-        : mapReader.getSymbolColor(room.env);
+    const symbolColor = room.userData?.["system.fallback_symbol_color"]
+        ?? ((settings.frameMode || settings.coloredMode)
+            ? brightEnvColor
+            : mapReader.getSymbolColor(room.env));
 
     return {fillColor, strokeColor, borderWidth, symbolColor, envColor};
 }

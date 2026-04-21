@@ -11,6 +11,8 @@ export { darkenColor, colorLightness, hexToRgba } from './utils/color';
 // --- Core renderer ---
 export { MapRenderer } from './rendering/MapRenderer';
 export type { InteractiveBackend } from './rendering/MapRenderer';
+export type { DrawnExitEntry, DrawnSpecialExitEntry } from './ScenePipeline';
+export type { ExitDrawData, ExitDrawLine, ExitDrawArrow, ExitDrawDoor } from './ExitRenderer';
 export { MapState } from './MapState';
 export type { MapStateEventMap, HighlightEntry, PathEntry } from './MapState';
 export { KonvaRenderBackend } from './rendering/KonvaRenderBackend';

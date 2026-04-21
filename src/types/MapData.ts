@@ -72,6 +72,8 @@ declare namespace MapData {
         Text: string;
         FgColor: Color;
         BgColor: Color;
+        noScaling?: boolean;
+        showOnTop?: boolean;
     }
 
     export interface Area {

@@ -162,6 +162,7 @@ export class RecordingGroupNode implements GroupNode {
     x: number;
     y: number;
     _visible = true;
+    noScaling = false;
     readonly commands: DrawCommand[] = [];
     /** Lazily created when this group is materialized for a KonvaLayerNode. */
     _konvaGroup?: Konva.Group;
@@ -257,7 +258,12 @@ export class RecordingLayerNode implements LayerNode {
                     // Compute absolute translation like Konva: tx = a*gx + c*gy + e
                     const tx = a * group.x + c * group.y + base.e;
                     const ty = b * group.x + d * group.y + base.f;
-                    ctx.setTransform(a, b, c, d, tx, ty);
+                    // noScaling groups: anchor to map position, render at BASE_SCALE (zoom=1 size)
+                    if (group.noScaling) {
+                        ctx.setTransform(75, 0, 0, 75, tx, ty);
+                    } else {
+                        ctx.setTransform(a, b, c, d, tx, ty);
+                    }
                     for (const cmd of group.commands) {
                         replayCommand(ctx, cmd);
                     }

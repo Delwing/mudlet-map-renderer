@@ -39,6 +39,12 @@ export class InteractionHandler {
     private readonly cleanupFns: (() => void)[] = [];
     private destroyed = false;
 
+    /** Skip cursor changes when an external consumer (e.g. the editor) owns cursor management. */
+    private setCursor(value: string) {
+        if (this.container.dataset.editorCursor) return;
+        this.container.style.cursor = value;
+    }
+
     constructor(
         container: HTMLDivElement,
         viewport: Viewport,
@@ -258,7 +264,7 @@ export class InteractionHandler {
                 hoveredRoom = room;
                 if (room) {
                     hoveredAreaExit = false;
-                    container.style.cursor = 'pointer';
+                    this.setCursor('pointer');
                     return;
                 }
             }
@@ -266,14 +272,14 @@ export class InteractionHandler {
                 const exitZone = this.findAreaExitAtClientPoint(e.clientX, e.clientY);
                 const overExit = exitZone !== null;
                 hoveredAreaExit = overExit;
-                container.style.cursor = overExit ? 'pointer' : 'auto';
+                this.setCursor(overExit ? 'pointer' : 'auto');
             }
         });
 
         this.listen(container, 'mouseleave', () => {
             hoveredRoom = null;
             hoveredAreaExit = false;
-            container.style.cursor = 'auto';
+            this.setCursor('auto');
         });
 
         let clickStart: { x: number; y: number } | null = null;

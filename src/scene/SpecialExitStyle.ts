@@ -30,6 +30,8 @@ export type SpecialExitDoorData = {
 };
 
 export type SpecialExitData = {
+    /** Exit name (customLines key) — short or long form as stored on the room. */
+    dir: string;
     line: SpecialExitLineData;
     arrow?: SpecialExitArrowData;
     door?: SpecialExitDoorData;
@@ -53,6 +55,10 @@ export function computeSpecialExits(room: MapData.Room, settings: Settings, colo
             dash = [0.05, 0.05];
         } else if (line.attributes.style === "dash line") {
             dash = [0.4, 0.2];
+        } else if (line.attributes.style === "dash dot line") {
+            dash = [0.4, 0.15, 0.05, 0.15];
+        } else if (line.attributes.style === "dash dot dot line") {
+            dash = [0.4, 0.15, 0.05, 0.15, 0.05, 0.15];
         }
 
         const lineData: SpecialExitLineData = {
@@ -95,7 +101,7 @@ export function computeSpecialExits(room: MapData.Room, settings: Settings, colo
             };
         }
 
-        results.push({line: lineData, arrow, door});
+        results.push({dir, line: lineData, arrow, door});
     }
 
     return results;

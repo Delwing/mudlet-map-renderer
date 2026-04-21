@@ -14,6 +14,7 @@ import type {TypedEventEmitter} from "../TypedEventEmitter";
 import type {LiveEffect} from "../overlay/LiveEffect";
 import type {SceneOverlay} from "../overlay/SceneOverlay";
 import type {Exporter, ExportContext, ExportCanvas} from "../export/Exporter";
+import type {DrawnExitEntry, DrawnSpecialExitEntry} from "../ScenePipeline";
 
 /** Contract for interactive render backends. */
 export interface InteractiveBackend {
@@ -44,6 +45,16 @@ export interface InteractiveBackend {
     addSceneOverlay(id: string, overlay: SceneOverlay): void;
     removeSceneOverlay(id: string): void;
     getSceneOverlays(): Iterable<SceneOverlay>;
+    /**
+     * Snapshot of inter-room exits as drawn in the last `buildScene` call
+     * (polyline segments, arrows, bounds, dashes — exactly what the user
+     * sees). Empty before the first draw. The list already reflects the
+     * renderer's suppression rules, so anything drawn appears here and
+     * anything not drawn does not.
+     */
+    getDrawnExits(): readonly DrawnExitEntry[];
+    /** Companion to {@link getDrawnExits} for custom-line special exits. */
+    getDrawnSpecialExits(): readonly DrawnSpecialExitEntry[];
     destroy(): void;
 }
 
@@ -202,6 +213,23 @@ export class MapRenderer {
 
     removeLiveEffect(id: string) {
         this.backend.removeLiveEffect(id);
+    }
+
+    // --- Drawn geometry (hit-testing integration) ---
+
+    /**
+     * Polyline / arrow / bounds data for every inter-room exit the renderer
+     * drew on the last scene build. Intended for tools (e.g. editors) that
+     * need to hit-test against exactly what the user sees, including dash
+     * patterns, one-way arrows, and the renderer's suppression rules.
+     */
+    getDrawnExits(): readonly DrawnExitEntry[] {
+        return this.backend.getDrawnExits();
+    }
+
+    /** Companion to {@link getDrawnExits} for custom-line special exits. */
+    getDrawnSpecialExits(): readonly DrawnSpecialExitEntry[] {
+        return this.backend.getDrawnSpecialExits();
     }
 
     // --- Export ---

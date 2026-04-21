@@ -50,8 +50,6 @@ export class MapState {
     setArea(id: number, zIndex: number): boolean {
         const area = this.mapReader.getArea(id);
         if (!area) return false;
-        const plane = area.getPlane(zIndex);
-        if (!plane) return false;
 
         this.currentArea = id;
         this.currentAreaInstance = area;

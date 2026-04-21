@@ -28,10 +28,48 @@ export type AreaExitHitZone = {
     arrowColor?: string;
 };
 
+/**
+ * One drawn two-way or one-way inter-room exit, with stable identity and the
+ * exact geometry ExitRenderer produced. Consumers (e.g. an editor's
+ * hit-testing layer) can run segment distance checks against
+ * `data.lines[].points` / `data.arrows[].points` to match exactly what the
+ * user sees — including dash patterns and the renderer's suppression rules
+ * (e.g. both-sides-customLine two-ways, one-ways overridden by customLine).
+ */
+export type DrawnExitEntry = {
+    readonly a: number;
+    readonly b: number;
+    readonly aDir?: MapData.direction;
+    readonly bDir?: MapData.direction;
+    readonly kind: "exit" | "specialExit";
+    readonly zIndex: number[];
+    readonly data: ExitDrawData;
+};
+
+/**
+ * One drawn custom-line (special exit) polyline, as it was rendered for
+ * this scene. `points` is the flat [x,y,x,y,...] polyline with the source
+ * room's centre prepended (mirroring what the renderer actually drew), in
+ * render-space coordinates.
+ */
+export type DrawnSpecialExitEntry = {
+    readonly roomId: number;
+    readonly exitName: string;
+    readonly points: number[];
+    readonly stroke: string;
+    readonly strokeWidth: number;
+    readonly dash?: number[];
+    readonly hasArrow: boolean;
+    readonly arrowTip?: { x: number; y: number };
+    readonly bounds: Bounds;
+};
+
 export type SceneBuildResult = {
     roomNodes: Map<number, RoomNodeEntry>;
     standaloneExitNodes: StandaloneExitEntry[];
     areaExitHitZones: AreaExitHitZone[];
+    drawnExits: DrawnExitEntry[];
+    drawnSpecialExits: DrawnSpecialExitEntry[];
 };
 
 function getLabelColor(color: MapData.Color): string {
@@ -119,12 +157,13 @@ export class ScenePipeline {
     private readonly gridLayer: LayerNode;
     private readonly linkLayer: LayerNode;
     private readonly roomLayer: LayerNode;
+    private readonly topLabelLayer: LayerNode | undefined;
 
     constructor(
         mapReader: MapReader,
         settings: Settings,
         backend: DrawingBackend,
-        layers: { gridLayer: LayerNode; linkLayer: LayerNode; roomLayer: LayerNode },
+        layers: { gridLayer: LayerNode; linkLayer: LayerNode; roomLayer: LayerNode; topLabelLayer?: LayerNode },
     ) {
         this.mapReader = mapReader;
         this.settings = settings;
@@ -132,6 +171,7 @@ export class ScenePipeline {
         this.gridLayer = layers.gridLayer;
         this.linkLayer = layers.linkLayer;
         this.roomLayer = layers.roomLayer;
+        this.topLabelLayer = layers.topLabelLayer;
 
         this.roomShapeRenderer = new RoomShapeRenderer(mapReader, settings, backend);
         this.gridRenderer = new GridRenderer(layers.gridLayer, settings, backend);
@@ -148,6 +188,7 @@ export class ScenePipeline {
         this.gridRenderer.invalidateCache();
         this.linkLayer.destroyChildren();
         this.roomLayer.destroyChildren();
+        this.topLabelLayer?.destroyChildren();
 
         // Grid
         if (viewportBounds) {
@@ -161,7 +202,7 @@ export class ScenePipeline {
         const exitResult = this.renderLinkExits(area.getLinkExits(zIndex), zIndex);
 
         // Rooms (with stubs, special exits, inner exits)
-        const roomResult = this.renderRooms(plane.getRooms() ?? []);
+        const roomResult = this.renderRooms(plane.getRooms() ?? [], zIndex);
 
         // Area name
         this.renderAreaName(area, plane);
@@ -182,6 +223,8 @@ export class ScenePipeline {
             roomNodes: roomResult.roomNodes,
             standaloneExitNodes: exitResult.standaloneExitNodes,
             areaExitHitZones,
+            drawnExits: exitResult.drawnExits,
+            drawnSpecialExits: roomResult.drawnSpecialExits,
         };
     }
 
@@ -191,9 +234,10 @@ export class ScenePipeline {
 
     // --- Rooms ---
 
-    private renderRooms(rooms: MapData.Room[]) {
+    private renderRooms(rooms: MapData.Room[], _zIndex: number) {
         const roomNodes = new Map<number, RoomNodeEntry>();
         const areaExitHitZones: AreaExitHitZone[] = [];
+        const drawnSpecialExits: DrawnSpecialExitEntry[] = [];
         const rs = this.settings.roomSize;
         const depthOff = this.backend.getExitDepthOffset();
 
@@ -227,6 +271,26 @@ export class ScenePipeline {
                     });
                 }
                 this.linkLayer.addNode(seGroup);
+                // Record drawn geometry for hit-testing consumers.
+                const pts = se.line.points;
+                let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+                for (let i = 0; i < pts.length; i += 2) {
+                    if (pts[i] < minX) minX = pts[i];
+                    if (pts[i] > maxX) maxX = pts[i];
+                    if (pts[i + 1] < minY) minY = pts[i + 1];
+                    if (pts[i + 1] > maxY) maxY = pts[i + 1];
+                }
+                drawnSpecialExits.push({
+                    roomId: room.id,
+                    exitName: se.dir,
+                    points: pts,
+                    stroke: se.line.stroke,
+                    strokeWidth: se.line.strokeWidth,
+                    dash: se.line.dash,
+                    hasArrow: !!se.arrow,
+                    arrowTip: se.arrow ? { x: se.arrow.tipX, y: se.arrow.tipY } : undefined,
+                    bounds: { x: minX, y: minY, width: maxX - minX, height: maxY - minY },
+                });
             }
 
             // Area exit hit zones from special exits (custom lines to other areas)
@@ -282,7 +346,7 @@ export class ScenePipeline {
             roomNodes.set(room.id, {room, group: roomNode});
         });
 
-        return {roomNodes, areaExitHitZones};
+        return {roomNodes, areaExitHitZones, drawnSpecialExits};
     }
 
     // --- Link Exits ---
@@ -290,6 +354,7 @@ export class ScenePipeline {
     private renderLinkExits(exits: Exit[], zIndex: number) {
         const standaloneExitNodes: StandaloneExitEntry[] = [];
         const areaExitHitZones: AreaExitHitZone[] = [];
+        const drawnExits: DrawnExitEntry[] = [];
 
         exits.forEach(exit => {
             const data = this.exitRenderer.renderData(exit, zIndex);
@@ -297,6 +362,15 @@ export class ScenePipeline {
             const group = this.renderExitData(data);
             this.linkLayer.addNode(group);
             standaloneExitNodes.push({group, bounds: data.bounds, targetRoomId: data.targetRoomId});
+            drawnExits.push({
+                a: exit.a,
+                b: exit.b,
+                aDir: exit.aDir,
+                bDir: exit.bDir,
+                kind: exit.kind ?? "exit",
+                zIndex: exit.zIndex,
+                data,
+            });
             if (data.targetRoomId !== undefined) {
                 areaExitHitZones.push({
                     bounds: data.bounds,
@@ -308,7 +382,7 @@ export class ScenePipeline {
             }
         });
 
-        return {standaloneExitNodes, areaExitHitZones};
+        return {standaloneExitNodes, areaExitHitZones, drawnExits};
     }
 
     /** Render ExitDrawData through the DrawingBackend. */
@@ -359,29 +433,41 @@ export class ScenePipeline {
 
     // --- Labels ---
 
+    private targetLabelLayer(label: MapData.Label): LayerNode {
+        return (label.showOnTop && this.topLabelLayer) ? this.topLabelLayer : this.linkLayer;
+    }
+
     private renderLabels(labels: MapData.Label[]) {
         if (this.settings.labelRenderMode === "none") return;
 
         labels.forEach(label => {
             const lx = label.X;
             const ly = -label.Y;
+            const noScaling = !!label.noScaling;
+            // noScaling groups are anchored at (lx,ly) with content at (0,0) so the
+            // RecordingLayerNode can cancel out the stage zoom for those groups only.
+            const gx = noScaling ? lx : 0;
+            const gy = noScaling ? ly : 0;
+            const cx = noScaling ? 0 : lx;
+            const cy = noScaling ? 0 : ly;
 
             if (this.settings.labelRenderMode === "image" && label.pixMap) {
-                const group = this.backend.createGroup(0, 0);
+                const group = this.backend.createGroup(gx, gy);
                 this.backend.addImage(group, {
-                    x: lx, y: ly,
+                    x: cx, y: cy,
                     width: label.Width, height: label.Height,
                     src: `data:image/png;base64,${label.pixMap}`,
                 });
-                this.linkLayer.addNode(group);
+                if (noScaling) group.noScaling = true;
+                this.targetLabelLayer(label).addNode(group);
                 return;
             }
 
-            const group = this.backend.createGroup(0, 0);
+            const group = this.backend.createGroup(gx, gy);
 
             if ((label.BgColor?.alpha ?? 0) > 0 && !this.settings.transparentLabels) {
                 this.backend.addRect(group, {
-                    x: lx, y: ly, width: label.Width, height: label.Height,
+                    x: cx, y: cy, width: label.Width, height: label.Height,
                     fill: getLabelColor(label.BgColor),
                 });
             }
@@ -391,7 +477,7 @@ export class ScenePipeline {
                 const fontSize = Math.max(0.1, Math.min(ratio, Math.max(label.Height * 0.9, 0.1)));
 
                 this.backend.addText(group, {
-                    x: lx, y: ly,
+                    x: cx, y: cy,
                     width: label.Width, height: label.Height,
                     text: label.Text,
                     fontSize,
@@ -401,7 +487,8 @@ export class ScenePipeline {
                 });
             }
 
-            this.linkLayer.addNode(group);
+            if (noScaling) group.noScaling = true;
+            this.targetLabelLayer(label).addNode(group);
         });
     }
 

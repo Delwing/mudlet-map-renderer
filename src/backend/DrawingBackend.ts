@@ -16,6 +16,8 @@ export interface GroupNode {
     setPosition(x: number, y: number): void;
     getPosition(): { x: number; y: number };
     moveToTop(): void;
+    /** When true, this group renders at a fixed pixel size regardless of zoom level. */
+    noScaling?: boolean;
 }
 
 export interface LayerNode {

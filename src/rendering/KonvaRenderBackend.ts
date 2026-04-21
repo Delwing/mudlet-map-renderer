@@ -3,7 +3,7 @@ import type Area from "../reader/Area";
 import type Plane from "../reader/Plane";
 import type {RendererEventMap} from "../types/Settings";
 import {ScenePipeline} from "../ScenePipeline";
-import type {SceneBuildResult, AreaExitHitZone} from "../ScenePipeline";
+import type {SceneBuildResult, AreaExitHitZone, DrawnExitEntry, DrawnSpecialExitEntry} from "../ScenePipeline";
 import type {MapState} from "../MapState";
 import {Viewport} from "../Viewport";
 import {CullingManager} from "../CullingManager";
@@ -45,6 +45,7 @@ export class KonvaRenderBackend implements InteractiveBackend {
     readonly gridLayer: Konva.Layer;
     readonly linkLayer: Konva.Layer;
     readonly roomLayer: Konva.Layer;
+    readonly topLabelLayer: Konva.Layer;
     readonly overlayLayer: Konva.Layer;
     readonly positionLayer: Konva.Layer;
 
@@ -107,6 +108,8 @@ export class KonvaRenderBackend implements InteractiveBackend {
         this.stage.add(this.positionLayer);
         this.overlayLayer = new Konva.Layer({listening: false});
         this.stage.add(this.overlayLayer);
+        this.topLabelLayer = new Konva.Layer({listening: false});
+        this.stage.add(this.topLabelLayer);
 
         this.drawingBackend = drawingBackend ?? new CanvasBackend();
         this.positionLayerNode = new KonvaLayerNode(this.positionLayer);
@@ -118,6 +121,7 @@ export class KonvaRenderBackend implements InteractiveBackend {
             gridLayer: new RecordingLayerNode(this.gridLayer),
             linkLayer: sceneLinkLayer,
             roomLayer: sceneRoomLayer,
+            topLabelLayer: new RecordingLayerNode(this.topLabelLayer),
         });
 
         this.events = new TypedEventEmitter<RendererEventMap>(container);
@@ -160,6 +164,7 @@ export class KonvaRenderBackend implements InteractiveBackend {
             gridLayer: new RecordingLayerNode(this.gridLayer),
             linkLayer: new RecordingLayerNode(this.linkLayer),
             roomLayer: new RecordingLayerNode(this.roomLayer),
+            topLabelLayer: new RecordingLayerNode(this.topLabelLayer),
         });
         this.applyDrawingBackendTransforms(backend);
     }
@@ -203,6 +208,14 @@ export class KonvaRenderBackend implements InteractiveBackend {
 
     get exitRenderer() {
         return this.pipeline.exitRenderer;
+    }
+
+    getDrawnExits(): readonly DrawnExitEntry[] {
+        return this.lastBuildResult?.drawnExits ?? [];
+    }
+
+    getDrawnSpecialExits(): readonly DrawnSpecialExitEntry[] {
+        return this.lastBuildResult?.drawnSpecialExits ?? [];
     }
 
     get roomShapeRenderer() {
@@ -400,7 +413,16 @@ export class KonvaRenderBackend implements InteractiveBackend {
         const {currentAreaInstance, currentZIndex, positionRoomId} = this.state;
         if (!currentAreaInstance || currentZIndex === undefined) return;
         const plane = currentAreaInstance.getPlane(currentZIndex);
-        if (!plane) return;
+        if (!plane) {
+            this.culling.clear();
+            this.areaExitHitZones = [];
+            this.lastBuildResult = undefined;
+            this.gridLayer.destroyChildren();
+            this.linkLayer.destroyChildren();
+            this.roomLayer.destroyChildren();
+            this.stage.batchDraw();
+            return;
+        }
         this.updateBackground();
         const result = this.buildScene(currentAreaInstance, plane, currentZIndex, this.viewport.getViewportBounds());
         this.onSceneBuilt(result);
