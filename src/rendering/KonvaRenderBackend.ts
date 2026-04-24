@@ -80,8 +80,9 @@ export class KonvaRenderBackend implements InteractiveBackend {
     private sceneOverlayNodes: Map<string, GroupNode[]> = new Map();
     private cameraSubscribers: Set<() => void> = new Set();
 
-    constructor(state: MapState, container?: HTMLDivElement, drawingBackend?: DrawingBackend) {
+    constructor(state: MapState, camera: Camera, container?: HTMLDivElement, drawingBackend?: DrawingBackend) {
         this.state = state;
+        this.camera = camera;
         this.container = container;
 
         if (container) {
@@ -92,10 +93,8 @@ export class KonvaRenderBackend implements InteractiveBackend {
                 draggable: false,
             });
             container.style.backgroundColor = state.settings.backgroundColor;
-            this.camera = new Camera(container.clientWidth, container.clientHeight);
         } else {
             this.stage = new Konva.Stage({width: 1, height: 1});
-            this.camera = new Camera(1, 1);
         }
 
         this.gridLayer = new Konva.Layer({listening: false});

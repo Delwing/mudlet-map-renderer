@@ -8,7 +8,7 @@ import {KonvaRenderBackend} from "./KonvaRenderBackend";
 import type {DrawingBackend, CoordFn, Style} from "../backend/DrawingBackend";
 import {identityStyle} from "../backend/DrawingBackend";
 import {CanvasBackend} from "../backend/CanvasBackend";
-import type {Camera} from "../Camera";
+import {Camera} from "../Camera";
 import type {CullingManager} from "../CullingManager";
 import type {TypedEventEmitter} from "../TypedEventEmitter";
 import type {LiveEffect} from "../overlay/LiveEffect";
@@ -18,7 +18,6 @@ import type {DrawnExitEntry, DrawnSpecialExitEntry, DrawnStubEntry} from "../Sce
 
 /** Contract for interactive render backends. */
 export interface InteractiveBackend {
-    readonly camera: Camera;
     readonly culling: CullingManager;
     readonly events: TypedEventEmitter<RendererEventMap>;
     /** Forward map → render-space transform from the current drawing backend. */
@@ -76,6 +75,7 @@ export interface InteractiveBackend {
  */
 export class MapRenderer {
     readonly state: MapState;
+    readonly camera: Camera;
     readonly backend: InteractiveBackend;
     private currentStyle: Style = identityStyle;
 
@@ -87,20 +87,24 @@ export class MapRenderer {
      * @param mapReader       Map data source.
      * @param settings        Renderer settings. Defaults to `createSettings()`.
      * @param container       DOM element for interactive rendering. Omit for headless.
-     * @param backendFactory  Optional factory that receives the `MapState` and returns
+     * @param backendFactory  Optional factory that receives the `MapState` and `Camera` and returns
      *   a custom `InteractiveBackend`. When omitted, a `KonvaRenderBackend` is created.
      */
     constructor(
         mapReader: MapReader,
         settings?: Settings,
         container?: HTMLDivElement,
-        backendFactory?: (state: MapState) => InteractiveBackend,
+        backendFactory?: (state: MapState, camera: Camera) => InteractiveBackend,
     ) {
         const resolvedSettings = settings ?? createSettings();
         this.state = new MapState(mapReader, resolvedSettings);
+        this.camera = new Camera(
+            container?.clientWidth ?? 1,
+            container?.clientHeight ?? 1,
+        );
         this.backend = backendFactory
-            ? backendFactory(this.state)
-            : new KonvaRenderBackend(this.state, container);
+            ? backendFactory(this.state, this.camera)
+            : new KonvaRenderBackend(this.state, this.camera, container);
     }
 
     destroy() {
@@ -276,19 +280,19 @@ export class MapRenderer {
     }
 
     setZoom(zoom: number): boolean {
-        return this.backend.camera.setZoom(zoom);
+        return this.camera.setZoom(zoom);
     }
 
     zoomToCenter(zoom: number): boolean {
-        return this.backend.camera.zoomToCenter(zoom);
+        return this.camera.zoomToCenter(zoom);
     }
 
     getZoom(): number {
-        return this.backend.camera.zoom;
+        return this.camera.zoom;
     }
 
     getViewportBounds(): ViewportBounds {
-        return this.backend.camera.getViewportBounds();
+        return this.camera.getViewportBounds();
     }
 
     getAreaBounds(): ViewportBounds | null {
@@ -319,23 +323,23 @@ export class MapRenderer {
     fitArea(insets?: { top?: number; right?: number; bottom?: number; left?: number }) {
         const bounds = this.getAreaBounds();
         if (!bounds) return;
-        this.backend.camera.fitToMapBounds(bounds.minX, bounds.maxX, bounds.minY, bounds.maxY, insets);
+        this.camera.fitToMapBounds(bounds.minX, bounds.maxX, bounds.minY, bounds.maxY, insets);
     }
 
     get centerOnResize(): boolean {
-        return this.backend.camera.centerOnResize;
+        return this.camera.centerOnResize;
     }
 
     set centerOnResize(value: boolean) {
-        this.backend.camera.centerOnResize = value;
+        this.camera.centerOnResize = value;
     }
 
     get minZoom(): number {
-        return this.backend.camera.minZoom;
+        return this.camera.minZoom;
     }
 
     set minZoom(value: number) {
-        this.backend.camera.minZoom = value;
+        this.camera.minZoom = value;
     }
 
     setCullingMode(mode: CullingMode) {
