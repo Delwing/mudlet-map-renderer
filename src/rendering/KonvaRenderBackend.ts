@@ -531,7 +531,11 @@ export class KonvaRenderBackend implements InteractiveBackend {
             const room = state.mapReader.getRoom(roomId);
             if (room) {
                 const p = this.mapPoint(room.x, room.y);
-                this.camera.panToMapPoint(p.x, p.y);
+                if (instant || this.state.settings.instantMapMove) {
+                    this.camera.panToMapPoint(p.x, p.y);
+                } else {
+                    this.interactionHandler?.animatePanTo(p.x, p.y);
+                }
             }
         });
 
@@ -605,7 +609,11 @@ export class KonvaRenderBackend implements InteractiveBackend {
 
         if (center) {
             const p = this.mapPoint(room.x, room.y);
-            this.camera.panToMapPoint(p.x, p.y);
+            if (instant || this.state.settings.instantMapMove) {
+                this.camera.panToMapPoint(p.x, p.y);
+            } else {
+                this.interactionHandler?.animatePanTo(p.x, p.y);
+            }
         }
 
         this.updateCurrentRoomOverlay(room);

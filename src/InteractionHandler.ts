@@ -38,6 +38,7 @@ export class InteractionHandler {
     private lastPinchDistance?: number;
     private readonly cleanupFns: (() => void)[] = [];
     private destroyed = false;
+    private animationId?: number;
 
     /** Skip cursor changes when an external consumer (e.g. the editor) owns cursor management. */
     private setCursor(value: string) {
@@ -67,10 +68,58 @@ export class InteractionHandler {
     destroy() {
         if (this.destroyed) return;
         this.destroyed = true;
+        this.cancelAnimation();
         for (const cleanup of this.cleanupFns) {
             cleanup();
         }
         this.cleanupFns.length = 0;
+    }
+
+    cancelAnimation(): void {
+        if (this.animationId !== undefined) {
+            cancelAnimationFrame(this.animationId);
+            this.animationId = undefined;
+        }
+    }
+
+    animatePanTo(x: number, y: number, durationMs = 200): void {
+        this.cancelAnimation();
+        const startPos = { ...this.camera.position };
+        const scale = this.camera.getScale();
+        const targetPos = {
+            x: this.camera.width / 2 - x * scale,
+            y: this.camera.height / 2 - y * scale,
+        };
+
+        const start = performance.now();
+        const raf = typeof requestAnimationFrame !== 'undefined'
+            ? requestAnimationFrame
+            : (cb: FrameRequestCallback) => setTimeout(() => cb(performance.now()), 16) as unknown as number;
+
+        const step = (now: number) => {
+            const elapsed = now - start;
+            const progress = Math.min(elapsed / durationMs, 1);
+            const t = this.easeInOut(progress);
+            this.camera.position = {
+                x: startPos.x + (targetPos.x - startPos.x) * t,
+                y: startPos.y + (targetPos.y - startPos.y) * t,
+            };
+            this.camera.onChange?.();
+
+            if (progress < 1) {
+                this.animationId = raf(step);
+            } else {
+                this.camera.position = targetPos;
+                this.camera.onChange?.();
+                this.animationId = undefined;
+            }
+        };
+
+        this.animationId = raf(step);
+    }
+
+    private easeInOut(t: number): number {
+        return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
     }
 
     private listen<K extends keyof HTMLElementEventMap>(
@@ -122,6 +171,7 @@ export class InteractionHandler {
 
         this.listen(container, 'pointerdown', (e) => {
             if (e.button !== 0 || e.pointerType === 'touch') return;
+            this.cancelAnimation();
             pointerDown = true;
             pointerId = e.pointerId;
             container.setPointerCapture(e.pointerId);
@@ -156,6 +206,7 @@ export class InteractionHandler {
 
         this.listen(container, 'touchstart', (e: TouchEvent) => {
             if (e.touches.length === 1) {
+                this.cancelAnimation();
                 const touch = e.touches[0];
                 touchDragId = touch.identifier;
                 const rect = container.getBoundingClientRect();
