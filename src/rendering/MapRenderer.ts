@@ -76,6 +76,7 @@ export interface InteractiveBackend {
 export class MapRenderer {
     readonly state: MapState;
     readonly camera: Camera;
+    readonly culling: CullingManager;
     readonly backend: InteractiveBackend;
     private currentStyle: Style = identityStyle;
 
@@ -105,6 +106,7 @@ export class MapRenderer {
         this.backend = backendFactory
             ? backendFactory(this.state, this.camera)
             : new KonvaRenderBackend(this.state, this.camera, container);
+        this.culling = this.backend.culling;
     }
 
     destroy() {
@@ -342,10 +344,20 @@ export class MapRenderer {
         this.camera.minZoom = value;
     }
 
+    findRoomAtMap(mapX: number, mapY: number): MapData.Room | null {
+        return this.culling.findRoomAtMapPoint(mapX, mapY);
+    }
+
+    findRoomAtScreen(screenX: number, screenY: number, containerOffset?: { left: number; top: number }): MapData.Room | null {
+        const p = this.camera.clientToMapPoint(screenX, screenY, containerOffset);
+        if (!p) return null;
+        return this.culling.findRoomAtMapPoint(p.x, p.y);
+    }
+
     setCullingMode(mode: CullingMode) {
         this.state.settings.cullingMode = mode;
         this.state.settings.cullingEnabled = mode !== "none";
-        this.backend.culling.scheduleCulling();
+        this.culling.scheduleCulling();
     }
 
     getCullingMode(): CullingMode {

@@ -1,4 +1,4 @@
-import type {Settings, CullingMode, PerfSnapshot} from "./types/Settings";
+import type {Settings, CullingMode, PerfSnapshot, ViewportBounds} from "./types/Settings";
 import type {GroupNode, LayerNode} from "./backend/DrawingBackend";
 
 export type CoordinateTransform = (x: number, y: number) => { x: number; y: number };
@@ -216,6 +216,23 @@ export class CullingManager {
             }
         }
         return best;
+    }
+
+    queryRoomsInBounds(bounds: ViewportBounds): MapData.Room[] {
+        const {minX, minY, maxX, maxY} = bounds;
+        const halfSize = this.settings.roomSize / 2;
+        const candidates = this.collectRoomCandidates(minX - halfSize, minY - halfSize, maxX + halfSize, maxY + halfSize);
+        const result: MapData.Room[] = [];
+        candidates.forEach(entry => {
+            const t = this.transformBounds({
+                x: entry.room.x - halfSize, y: entry.room.y - halfSize,
+                width: this.settings.roomSize, height: this.settings.roomSize,
+            });
+            if (t.x + t.width >= minX && t.x <= maxX && t.y + t.height >= minY && t.y <= maxY) {
+                result.push(entry.room);
+            }
+        });
+        return result;
     }
 
     markExitBoundsStale() {
