@@ -6,38 +6,19 @@ This document describes the high-level architecture of **mudlet-map-renderer**, 
 
 ## System Overview
 
-### Component Ownership
-
-`MapRenderer` is the Konva-free core. `KonvaLayerManager` is a separate optional injectable that adds interactive canvas support.
-
 ```mermaid
-graph LR
-    JSON[/"Mudlet Map JSON"/] --> MR
+flowchart TD
+    JSON[/"Mudlet Map JSON"/]
 
-    subgraph MR["MapRenderer — Konva-free"]
-        MS[MapState]
-        CAM[Camera]
-        CM[CullingManager]
-        SP[ScenePipeline]
-    end
+    MR["MapRenderer\nMapState · Camera · CullingManager · ScenePipeline"]
 
-    MR -.->|"new KonvaLayerManager(container, renderer)"| KLM
+    JSON -->|parse| MR
 
-    subgraph KLM["KonvaLayerManager — optional"]
-        Stage["Konva Stage + layers"]
-        IH[InteractionHandler]
-    end
-```
+    MR -->|"+ KonvaLayerManager(container, renderer)"| INTER["KonvaLayerManager\nStage · layers · InteractionHandler · live effects"]
+    MR -->|"export(new SvgExporter())"| SVG["SVG string"]
+    MR -->|"+ KonvaLayerManager(undefined, renderer)\nexport(new CanvasExporter())"| PNG["PNG / headless canvas"]
 
-### Three Usage Paths
-
-```mermaid
-graph LR
-    MR[MapRenderer]
-
-    MR -->|"+ KonvaLayerManager(container)"| A["Interactive canvas<br/>in browser"]
-    MR -->|"export(new SvgExporter())"| B["SVG string"]
-    MR -->|"+ KonvaLayerManager(undefined)<br/>export(new CanvasExporter())"| C["PNG / headless"]
+    INTER --> Browser["Interactive canvas in browser"]
 ```
 
 ---
