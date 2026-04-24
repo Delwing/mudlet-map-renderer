@@ -10,18 +10,29 @@ This document describes the high-level architecture of **mudlet-map-renderer**, 
 flowchart TD
     JSON[/"Mudlet Map JSON"/]
 
-    subgraph MR["MapRenderer — Konva-free core"]
+    subgraph Data["Data Layer"]
+        MR[MapReader] --> Area[Area] --> Plane[Plane]
+    end
+
+    subgraph Core["MapRenderer — Konva-free core"]
         direction LR
         MS[MapState] --> SP[ScenePipeline]
         CAM[Camera] --> CM[CullingManager]
         CAM --> SP
     end
 
-    JSON -->|parse| MR
+    subgraph KLM["KonvaLayerManager"]
+        Stage["Stage + layers"]
+        IH[InteractionHandler]
+    end
 
-    MR -->|"+ new KonvaLayerManager(container, renderer)"| INTER["Interactive canvas\nStage · layers · InteractionHandler · live effects"]
-    MR -->|"export(new SvgExporter())"| SVG["SVG string"]
-    MR -->|"+ new KonvaLayerManager(undefined)\nexport(new CanvasExporter())"| PNG["PNG / headless canvas"]
+    JSON --> Data
+    Data --> Core
+    Core -->|"new KonvaLayerManager(container?, renderer)"| KLM
+    Core -->|"export(new SvgExporter())"| SVG["SVG string"]
+
+    KLM -->|"interactive"| Browser["Browser canvas"]
+    KLM -->|"export(new CanvasExporter())"| PNG["PNG / headless"]
 ```
 
 ---
