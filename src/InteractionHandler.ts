@@ -1,6 +1,6 @@
 import type {Settings, RendererEventMap} from "./types/Settings";
 import type {TypedEventEmitter} from "./TypedEventEmitter";
-import type {Viewport} from "./Viewport";
+import type {Camera} from "./Camera";
 import type {MapState} from "./MapState";
 
 type Bounds = { x: number; y: number; width: number; height: number };
@@ -30,7 +30,7 @@ export class InteractionHandler {
 
     private readonly container: HTMLDivElement;
     private readonly settings: Settings;
-    private readonly viewport: Viewport;
+    private readonly camera: Camera;
     private readonly state: MapState;
     private readonly hitTest: HitTestCallbacks;
     private readonly events: TypedEventEmitter<RendererEventMap>;
@@ -47,14 +47,14 @@ export class InteractionHandler {
 
     constructor(
         container: HTMLDivElement,
-        viewport: Viewport,
+        viewport: Camera,
         state: MapState,
         settings: Settings,
         hitTest: HitTestCallbacks,
         events: TypedEventEmitter<RendererEventMap>,
     ) {
         this.container = container;
-        this.viewport = viewport;
+        this.camera = viewport;
         this.state = state;
         this.settings = settings;
         this.hitTest = hitTest;
@@ -99,7 +99,7 @@ export class InteractionHandler {
 
     private initViewportEvents() {
         const container = this.container;
-        const viewport = this.viewport;
+        const viewport = this.camera;
         const scaleBy = 1.1;
 
         // --- Resize ---
@@ -241,11 +241,11 @@ export class InteractionHandler {
 
         const centerX = (p1.x + p2.x) / 2;
         const centerY = (p1.y + p2.y) / 2;
-        const newZoom = this.viewport.zoom * (distance / this.lastPinchDistance);
+        const newZoom = this.camera.zoom * (distance / this.lastPinchDistance);
 
-        if (this.viewport.zoomToPoint(newZoom, centerX, centerY)) {
-            this.events.emit('zoom', {zoom: this.viewport.zoom});
-            this.events.emit('pan', this.viewport.getViewportBounds());
+        if (this.camera.zoomToPoint(newZoom, centerX, centerY)) {
+            this.events.emit('zoom', {zoom: this.camera.zoom});
+            this.events.emit('pan', this.camera.getViewportBounds());
         }
 
         this.lastPinchDistance = distance;

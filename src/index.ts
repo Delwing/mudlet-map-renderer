@@ -16,7 +16,7 @@ export type { ExitDrawData, ExitDrawLine, ExitDrawArrow, ExitDrawDoor } from './
 export { MapState } from './MapState';
 export type { MapStateEventMap, HighlightEntry, PathEntry } from './MapState';
 export { KonvaRenderBackend } from './rendering/KonvaRenderBackend';
-export { Viewport } from './Viewport';
+export { Camera } from './Camera';
 
 // --- Drawing primitives ---
 export type {
