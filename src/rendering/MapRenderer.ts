@@ -25,6 +25,7 @@ export interface RenderingBackend {
     readonly events: TypedEventEmitter<RendererEventMap>;
     readonly coordinateTransform: CoordFn;
     setStyle(style: Style): void;
+    updateBackground(): void;
     refresh(): void;
     onSceneOverlayAdded(id: string, overlay: SceneOverlay): void;
     onSceneOverlayRemoved(id: string): void;
@@ -142,6 +143,8 @@ export class MapRenderer {
 
     clearStyle() { this.setStyle(identityStyle); }
     getStyle(): Style { return this.currentStyle; }
+
+    updateBackground() { this.backend?.updateBackground(); }
 
     refresh() { this.backend?.refresh(); }
 

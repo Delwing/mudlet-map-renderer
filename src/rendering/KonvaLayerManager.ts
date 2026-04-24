@@ -84,10 +84,13 @@ export class KonvaLayerManager implements RenderingBackend {
     private sceneOverlayNodes: Map<string, GroupNode[]> = new Map();
     private cameraSubscribers: Set<() => void> = new Set();
 
+    private readonly container?: HTMLDivElement;
+
     constructor(container: HTMLDivElement | undefined, renderer: MapRenderer) {
         this.renderer = renderer;
         this.state = renderer.state;
         this.camera = renderer.camera;
+        this.container = container;
 
         const settings = this.state.settings;
 
@@ -164,6 +167,12 @@ export class KonvaLayerManager implements RenderingBackend {
 
     setStyle(style: Style) {
         this.applyDrawingBackend(style(new CanvasBackend()));
+    }
+
+    updateBackground() {
+        if (this.container) {
+            this.container.style.backgroundColor = this.state.settings.backgroundColor;
+        }
     }
 
     refresh() {
