@@ -29,7 +29,7 @@ export class DemoPreview {
         this.previewBg = document.getElementById("demo-preview-bg") as HTMLElement;
         this.previewPan = document.getElementById("demo-preview-pan") as HTMLElement;
 
-        this.stage.addEventListener("pan", () => this.update());
+        renderer.camera.addChangeListener(() => this.update());
     }
 
     /** Capture a fresh full-area thumbnail (call after area change or render-mode change). */

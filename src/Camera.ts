@@ -4,9 +4,12 @@ const BASE_SCALE = 75;
 
 /**
  * Engine-agnostic camera — owns all transform state and drag.
- * The rendering backend subscribes to onChange and applies the state to its stage.
- *
  * No Konva, no DOM. Only dependency is the types/Settings module.
+ *
+ * Subscribe to viewport changes (pan, zoom, resize) via {@link addChangeListener}.
+ * This fires for *all* camera changes — user gestures, animated pans, and
+ * programmatic updates alike. Use it instead of the renderer's `pan` event
+ * when you need to track full viewport state (e.g. a minimap overlay).
  */
 export class Camera {
     zoom: number = 1;
@@ -18,8 +21,7 @@ export class Camera {
     /** When true, resizing re-centers on the last panToMapPoint target. */
     centerOnResize: boolean = true;
 
-    /** Called after any state change (zoom, position, size). Backend applies to stage. */
-    onChange?: () => void;
+    private readonly listeners: Set<() => void> = new Set();
 
     // --- Drag state ---
     private dragging = false;
@@ -29,6 +31,23 @@ export class Camera {
     constructor(width: number, height: number) {
         this.width = width;
         this.height = height;
+    }
+
+    /**
+     * Subscribe to all camera state changes (zoom, pan, resize).
+     * Returns an unsubscribe function — call it to clean up.
+     *
+     * Prefer this over the renderer's `pan` event for UI that mirrors the
+     * viewport (e.g. minimaps), since `pan` only fires on user gestures and
+     * misses animated or programmatic camera moves.
+     */
+    addChangeListener(cb: () => void): () => void {
+        this.listeners.add(cb);
+        return () => this.listeners.delete(cb);
+    }
+
+    removeChangeListener(cb: () => void): void {
+        this.listeners.delete(cb);
     }
 
     getScale(): number {
@@ -225,7 +244,15 @@ export class Camera {
         return this.dragging;
     }
 
+    /**
+     * Notify all change listeners. Call this after directly mutating `position`
+     * or other camera fields outside of Camera's own methods.
+     */
+    notifyChange(): void {
+        for (const cb of this.listeners) cb();
+    }
+
     private notify() {
-        this.onChange?.();
+        this.notifyChange();
     }
 }

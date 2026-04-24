@@ -56,6 +56,13 @@ export type RendererEventMap = {
     roomcontextmenu: RoomContextMenuEventDetail;
     areaexitclick: AreaExitClickEventDetail;
     mapclick: undefined;
+    /**
+     * Fires when the user pans via mouse drag, touch, or scroll wheel.
+     * **Does not fire** for programmatic pans or animated center-on-room moves.
+     *
+     * To track all viewport changes (including animated and programmatic),
+     * use `renderer.camera.addChangeListener(cb)` instead.
+     */
     pan: PanEventDetail;
     zoom: ZoomChangeEventDetail;
 };

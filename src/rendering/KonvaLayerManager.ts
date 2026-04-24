@@ -68,6 +68,7 @@ export class KonvaLayerManager implements RenderingBackend {
     private readonly camera: Camera;
     private interactionHandler?: InteractionHandler;
     private origCameraSetSize?: (w: number, h: number) => void;
+    private unsubscribeCamera?: () => void;
     private origCameraOnChange?: (() => void) | undefined;
     private destroyed = false;
     private lastBuildResult?: SceneBuildResult;
@@ -154,7 +155,7 @@ export class KonvaLayerManager implements RenderingBackend {
 
         this.applyDrawingBackendTransforms(this.drawingBackend);
 
-        this.camera.onChange = () => this.applyViewportToStage();
+        this.unsubscribeCamera = this.camera.addChangeListener(() => this.applyViewportToStage());
 
         this.subscribeToState();
         renderer._attachBackend(this);
@@ -233,8 +234,9 @@ export class KonvaLayerManager implements RenderingBackend {
         const savedZoom = this.camera.zoom;
         const savedMinZoom = this.camera.minZoom;
         const savedPos = {...this.camera.position};
-        const savedOnChange = this.camera.onChange;
-        this.camera.onChange = undefined;
+        // Suppress camera notifications during export framing
+        this.unsubscribeCamera?.();
+        this.unsubscribeCamera = undefined;
 
         const rawBounds = this.state.computeExportBounds(currentAreaInstance, plane, options.roomId, padding);
         const fn = this._coordinateTransform;
@@ -280,7 +282,7 @@ export class KonvaLayerManager implements RenderingBackend {
         this.camera.zoom = savedZoom;
         this.camera.minZoom = savedMinZoom;
         this.camera.position = savedPos;
-        this.camera.onChange = savedOnChange;
+        this.unsubscribeCamera = this.camera.addChangeListener(() => this.applyViewportToStage());
         this.stage.width(savedWidth);
         this.stage.height(savedHeight);
         this.applyViewportToStage();
@@ -325,7 +327,7 @@ export class KonvaLayerManager implements RenderingBackend {
         this.cameraSubscribers.clear();
 
         if (this.origCameraSetSize) this.camera.setSize = this.origCameraSetSize;
-        this.camera.onChange = undefined;
+        this.unsubscribeCamera?.();
 
         this.clearOverlayShapes();
         this.clearCurrentRoomOverlay();

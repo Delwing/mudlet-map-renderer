@@ -104,13 +104,15 @@ export class InteractionHandler {
                 x: startPos.x + (targetPos.x - startPos.x) * t,
                 y: startPos.y + (targetPos.y - startPos.y) * t,
             };
-            this.camera.onChange?.();
+            this.camera.notifyChange();
+            this.events.emit('pan', this.camera.getViewportBounds());
 
             if (progress < 1) {
                 this.animationId = raf(step);
             } else {
                 this.camera.position = targetPos;
-                this.camera.onChange?.();
+                this.camera.notifyChange();
+                this.events.emit('pan', this.camera.getViewportBounds());
                 this.animationId = undefined;
             }
         };
