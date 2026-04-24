@@ -3,7 +3,7 @@ import type Area from "../reader/Area";
 import type Plane from "../reader/Plane";
 import type {RendererEventMap} from "../types/Settings";
 import {ScenePipeline} from "../ScenePipeline";
-import type {SceneBuildResult, AreaExitHitZone, DrawnExitEntry, DrawnSpecialExitEntry} from "../ScenePipeline";
+import type {SceneBuildResult, AreaExitHitZone, DrawnExitEntry, DrawnSpecialExitEntry, DrawnStubEntry} from "../ScenePipeline";
 import type {MapState} from "../MapState";
 import {Viewport} from "../Viewport";
 import {CullingManager} from "../CullingManager";
@@ -100,10 +100,13 @@ export class KonvaRenderBackend implements InteractiveBackend {
 
         this.gridLayer = new Konva.Layer({listening: false});
         this.stage.add(this.gridLayer);
-        this.linkLayer = new Konva.Layer({listening: false});
-        this.stage.add(this.linkLayer);
-        this.roomLayer = new Konva.Layer({listening: false});
-        this.stage.add(this.roomLayer);
+        // linkLayer and roomLayer share one physical Konva.Layer to stay under
+        // Konva's recommended layer count. Z-order between link exits and rooms
+        // is preserved by insertion order within the shared RecordingLayerNode.
+        const sceneLayer = new Konva.Layer({listening: false});
+        this.linkLayer = sceneLayer;
+        this.roomLayer = sceneLayer;
+        this.stage.add(sceneLayer);
         this.positionLayer = new Konva.Layer({listening: false});
         this.stage.add(this.positionLayer);
         this.overlayLayer = new Konva.Layer({listening: false});
@@ -115,12 +118,11 @@ export class KonvaRenderBackend implements InteractiveBackend {
         this.positionLayerNode = new KonvaLayerNode(this.positionLayer);
         this.overlayLayerNode = new KonvaLayerNode(this.overlayLayer);
 
-        const sceneRoomLayer = new RecordingLayerNode(this.roomLayer);
-        const sceneLinkLayer = new RecordingLayerNode(this.linkLayer);
+        const sceneNode = new RecordingLayerNode(sceneLayer);
         this.pipeline = new ScenePipeline(state.mapReader, state.settings, this.drawingBackend, {
             gridLayer: new RecordingLayerNode(this.gridLayer),
-            linkLayer: sceneLinkLayer,
-            roomLayer: sceneRoomLayer,
+            linkLayer: sceneNode,
+            roomLayer: sceneNode,
             topLabelLayer: new RecordingLayerNode(this.topLabelLayer),
         });
 
@@ -128,8 +130,8 @@ export class KonvaRenderBackend implements InteractiveBackend {
 
         this.culling = new CullingManager(
             this.stage,
-            sceneRoomLayer,
-            sceneLinkLayer,
+            sceneNode,
+            sceneNode,
             state.settings,
         );
 
@@ -160,10 +162,11 @@ export class KonvaRenderBackend implements InteractiveBackend {
 
     setDrawingBackend(backend: DrawingBackend) {
         this.drawingBackend = backend;
+        const sceneNode = new RecordingLayerNode(this.linkLayer);
         this.pipeline = new ScenePipeline(this.state.mapReader, this.state.settings, backend, {
             gridLayer: new RecordingLayerNode(this.gridLayer),
-            linkLayer: new RecordingLayerNode(this.linkLayer),
-            roomLayer: new RecordingLayerNode(this.roomLayer),
+            linkLayer: sceneNode,
+            roomLayer: sceneNode,
             topLabelLayer: new RecordingLayerNode(this.topLabelLayer),
         });
         this.applyDrawingBackendTransforms(backend);
@@ -216,6 +219,10 @@ export class KonvaRenderBackend implements InteractiveBackend {
 
     getDrawnSpecialExits(): readonly DrawnSpecialExitEntry[] {
         return this.lastBuildResult?.drawnSpecialExits ?? [];
+    }
+
+    getDrawnStubs(): readonly DrawnStubEntry[] {
+        return this.lastBuildResult?.drawnStubs ?? [];
     }
 
     get roomShapeRenderer() {
@@ -380,18 +387,19 @@ export class KonvaRenderBackend implements InteractiveBackend {
         this.pipeline.gridRenderer.render(this.viewport.getViewportBounds());
         this.culling.updateCulling();
 
-        // Temporary background layer
-        const bgLayer = new Konva.Layer({listening: false});
-        bgLayer.scale({x: 1 / scale, y: 1 / scale});
-        bgLayer.position({x: -(offsetX - bounds.x * scale) / scale, y: -(offsetY - bounds.y * scale) / scale});
-        bgLayer.add(new Konva.Rect({x: 0, y: 0, width, height, fill: this.state.settings.backgroundColor}));
-        this.stage.add(bgLayer);
-        bgLayer.moveToBottom();
-
-        const canvas = this.stage.toCanvas({width, height});
+        // Composite the transparent stage output onto a background-filled canvas.
+        // Avoids adding a temporary Konva.Layer (which would push the stage back
+        // into the >5-layer warning zone during export).
+        const stageCanvas = this.stage.toCanvas({width, height});
+        const composite = Konva.Util.createCanvasElement();
+        composite.width = stageCanvas.width;
+        composite.height = stageCanvas.height;
+        const ctx = composite.getContext('2d')!;
+        ctx.fillStyle = this.state.settings.backgroundColor;
+        ctx.fillRect(0, 0, composite.width, composite.height);
+        ctx.drawImage(stageCanvas, 0, 0);
 
         // Restore
-        bgLayer.destroy();
         this.viewport.width = savedWidth;
         this.viewport.height = savedHeight;
         this.viewport.zoom = savedZoom;
@@ -404,7 +412,7 @@ export class KonvaRenderBackend implements InteractiveBackend {
         this.applyViewportToStage();
         this.culling.updateCulling();
 
-        return canvas;
+        return composite;
     }
 
     // --- State event handlers ---
@@ -419,7 +427,6 @@ export class KonvaRenderBackend implements InteractiveBackend {
             this.lastBuildResult = undefined;
             this.gridLayer.destroyChildren();
             this.linkLayer.destroyChildren();
-            this.roomLayer.destroyChildren();
             this.stage.batchDraw();
             return;
         }

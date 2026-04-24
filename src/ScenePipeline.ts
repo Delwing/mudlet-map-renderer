@@ -64,12 +64,31 @@ export type DrawnSpecialExitEntry = {
     readonly bounds: Bounds;
 };
 
+/**
+ * One drawn stub — a room's one-way exit indicator (the short line sticking
+ * out of the edge for every entry in `room.stubs`). Rendered directly from
+ * these coordinates by {@link ScenePipeline}, so hit-testing against them
+ * matches what's on screen. Non-planar stubs (up/down/in/out) are still
+ * recorded — x1==x2 and y1==y2 — so consumers can filter them out.
+ */
+export type DrawnStubEntry = {
+    readonly roomId: number;
+    readonly direction: MapData.direction;
+    readonly x1: number;
+    readonly y1: number;
+    readonly x2: number;
+    readonly y2: number;
+    readonly stroke: string;
+    readonly strokeWidth: number;
+};
+
 export type SceneBuildResult = {
     roomNodes: Map<number, RoomNodeEntry>;
     standaloneExitNodes: StandaloneExitEntry[];
     areaExitHitZones: AreaExitHitZone[];
     drawnExits: DrawnExitEntry[];
     drawnSpecialExits: DrawnSpecialExitEntry[];
+    drawnStubs: DrawnStubEntry[];
 };
 
 function getLabelColor(color: MapData.Color): string {
@@ -225,6 +244,7 @@ export class ScenePipeline {
             areaExitHitZones,
             drawnExits: exitResult.drawnExits,
             drawnSpecialExits: roomResult.drawnSpecialExits,
+            drawnStubs: roomResult.drawnStubs,
         };
     }
 
@@ -238,8 +258,15 @@ export class ScenePipeline {
         const roomNodes = new Map<number, RoomNodeEntry>();
         const areaExitHitZones: AreaExitHitZone[] = [];
         const drawnSpecialExits: DrawnSpecialExitEntry[] = [];
+        const drawnStubs: DrawnStubEntry[] = [];
         const rs = this.settings.roomSize;
         const depthOff = this.backend.getExitDepthOffset();
+
+        // Queue room groups and add them to the room layer after all rooms'
+        // special exits and stubs have been added to the link layer. This keeps
+        // the correct z-order (all exits/stubs under all rooms) when the link
+        // and room layers are backed by the same recording node.
+        const queuedRoomNodes: Array<[MapData.Room, GroupNode]> = [];
 
         rooms.forEach(room => {
             // Room shape (through DrawingBackend)
@@ -323,6 +350,14 @@ export class ScenePipeline {
                     strokeWidth: stub.strokeWidth,
                 });
                 this.linkLayer.addNode(stubGroup);
+                drawnStubs.push({
+                    roomId: stub.roomId,
+                    direction: stub.direction,
+                    x1: stub.x1, y1: stub.y1,
+                    x2: stub.x2, y2: stub.y2,
+                    stroke: stub.stroke,
+                    strokeWidth: stub.strokeWidth,
+                });
             }
 
             // Inner exits → room group (relative coordinates)
@@ -342,11 +377,15 @@ export class ScenePipeline {
                 });
             }
 
-            this.roomLayer.addNode(roomNode);
+            queuedRoomNodes.push([room, roomNode]);
             roomNodes.set(room.id, {room, group: roomNode});
         });
 
-        return {roomNodes, areaExitHitZones, drawnSpecialExits};
+        for (const [, roomNode] of queuedRoomNodes) {
+            this.roomLayer.addNode(roomNode);
+        }
+
+        return {roomNodes, areaExitHitZones, drawnSpecialExits, drawnStubs};
     }
 
     // --- Link Exits ---

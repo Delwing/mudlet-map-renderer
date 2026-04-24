@@ -14,7 +14,7 @@ import type {TypedEventEmitter} from "../TypedEventEmitter";
 import type {LiveEffect} from "../overlay/LiveEffect";
 import type {SceneOverlay} from "../overlay/SceneOverlay";
 import type {Exporter, ExportContext, ExportCanvas} from "../export/Exporter";
-import type {DrawnExitEntry, DrawnSpecialExitEntry} from "../ScenePipeline";
+import type {DrawnExitEntry, DrawnSpecialExitEntry, DrawnStubEntry} from "../ScenePipeline";
 
 /** Contract for interactive render backends. */
 export interface InteractiveBackend {
@@ -55,6 +55,8 @@ export interface InteractiveBackend {
     getDrawnExits(): readonly DrawnExitEntry[];
     /** Companion to {@link getDrawnExits} for custom-line special exits. */
     getDrawnSpecialExits(): readonly DrawnSpecialExitEntry[];
+    /** Companion to {@link getDrawnExits} for one-way stub indicators. */
+    getDrawnStubs(): readonly DrawnStubEntry[];
     destroy(): void;
 }
 
@@ -230,6 +232,15 @@ export class MapRenderer {
     /** Companion to {@link getDrawnExits} for custom-line special exits. */
     getDrawnSpecialExits(): readonly DrawnSpecialExitEntry[] {
         return this.backend.getDrawnSpecialExits();
+    }
+
+    /**
+     * Polyline data for every one-way stub indicator the renderer drew
+     * (one entry per direction in `room.stubs`). Coordinates are in
+     * render space and match what's on screen.
+     */
+    getDrawnStubs(): readonly DrawnStubEntry[] {
+        return this.backend.getDrawnStubs();
     }
 
     // --- Export ---

@@ -8,6 +8,8 @@ const dirNumbers: Record<number, MapData.direction> = {
 };
 
 export type StubData = {
+    roomId: number;
+    direction: MapData.direction;
     x1: number; y1: number;
     x2: number; y2: number;
     stroke: string;
@@ -31,6 +33,8 @@ export function computeStubs(room: MapData.Room, settings: Settings, colorOverri
         const start = getRoomEdgePoint(settings, room.x, room.y, direction, settings.roomSize / 2);
         const end = movePoint(room.x, room.y, direction, settings.roomSize / 2 + 0.5);
         stubs.push({
+            roomId: room.id,
+            direction,
             x1: start.x, y1: start.y,
             x2: end.x, y2: end.y,
             stroke: colorOverride ?? settings.lineColor,
