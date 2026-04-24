@@ -2,17 +2,13 @@ import type {ViewportBounds} from "./types/Settings";
 
 const BASE_SCALE = 75;
 
-function easeInOut(t: number): number {
-    return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
-}
-
 /**
- * Engine-agnostic viewport — owns all transform state, drag, and animation.
+ * Engine-agnostic camera — owns all transform state and drag.
  * The rendering backend subscribes to onChange and applies the state to its stage.
  *
- * No Konva, no DOM. Only dependency is requestAnimationFrame (fallback for Node.js).
+ * No Konva, no DOM. Only dependency is the types/Settings module.
  */
-export class Viewport {
+export class Camera {
     zoom: number = 1;
     minZoom: number = 0.05;
     position: { x: number; y: number } = {x: 0, y: 0};
@@ -29,9 +25,6 @@ export class Viewport {
     private dragging = false;
     private dragStart = {x: 0, y: 0};
     private positionAtDragStart = {x: 0, y: 0};
-
-    // --- Animation state ---
-    private animationId?: number;
 
     constructor(width: number, height: number) {
         this.width = width;
@@ -138,30 +131,6 @@ export class Viewport {
     }
 
     /**
-     * Center on a map coordinate, with optional animation.
-     */
-    panToMapPointAnimated(x: number, y: number, instant: boolean) {
-        if (instant) {
-            this.panToMapPoint(x, y);
-            return;
-        }
-
-        const startPos = {...this.position};
-        const scale = this.getScale();
-        const targetPos = {
-            x: this.width / 2 - x * scale,
-            y: this.height / 2 - y * scale,
-        };
-
-        this.animate(200, (t) => {
-            this.position = {
-                x: startPos.x + (targetPos.x - startPos.x) * t,
-                y: startPos.y + (targetPos.y - startPos.y) * t,
-            };
-        });
-    }
-
-    /**
      * Compute the zoom level that would fit the given map bounds in the current
      * viewport (with the same padding/insets as {@link fitToMapBounds}). Useful
      * for updating `minZoom` to lock zoom-out to an area without changing the
@@ -234,7 +203,6 @@ export class Viewport {
     // --- Drag ---
 
     startDrag(screenX: number, screenY: number) {
-        this.cancelAnimation();
         this.dragging = true;
         this.dragStart = {x: screenX, y: screenY};
         this.positionAtDragStart = {...this.position};
@@ -255,43 +223,6 @@ export class Viewport {
 
     isDragging(): boolean {
         return this.dragging;
-    }
-
-    // --- Animation ---
-
-    private animate(durationMs: number, update: (t: number) => void) {
-        this.cancelAnimation();
-
-        const start = performance.now();
-        const raf = typeof requestAnimationFrame !== 'undefined' ? requestAnimationFrame : (cb: FrameRequestCallback) => setTimeout(() => cb(performance.now()), 16) as unknown as number;
-        const caf = typeof cancelAnimationFrame !== 'undefined' ? cancelAnimationFrame : (id: number) => clearTimeout(id);
-
-        const step = (now: number) => {
-            const elapsed = now - start;
-            const progress = Math.min(elapsed / durationMs, 1);
-            update(easeInOut(progress));
-            this.notify();
-
-            if (progress < 1) {
-                this.animationId = raf(step);
-            } else {
-                this.animationId = undefined;
-            }
-        };
-
-        this.animationId = raf(step);
-    }
-
-    cancelAnimation() {
-        if (this.animationId !== undefined) {
-            const caf = typeof cancelAnimationFrame !== 'undefined' ? cancelAnimationFrame : (id: number) => clearTimeout(id);
-            caf(this.animationId);
-            this.animationId = undefined;
-        }
-    }
-
-    isAnimating(): boolean {
-        return this.animationId !== undefined;
     }
 
     private notify() {
