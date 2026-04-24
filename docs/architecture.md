@@ -18,52 +18,50 @@ flowchart TB
         Plane[Plane]
     end
 
-    subgraph State["State Layer"]
-        MS[MapState]
+    subgraph Core["MapRenderer — Konva-free core"]
+        Facade["MapRenderer<br/><i>facade</i>"]
+        CAM["Camera<br/><i>zoom · pan · bounds · listeners</i>"]
+        CM["CullingManager<br/><i>spatial index · uses Camera</i>"]
+        SP["ScenePipeline<br/><i>layers injected at buildScene()</i>"]
     end
 
-    subgraph Rendering["Rendering Layer"]
-        Facade[MapRenderer<br/><i>facade</i>]
-        KB[KonvaRenderBackend]
-        SB[SvgRenderBackend]
+    subgraph KonvaBackend["KonvaLayerManager — injectable"]
+        KLM["KonvaLayerManager<br/><i>stage · layers · interaction · live effects</i>"]
+        IH["InteractionHandler<br/><i>DOM input · animation</i>"]
     end
 
-    subgraph Engine["Engine Abstraction"]
-        SP[ScenePipeline]
-        DB["DrawingBackend<br/><i>interface</i>"]
-        KDB[KonvaBackend]
-        SDB[SvgBackend]
-    end
-
-    subgraph Viewport["Camera & Interaction"]
-        VP[Viewport]
-        CM[CullingManager]
-        IH[InteractionHandler]
+    subgraph Exporters["Export Path"]
+        SVG["SvgExporter<br/><i>SVG layer nodes + shared pipeline</i>"]
+        PNG["CanvasExporter / PngExporter"]
     end
 
     JSON --> MR
     MR --> Area --> Plane
-    MR --> MS
-    MS --> Facade
-    Facade --> KB
-    Facade --> SB
-    KB --> SP
-    SB --> SP
-    SP --> DB
-    DB --> KDB
-    DB --> SDB
-    KB --> VP
-    KB --> CM
-    KB --> IH
-    IH --> VP
-    VP --> CM
+    MR --> Core
+    Facade --> CAM
+    Facade --> CM
+    Facade --> SP
+    Facade -. "optional inject" .-> KLM
+    KLM --> IH
+    IH -- animates --> CAM
+    CAM -- addChangeListener --> KLM
+    SP -- "buildScene(layers)" --> KLM
+    SP -- "buildScene(svgLayers)" --> SVG
+    PNG --> KLM
 ```
 
 ---
 
-## Layered Architecture
+## Key Design Principles
 
-The codebase follows a strict layered design. Each layer depends only on layers below it.
+1. **`MapRenderer` is Konva-free.** It owns state, camera, culling, pipeline, and scene overlays. No Konva import.
+2. **`KonvaLayerManager` is injectable.** Create it separately and pass `renderer` to wire it up. SVG-only use requires no `KonvaLayerManager` at all.
+3. **One `ScenePipeline` code path.** Layer nodes are passed at `buildScene()` time — Konva nodes for interactive, SVG nodes for export. Same code, different output target.
+4. **`Camera` drives everything.** Subscribe to all viewport changes via `camera.addChangeListener()` — fires for user gestures, animated pans, and programmatic moves alike.
+
+---
+
+## Layered Architecture
 
 ```mermaid
 block-beta
@@ -71,30 +69,32 @@ block-beta
     block:API["Public API"]
         A["MapRenderer (facade)"]
     end
-    block:STATE["State"]
-        B["MapState"] C["TypedEventEmitter"]
+    block:BACKEND["Konva Backend (optional)"]
+        B["KonvaLayerManager"] C["InteractionHandler"]
     end
-    block:RENDER["Rendering Backends"]
-        D["KonvaRenderBackend"] E["SvgRenderBackend"]
+    block:STATE["State"]
+        D["MapState"] E["Camera"]
     end
     block:SCENE["Scene Building"]
         F["ScenePipeline"] G["RoomShapeRenderer"] H["ExitRenderer"] I["GridRenderer"]
     end
-    block:BACKEND["Drawing Abstraction"]
-        J["DrawingBackend"] K["KonvaBackend"] L["SvgBackend"]
+    block:DRAWING["Drawing Abstraction"]
+        J["DrawingBackend"] K["KonvaBackend"] L["SvgBackend"] M["CanvasBackend"]
     end
     block:INFRA["Infrastructure"]
-        M["Viewport"] N["CullingManager"] O["InteractionHandler"]
+        N["CullingManager"] O["TypedEventEmitter"]
     end
     block:DATA["Data Model"]
         P["MapReader"] Q["Area / Plane"] R["MapData types"]
     end
 
+    API --> BACKEND
     API --> STATE
-    STATE --> RENDER
-    RENDER --> SCENE
-    SCENE --> BACKEND
-    RENDER --> INFRA
+    BACKEND --> STATE
+    BACKEND --> SCENE
+    STATE --> SCENE
+    SCENE --> DRAWING
+    SCENE --> INFRA
     INFRA --> DATA
 ```
 
@@ -102,38 +102,51 @@ block-beta
 
 ## Data Flow
 
-### Loading and Rendering a Map
+### Setting Up — Interactive Mode
 
 ```mermaid
 sequenceDiagram
     participant App as Application
     participant MR as MapRenderer
-    participant MS as MapState
-    participant KB as KonvaRenderBackend
-    participant SP as ScenePipeline
-    participant VP as Viewport
+    participant KLM as KonvaLayerManager
+    participant CAM as Camera
     participant CM as CullingManager
 
-    App->>MR: new MapRenderer(mapReader, settings, container)
-    MR->>MS: new MapState(mapReader, settings)
-    MR->>KB: new KonvaRenderBackend(state, container)
-    KB->>VP: new Viewport()
-    KB->>CM: new CullingManager()
-    KB-->>MS: subscribe to events
+    App->>MR: new MapRenderer(mapReader, settings)
+    MR->>CAM: new Camera(1, 1)
+    MR->>CM: new CullingManager(camera, settings)
+    MR->>MR: new ScenePipeline(mapReader, settings, backend)
+
+    App->>KLM: new KonvaLayerManager(container, renderer)
+    KLM->>CAM: setSize(container.clientWidth, height)
+    KLM->>CAM: addChangeListener(applyViewportToStage)
+    KLM-->>MR: _attachBackend(this)
 
     App->>MR: drawArea(areaId, zIndex)
-    MR->>MS: setArea(areaId, zIndex)
-    MS-->>KB: emit 'area' event
-    KB->>SP: buildScene(area, plane)
-    SP->>SP: render grid, rooms, exits, labels
-    KB->>CM: buildIndex(roomNodes)
-    KB->>CM: updateCulling()
+    MR->>MR: state.setArea()
+    MR-->>KLM: 'area' event → refresh()
+    KLM->>MR: pipeline.buildScene(area, plane, zIndex, konvaLayers)
+    KLM->>CM: buildIndex(roomNodes)
+    KLM->>CM: updateCulling()
+```
 
-    App->>MR: setPosition(roomId)
-    MR->>MS: setPosition(roomId)
-    MS-->>KB: emit 'position' event
-    KB->>VP: panToMapPoint(room.x, room.y)
-    VP-->>CM: scheduleCulling()
+### Setting Up — SVG-Only (No Konva)
+
+```mermaid
+sequenceDiagram
+    participant App as Application
+    participant MR as MapRenderer
+    participant SE as SvgExporter
+
+    App->>MR: new MapRenderer(mapReader, settings)
+    Note over MR: No KonvaLayerManager created — zero Konva loaded
+
+    App->>MR: drawArea(areaId, zIndex)
+    App->>MR: export(new SvgExporter())
+    MR->>SE: render(context)
+    SE->>SE: new ScenePipeline(mapReader, settings, svgBackend)
+    SE->>SE: pipeline.buildScene(area, plane, zIndex, svgLayers)
+    SE-->>App: SVG string
 ```
 
 ### User Interaction Flow
@@ -142,78 +155,142 @@ sequenceDiagram
 sequenceDiagram
     participant DOM as Browser DOM
     participant IH as InteractionHandler
-    participant VP as Viewport
-    participant KB as KonvaRenderBackend
+    participant CAM as Camera
+    participant KLM as KonvaLayerManager
     participant CM as CullingManager
 
     DOM->>IH: pointerdown + pointermove
-    IH->>VP: startDrag() / updateDrag()
-    VP->>VP: update position
-    VP-->>KB: onChange callback
-    KB->>KB: applyViewportToStage()
-    KB->>CM: scheduleCulling()
-    CM->>CM: query spatial index
-    CM->>CM: toggle room visibility
+    IH->>CAM: startDrag() / updateDrag()
+    CAM->>CAM: update position
+    CAM-->>KLM: addChangeListener callback
+    KLM->>KLM: applyViewportToStage()
+    KLM->>CM: scheduleCulling()
+    CM->>CM: query spatial index → toggle visibility
 
-    DOM->>IH: wheel event
-    IH->>VP: zoomToPoint(delta, x, y)
-    VP-->>KB: onChange callback
-
-    DOM->>IH: click on room
-    IH-->>KB: emit 'roomclick' event
+    DOM->>IH: centerOn room
+    IH->>IH: animatePanTo(x, y) — RAF loop
+    IH->>CAM: position = interpolated
+    IH->>CAM: notifyChange()
+    CAM-->>KLM: addChangeListener callback
 ```
 
 ---
 
 ## Core Components
 
-### MapState — Pure State Container
+### MapRenderer — Public Facade
 
-`MapState` holds all mutable state with zero rendering logic. State changes are broadcast via typed events, keeping backends decoupled.
+`MapRenderer` is Konva-free. It owns state, camera, culling, the shared pipeline, style, and scene overlays. All rendering is forwarded to the injected `KonvaLayerManager` via the `RenderingBackend` interface.
 
 ```mermaid
 classDiagram
-    class MapState {
-        +mapReader: MapReader
-        +settings: Settings
-        +currentArea: number
-        +currentZIndex: number
-        +positionRoomId: number
-        +centerRoomId: number
-        +highlights: Map~number, HighlightInfo~
-        +paths: PathInfo[]
-        +setArea(id, zIndex)
+    class MapRenderer {
+        +state: MapState
+        +camera: Camera
+        +culling: CullingManager
+        +pipeline: ScenePipeline
+        +drawArea(id, zIndex)
         +setPosition(roomId, center?)
         +centerOn(roomId, instant?)
-        +addHighlight(roomId, color)
-        +clearHighlights()
-        +addPath(locations, color)
-        +clearPaths()
+        +renderHighlight(roomId, color)
+        +addSceneOverlay(id, overlay)
+        +setStyle(style)
+        +export~T~(exporter) T
+        +findRoomAtMap(x, y) Room
+        +findRoomAtScreen(x, y) Room
     }
 
-    class TypedEventEmitter~T~ {
-        +on(event, handler)
-        +off(event, handler)
-        +emit(event, detail)
+    class RenderingBackend {
+        <<interface>>
+        +events: TypedEventEmitter
+        +coordinateTransform: CoordFn
+        +setStyle(style)
+        +updateBackground()
+        +refresh()
+        +onSceneOverlayAdded(id, overlay)
+        +onSceneOverlayRemoved(id)
+        +toCanvas(options) Canvas
+        +exportCanvas(options?) Canvas
+        +destroy()
     }
 
-    MapState --|> TypedEventEmitter : extends
+    MapRenderer --> RenderingBackend : optional backend
+    MapRenderer --> Camera
+    MapRenderer --> CullingManager
+    MapRenderer --> ScenePipeline
 ```
 
-**Events emitted:**
+### Camera — Viewport State
 
-| Event | Trigger | Payload |
-|-------|---------|---------|
-| `area` | Area or z-level changes | `{ area, zIndex }` |
-| `position` | Player location changes | `{ roomId, center, areaChanged }` |
-| `center` | Camera focus changes | `{ roomId, instant }` |
-| `highlight` | Highlight added/removed | `{ roomId, color? }` |
-| `path` | Path overlay changes | — |
-| `clear` | All overlays cleared | — |
+`Camera` owns all transform state. Use `addChangeListener` to subscribe to every viewport change regardless of cause.
+
+```mermaid
+classDiagram
+    class Camera {
+        +zoom: number
+        +position: XY
+        +width: number
+        +height: number
+        +minZoom: number
+        +centerOnResize: boolean
+        +addChangeListener(cb) unsubscribe
+        +removeChangeListener(cb)
+        +notifyChange()
+        +setZoom(zoom) bool
+        +zoomToCenter(zoom) bool
+        +zoomToPoint(zoom, x, y) bool
+        +panToMapPoint(x, y)
+        +fitToMapBounds(minX, maxX, minY, maxY)
+        +getViewportBounds() ViewportBounds
+        +getScale() number
+    }
+```
+
+> **`pan` event vs `addChangeListener`:** `renderer.on('pan', cb)` fires only on user gesture pans (mouse drag, wheel, touch). For full viewport tracking — including animated `centerOn` and programmatic pans — use `renderer.camera.addChangeListener(cb)`.
+
+### KonvaLayerManager — Injectable Konva Backend
+
+Owns the physical canvas infrastructure and all Konva-specific rendering. Wires into `MapRenderer` at construction. Can be absent entirely for SVG-only usage.
+
+```mermaid
+classDiagram
+    class KonvaLayerManager {
+        +stage: Konva.Stage
+        +gridLayer: Konva.Layer
+        +overlayLayer: Konva.Layer
+        +positionLayer: Konva.Layer
+        +events: TypedEventEmitter
+        +addLiveEffect(id, effect)
+        +removeLiveEffect(id)
+        +toCanvas(options) Canvas
+        +exportCanvas(options?) Canvas
+        +destroy()
+    }
+```
+
+### ScenePipeline — Unified Scene Builder
+
+`ScenePipeline` is fully backend-agnostic. Layer nodes are passed at `buildScene()` time — Konva recording nodes for interactive rendering, SVG layer nodes for export. The same code path runs for both.
+
+```mermaid
+flowchart LR
+    subgraph ScenePipeline
+        direction TB
+        G[GridRenderer] --> Grid[Grid lines]
+        L[Labels] --> LB[Label nodes]
+        E[ExitRenderer] --> EX[Exit lines & arrows]
+        R[RoomShapeRenderer] --> RM[Room shapes]
+    end
+
+    Area["Area + Plane"] --> ScenePipeline
+    Layers["SceneLayers<br/>(Konva or SVG)"] --> ScenePipeline
+    Backend["DrawingBackend"] --> ScenePipeline
+    ScenePipeline --> Result["SceneBuildResult<br/>roomNodes · exitNodes · hitZones"]
+```
 
 ### DrawingBackend — Rendering Abstraction
 
-All visual output flows through `DrawingBackend`, eliminating code duplication across rendering targets. Both scene building (rooms, exits, grid) and overlay rendering (highlights, position marker, paths) use this interface.
+All visual output flows through `DrawingBackend`. Decorator backends wrap an inner backend to transform drawing calls (isometric projection, sketchy wobble, parchment colours).
 
 ```mermaid
 classDiagram
@@ -223,122 +300,99 @@ classDiagram
         +addRect(parent, config)
         +addCircle(parent, config)
         +addLine(parent, config)
+        +addGridLine(parent, config)
         +addPolygon(parent, config)
         +addText(parent, config)
         +addImage(parent, config)
+        +requestRedraw()
+        +getTransform() CoordFn
+        +getInverseTransform() CoordFn
     }
 
-    class GroupNode {
-        <<interface>>
-        +setVisible(visible)
-        +isVisible() bool
-        +destroy()
-        +setPosition(x, y)
-        +getPosition() Position
-        +moveToTop()
+    class BaseStyle {
+        <<abstract>>
+        forwards all methods to inner
     }
 
-    class KonvaBackend {
-        creates Konva.Group, Konva.Rect, etc.
-    }
+    class KonvaBackend { creates Konva nodes }
+    class SvgBackend { builds SVG elements }
+    class CanvasBackend { recording nodes for Konva path }
+    class SketchyStyle { wobble effect }
+    class IsometricStyle { iso projection }
+    class ParchmentStyle { ink colours }
 
-    class SvgBackend {
-        builds SVG string elements
-    }
-
-    DrawingBackend <|.. KonvaBackend : implements
-    DrawingBackend <|.. SvgBackend : implements
-    DrawingBackend ..> GroupNode : creates
+    DrawingBackend <|.. KonvaBackend
+    DrawingBackend <|.. SvgBackend
+    DrawingBackend <|.. CanvasBackend
+    BaseStyle <|-- SketchyStyle
+    BaseStyle <|-- IsometricStyle
+    BaseStyle <|-- ParchmentStyle
 ```
 
-### InteractiveBackend — Backend Contract
+> `addGridLine` is intentionally separate from `addLine` so decorator backends can exempt grid lines from effects like the sketchy wobble.
 
-`MapRenderer` delegates all rendering to an `InteractiveBackend`, allowing alternative engines (PixiJS, Paper.js, etc.).
+### MapState — Pure State Container
 
-```mermaid
-classDiagram
-    class InteractiveBackend {
-        <<interface>>
-        +viewport: Viewport
-        +culling: CullingManager
-        +events: TypedEventEmitter
-        +updateBackground()
-        +refresh()
-        +toCanvas(options) Canvas
-        +exportCanvas(options?) HTMLCanvasElement
-        +destroy()
-    }
+`MapState` holds all mutable rendering state with zero rendering logic. State changes are broadcast via typed events.
 
-    class KonvaRenderBackend {
-        -stage: Konva.Stage
-        -layers: Konva.Layer[]
-        -scenePipeline: ScenePipeline
-        +updateBackground()
-        +refresh()
-    }
+**Events emitted:**
 
-    class MapRenderer {
-        +state: MapState
-        +backend: InteractiveBackend
-        +drawArea()
-        +setPosition()
-        +renderHighlight()
-        +exportSvg()
-    }
+| Event | Trigger | Payload |
+|-------|---------|---------|
+| `area` | Area or z-level changes | `{ area, zIndex }` |
+| `position` | Player location changes | `{ roomId, center, areaChanged }` |
+| `center` | Camera focus requested | `{ roomId, instant }` |
+| `highlight` | Highlight added/removed | `{ roomId, color? }` |
+| `path` | Path overlay changes | — |
+| `clear` | All overlays cleared | — |
 
-    InteractiveBackend <|.. KonvaRenderBackend : implements
-    MapRenderer --> InteractiveBackend : delegates to
-    MapRenderer --> MapState : mutates
+---
+
+## Rendering Paths
+
+### Interactive (Konva)
+
+```
+Application
+  → new MapRenderer(mapReader, settings)
+  → new KonvaLayerManager(container, renderer)
+  → state event → KonvaLayerManager.refresh()
+  → pipeline.buildScene(area, plane, zIndex, konvaLayers, viewportBounds)
+  → CanvasBackend (or styled decorator) → RecordingLayerNode → Konva.Layer
+  → KonvaLayerManager.culling.updateCulling() → toggle visibility
+```
+
+### SVG Export
+
+```
+renderer.export(new SvgExporter())
+  → new ScenePipeline(mapReader, settings, svgBackend)
+  → pipeline.buildScene(area, plane, zIndex, svgLayers, exportBounds)
+  → SvgBackend → SvgLayerNode.toSvg() → SVG string
+```
+
+### Headless PNG Export
+
+```
+new KonvaLayerManager(undefined, renderer)   ← no DOM container
+renderer.export(new CanvasExporter({width, height}))
+  → KonvaLayerManager.toCanvas(options)
+  → stage.toCanvas() → composite with background → Uint8Array
 ```
 
 ---
 
-## Rendering Pipeline
-
-### Scene Building
-
-`ScenePipeline` is the backend-agnostic scene builder. It receives a `DrawingBackend` and builds the complete visual scene from map data.
-
-```mermaid
-flowchart LR
-    subgraph ScenePipeline
-        direction TB
-        G[GridRenderer] --> Grid[Grid lines]
-        L[Labels] --> LB[Label nodes]
-        E[ExitRenderer] --> EX[Exit lines & arrows]
-        R[RoomShapeRenderer] --> RM[Room shapes + symbols]
-    end
-
-    Area["Area + Plane data"] --> ScenePipeline
-    DB["DrawingBackend"] --> ScenePipeline
-    ScenePipeline --> Result["SceneBuildResult<br/>roomNodes, exitNodes, exitDrawData"]
-```
-
-### Overlay Rendering
-
-Overlays (highlights, position marker, path trails) are computed as pure data by `scene/OverlayStyle.ts` and rendered through `DrawingBackend` by `scene/OverlayRenderer.ts`. Both `KonvaRenderBackend` and `SvgRenderBackend` use this shared path.
-
-```mermaid
-flowchart LR
-    OS["OverlayStyle<br/><i>pure data computation</i>"] --> OR["OverlayRenderer<br/><i>DrawingBackend calls</i>"]
-    OR --> DB["DrawingBackend"]
-    DB --> KB["KonvaBackend"]
-    DB --> SB["SvgBackend"]
-```
-
-### Layer Structure (Konva)
-
-The Konva backend organizes rendering into five layers, drawn bottom-to-top:
+## Layer Structure (Konva)
 
 ```mermaid
 flowchart TB
     subgraph Stage["Konva.Stage"]
         direction TB
         L1["Layer 1: Grid<br/><i>background grid lines</i>"]
-        L2["Layer 2: Links<br/><i>exit lines between rooms</i>"]
-        L3["Layer 3: Rooms<br/><i>room shapes, symbols, labels</i>"]
-        L4["Layer 4: Position<br/><i>player marker, current room</i>"]
-        L5["Layer 5: Overlay<br/><i>highlights, paths</i>"]
+        L2["Layer 2: Scene (shared)<br/><i>exits + rooms + labels — one Konva.Layer</i>"]
+        L3["Layer 3: Position<br/><i>player marker, current room highlight</i>"]
+        L4["Layer 4: Overlay<br/><i>highlights, paths, scene overlays, live effects</i>"]
+        L5["Layer 5: Top Labels<br/><i>noScaling labels</i>"]
     end
 
     L1 ~~~ L2 ~~~ L3 ~~~ L4 ~~~ L5
@@ -350,153 +404,83 @@ flowchart TB
     style L5 fill:#e94560
 ```
 
-### SVG Export
+> Link exits and rooms share one physical `Konva.Layer` to stay under Konva's recommended layer count. Z-order is preserved by insertion order inside a `RecordingLayerNode`.
 
-`SvgRenderBackend` produces SVG output through the same `DrawingBackend` interface as the interactive Konva path. Scene content goes through `ScenePipeline` with `SvgBackend`, and overlays go through the shared `OverlayRenderer` with the same `SvgBackend` instance.
+---
 
-```mermaid
-flowchart LR
-    SRB[SvgRenderBackend] --> SP[ScenePipeline]
-    SRB --> OR[OverlayRenderer]
-    SP --> SB[SvgBackend]
-    OR --> SB
-    SB --> SVG["SVG string"]
-```
-
-### Culling Pipeline
-
-Spatial bucketing prevents rendering thousands of off-screen rooms.
+## Culling Pipeline
 
 ```mermaid
 flowchart LR
-    VP[Viewport change] --> SC[scheduleCulling]
+    CAM[Camera change] --> SC[scheduleCulling]
     SC --> QB[Query spatial buckets<br/>intersecting viewport]
-    QB --> VR[Visible rooms set]
-    VR --> TV["Toggle visibility<br/>GroupNode.setVisible()"]
-    TV --> BD[Konva batchDraw]
+    QB --> TV["Toggle visibility<br/>GroupNode.setVisible()"]
+    TV --> CB["redrawCallback → sceneNode.batchDraw()"]
 
-    subgraph SpatialIndex["Spatial Index (5x5 buckets)"]
+    subgraph SpatialIndex["Spatial Index (bucket grid)"]
         B1["bucket(0,0): rooms..."]
         B2["bucket(1,0): rooms..."]
-        B3["bucket(0,1): rooms..."]
     end
 
     QB --> SpatialIndex
 ```
 
----
-
-## Data Model
-
-### Map Data Hierarchy
-
-```mermaid
-classDiagram
-    class MapReader {
-        +areas: Map~number, Area~
-        +rooms: Map~number, Room~
-        +envColors: Map~number, Color~
-        +getRoom(id) Room
-        +getArea(id) Area
-        +getEnvColor(envId) string
-    }
-
-    class Area {
-        +areaId: number
-        +areaName: string
-        +planes: Map~number, Plane~
-        +exits: Exit[]
-        +getPlane(z) Plane
-        +getZLevels() number[]
-    }
-
-    class Plane {
-        +zIndex: number
-        +rooms: Room[]
-        +labels: Label[]
-        +bounds: Bounds
-    }
-
-    class Room {
-        +id: number
-        +x: number
-        +y: number
-        +z: number
-        +name: string
-        +env: number
-        +roomChar: string
-        +exits: Record~string, number~
-        +specialExits: Record~string, number~
-        +doors: Record~string, DoorType~
-        +stubs: number[]
-    }
-
-    MapReader "1" --> "*" Area
-    Area "1" --> "*" Plane
-    Plane "1" --> "*" Room
-```
-
-### Exit Types
-
-```mermaid
-flowchart LR
-    subgraph ExitTypes["Exit Classification"]
-        Link["Link Exit<br/><i>two-way, both rooms in area</i>"]
-        Special["Special Exit<br/><i>named portal, may cross areas</i>"]
-        Stub["Stub Exit<br/><i>one-way, target not in area</i>"]
-        Inner["Inner Exit<br/><i>up/down/in/out, rendered inside room</i>"]
-    end
-```
+`CullingManager` has no Konva dependency — it reads scale, position, and viewport size directly from `Camera`. Redraw notification is injected via `setRedrawCallback()`.
 
 ---
 
-## Room Rendering Modes
+## Overlays
 
-The library supports multiple visual modes controlled by `Settings`:
+### SceneOverlay — appears everywhere
 
-```mermaid
-flowchart LR
-    subgraph Default["Default Mode"]
-        D["fill = envColor<br/>stroke = envColor"]
-    end
-    subgraph Frame["Frame Mode"]
-        F["fill = background<br/>stroke = envColor"]
-    end
-    subgraph Colored["Colored Mode"]
-        C["fill = darken(envColor)<br/>stroke = envColor"]
-    end
-    subgraph Emboss["+ Emboss"]
-        E["light edge top-left<br/>dark edge bottom-right"]
-    end
+`SceneOverlay` renders through `DrawingBackend` and appears in all output paths (interactive canvas, SVG, PNG). Registered on `MapRenderer`.
+
+```ts
+renderer.addSceneOverlay('ambient', new AmbientLightOverlay({ color: '#ffcc44' }));
 ```
 
-Room shapes: `circle` | `rectangle` | `roundedRectangle`
+### LiveEffect — interactive only
+
+`LiveEffect` receives the Konva overlay layer and a scoped `requestRedraw` callback. Skipped by exporters by design. Registered on `KonvaLayerManager`.
+
+```ts
+konva.addLiveEffect('fog', new FogOfWarOverlay());
+```
 
 ---
 
 ## Extensibility
 
-### Adding a New Rendering Backend
+### Adding a New Output Format
 
-To render to a new target (WebGL, Canvas2D, etc.):
+1. Implement `DrawingBackend` — shape primitives
+2. Create `LayerNode` implementations for your target
+3. Call `renderer.pipeline.buildScene(area, plane, zIndex, yourLayers, backend)` directly
 
-1. **Implement `DrawingBackend`** — 7 methods for shape primitives
-2. **Pass to `ScenePipeline`** — the pipeline drives your implementation
-3. **Optionally implement `InteractiveBackend`** — for full interactive support
+### Adding a Visual Style
 
-```mermaid
-flowchart TB
-    Custom["MyCustomBackend<br/><i>implements DrawingBackend</i>"]
-    SP[ScenePipeline]
-    SP -->|"calls addRect, addCircle, ..."| Custom
-    Custom -->|"produces"| Output["WebGL / Canvas3D / PDF / ..."]
+Extend `BaseStyle<Inner>` — all methods forward to `inner` by default. Override only what you need:
+
+```ts
+class MyStyle<T extends DrawingBackend> extends BaseStyle<T> {
+    addRect(parent, config) {
+        this.inner.addRect(parent, { ...config, fill: transform(config.fill) });
+    }
+}
+
+renderer.setStyle(backend => new MyStyle(backend));
 ```
 
-### Injecting a Custom Interactive Backend
+### Viewport Change Notifications
 
-```typescript
-const renderer = new MapRenderer(mapReader, settings, container,
-    (state) => new MyCustomRenderBackend(state, container));
+```ts
+// All changes — user gestures, animation, programmatic
+const unsub = renderer.camera.addChangeListener(() => minimap.update());
+// cleanup
+unsub();
+
+// User gesture pans only
+renderer.on('pan', (bounds) => statusBar.update(bounds));
 ```
 
 ---
@@ -505,25 +489,28 @@ const renderer = new MapRenderer(mapReader, settings, container,
 
 | File | Purpose |
 |------|---------|
-| `src/rendering/MapRenderer.ts` | Public facade — all public API lives here |
+| `src/rendering/MapRenderer.ts` | Konva-free public facade — state, camera, culling, pipeline, overlays |
+| `src/rendering/KonvaLayerManager.ts` | Injectable Konva backend — stage, layers, interaction, live effects |
+| `src/Camera.ts` | Zoom/pan/bounds state; multi-listener change notification |
 | `src/MapState.ts` | Pure state container with typed events |
-| `src/rendering/KonvaRenderBackend.ts` | Interactive Konva.js rendering backend |
-| `src/rendering/SvgRenderBackend.ts` | SVG export backend (uses DrawingBackend) |
-| `src/backend/DrawingBackend.ts` | Shape abstraction interface |
-| `src/backend/KonvaBackend.ts` | Konva implementation of DrawingBackend |
-| `src/backend/SvgBackend.ts` | SVG implementation of DrawingBackend |
-| `src/ScenePipeline.ts` | Backend-agnostic scene builder |
-| `src/scene/OverlayStyle.ts` | Pure-data overlay computation (highlights, marker, paths) |
-| `src/scene/OverlayRenderer.ts` | Renders overlays through DrawingBackend |
-| `src/Viewport.ts` | Zoom/pan/animation (engine-agnostic) |
-| `src/CullingManager.ts` | Spatial indexing and visibility culling |
-| `src/InteractionHandler.ts` | DOM event handling (mouse, touch, keyboard) |
+| `src/ScenePipeline.ts` | Backend-agnostic scene builder; accepts `SceneLayers` at buildScene time |
+| `src/GridRenderer.ts` | Grid rendering with caching; layer injected at render time |
+| `src/backend/DrawingBackend.ts` | Shape abstraction interface + `BaseStyle` decorator base |
+| `src/backend/KonvaBackend.ts` | Konva node factory (stateless) |
+| `src/backend/SvgBackend.ts` | SVG element builder |
+| `src/backend/CanvasBackend.ts` | Recording backend for Konva path; materialises into Konva nodes |
+| `src/style/` | Visual style decorators: Sketchy, Parchment, Blueprint, Neon, Isometric |
+| `src/CullingManager.ts` | Spatial indexing and viewport culling; no Konva dependency |
+| `src/InteractionHandler.ts` | DOM event handling — mouse, touch, wheel, animated pans |
+| `src/export/SvgExporter.ts` | SVG export via shared `ScenePipeline` with SVG layer nodes |
+| `src/export/CanvasExporter.ts` | Headless canvas export |
+| `src/export/PngExporter.ts` | PNG data URL / blob export |
+| `src/overlay/SceneOverlay.ts` | Backend-agnostic overlay interface (all output paths) |
+| `src/overlay/LiveEffect.ts` | Konva-specific animated effect interface |
+| `src/scene/OverlayStyle.ts` | Pure-data overlay computation (highlights, position marker, paths) |
+| `src/scene/OverlayRenderer.ts` | Renders overlays through `DrawingBackend` |
 | `src/reader/MapReader.ts` | Mudlet JSON parser and data indexer |
 | `src/RoomShapeRenderer.ts` | Room shape and symbol rendering |
 | `src/ExitRenderer.ts` | Exit geometry computation |
-| `src/types/Settings.ts` | Settings type, event types, and `createSettings()` factory |
+| `src/types/Settings.ts` | Settings, event types, `createSettings()` |
 | `src/types/MapData.ts` | Mudlet map data type definitions |
-| `src/utils/color.ts` | Color utilities (darken, lightness, hex-to-rgba) |
-| `src/SvgTypes.ts` | SVG export option and overlay types |
-| `src/Renderer.ts` | Deprecated backward-compat `Renderer` wrapper class |
-| `src/HeadlessRenderer.ts` | Deprecated backward-compat `HeadlessRenderer` wrapper class |
