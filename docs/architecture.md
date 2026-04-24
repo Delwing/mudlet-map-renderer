@@ -6,48 +6,38 @@ This document describes the high-level architecture of **mudlet-map-renderer**, 
 
 ## System Overview
 
+### Component Ownership
+
+`MapRenderer` is the Konva-free core. `KonvaLayerManager` is a separate optional injectable that adds interactive canvas support.
+
 ```mermaid
-flowchart TB
-    subgraph Input
-        JSON["Mudlet Map JSON"]
+graph LR
+    JSON[/"Mudlet Map JSON"/] --> MR
+
+    subgraph MR["MapRenderer — Konva-free"]
+        MS[MapState]
+        CAM[Camera]
+        CM[CullingManager]
+        SP[ScenePipeline]
     end
 
-    subgraph Data["Data Layer"]
-        MR[MapReader]
-        Area[Area]
-        Plane[Plane]
-    end
+    MR -.->|"new KonvaLayerManager(container, renderer)"| KLM
 
-    subgraph Core["MapRenderer — Konva-free core"]
-        Facade["MapRenderer<br/><i>facade</i>"]
-        CAM["Camera<br/><i>zoom · pan · bounds · listeners</i>"]
-        CM["CullingManager<br/><i>spatial index · uses Camera</i>"]
-        SP["ScenePipeline<br/><i>layers injected at buildScene()</i>"]
+    subgraph KLM["KonvaLayerManager — optional"]
+        Stage["Konva Stage + layers"]
+        IH[InteractionHandler]
     end
+```
 
-    subgraph KonvaBackend["KonvaLayerManager — injectable"]
-        KLM["KonvaLayerManager<br/><i>stage · layers · interaction · live effects</i>"]
-        IH["InteractionHandler<br/><i>DOM input · animation</i>"]
-    end
+### Three Usage Paths
 
-    subgraph Exporters["Export Path"]
-        SVG["SvgExporter<br/><i>SVG layer nodes + shared pipeline</i>"]
-        PNG["CanvasExporter / PngExporter"]
-    end
+```mermaid
+graph LR
+    MR[MapRenderer]
 
-    JSON --> MR
-    MR --> Area --> Plane
-    MR --> Core
-    Facade --> CAM
-    Facade --> CM
-    Facade --> SP
-    Facade -. "optional inject" .-> KLM
-    KLM --> IH
-    IH -- animates --> CAM
-    CAM -- addChangeListener --> KLM
-    SP -- "buildScene(layers)" --> KLM
-    SP -- "buildScene(svgLayers)" --> SVG
-    PNG --> KLM
+    MR -->|"+ KonvaLayerManager(container)"| A["Interactive canvas<br/>in browser"]
+    MR -->|"export(new SvgExporter())"| B["SVG string"]
+    MR -->|"+ KonvaLayerManager(undefined)<br/>export(new CanvasExporter())"| C["PNG / headless"]
 ```
 
 ---
