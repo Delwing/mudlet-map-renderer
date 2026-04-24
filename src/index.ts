@@ -10,8 +10,10 @@ export { darkenColor, colorLightness, hexToRgba } from './utils/color';
 
 // --- Core renderer ---
 export { MapRenderer } from './rendering/MapRenderer';
+export type { RenderingBackend } from './rendering/MapRenderer';
 export { KonvaLayerManager } from './rendering/KonvaLayerManager';
-export type { DrawnExitEntry, DrawnSpecialExitEntry, DrawnStubEntry } from './ScenePipeline';
+export { ScenePipeline } from './ScenePipeline';
+export type { SceneLayers, DrawnExitEntry, DrawnSpecialExitEntry, DrawnStubEntry } from './ScenePipeline';
 export type { ExitDrawData, ExitDrawLine, ExitDrawArrow, ExitDrawDoor } from './ExitRenderer';
 export { MapState } from './MapState';
 export type { MapStateEventMap, HighlightEntry, PathEntry } from './MapState';

@@ -1,4 +1,4 @@
-import {MapRenderer, CullingMode, RoomShape, PathFinder, SvgExporter, PngBlobExporter, AmbientLightOverlay} from "@src";
+import {MapRenderer, KonvaLayerManager, CullingMode, RoomShape, PathFinder, SvgExporter, PngBlobExporter, AmbientLightOverlay} from "@src";
 import type {Settings, LabelRenderMode, PerfSnapshot, PathFindingAlgorithm} from "@src";
 import type MapReader from "@src/reader/MapReader";
 import {WeatherOverlay} from "./WeatherOverlay";
@@ -35,7 +35,7 @@ function describeCullingMode(mode: CullingMode) {
     }
 }
 
-export function initControls(settings: Settings, renderer: MapRenderer, getCurrentRoomId: () => number, pathFinder?: PathFinder, onAlgorithmChange?: () => void, onPathColorChange?: (color: string) => void, onRenderModeChange?: (mode: string) => void, mapReader?: MapReader) {
+export function initControls(settings: Settings, renderer: MapRenderer, konva: KonvaLayerManager, getCurrentRoomId: () => number, pathFinder?: PathFinder, onAlgorithmChange?: () => void, onPathColorChange?: (color: string) => void, onRenderModeChange?: (mode: string) => void, mapReader?: MapReader) {
     const explorationToggle = document.getElementById("exploration-toggle") as HTMLInputElement | null;
     const instantMoveToggle = document.getElementById("instant-move-toggle") as HTMLInputElement | null;
     const highlightToggle = document.getElementById("highlight-toggle") as HTMLInputElement | null;
@@ -409,7 +409,7 @@ export function initControls(settings: Settings, renderer: MapRenderer, getCurre
     // --- Weather (overlay plugin) ---
 
     const weather = new WeatherOverlay();
-    renderer.addLiveEffect('weather', weather);
+    konva.addLiveEffect('weather', weather);
 
     const weatherType = document.getElementById("weather-type") as HTMLSelectElement | null;
     const weatherIntensity = document.getElementById("weather-intensity") as HTMLInputElement | null;
@@ -495,10 +495,10 @@ export function initControls(settings: Settings, renderer: MapRenderer, getCurre
     terrainToggle?.addEventListener("change", () => {
         if (terrainToggle.checked) {
             terrain = new TerrainOverlay();
-            renderer.addLiveEffect('terrain', terrain);
+            konva.addLiveEffect('terrain', terrain);
             updateTerrainRooms();
         } else {
-            renderer.removeLiveEffect('terrain');
+            konva.removeLiveEffect('terrain');
         }
     });
 
@@ -552,10 +552,10 @@ export function initControls(settings: Settings, renderer: MapRenderer, getCurre
     fogToggle?.addEventListener("change", () => {
         if (fogToggle.checked) {
             fogOfWar = new FogOfWarOverlay();
-            renderer.addLiveEffect('fog-of-war', fogOfWar);
+            konva.addLiveEffect('fog-of-war', fogOfWar);
             updateFogOfWar();
         } else {
-            renderer.removeLiveEffect('fog-of-war');
+            konva.removeLiveEffect('fog-of-war');
         }
     });
 

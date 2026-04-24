@@ -2,7 +2,7 @@ import "konva/canvas-backend";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-import { MapRenderer, createSettings, PathFinder, SvgExporter, PngBytesExporter } from "@src";
+import { MapRenderer, KonvaLayerManager, createSettings, PathFinder, SvgExporter, PngBytesExporter } from "@src";
 import MapReader from "@src/reader/MapReader";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -182,6 +182,7 @@ async function main() {
     if (args.bgColor) settings.backgroundColor = args.bgColor;
     if (args.lineColor) settings.lineColor = args.lineColor;
     const renderer = new MapRenderer(mapReader, settings);
+    new KonvaLayerManager(undefined, renderer); // headless — no DOM container
 
     // Determine area and z from --room or --area/--z
     let areaId = args.area;

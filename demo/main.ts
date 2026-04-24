@@ -1,5 +1,6 @@
 import {
     MapRenderer,
+    KonvaLayerManager,
     createSettings,
     PathFinder,
     compose, identityStyle,
@@ -41,6 +42,7 @@ const colorDataUrl = new URL("./colors.json", import.meta.url).href;
 
 let mapReader!: MapReader;
 let renderer!: MapRenderer;
+let konva!: KonvaLayerManager;
 let pathFinder!: PathFinder;
 const settings: Settings = createSettings();
 let currentRoomId!: number;
@@ -267,11 +269,12 @@ async function initialize() {
     savedBackgroundColor = settings.backgroundColor;
     savedLineColor = settings.lineColor;
     savedFontFamily = settings.fontFamily;
-    renderer = new MapRenderer(mapReader, settings, stageElement);
+    renderer = new MapRenderer(mapReader, settings);
+    konva = new KonvaLayerManager(stageElement, renderer);
     preview = new DemoPreview(stageElement, renderer);
 
     // Controls & perf
-    const controlsResult = initControls(settings, renderer, () => currentRoomId, pathFinder, updateDestinationGuidance, (color) => {
+    const controlsResult = initControls(settings, renderer, konva, () => currentRoomId, pathFinder, updateDestinationGuidance, (color) => {
         pathColor = color;
         if (currentDestinationPath) {
             renderer.clearPaths();
