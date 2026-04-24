@@ -393,6 +393,7 @@ export class KonvaLayerManager implements RenderingBackend {
         this.camera.position = {x: screenCX - nr.x * scale, y: screenCY - nr.y * scale};
 
         this.drawingBackend = backend;
+        this.gridRenderer.setBackend(backend);
         this.renderer.pipeline.setBackend(backend);
         this.applyViewportToStage();
     }
