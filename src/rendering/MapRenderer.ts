@@ -235,7 +235,8 @@ export class MapRenderer {
 
     addLiveEffect(id: string, effect: LiveEffect) {
         this.removeLiveEffect(id);
-        effect.attach(this.layerManager.overlayLayer);
+        const requestRedraw = () => this.layerManager.overlayLayer.batchDraw();
+        effect.attach(this.drawingBackend, requestRedraw);
         this.liveEffects.set(id, effect);
         effect.updateViewport(this.camera.getViewportBounds(), this.camera.getScale(), this._coordinateTransform);
     }
