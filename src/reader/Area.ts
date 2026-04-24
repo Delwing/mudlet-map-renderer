@@ -127,7 +127,6 @@ export default class Area {
                         bestIdx = i;
                         break;
                     }
-                    if (bestIdx === -1) bestIdx = i;
                 }
 
                 if (bestIdx !== -1) {
