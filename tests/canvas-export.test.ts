@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { MapRenderer } from '../src/rendering/MapRenderer';
+import { KonvaLayerManager } from '../src/rendering/KonvaLayerManager';
 import { PngBytesExporter } from '../src/export/CanvasExporter';
 import { createSettings } from '../src/types/Settings';
 import { createTestMapReader } from './helpers';
@@ -7,26 +8,27 @@ import { createTestMapReader } from './helpers';
 const WIDTH = 400;
 const HEIGHT = 300;
 
-function exportArea(settingsOverrides?: Partial<ReturnType<typeof createSettings>>) {
+function makeRenderer(settings?: ReturnType<typeof createSettings>) {
     const reader = createTestMapReader();
-    const settings = { ...createSettings(), ...settingsOverrides };
-    const renderer = new MapRenderer(reader, settings);
+    const renderer = new MapRenderer(reader, settings ?? createSettings());
+    new KonvaLayerManager(undefined, renderer);
+    return renderer;
+}
+
+function exportArea(settingsOverrides?: Partial<ReturnType<typeof createSettings>>) {
+    const renderer = makeRenderer({ ...createSettings(), ...settingsOverrides });
     renderer.drawArea(1, 0);
     return renderer.export(new PngBytesExporter({ width: WIDTH, height: HEIGHT }))!;
 }
 
 function renderWithOverlays(overlays: any) {
-    const reader = createTestMapReader();
-    const settings = createSettings();
-    const renderer = new MapRenderer(reader, settings);
+    const renderer = makeRenderer();
     renderer.drawArea(1, 0);
     return renderer.export(new PngBytesExporter({ width: WIDTH, height: HEIGHT, overlays }))!;
 }
 
 function renderArea(areaId: number, zIndex: number, opts?: any) {
-    const reader = createTestMapReader();
-    const settings = createSettings();
-    const renderer = new MapRenderer(reader, settings);
+    const renderer = makeRenderer();
     renderer.drawArea(areaId, zIndex);
     return renderer.export(new PngBytesExporter({ width: WIDTH, height: HEIGHT, ...opts }))!;
 }
@@ -141,9 +143,7 @@ describe('CanvasExporter', () => {
 
     describe('error handling', () => {
         it('returns undefined before drawArea', () => {
-            const reader = createTestMapReader();
-            const settings = createSettings();
-            const renderer = new MapRenderer(reader, settings);
+            const renderer = makeRenderer();
             expect(renderer.export(new PngBytesExporter({ width: WIDTH, height: HEIGHT }))).toBeUndefined();
         });
     });

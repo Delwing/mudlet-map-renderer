@@ -13,11 +13,9 @@ function escapeXml(s: string): string {
 }
 
 /**
- * Renders the current scene as an SVG string through the shared
- * {@link ScenePipeline}. The context's style is applied so styled exports
- * match the on-screen canvas; {@link SceneOverlay}s from the context are
- * rendered into the SVG alongside the scene. `LiveEffect`s are intentionally
- * ignored by design.
+ * Renders the current scene as an SVG string. Creates a ScenePipeline with
+ * an SVG backend and passes SVG layer nodes to buildScene — the same code path
+ * as interactive rendering, just with a different backend and output target.
  */
 export class SvgExporter implements Exporter<string | undefined> {
     constructor(private readonly options: SvgExportOptions = {}) {}
@@ -36,21 +34,20 @@ export class SvgExporter implements Exporter<string | undefined> {
 
         const rawSvgBackend = new SvgBackend();
         const svgBackend: DrawingBackend = style(rawSvgBackend);
+
         const gridLayer = new SvgLayerNode();
         const linkLayer = new SvgLayerNode();
         const roomLayer = new SvgLayerNode();
         const topLabelLayer = new SvgLayerNode();
 
-        const pipeline = new ScenePipeline(state.mapReader, settings, svgBackend, {
-            gridLayer, linkLayer, roomLayer, topLabelLayer,
-        });
+        const pipeline = new ScenePipeline(state.mapReader, settings, svgBackend);
 
         const viewportBounds = {
             minX: bounds.x, maxX: bounds.x + bounds.w,
             minY: bounds.y, maxY: bounds.y + bounds.h,
         };
 
-        pipeline.buildScene(area, plane, currentZIndex, viewportBounds);
+        pipeline.buildScene(area, plane, currentZIndex, { gridLayer, linkLayer, roomLayer, topLabelLayer }, viewportBounds);
 
         const lines: string[] = [];
         lines.push(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="${bounds.x} ${bounds.y} ${bounds.w} ${bounds.h}">`);

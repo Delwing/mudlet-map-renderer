@@ -165,36 +165,34 @@ function clusterByProximity<T extends { tip: { x: number; y: number } }>(
  * Both the interactive KonvaRenderBackend and exporters (SvgExporter,
  * CanvasExporter, …) drive this pipeline with their respective DrawingBackend.
  */
+export type SceneLayers = {
+    gridLayer: LayerNode;
+    linkLayer: LayerNode;
+    roomLayer: LayerNode;
+    topLabelLayer?: LayerNode;
+};
+
 export class ScenePipeline {
     private readonly mapReader: MapReader;
     private readonly settings: Settings;
-    private readonly backend: DrawingBackend;
-    readonly roomShapeRenderer: RoomShapeRenderer;
+    private backend: DrawingBackend;
+    roomShapeRenderer: RoomShapeRenderer;
     readonly gridRenderer: GridRenderer;
     readonly exitRenderer: ExitRenderer;
 
-    private readonly gridLayer: LayerNode;
-    private readonly linkLayer: LayerNode;
-    private readonly roomLayer: LayerNode;
-    private readonly topLabelLayer: LayerNode | undefined;
-
-    constructor(
-        mapReader: MapReader,
-        settings: Settings,
-        backend: DrawingBackend,
-        layers: { gridLayer: LayerNode; linkLayer: LayerNode; roomLayer: LayerNode; topLabelLayer?: LayerNode },
-    ) {
+    constructor(mapReader: MapReader, settings: Settings, backend: DrawingBackend) {
         this.mapReader = mapReader;
         this.settings = settings;
         this.backend = backend;
-        this.gridLayer = layers.gridLayer;
-        this.linkLayer = layers.linkLayer;
-        this.roomLayer = layers.roomLayer;
-        this.topLabelLayer = layers.topLabelLayer;
-
         this.roomShapeRenderer = new RoomShapeRenderer(mapReader, settings, backend);
-        this.gridRenderer = new GridRenderer(layers.gridLayer, settings, backend);
+        this.gridRenderer = new GridRenderer(settings, backend);
         this.exitRenderer = new ExitRenderer(mapReader, settings);
+    }
+
+    setBackend(backend: DrawingBackend): void {
+        this.backend = backend;
+        this.roomShapeRenderer = new RoomShapeRenderer(this.mapReader, this.settings, backend);
+        this.gridRenderer.setBackend(backend);
     }
 
     /**
@@ -202,39 +200,39 @@ export class ScenePipeline {
      * Clears layers, renders grid → labels → exits → rooms → area name.
      * Returns data for culling and interaction (room nodes, exit data, hit zones).
      */
-    buildScene(area: Area, plane: Plane, zIndex: number, viewportBounds?: ViewportBounds): SceneBuildResult {
-        this.gridLayer.destroyChildren();
+    buildScene(area: Area, plane: Plane, zIndex: number, layers: SceneLayers, viewportBounds?: ViewportBounds): SceneBuildResult {
+        layers.gridLayer.destroyChildren();
         this.gridRenderer.invalidateCache();
-        this.linkLayer.destroyChildren();
-        this.roomLayer.destroyChildren();
-        this.topLabelLayer?.destroyChildren();
+        layers.linkLayer.destroyChildren();
+        layers.roomLayer.destroyChildren();
+        layers.topLabelLayer?.destroyChildren();
 
         // Grid
         if (viewportBounds) {
-            this.gridRenderer.render(viewportBounds);
+            this.gridRenderer.render(layers.gridLayer, viewportBounds);
         }
 
         // Labels
-        this.renderLabels(plane.getLabels());
+        this.renderLabels(plane.getLabels(), layers);
 
         // Link exits (two-way connections)
-        const exitResult = this.renderLinkExits(area.getLinkExits(zIndex), zIndex);
+        const exitResult = this.renderLinkExits(area.getLinkExits(zIndex), zIndex, layers);
 
         // Rooms (with stubs, special exits, inner exits)
-        const roomResult = this.renderRooms(plane.getRooms() ?? [], zIndex);
+        const roomResult = this.renderRooms(plane.getRooms() ?? [], zIndex, layers);
 
         // Area name
-        this.renderAreaName(area, plane);
+        this.renderAreaName(area, plane, layers);
 
         const areaExitHitZones = [...exitResult.areaExitHitZones, ...roomResult.areaExitHitZones];
 
         // Area exit labels (one per spatial cluster of exits to the same target area).
-        // Labels themselves become clickable hit zones that navigate to the target area.
         const labelHitZones = this.renderAreaExitLabels(
             areaExitHitZones,
             area.getAreaId(),
             plane.getRooms() ?? [],
             exitResult.standaloneExitNodes.map(n => n.bounds),
+            layers,
         );
         areaExitHitZones.push(...labelHitZones);
 
@@ -254,7 +252,7 @@ export class ScenePipeline {
 
     // --- Rooms ---
 
-    private renderRooms(rooms: MapData.Room[], _zIndex: number) {
+    private renderRooms(rooms: MapData.Room[], _zIndex: number, layers: SceneLayers) {
         const roomNodes = new Map<number, RoomNodeEntry>();
         const areaExitHitZones: AreaExitHitZone[] = [];
         const drawnSpecialExits: DrawnSpecialExitEntry[] = [];
@@ -297,7 +295,7 @@ export class ScenePipeline {
                         stroke: d.stroke, strokeWidth: d.strokeWidth,
                     });
                 }
-                this.linkLayer.addNode(seGroup);
+                layers.linkLayer.addNode(seGroup);
                 // Record drawn geometry for hit-testing consumers.
                 const pts = se.line.points;
                 let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
@@ -349,7 +347,7 @@ export class ScenePipeline {
                     stroke: stub.stroke,
                     strokeWidth: stub.strokeWidth,
                 });
-                this.linkLayer.addNode(stubGroup);
+                layers.linkLayer.addNode(stubGroup);
                 drawnStubs.push({
                     roomId: stub.roomId,
                     direction: stub.direction,
@@ -382,7 +380,7 @@ export class ScenePipeline {
         });
 
         for (const [, roomNode] of queuedRoomNodes) {
-            this.roomLayer.addNode(roomNode);
+            layers.roomLayer.addNode(roomNode);
         }
 
         return {roomNodes, areaExitHitZones, drawnSpecialExits, drawnStubs};
@@ -390,7 +388,7 @@ export class ScenePipeline {
 
     // --- Link Exits ---
 
-    private renderLinkExits(exits: Exit[], zIndex: number) {
+    private renderLinkExits(exits: Exit[], zIndex: number, layers: SceneLayers) {
         const standaloneExitNodes: StandaloneExitEntry[] = [];
         const areaExitHitZones: AreaExitHitZone[] = [];
         const drawnExits: DrawnExitEntry[] = [];
@@ -399,7 +397,7 @@ export class ScenePipeline {
             const data = this.exitRenderer.renderData(exit, zIndex);
             if (!data) return;
             const group = this.renderExitData(data);
-            this.linkLayer.addNode(group);
+            layers.linkLayer.addNode(group);
             standaloneExitNodes.push({group, bounds: data.bounds, targetRoomId: data.targetRoomId});
             drawnExits.push({
                 a: exit.a,
@@ -472,11 +470,11 @@ export class ScenePipeline {
 
     // --- Labels ---
 
-    private targetLabelLayer(label: MapData.Label): LayerNode {
-        return (label.showOnTop && this.topLabelLayer) ? this.topLabelLayer : this.linkLayer;
+    private targetLabelLayer(label: MapData.Label, layers: SceneLayers): LayerNode {
+        return (label.showOnTop && layers.topLabelLayer) ? layers.topLabelLayer : layers.linkLayer;
     }
 
-    private renderLabels(labels: MapData.Label[]) {
+    private renderLabels(labels: MapData.Label[], layers: SceneLayers) {
         if (this.settings.labelRenderMode === "none") return;
 
         labels.forEach(label => {
@@ -498,7 +496,7 @@ export class ScenePipeline {
                     src: `data:image/png;base64,${label.pixMap}`,
                 });
                 if (noScaling) group.noScaling = true;
-                this.targetLabelLayer(label).addNode(group);
+                this.targetLabelLayer(label, layers).addNode(group);
                 return;
             }
 
@@ -527,7 +525,7 @@ export class ScenePipeline {
             }
 
             if (noScaling) group.noScaling = true;
-            this.targetLabelLayer(label).addNode(group);
+            this.targetLabelLayer(label, layers).addNode(group);
         });
     }
 
@@ -538,6 +536,7 @@ export class ScenePipeline {
         currentAreaId: number,
         rooms: MapData.Room[],
         exitLineBounds: Bounds[],
+        layers: SceneLayers,
     ): AreaExitHitZone[] {
         const labelHitZones: AreaExitHitZone[] = [];
         if (!this.settings.areaExitLabels || hitZones.length === 0) return labelHitZones;
@@ -800,7 +799,7 @@ export class ScenePipeline {
                     align: 'center',
                     verticalAlign: 'middle',
                 });
-                this.roomLayer.addNode(group);
+                layers.roomLayer.addNode(group);
 
                 // Label is clickable — navigate to the target area (any room from the
                 // cluster works since they all live there).
@@ -816,7 +815,7 @@ export class ScenePipeline {
 
     // --- Area Name ---
 
-    private renderAreaName(area: Area, plane: Plane) {
+    private renderAreaName(area: Area, plane: Plane, layers: SceneLayers) {
         if (!this.settings.areaName) return;
         const name = area.getAreaName();
         if (!name) return;
@@ -830,6 +829,6 @@ export class ScenePipeline {
             fontFamily: this.settings.fontFamily,
             fill: this.settings.lineColor,
         });
-        this.roomLayer.addNode(group);
+        layers.roomLayer.addNode(group);
     }
 }

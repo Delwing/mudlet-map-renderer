@@ -1,4 +1,4 @@
-import { MapRenderer, createSettings } from '../../../src';
+import { MapRenderer, KonvaLayerManager, createSettings } from '../../../src';
 import MapReader from '../../../src/reader/MapReader';
 import testMap from '../../fixtures/test-map.json';
 import testEnvs from '../../fixtures/test-envs.json';
@@ -42,7 +42,8 @@ const centerOnId = param('centerOn') ? parseInt(param('centerOn')!) : undefined;
 
 // Create renderer
 const container = document.getElementById('stage') as HTMLDivElement;
-const renderer = new MapRenderer(mapReader, settings, container);
+const renderer = new MapRenderer(mapReader, settings);
+new KonvaLayerManager(container, renderer);
 
 // Draw area
 renderer.drawArea(areaId, zIndex);

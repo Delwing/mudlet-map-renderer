@@ -1,24 +1,27 @@
-import type {DrawingBackend} from "../backend/DrawingBackend";
+import type Konva from "konva";
 import type {ViewportBounds} from "../types/Settings";
 
 /** Map-space → render-space coordinate transform. */
 export type CoordinateTransform = (x: number, y: number) => { x: number; y: number };
 
 /**
- * Interactive-only animated effect. A {@link LiveEffect} receives the active
- * drawing backend and a scoped redraw callback so it can react to pan/zoom
- * and run its own animation loop without touching Konva internals directly.
+ * Interactive-only animated effect. A {@link LiveEffect} receives the Konva
+ * overlay layer and a scoped redraw callback so it can add Konva nodes and
+ * drive its own animation loop.
  *
- * The `requestRedraw` callback redraws only the overlay layer — prefer it over
- * full stage repaints. Effects that need raw Konva access can cast `backend`
- * to a Konva-specific backend type as an escape hatch.
+ * The `requestRedraw` callback redraws only the overlay layer — prefer it
+ * over calling `layer.batchDraw()` directly, as it keeps the repaint scope
+ * minimal and backend-controlled.
  *
  * Exporters (SVG, PNG, PDF, …) skip `LiveEffect`s by design — use
  * `SceneOverlay` when you need an overlay to appear in exports.
  *
  * ```ts
  * class PulseEffect implements LiveEffect {
- *     attach(backend: DrawingBackend, requestRedraw: () => void) { ... }
+ *     attach(layer: Konva.Layer, requestRedraw: () => void) {
+ *         const shape = new Konva.Shape({ sceneFunc: ... });
+ *         layer.add(shape);
+ *     }
  *     updateViewport(bounds, scale, transform) { ... }
  *     destroy() { ... }
  * }
@@ -27,13 +30,13 @@ export type CoordinateTransform = (x: number, y: number) => { x: number; y: numb
  */
 export interface LiveEffect {
     /**
-     * Called once when the effect is registered. Set up any animation loops or
-     * event listeners here. Use `requestRedraw()` to trigger an overlay repaint.
+     * Called once when the effect is registered. Add Konva nodes to `layer`
+     * and use `requestRedraw()` to trigger overlay repaints.
      */
-    attach(backend: DrawingBackend, requestRedraw: () => void): void;
+    attach(layer: Konva.Layer, requestRedraw: () => void): void;
     /**
-     * Called on every camera change (pan, zoom, resize). Use this to reposition
-     * effect elements or update clipping bounds.
+     * Called on every camera change (pan, zoom, resize). Reposition effect
+     * elements or update clipping bounds here.
      */
     updateViewport(
         bounds: ViewportBounds,

@@ -2,22 +2,25 @@ import type {Settings, ViewportBounds} from "./types/Settings";
 import type {DrawingBackend, LayerNode} from "./backend/DrawingBackend";
 
 /**
- * Renders and caches the background grid on a dedicated layer.
+ * Renders and caches the background grid onto a caller-provided layer.
  * Grid lines are only recreated when the visible bounds change enough
  * to cross a grid-line boundary. No direct Konva dependency.
  */
 export class GridRenderer {
 
-    private readonly layer: LayerNode;
     private readonly settings: Settings;
-    private readonly backend: DrawingBackend;
+    private backend: DrawingBackend;
     private cachedBounds: { left: number; right: number; top: number; bottom: number } | null = null;
     private inverseTransform: (x: number, y: number) => { x: number; y: number } = (x, y) => ({x, y});
 
-    constructor(layer: LayerNode, settings: Settings, backend: DrawingBackend) {
-        this.layer = layer;
+    constructor(settings: Settings, backend: DrawingBackend) {
         this.settings = settings;
         this.backend = backend;
+    }
+
+    setBackend(backend: DrawingBackend) {
+        this.backend = backend;
+        this.invalidateCache();
     }
 
     setInverseTransform(fn: (x: number, y: number) => { x: number; y: number }) {
@@ -29,18 +32,16 @@ export class GridRenderer {
         this.cachedBounds = null;
     }
 
-    render(viewportBounds: ViewportBounds) {
+    render(layer: LayerNode, viewportBounds: ViewportBounds) {
         if (!this.settings.gridEnabled) {
             if (this.cachedBounds !== null) {
-                this.layer.destroyChildren();
-                this.layer.batchDraw();
+                layer.destroyChildren();
+                layer.batchDraw();
                 this.cachedBounds = null;
             }
             return;
         }
 
-        // Viewport bounds are in rendered space. Inverse-transform to Cartesian
-        // to find the grid range that covers the visible area.
         const inv = this.inverseTransform;
         const {minX: vMinX, maxX: vMaxX, minY: vMinY, maxY: vMaxY} = viewportBounds;
         const c1 = inv(vMinX, vMinY);
@@ -63,7 +64,7 @@ export class GridRenderer {
             return;
         }
 
-        this.layer.destroyChildren();
+        layer.destroyChildren();
 
         const group = this.backend.createGroup(0, 0);
         for (let x = left; x <= right; x += this.settings.gridSize) {
@@ -80,9 +81,9 @@ export class GridRenderer {
                 strokeWidth: this.settings.gridLineWidth,
             });
         }
-        this.layer.addNode(group);
+        layer.addNode(group);
 
         this.cachedBounds = {left, right, top, bottom};
-        this.layer.batchDraw();
+        layer.batchDraw();
     }
 }

@@ -1,5 +1,6 @@
 import type {Settings, CullingMode, PerfSnapshot, ViewportBounds} from "./types/Settings";
-import type {GroupNode, LayerNode} from "./backend/DrawingBackend";
+import type {GroupNode} from "./backend/DrawingBackend";
+import type {Camera} from "./Camera";
 
 export type CoordinateTransform = (x: number, y: number) => { x: number; y: number };
 export type RoomNodeEntry = { room: MapData.Room; group: GroupNode };
@@ -60,24 +61,16 @@ class PerfMonitor {
     }
 }
 
-export type StageInfo = {
-    scaleX(): number;
-    position(): { x: number; y: number };
-    width(): number;
-    height(): number;
-};
-
 /**
  * Manages spatial indexing and viewport culling for rooms and exits.
  * Toggles node visibility based on what's in the viewport.
- * No direct Konva dependency.
+ * No Konva dependency.
  */
 export class CullingManager {
 
-    private readonly stageInfo: StageInfo;
-    private readonly roomLayer: LayerNode;
-    private readonly linkLayer: LayerNode;
+    private readonly camera: Camera;
     private readonly settings: Settings;
+    private redrawCallback?: (roomDirty: boolean, linkDirty: boolean) => void;
 
     // Node collections (owned by Renderer, shared by reference)
     roomNodes: Map<number, RoomNodeEntry> = new Map();
@@ -99,16 +92,14 @@ export class CullingManager {
     private coordinateTransform: CoordinateTransform = (x, y) => ({x, y});
     private lastGridMs = 0;
 
-    constructor(
-        stageInfo: StageInfo,
-        roomLayer: LayerNode,
-        linkLayer: LayerNode,
-        settings: Settings,
-    ) {
-        this.stageInfo = stageInfo;
-        this.roomLayer = roomLayer;
-        this.linkLayer = linkLayer;
+    constructor(camera: Camera, settings: Settings) {
+        this.camera = camera;
         this.settings = settings;
+    }
+
+    /** Called by KonvaLayerManager to receive batchDraw notifications. */
+    setRedrawCallback(cb: (roomDirty: boolean, linkDirty: boolean) => void): void {
+        this.redrawCallback = cb;
     }
 
     setCoordinateTransform(fn: CoordinateTransform) {
@@ -285,23 +276,23 @@ export class CullingManager {
     updateCulling() {
         if (this.roomNodes.size === 0 && this.standaloneExitNodes.length === 0) return;
 
-        const scale = this.stageInfo.scaleX();
+        const scale = this.camera.getScale();
         if (!scale) return;
 
         this.perfMonitor.setCallback(this.settings.perfCallback);
         const perfStart = this.settings.perfCallback ? performance.now() : 0;
 
-        const stagePosition = this.stageInfo.position();
+        const position = this.camera.position;
         const halfSize = this.settings.roomSize / 2;
         const bounds = this.settings.cullingBounds;
         const viewportMinX = bounds ? bounds.x : 0;
-        const viewportMaxX = bounds ? bounds.x + bounds.width : this.stageInfo.width();
+        const viewportMaxX = bounds ? bounds.x + bounds.width : this.camera.width;
         const viewportMinY = bounds ? bounds.y : 0;
-        const viewportMaxY = bounds ? bounds.y + bounds.height : this.stageInfo.height();
-        const minX = (Math.min(viewportMinX, viewportMaxX) - stagePosition.x) / scale;
-        const maxX = (Math.max(viewportMinX, viewportMaxX) - stagePosition.x) / scale;
-        const minY = (Math.min(viewportMinY, viewportMaxY) - stagePosition.y) / scale;
-        const maxY = (Math.max(viewportMinY, viewportMaxY) - stagePosition.y) / scale;
+        const viewportMaxY = bounds ? bounds.y + bounds.height : this.camera.height;
+        const minX = (Math.min(viewportMinX, viewportMaxX) - position.x) / scale;
+        const maxX = (Math.max(viewportMinX, viewportMaxX) - position.x) / scale;
+        const minY = (Math.min(viewportMinY, viewportMaxY) - position.y) / scale;
+        const maxY = (Math.max(viewportMinY, viewportMaxY) - position.y) / scale;
 
         let roomLayerNeedsDraw = false;
         let linkLayerNeedsDraw = false;
@@ -321,8 +312,7 @@ export class CullingManager {
             this.standaloneExitNodes.forEach(entry => {
                 if (!entry.group.isVisible()) { entry.group.setVisible(true); linkLayerNeedsDraw = true; }
             });
-            if (roomLayerNeedsDraw) this.roomLayer.batchDraw();
-            if (linkLayerNeedsDraw) this.linkLayer.batchDraw();
+            if (roomLayerNeedsDraw || linkLayerNeedsDraw) this.redrawCallback?.(roomLayerNeedsDraw, linkLayerNeedsDraw);
             this.visibleRooms.clear();
             this.roomNodes.forEach(entry => this.visibleRooms.add(entry));
             this.visibleStandaloneExitNodes.clear();
@@ -350,8 +340,7 @@ export class CullingManager {
 
             this.bufferRoomSet = this.visibleRooms;
             this.visibleRooms = nextVisibleRooms;
-            if (roomLayerNeedsDraw) this.roomLayer.batchDraw();
-            if (linkLayerNeedsDraw) this.linkLayer.batchDraw();
+            if (roomLayerNeedsDraw || linkLayerNeedsDraw) this.redrawCallback?.(roomLayerNeedsDraw, linkLayerNeedsDraw);
             return;
         }
 
@@ -385,8 +374,7 @@ export class CullingManager {
         const exitResult = this.cullExits(minX, maxX, minY, maxY, true);
         linkLayerNeedsDraw = exitResult.changed;
 
-        if (roomLayerNeedsDraw) this.roomLayer.batchDraw();
-        if (linkLayerNeedsDraw) this.linkLayer.batchDraw();
+        if (roomLayerNeedsDraw || linkLayerNeedsDraw) this.redrawCallback?.(roomLayerNeedsDraw, linkLayerNeedsDraw);
 
         if (this.settings.perfCallback) {
             const cullingMs = performance.now() - perfStart;

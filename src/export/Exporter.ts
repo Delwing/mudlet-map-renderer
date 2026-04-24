@@ -1,6 +1,7 @@
 import type {MapState} from "../MapState";
 import type {Style} from "../backend/DrawingBackend";
 import type {SceneOverlay} from "../overlay/SceneOverlay";
+import type {ScenePipeline} from "../ScenePipeline";
 
 /**
  * Minimal handle to the renderer exposed to exporters. Decouples exporters
@@ -27,6 +28,7 @@ export interface RendererHandle {
 export interface ExportContext {
     readonly state: MapState;
     readonly renderer: RendererHandle;
+    readonly pipeline: ScenePipeline;
     readonly style: Style;
     readonly sceneOverlays: Iterable<SceneOverlay>;
 }
