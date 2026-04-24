@@ -8,7 +8,6 @@ import type {DrawingBackend, GroupNode, LayerNode, CoordFn, Style} from "../back
 import {identityStyle, IDENTITY_TRANSFORM} from "../backend/DrawingBackend";
 import {TypedEventEmitter} from "../TypedEventEmitter";
 import {InteractionHandler} from "../InteractionHandler";
-import {GridRenderer} from "../GridRenderer";
 import type {SceneBuildResult, AreaExitHitZone} from "../ScenePipeline";
 import type {MapState} from "../MapState";
 import type {MapRenderer, RenderingBackend} from "./MapRenderer";
@@ -59,7 +58,6 @@ export class KonvaLayerManager implements RenderingBackend {
     readonly positionLayerNode: KonvaLayerNode;
 
     private drawingBackend: DrawingBackend;
-    private readonly gridRenderer: GridRenderer;
     private _coordinateTransform: CoordFn = IDENTITY_TRANSFORM;
     private coordinateInverse: CoordFn = IDENTITY_TRANSFORM;
 
@@ -128,7 +126,6 @@ export class KonvaLayerManager implements RenderingBackend {
         this.positionLayerNode = new KonvaLayerNode(this.positionLayer);
 
         this.drawingBackend = new CanvasBackend();
-        this.gridRenderer = new GridRenderer(settings, this.drawingBackend);
         this.events = new TypedEventEmitter<RendererEventMap>(container);
 
         renderer.culling.setRedrawCallback((roomDirty, linkDirty) => {
@@ -266,7 +263,7 @@ export class KonvaLayerManager implements RenderingBackend {
         this.stage.scale({x: scale, y: scale});
         this.stage.position(exportPosition);
 
-        this.gridRenderer.render(this.gridLayerNode, this.camera.getViewportBounds());
+        this.renderer.pipeline.gridRenderer.render(this.gridLayerNode, this.camera.getViewportBounds());
         this.renderer.culling.updateCulling();
 
         const stageCanvas = this.stage.toCanvas({width, height}) as HTMLCanvasElement;
@@ -362,7 +359,7 @@ export class KonvaLayerManager implements RenderingBackend {
         this.stage.position(this.camera.position);
         this.stage.batchDraw();
         const gridStart = performance.now();
-        this.gridRenderer.render(this.gridLayerNode, this.camera.getViewportBounds());
+        this.renderer.pipeline.gridRenderer.render(this.gridLayerNode, this.camera.getViewportBounds());
         this.renderer.culling.recordGridMs(performance.now() - gridStart);
         this.renderer.culling.scheduleCulling();
         const vpBounds = this.camera.getViewportBounds();
@@ -380,7 +377,7 @@ export class KonvaLayerManager implements RenderingBackend {
         this._coordinateTransform = forward;
         this.coordinateInverse = newInverse;
         this.renderer.culling.setCoordinateTransform(forward);
-        this.gridRenderer.setInverseTransform(newInverse);
+        this.renderer.pipeline.gridRenderer.setInverseTransform(newInverse);
         this.renderer.pipeline.gridRenderer.setInverseTransform(newInverse);
 
         const scale = this.camera.getScale();
@@ -393,7 +390,6 @@ export class KonvaLayerManager implements RenderingBackend {
         this.camera.position = {x: screenCX - nr.x * scale, y: screenCY - nr.y * scale};
 
         this.drawingBackend = backend;
-        this.gridRenderer.setBackend(backend);
         this.renderer.pipeline.setBackend(backend);
         this.applyViewportToStage();
     }
@@ -402,7 +398,7 @@ export class KonvaLayerManager implements RenderingBackend {
         this._coordinateTransform = backend.getTransform();
         this.coordinateInverse = backend.getInverseTransform();
         this.renderer.culling.setCoordinateTransform(this._coordinateTransform);
-        this.gridRenderer.setInverseTransform(this.coordinateInverse);
+        this.renderer.pipeline.gridRenderer.setInverseTransform(this.coordinateInverse);
         this.renderer.pipeline.gridRenderer.setInverseTransform(this.coordinateInverse);
     }
 
