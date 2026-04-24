@@ -1,54 +1,46 @@
 import type {MapState} from "../MapState";
 import type {Style} from "../backend/DrawingBackend";
 import type {SceneOverlay} from "../overlay/SceneOverlay";
-import type {InteractiveBackend} from "../rendering/MapRenderer";
+
+/**
+ * Minimal handle to the renderer exposed to exporters. Decouples exporters
+ * from the full MapRenderer type to avoid circular imports.
+ */
+export interface RendererHandle {
+    toCanvas(options: {
+        width: number;
+        height: number;
+        roomId?: number;
+        padding?: number;
+        overlays?: {
+            position?: { roomId: number };
+            highlights?: Array<{ roomId: number; color: string }>;
+            paths?: Array<{ locations: number[]; color: string }>;
+        };
+    }): ExportCanvas | undefined;
+    exportCanvas(options?: { pixelRatio?: number }): ExportCanvas | undefined;
+}
 
 /**
  * Context handed to every {@link Exporter} by {@link MapRenderer.export}.
- * Exporters pull whatever they need — state + style for SVG, backend for
- * canvas/PNG rasterization — so callers never have to wire `renderer.backend`
- * (or any other internal) into an exporter themselves.
  */
 export interface ExportContext {
     readonly state: MapState;
-    readonly backend: InteractiveBackend;
+    readonly renderer: RendererHandle;
     readonly style: Style;
     readonly sceneOverlays: Iterable<SceneOverlay>;
 }
 
 /**
  * Pluggable output format. An {@link Exporter} consumes an {@link ExportContext}
- * and returns an output of type `T` (a string, a Blob promise, a canvas, bytes…).
- *
- * Adding a new output format means implementing `Exporter<T>`. `MapRenderer`'s
- * surface does not change — users just pass the new exporter to `renderer.export`.
- *
- * ```ts
- * renderer.export(new SvgExporter({ padding: 5 }));         // string
- * renderer.export(new PngExporter({ pixelRatio: 2 }));      // string (data URL)
- * renderer.export(new CanvasExporter({ width, height }));   // ExportCanvas
- * ```
+ * and returns an output of type `T`.
  */
 export interface Exporter<T> {
     render(context: ExportContext): T;
 }
 
 /**
- * Canvas returned by {@link InteractiveBackend.toCanvas} and
- * {@link CanvasExporter}. Describes the portable surface common to the
- * browser `HTMLCanvasElement` and the `canvas` package's Node-side Canvas:
- *
- *   - Portable:  `width`, `height`, `getContext`, `toDataURL`.
- *   - Browser:   `toBlob(cb)` (optional here; use when serializing to a Blob).
- *
- * Platform-specific serializers (e.g. node-canvas's `toBuffer`) are intentionally
- * not part of this interface. Cast when you need them:
- *
- * ```ts
- * import type { Canvas } from 'canvas';
- * const canvas = renderer.export(new CanvasExporter({width, height})) as unknown as Canvas;
- * const png = canvas.toBuffer('image/png');
- * ```
+ * Canvas returned by {@link RendererHandle.toCanvas} and {@link CanvasExporter}.
  */
 export interface ExportCanvas {
     readonly width: number;

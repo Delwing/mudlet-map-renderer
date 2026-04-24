@@ -32,8 +32,8 @@ export interface CanvasExportOptions {
 export class CanvasExporter implements Exporter<ExportCanvas | undefined> {
     constructor(private readonly options: CanvasExportOptions) {}
 
-    render({backend}: ExportContext): ExportCanvas | undefined {
-        return backend.toCanvas(this.options);
+    render({renderer}: ExportContext): ExportCanvas | undefined {
+        return renderer.toCanvas(this.options);
     }
 }
 
@@ -63,7 +63,7 @@ export class PngBytesExporter implements Exporter<Uint8Array | undefined> {
     constructor(private readonly options: PngBytesExportOptions) {}
 
     render(context: ExportContext): Uint8Array | undefined {
-        const canvas = context.backend.toCanvas(this.options);
+        const canvas = context.renderer.toCanvas(this.options);
         if (!canvas) return;
         return canvasToBytes(canvas, this.options.mimeType, this.options.quality);
     }

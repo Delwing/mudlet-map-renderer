@@ -10,12 +10,11 @@ export { darkenColor, colorLightness, hexToRgba } from './utils/color';
 
 // --- Core renderer ---
 export { MapRenderer } from './rendering/MapRenderer';
-export type { InteractiveBackend } from './rendering/MapRenderer';
+export { KonvaLayerManager } from './rendering/KonvaLayerManager';
 export type { DrawnExitEntry, DrawnSpecialExitEntry, DrawnStubEntry } from './ScenePipeline';
 export type { ExitDrawData, ExitDrawLine, ExitDrawArrow, ExitDrawDoor } from './ExitRenderer';
 export { MapState } from './MapState';
 export type { MapStateEventMap, HighlightEntry, PathEntry } from './MapState';
-export { KonvaRenderBackend } from './rendering/KonvaRenderBackend';
 export { Camera } from './Camera';
 
 // --- Drawing primitives ---
@@ -43,7 +42,7 @@ export {
 export type { SketchyOptions, IsometricOptions } from './style';
 
 // --- Exporters (pluggable output formats) ---
-export type { Exporter, ExportContext, ExportCanvas } from './export/Exporter';
+export type { Exporter, ExportContext, ExportCanvas, RendererHandle } from './export/Exporter';
 export { SvgExporter } from './export/SvgExporter';
 export { PngExporter, PngBlobExporter } from './export/PngExporter';
 export type { PngExportOptions } from './export/PngExporter';
