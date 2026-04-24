@@ -407,6 +407,8 @@ export class CanvasBackend implements DrawingBackend {
         });
     }
 
+    requestRedraw(): void {}
+
     supportsBatchExitRendering(): boolean {
         return true;
     }

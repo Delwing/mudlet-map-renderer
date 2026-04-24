@@ -123,6 +123,12 @@ export interface DrawingBackend {
     addText(parent: GroupNode, config: TextConfig): void;
     addImage(parent: GroupNode, config: ImageConfig): void;
     /**
+     * Signal the backend to flush pending draw commands to the screen.
+     * Interactive (Konva) backends call `batchDraw()`; export backends (SVG, Canvas)
+     * treat this as a no-op.
+     */
+    requestRedraw(): void;
+    /**
      * Whether this backend supports batch exit rendering via a single Canvas2D shape.
      * When true, link exits are collected as ExitDrawData and drawn in one batched
      * Konva.Shape sceneFunc instead of creating individual nodes per exit.
@@ -188,6 +194,10 @@ export abstract class BaseStyle<Inner extends DrawingBackend = DrawingBackend>
 
     addImage(parent: GroupNode, config: ImageConfig): void {
         this.inner.addImage(parent, config);
+    }
+
+    requestRedraw(): void {
+        this.inner.requestRedraw();
     }
 
     supportsBatchExitRendering(): boolean {

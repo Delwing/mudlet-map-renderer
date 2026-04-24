@@ -232,6 +232,11 @@ export class KonvaBackend implements DrawingBackend {
         }
     }
 
+    requestRedraw(): void {
+        // KonvaBackend is a stateless node factory; it holds no layer reference.
+        // Callers that need a batchDraw should call it on the LayerNode directly.
+    }
+
     supportsBatchExitRendering(): boolean {
         return true;
     }
