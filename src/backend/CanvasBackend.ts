@@ -228,6 +228,107 @@ export class RecordingGroupNode implements GroupNode {
     }
 }
 
+// --- Pure-data draw entry ---
+
+/**
+ * A lightweight record extracted from a {@link RecordingGroupNode} and stored
+ * by {@link DrawCommandLayerNode}.  Contains only plain data — no Konva node
+ * reference — so it can be toggled by the culling callbacks without any
+ * knowledge of Konva.
+ */
+export type DrawEntry = {
+    x: number;
+    y: number;
+    noScaling: boolean;
+    readonly commands: DrawCommand[];
+    visible: boolean;
+};
+
+// --- DrawCommandLayerNode ---
+
+/**
+ * LayerNode backed by a single Konva.Shape whose sceneFunc replays
+ * {@link DrawEntry} objects.  Replaces {@link RecordingLayerNode} for the
+ * main scene layer: entries hold pure data with no Konva coupling, so the
+ * culling bridge can toggle visibility without needing a GroupNode reference.
+ *
+ * GroupNodes added via {@link addNode} must be {@link RecordingGroupNode}
+ * instances; their position, noScaling flag, and command list are extracted
+ * into a {@link DrawEntry}.  The original GroupNode is kept as a lookup key
+ * so callers can retrieve the entry after ScenePipeline has added nodes (see
+ * {@link getEntry}).
+ */
+export class DrawCommandLayerNode implements LayerNode {
+    private readonly entries: DrawEntry[] = [];
+    private readonly nodeToEntry = new Map<GroupNode, DrawEntry>();
+    private readonly konvaLayer: Konva.Layer;
+    private konvaShape: Konva.Shape;
+
+    constructor(konvaLayer: Konva.Layer) {
+        this.konvaLayer = konvaLayer;
+        konvaLayer.destroyChildren();
+        const self = this;
+        this.konvaShape = new Konva.Shape({
+            listening: false,
+            perfectDrawEnabled: false,
+            sceneFunc: (context) => {
+                const ctx = context._context as CanvasRenderingContext2D;
+                const base = ctx.getTransform();
+                const a = base.a, b = base.b, c = base.c, d = base.d;
+                for (const entry of self.entries) {
+                    if (!entry.visible) continue;
+                    const tx = a * entry.x + c * entry.y + base.e;
+                    const ty = b * entry.x + d * entry.y + base.f;
+                    if (entry.noScaling) {
+                        ctx.setTransform(75, 0, 0, 75, tx, ty);
+                    } else {
+                        ctx.setTransform(a, b, c, d, tx, ty);
+                    }
+                    for (const cmd of entry.commands) {
+                        replayCommand(ctx, cmd);
+                    }
+                }
+                ctx.setTransform(base);
+            },
+        });
+        konvaLayer.add(this.konvaShape);
+    }
+
+    addNode(node: GroupNode): void {
+        if (!(node instanceof RecordingGroupNode)) return;
+        const entry: DrawEntry = {
+            x: node.x,
+            y: node.y,
+            noScaling: node.noScaling,
+            commands: node.commands,
+            visible: node._visible,
+        };
+        this.entries.push(entry);
+        this.nodeToEntry.set(node, entry);
+        this.ensureShape();
+    }
+
+    /** Return the DrawEntry created when `node` was added, or undefined if not found. */
+    getEntry(node: GroupNode): DrawEntry | undefined {
+        return this.nodeToEntry.get(node);
+    }
+
+    destroyChildren(): void {
+        this.entries.length = 0;
+        this.nodeToEntry.clear();
+    }
+
+    batchDraw(): void {
+        this.konvaLayer.batchDraw();
+    }
+
+    private ensureShape(): void {
+        if (!this.konvaShape.getParent()) {
+            this.konvaLayer.add(this.konvaShape);
+        }
+    }
+}
+
 // --- Recording layer node ---
 
 /**
