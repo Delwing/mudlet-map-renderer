@@ -244,7 +244,7 @@ export class ScenePipeline {
         }
 
         // Labels
-        this.renderLabels(plane.getLabels());
+        this.renderLabels(plane.getLabels(), area.getAreaId());
 
         // Link exits (two-way connections)
         const exitResult = this.renderLinkExits(area.getLinkExits(zIndex), zIndex);
@@ -267,6 +267,16 @@ export class ScenePipeline {
         );
         areaExitHitZones.push(...labelHitZones);
 
+        // All hit-bearing layers concatenated. HitTester walks the tree and
+        // ignores shapes without `hit`, so feeding it the union is cheap and
+        // keeps every annotated shape (rooms, exits, stubs, labels, area-exit
+        // labels, …) reachable from a single index.
+        const hitShapes: Shape[] = [
+            ...this.linkShapes,
+            ...this.roomShapes,
+            ...this.topLabelShapes,
+        ];
+
         return {
             roomShapeRefs: roomResult.roomShapeRefs,
             standaloneExitShapeRefs: exitResult.standaloneExitShapeRefs,
@@ -274,7 +284,7 @@ export class ScenePipeline {
             drawnExits: exitResult.drawnExits,
             drawnSpecialExits: roomResult.drawnSpecialExits,
             drawnStubs: roomResult.drawnStubs,
-            hitShapes: roomResult.hitShapes,
+            hitShapes,
             sceneShapes: {
                 grid: this.gridShapes,
                 link: this.linkShapes,
@@ -295,7 +305,6 @@ export class ScenePipeline {
         const areaExitHitZones: AreaExitHitZone[] = [];
         const drawnSpecialExits: DrawnSpecialExitEntry[] = [];
         const drawnStubs: DrawnStubEntry[] = [];
-        const hitShapes: Shape[] = [];
 
         // Queue room shapes and push them onto roomShapes after all rooms'
         // special exits and stubs have been pushed onto linkShapes. This keeps
@@ -309,10 +318,9 @@ export class ScenePipeline {
             // (e.g. Isometric) is applied downstream by Style.transform.
             const roomShape = layoutRoom(room, this.mapReader, this.settings, {flatPipeline: true});
             roomShape.children.push(...layoutInnerExits(room, this.mapReader, this.settings));
-            hitShapes.push(roomShape);
 
-            // Special exits → link layer. depthOffset stays {0,0} — Style
-            // (e.g. Isometric) applies cube-base offsets when transforming.
+            // Special exits → link layer. The active Style applies any
+            // cube-base offset when transforming the link group.
             for (const se of computeSpecialExits(room, this.settings)) {
                 const seShape = specialExitToShape(se, room.id);
                 this.linkShapes.push(seShape);
@@ -381,7 +389,7 @@ export class ScenePipeline {
             this.roomShapes.push(roomShape);
         }
 
-        return {roomShapeRefs, areaExitHitZones, drawnSpecialExits, drawnStubs, hitShapes};
+        return {roomShapeRefs, areaExitHitZones, drawnSpecialExits, drawnStubs};
     }
 
     // --- Link Exits ---
@@ -394,8 +402,17 @@ export class ScenePipeline {
         exits.forEach(exit => {
             const data = this.exitRenderer.renderData(exit, zIndex);
             if (!data) return;
-            // depthOffset stays {0,0} — Style applies cube-base offset downstream.
-            const exitShape = layoutLinkExit(data);
+            const exitShape = layoutLinkExit(data, {
+                kind: "exit",
+                id: `${exit.a}:${exit.b}:${exit.aDir ?? ""}:${exit.bDir ?? ""}`,
+                payload: {
+                    a: exit.a,
+                    b: exit.b,
+                    aDir: exit.aDir,
+                    bDir: exit.bDir,
+                    kind: exit.kind ?? "exit",
+                },
+            });
             this.linkShapes.push(exitShape);
             standaloneExitShapeRefs.push({shape: exitShape, bounds: data.bounds, targetRoomId: data.targetRoomId});
             drawnExits.push({
@@ -432,10 +449,18 @@ export class ScenePipeline {
 
     // --- Labels ---
 
-    private renderLabels(labels: MapData.Label[]) {
+    private renderLabels(labels: MapData.Label[], areaId: number) {
         for (const label of labels) {
             const shape = labelToShape(label, this.settings);
             if (!shape) continue;
+            // labelToShape leaves a placeholder `hit` without an id; replace it
+            // here so the HitTester can return `{ id, areaId }` directly to
+            // editor consumers without a follow-up lookup.
+            shape.hit = {
+                kind: "label",
+                id: label.labelId,
+                payload: {label, areaId},
+            };
             if (label.showOnTop) {
                 this.topLabelShapes.push(shape);
             } else {

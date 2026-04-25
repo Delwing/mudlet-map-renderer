@@ -1,22 +1,17 @@
-import type {Settings, RendererEventMap} from "./types/Settings";
+import type {RendererEventMap} from "./types/Settings";
 import type {TypedEventEmitter} from "./TypedEventEmitter";
 import type {Camera} from "./camera/Camera";
 import type {MapState} from "./MapState";
-
-type Bounds = { x: number; y: number; width: number; height: number };
-type AreaExitHitZone = { bounds: Bounds; targetRoomId: number };
+import type {HitResult} from "./hit/HitTester";
 
 export type HitTestCallbacks = {
     clientToMapPoint: (clientX: number, clientY: number) => { x: number; y: number } | null;
-    findRoomAtPoint: (mapX: number, mapY: number) => MapData.Room | null;
-    getAreaExitHitZones: () => AreaExitHitZone[];
     /**
-     * Inverse of the drawing backend's coordinate transform — maps a point from
-     * rendered space (what `clientToMapPoint` returns) back to untransformed map
-     * space. Needed for hit tests that compare against map-space bounds (e.g.
-     * area-exit hit zones) under decorators like IsometricStyle.
+     * Pick the topmost hit-annotated shape at a point in rendered space. The
+     * unified entry point for all DOM-level interaction — rooms, area-exit
+     * labels, and any future pickable kinds all flow through one query.
      */
-    renderedToMapPoint: (x: number, y: number) => { x: number; y: number };
+    pickAtPoint: (renderedX: number, renderedY: number) => HitResult | null;
 };
 
 /**
@@ -29,7 +24,6 @@ export type HitTestCallbacks = {
 export class InteractionHandler {
 
     private readonly container: HTMLDivElement;
-    private readonly settings: Settings;
     private readonly camera: Camera;
     private readonly state: MapState;
     private readonly hitTest: HitTestCallbacks;
@@ -49,14 +43,12 @@ export class InteractionHandler {
         container: HTMLDivElement,
         camera: Camera,
         state: MapState,
-        settings: Settings,
         hitTest: HitTestCallbacks,
         events: TypedEventEmitter<RendererEventMap>,
     ) {
         this.container = container;
         this.camera = camera;
         this.state = state;
-        this.settings = settings;
         this.hitTest = hitTest;
         this.events = events;
 
@@ -255,30 +247,19 @@ export class InteractionHandler {
 
     private initMapEvents() {
         const container = this.container;
-        let hoveredRoom: MapData.Room | null = null;
-        let hoveredAreaExit = false;
+        let hoverKind: string | null = null;
 
         this.listen(container, 'mousemove', (e: MouseEvent) => {
-            const room = this.findRoomAtClientPoint(e.clientX, e.clientY);
-            if (room !== hoveredRoom) {
-                hoveredRoom = room;
-                if (room) {
-                    hoveredAreaExit = false;
-                    this.setCursor('pointer');
-                    return;
-                }
-            }
-            if (!hoveredRoom) {
-                const exitZone = this.findAreaExitAtClientPoint(e.clientX, e.clientY);
-                const overExit = exitZone !== null;
-                hoveredAreaExit = overExit;
-                this.setCursor(overExit ? 'pointer' : 'auto');
+            const hit = this.pickAtClientPoint(e.clientX, e.clientY);
+            const kind = hit?.kind ?? null;
+            if (kind !== hoverKind) {
+                hoverKind = kind;
+                this.setCursor(kind === "room" || kind === "areaExit" ? 'pointer' : 'auto');
             }
         });
 
         this.listen(container, 'mouseleave', () => {
-            hoveredRoom = null;
-            hoveredAreaExit = false;
+            hoverKind = null;
             this.setCursor('auto');
         });
 
@@ -296,24 +277,25 @@ export class InteractionHandler {
             const dy = e.clientY - clickStart.y;
             clickStart = null;
             if (dx * dx + dy * dy > 25) return;
-            const room = this.findRoomAtClientPoint(e.clientX, e.clientY);
-            if (room) {
-                this.emitRoomClickEvent(room.id, e.clientX, e.clientY);
+            const hit = this.pickAtClientPoint(e.clientX, e.clientY);
+            if (hit?.kind === "room") {
+                this.emitRoomClickEvent(hit.id as number, e.clientX, e.clientY);
                 return;
             }
-            const exitZone = this.findAreaExitAtClientPoint(e.clientX, e.clientY);
-            if (exitZone) {
-                this.emitAreaExitClickEvent(exitZone.targetRoomId, e.clientX, e.clientY);
+            if (hit?.kind === "areaExit") {
+                const targetRoomId = (hit.payload as {targetRoomId: number} | undefined)?.targetRoomId
+                    ?? (hit.id as number);
+                this.emitAreaExitClickEvent(targetRoomId, e.clientX, e.clientY);
                 return;
             }
             this.emitMapClickEvent();
         });
 
         this.listen(container, 'contextmenu', (e: MouseEvent) => {
-            const room = this.findRoomAtClientPoint(e.clientX, e.clientY);
-            if (room) {
+            const hit = this.pickAtClientPoint(e.clientX, e.clientY);
+            if (hit?.kind === "room") {
                 e.preventDefault();
-                this.emitRoomContextEvent(room.id, e.clientX, e.clientY);
+                this.emitRoomContextEvent(hit.id as number, e.clientX, e.clientY);
             }
         });
 
@@ -336,14 +318,14 @@ export class InteractionHandler {
             if (e.touches.length > 1) return;
             const touch = e.touches[0];
             if (!touch) return;
-            const room = this.findRoomAtClientPoint(touch.clientX, touch.clientY);
-            if (!room) return;
+            const hit = this.pickAtClientPoint(touch.clientX, touch.clientY);
+            if (hit?.kind !== "room") return;
             longPressStart = { clientX: touch.clientX, clientY: touch.clientY };
             longPressTimeout = window.setTimeout(() => {
                 if (longPressStart) {
-                    const roomAtPoint = this.findRoomAtClientPoint(longPressStart.clientX, longPressStart.clientY);
-                    if (roomAtPoint) {
-                        this.emitRoomContextEvent(roomAtPoint.id, longPressStart.clientX, longPressStart.clientY);
+                    const at = this.pickAtClientPoint(longPressStart.clientX, longPressStart.clientY);
+                    if (at?.kind === "room") {
+                        this.emitRoomContextEvent(at.id as number, longPressStart.clientX, longPressStart.clientY);
                     }
                 }
                 clearLongPress();
@@ -370,28 +352,10 @@ export class InteractionHandler {
 
     // --- Hit testing helpers ---
 
-    private findRoomAtClientPoint(clientX: number, clientY: number): MapData.Room | null {
+    private pickAtClientPoint(clientX: number, clientY: number): HitResult | null {
         const mapPoint = this.hitTest.clientToMapPoint(clientX, clientY);
         if (!mapPoint) return null;
-        return this.hitTest.findRoomAtPoint(mapPoint.x, mapPoint.y);
-    }
-
-    private findAreaExitAtClientPoint(clientX: number, clientY: number): AreaExitHitZone | null {
-        const renderedPoint = this.hitTest.clientToMapPoint(clientX, clientY);
-        if (!renderedPoint) return null;
-        // Zone bounds are stored in pre-transform map space; click comes in as
-        // rendered space (iso-projected under IsometricStyle). Undo the decorator
-        // transform so AABB comparison works in both flat and iso modes.
-        const mapPoint = this.hitTest.renderedToMapPoint(renderedPoint.x, renderedPoint.y);
-        const pad = this.settings.roomSize * 0.5;
-        for (const zone of this.hitTest.getAreaExitHitZones()) {
-            const b = zone.bounds;
-            if (mapPoint.x >= b.x - pad && mapPoint.x <= b.x + b.width + pad &&
-                mapPoint.y >= b.y - pad && mapPoint.y <= b.y + b.height + pad) {
-                return zone;
-            }
-        }
-        return null;
+        return this.hitTest.pickAtPoint(mapPoint.x, mapPoint.y);
     }
 
     // --- Event emitters ---

@@ -1,7 +1,8 @@
 import type {ViewportBounds} from "../types/Settings";
 import {TypedEventEmitter} from "../TypedEventEmitter";
 
-const BASE_SCALE = 75;
+/** Pixels-per-world-unit at zoom = 1. Multiply by `Camera.zoom` for actual scale. */
+export const BASE_SCALE = 75;
 
 function easeInOut(t: number): number {
     return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;

@@ -172,16 +172,27 @@ describe("isometricShapeStyle", () => {
         expect(back.y).toBeCloseTo(3, 6);
     });
 
-    it("returns non-zero exit depth offset when depth > 0", () => {
-        const iso = isometricShapeStyle({rotation: 0, depth: 0.18});
-        const off = iso.getExitDepthOffset!();
-        expect(off.x === 0 && off.y === 0).toBe(false);
+    it("shifts layer:link groups down by depth so connectors meet the cube base", () => {
+        const depth = 0.18;
+        const iso = isometricShapeStyle({rotation: 0, depth});
+        const linkGroup: GroupShape = {type: "group", x: 0, y: 0, layer: "link", children: []};
+        const out = iso.transform(linkGroup, ctx) as GroupShape;
+        expect(out.x).toBe(0);
+        expect(out.y).toBeCloseTo(depth);
     });
 
-    it("returns zero exit depth offset at depth 0", () => {
+    it("does not shift link groups when depth is zero", () => {
         const iso = isometricShapeStyle({rotation: 0, depth: 0});
-        const off = iso.getExitDepthOffset!();
-        expect(off).toEqual({x: 0, y: 0});
+        const linkGroup: GroupShape = {type: "group", x: 0, y: 0, layer: "link", children: []};
+        const out = iso.transform(linkGroup, ctx) as GroupShape;
+        expect(out.y).toBe(0);
+    });
+
+    it("does not shift non-link groups", () => {
+        const iso = isometricShapeStyle({rotation: 0, depth: 0.18});
+        const roomGroup: GroupShape = {type: "group", x: 0, y: 0, layer: "room", children: []};
+        const out = iso.transform(roomGroup, ctx) as GroupShape;
+        expect(out.y).toBe(0);
     });
 
     it("projects line points via the iso transform", () => {
@@ -222,13 +233,6 @@ describe("compose", () => {
         expect(projected.y).toBeCloseTo(direct.y);
     });
 
-    it("composes getExitDepthOffset", () => {
-        const iso = isometricShapeStyle({rotation: 0, depth: 0.18});
-        const chain = compose(parchmentShapeStyle, iso);
-        const off = chain.getExitDepthOffset!();
-        const direct = iso.getExitDepthOffset!();
-        expect(off).toEqual(direct);
-    });
 });
 
 it("circle.transform emits non-zero shape output", () => {

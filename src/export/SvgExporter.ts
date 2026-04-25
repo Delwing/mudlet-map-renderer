@@ -1,19 +1,15 @@
 import {ScenePipeline} from "../ScenePipeline";
-import {computeHighlight, computePathOverlay, computePositionMarker} from "../scene/OverlayStyle";
-import {
-    highlightToShapes,
-    pathToShapes,
-    positionMarkerToShape,
-} from "../scene/elements/OverlayLayout";
 import {buildDrawCommands} from "../draw/DrawCommandBuilder";
 import {svgFromBatches} from "../render/SvgRenderer";
 import type {Shape} from "../scene/Shape";
 import type {SvgExportOptions} from "../SvgTypes";
-import type {MapState} from "../MapState";
 import {applyStyleToShapes} from "../style/applyStyle";
 import {identityStyle} from "../style/Style";
 import type {Style} from "../style/Style";
 import type {Exporter, ExportContext} from "./Exporter";
+import {flushSceneShapes} from "./flushSceneShapes";
+import {clipSceneToViewport} from "./clipSceneToViewport";
+import {projectExportBoundsToScene} from "./sceneBounds";
 
 const IDENTITY_CAMERA = {scale: 1, offsetX: 0, offsetY: 0};
 
@@ -55,70 +51,36 @@ export class SvgExporter implements Exporter<string | undefined> {
 
         const pipeline = new ScenePipeline(state.mapReader, settings);
         const result = pipeline.buildScene(area, plane, currentZIndex, viewportBounds);
+        const transform = style.worldToScene
+            ? (x: number, y: number) => style.worldToScene!(x, y)
+            : undefined;
+        const clipped = clipSceneToViewport(result, viewportBounds, settings, transform);
         const ctx = {scale: 1, roomSize: settings.roomSize};
         const styled = (shapes: Shape[]): Shape[] =>
             style === identityStyle ? shapes : applyStyleToShapes(shapes, style as Style, ctx);
 
+        // Coordinate-warping styles (Isometric) render shapes in scene space —
+        // the viewBox and background rect must follow the projection so rooms
+        // don't drift off the background. Scene-pad covers projection-unaware
+        // decorations (cube depth, glow halos, …).
+        const sceneBounds = projectExportBoundsToScene(bounds, style, settings.roomSize * 0.5);
+
         const lines: string[] = [];
-        lines.push(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="${bounds.x} ${bounds.y} ${bounds.w} ${bounds.h}">`);
-        lines.push(`<rect x="${bounds.x}" y="${bounds.y}" width="${bounds.w}" height="${bounds.h}" fill="${escapeXml(settings.backgroundColor)}"/>`);
+        lines.push(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="${sceneBounds.x} ${sceneBounds.y} ${sceneBounds.w} ${sceneBounds.h}">`);
+        lines.push(`<rect x="${sceneBounds.x}" y="${sceneBounds.y}" width="${sceneBounds.w}" height="${sceneBounds.h}" fill="${escapeXml(settings.backgroundColor)}"/>`);
 
         const flush = (shapes: Shape[]) => {
             if (shapes.length === 0) return;
             lines.push(...svgFromBatches(buildDrawCommands(styled(shapes), IDENTITY_CAMERA)));
         };
 
-        flush(result.sceneShapes.grid);
-        flush(result.sceneShapes.link);
-        flush(result.sceneShapes.room);
-
-        // Built-in overlays (paths under highlights under the position marker)
-        // emit at the same z as the legacy `renderBuiltInOverlays` did:
-        // appended after the room layer, before the top-label layer.
-        flush(this.buildBuiltInOverlayShapes(state));
-
-        // SceneOverlays return shapes; flush them through the same
-        // DrawCommandBuilder + SvgRenderer path as the rest of the scene.
-        for (const overlay of sceneOverlays) {
-            const out = overlay.render(state, viewportBounds);
-            if (!out) continue;
-            flush(Array.isArray(out) ? out : [out]);
-        }
-
-        flush(result.sceneShapes.topLabel);
+        flushSceneShapes(
+            clipped,
+            {state, viewportBounds, sceneOverlays, overlays: this.options.overlays},
+            flush,
+        );
 
         lines.push("</svg>");
         return lines.join("\n");
-    }
-
-    private buildBuiltInOverlayShapes(state: MapState): Shape[] {
-        const overlays = state.getOverlaysForArea(this.options.overlays);
-        if (!overlays) return [];
-        const settings = state.settings;
-        const out: Shape[] = [];
-
-        if (overlays.paths) {
-            for (const path of overlays.paths) {
-                const data = computePathOverlay(
-                    state.mapReader, settings, path.locations, path.color,
-                    state.currentArea!, state.currentZIndex!,
-                );
-                out.push(...pathToShapes(data));
-            }
-        }
-        if (overlays.highlights) {
-            for (const hl of overlays.highlights) {
-                const room = state.mapReader.getRoom(hl.roomId);
-                if (!room) continue;
-                out.push(...highlightToShapes(computeHighlight(room, hl.color, settings)));
-            }
-        }
-        if (overlays.position) {
-            const room = state.mapReader.getRoom(overlays.position.roomId);
-            if (room) {
-                out.push(positionMarkerToShape(computePositionMarker(room, settings)));
-            }
-        }
-        return out;
     }
 }

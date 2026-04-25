@@ -72,8 +72,9 @@ function rectToDiamond(iso: IsoFn, x: number, y: number, w: number, h: number): 
  *   line up exactly.
  *
  * Provides `worldToScene` / `sceneToWorld` so `HitTester` and `Camera` can
- * round-trip clicks through the projection, plus `getExitDepthOffset` so
- * exit lines connect at the cube base instead of the top face.
+ * round-trip clicks through the projection. Link-layer groups (exits,
+ * special exits, stubs) are shifted down by the cube depth in render space
+ * so connectors attach at the cube base instead of the top face.
  */
 export function isometricShapeStyle(options: IsometricOptions = {}): Style {
     const rotation = options.rotation ?? 0;
@@ -312,6 +313,12 @@ export function isometricShapeStyle(options: IsometricOptions = {}): Style {
                     };
                 case "group": {
                     const [ox, oy] = iso(shape.x, shape.y);
+                    // Link-layer connectors (exits, special exits, stubs) attach
+                    // to the cube base, not the projected top face. Shift the
+                    // group origin down by the cube depth in render space.
+                    if (depth > 0 && shape.layer === "link") {
+                        return {...shape, x: ox, y: oy + depth};
+                    }
                     return {...shape, x: ox, y: oy};
                 }
             }
@@ -325,12 +332,6 @@ export function isometricShapeStyle(options: IsometricOptions = {}): Style {
         sceneToWorld(x, y) {
             const [ox, oy] = isoInv(x, y);
             return {x: ox, y: oy};
-        },
-
-        getExitDepthOffset() {
-            if (depth <= 0) return {x: 0, y: 0};
-            const [dx, dy] = isoInv(0, depth);
-            return {x: dx, y: dy};
         },
     };
 }

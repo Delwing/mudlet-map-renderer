@@ -120,11 +120,13 @@ describe("HitTester — basic flat hit test", () => {
         expect(tester.pick(2, 0)).toBeNull();
     });
 
-    it("picks within the roomSize margin (half-extent + margin check)", () => {
+    it("picks within the roomSize margin from the room's edge", () => {
         tester.build([makeRoomGroup(0, 0, 1)], roomSize);
-        // Room half-width = 0.5; pick margin extends to max(0.5, 1.0) = 1.0
-        expect(tester.pick(0.9, 0)).not.toBeNull();
-        expect(tester.pick(1.1, 0)).toBeNull();
+        // Room rect is [-0.5, 0.5]; rooms have a margin of 1.0×roomSize
+        // measured from the rect edge (point-to-rect distance, not point-to-center).
+        expect(tester.pick(0.9, 0)).not.toBeNull();   // inside the rect
+        expect(tester.pick(1.4, 0)).not.toBeNull();   // 0.9 from edge — within margin
+        expect(tester.pick(1.6, 0)).toBeNull();       // 1.1 from edge — outside margin
     });
 
     it("findRoomAtPoint returns the Room payload", () => {
@@ -219,5 +221,183 @@ describe("HitTester — nested group hit annotation", () => {
         const hit = tester.pick(5.5, 5.5);
         expect(hit!.kind).toBe("exit");
         expect(hit!.id).toBe(99);
+    });
+});
+
+// ── Polyline-aware distance ──────────────────────────────────────────────────
+
+describe("HitTester — polyline distance", () => {
+    it("hits long line near its midpoint, but not in the bbox interior off-line", () => {
+        const tester = new HitTester();
+        const exit: LineShape = {
+            type: "line",
+            points: [0, 0, 100, 0],
+            paint: {},
+            hit: {kind: "exit", id: 1},
+        };
+        tester.build([exit], 1);
+        // On the line near midpoint
+        expect(tester.pick(50, 0)).not.toBeNull();
+        // 0.3 above the line — within the 0.35 default exit margin
+        expect(tester.pick(50, 0.3)).not.toBeNull();
+        // 0.5 above the line — outside the 0.35 exit margin
+        expect(tester.pick(50, 0.5)).toBeNull();
+    });
+
+    it("diagonal line: distance is to the segment, not the bbox", () => {
+        const tester = new HitTester();
+        const line: LineShape = {
+            type: "line",
+            points: [0, 0, 10, 10],
+            paint: {},
+            // override default margin so threshold is predictable
+            hit: {kind: "exit", id: 7, margin: 0.5},
+        };
+        tester.build([line], 1);
+        // (5, 5) is on the line — distance 0
+        expect(tester.pick(5, 5)!.distance).toBeCloseTo(0);
+        // (10, 0) is in the bbox but ~7.07 from the segment — far outside margin
+        expect(tester.pick(10, 0)).toBeNull();
+    });
+
+    it("polyline picks segment-closest distance across multiple segments", () => {
+        const tester = new HitTester();
+        const line: LineShape = {
+            type: "line",
+            points: [0, 0, 5, 0, 5, 5],  // L-shape
+            paint: {},
+            hit: {kind: "exit", id: 1, margin: 0.5},
+        };
+        tester.build([line], 1);
+        // On the horizontal arm
+        expect(tester.pick(2, 0)).not.toBeNull();
+        // On the vertical arm
+        expect(tester.pick(5, 2)).not.toBeNull();
+        // In the inner corner area but off both segments
+        expect(tester.pick(0, 5)).toBeNull();
+    });
+});
+
+// ── pickAll ──────────────────────────────────────────────────────────────────
+
+describe("HitTester — pickAll", () => {
+    it("returns all hits at point sorted by priority then distance", () => {
+        const tester = new HitTester();
+        const room: GroupShape = {
+            type: "group",
+            x: -0.5, y: -0.5,
+            hit: {kind: "room", id: 1, payload: {id: 1}},
+            children: [{type: "rect", x: 0, y: 0, width: 1, height: 1, paint: {}}],
+        };
+        const exit: LineShape = {
+            type: "line",
+            points: [-2, 0, 2, 0],
+            paint: {},
+            hit: {kind: "exit", id: 50},
+        };
+        tester.build([exit, room], 1);
+        const hits = tester.pickAll(0, 0);
+        // Both hit at (0,0). Room has higher default priority.
+        expect(hits.length).toBe(2);
+        expect(hits[0].kind).toBe("room");
+        expect(hits[1].kind).toBe("exit");
+    });
+
+    it("respects explicit priority override", () => {
+        const tester = new HitTester();
+        const a: RectShape = {
+            type: "rect", x: 0, y: 0, width: 2, height: 2, paint: {},
+            hit: {kind: "label", id: "a", priority: 10},
+        };
+        const b: RectShape = {
+            type: "rect", x: 0, y: 0, width: 2, height: 2, paint: {},
+            hit: {kind: "label", id: "b", priority: 50},
+        };
+        tester.build([a, b], 1);
+        const hits = tester.pickAll(1, 1);
+        expect(hits.length).toBe(2);
+        expect(hits[0].id).toBe("b"); // higher priority first
+    });
+
+    it("returns empty array when nothing in range", () => {
+        const tester = new HitTester();
+        const room: GroupShape = {
+            type: "group",
+            x: -0.5, y: -0.5,
+            hit: {kind: "room", id: 1},
+            children: [{type: "rect", x: 0, y: 0, width: 1, height: 1, paint: {}}],
+        };
+        tester.build([room], 1);
+        expect(tester.pickAll(100, 100)).toEqual([]);
+    });
+});
+
+// ── pickInRect ───────────────────────────────────────────────────────────────
+
+describe("HitTester — pickInRect", () => {
+    function makeRoom(x: number, y: number, id: number): GroupShape {
+        return {
+            type: "group",
+            x: x - 0.5, y: y - 0.5,
+            hit: {kind: "room", id, payload: {id, x, y}},
+            children: [{type: "rect", x: 0, y: 0, width: 1, height: 1, paint: {}}],
+        };
+    }
+
+    it("returns rooms whose center is inside the rect (marquee selection)", () => {
+        const tester = new HitTester();
+        tester.build([
+            makeRoom(0, 0, 1),
+            makeRoom(5, 0, 2),
+            makeRoom(10, 0, 3),
+        ], 1);
+        const hits = tester.pickInRect(-1, -1, 6, 1);
+        const ids = hits.map(h => h.id).sort();
+        expect(ids).toEqual([1, 2]);
+    });
+
+    it("filters by kind", () => {
+        const tester = new HitTester();
+        const room = makeRoom(0, 0, 1);
+        const label: RectShape = {
+            type: "rect", x: 0.5, y: 0.5, width: 1, height: 1, paint: {},
+            hit: {kind: "label", id: "L1"},
+        };
+        tester.build([room, label], 1);
+        const rooms = tester.pickInRect(-2, -2, 2, 2, ["room"]);
+        expect(rooms.length).toBe(1);
+        expect(rooms[0].kind).toBe("room");
+        const labels = tester.pickInRect(-2, -2, 2, 2, ["label"]);
+        expect(labels.length).toBe(1);
+        expect(labels[0].kind).toBe("label");
+    });
+
+    it("normalizes inverted rect coordinates", () => {
+        const tester = new HitTester();
+        tester.build([makeRoom(5, 5, 1)], 1);
+        // maxX < minX, maxY < minY — should still hit
+        const hits = tester.pickInRect(10, 10, 0, 0);
+        expect(hits.length).toBe(1);
+    });
+});
+
+// ── Margin override ──────────────────────────────────────────────────────────
+
+describe("HitTester — HitInfo.margin override", () => {
+    it("uses HitInfo.margin when provided", () => {
+        const tester = new HitTester();
+        const tinyZone: RectShape = {
+            type: "rect",
+            x: 0, y: 0, width: 0.1, height: 0.1,
+            paint: {},
+            hit: {kind: "stub", id: 1, margin: 0.1},
+        };
+        tester.build([tinyZone], 1);
+        // Inside the rect
+        expect(tester.pick(0.05, 0.05)).not.toBeNull();
+        // 0.05 outside, within 0.1 * 1 margin
+        expect(tester.pick(0.15, 0.05)).not.toBeNull();
+        // 0.2 outside — beyond the 0.1 margin
+        expect(tester.pick(0.3, 0.05)).toBeNull();
     });
 });
