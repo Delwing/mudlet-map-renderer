@@ -1,4 +1,5 @@
-import type {ViewportBounds} from "./types/Settings";
+import type {ViewportBounds} from "../types/Settings";
+import {TypedEventEmitter} from "../TypedEventEmitter";
 
 const BASE_SCALE = 75;
 
@@ -6,13 +7,22 @@ function easeInOut(t: number): number {
     return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
 }
 
+/** Events fired by {@link Camera}. */
+export type CameraEventMap = {
+    /** Any state change: zoom, pan, size, animation tick. */
+    change: void;
+};
+
 /**
- * Engine-agnostic viewport — owns all transform state, drag, and animation.
- * The rendering backend subscribes to onChange and applies the state to its stage.
+ * Engine-agnostic camera — owns transform state, drag, and animation.
  *
- * No Konva, no DOM. Only dependency is requestAnimationFrame (fallback for Node.js).
+ * Subscribers ({@link KonvaRenderer}, {@link CullingManager}, {@link HitTester},
+ * scene overlays) listen to the `change` event to react to view updates.
+ *
+ * No Konva, no DOM. Only dependency is requestAnimationFrame (with a
+ * setTimeout fallback for Node.js).
  */
-export class Viewport {
+export class Camera extends TypedEventEmitter<CameraEventMap> {
     zoom: number = 1;
     minZoom: number = 0.05;
     position: { x: number; y: number } = {x: 0, y: 0};
@@ -22,18 +32,14 @@ export class Viewport {
     /** When true, resizing re-centers on the last panToMapPoint target. */
     centerOnResize: boolean = true;
 
-    /** Called after any state change (zoom, position, size). Backend applies to stage. */
-    onChange?: () => void;
-
-    // --- Drag state ---
     private dragging = false;
     private dragStart = {x: 0, y: 0};
     private positionAtDragStart = {x: 0, y: 0};
 
-    // --- Animation state ---
     private animationId?: number;
 
     constructor(width: number, height: number) {
+        super();
         this.width = width;
         this.height = height;
     }
@@ -50,9 +56,7 @@ export class Viewport {
         return true;
     }
 
-    /**
-     * Zoom keeping the center of the viewport fixed.
-     */
+    /** Zoom keeping the center of the viewport fixed. */
     zoomToCenter(zoom: number): boolean {
         const clamped = Math.max(this.minZoom, zoom);
         if (this.zoom === clamped) return false;
@@ -78,9 +82,7 @@ export class Viewport {
         return true;
     }
 
-    /**
-     * Zoom keeping a specific screen point fixed (for mouse wheel zoom).
-     */
+    /** Zoom keeping a specific screen point fixed (for mouse wheel zoom). */
     zoomToPoint(zoom: number, screenX: number, screenY: number): boolean {
         const oldScale = this.getScale();
         const mapPoint = {
@@ -101,6 +103,7 @@ export class Viewport {
         return true;
     }
 
+    /** Bounds of the visible area in map space. */
     getViewportBounds(): ViewportBounds {
         const scale = this.getScale();
         return {
@@ -111,9 +114,7 @@ export class Viewport {
         };
     }
 
-    /**
-     * Convert client/screen coordinates to map coordinates.
-     */
+    /** Convert client/screen coordinates to map coordinates. */
     clientToMapPoint(clientX: number, clientY: number, containerOffset?: { left: number; top: number }) {
         const stageX = clientX - (containerOffset?.left ?? 0);
         const stageY = clientY - (containerOffset?.top ?? 0);
@@ -125,9 +126,7 @@ export class Viewport {
         };
     }
 
-    /**
-     * Center on a map coordinate, instantly.
-     */
+    /** Center on a map coordinate, instantly. */
     panToMapPoint(x: number, y: number) {
         const scale = this.getScale();
         this.position = {
@@ -137,9 +136,7 @@ export class Viewport {
         this.notify();
     }
 
-    /**
-     * Center on a map coordinate, with optional animation.
-     */
+    /** Center on a map coordinate, with optional animation. */
     panToMapPointAnimated(x: number, y: number, instant: boolean) {
         if (instant) {
             this.panToMapPoint(x, y);
@@ -163,9 +160,7 @@ export class Viewport {
 
     /**
      * Compute the zoom level that would fit the given map bounds in the current
-     * viewport (with the same padding/insets as {@link fitToMapBounds}). Useful
-     * for updating `minZoom` to lock zoom-out to an area without changing the
-     * current zoom or position.
+     * viewport (with the same padding/insets as {@link fitToMapBounds}).
      */
     computeFitZoom(
         minX: number,
@@ -192,9 +187,8 @@ export class Viewport {
     }
 
     /**
-     * Fit the viewport to show the given map bounds with padding.
-     * Optional `insets` (screen pixels) reserve space at each edge — content
-     * is fit and centered within the rect remaining after the insets.
+     * Fit the camera to show the given map bounds with padding.
+     * Optional `insets` (screen pixels) reserve space at each edge.
      */
     fitToMapBounds(
         minX: number,
@@ -264,7 +258,6 @@ export class Viewport {
 
         const start = performance.now();
         const raf = typeof requestAnimationFrame !== 'undefined' ? requestAnimationFrame : (cb: FrameRequestCallback) => setTimeout(() => cb(performance.now()), 16) as unknown as number;
-        const caf = typeof cancelAnimationFrame !== 'undefined' ? cancelAnimationFrame : (id: number) => clearTimeout(id);
 
         const step = (now: number) => {
             const elapsed = now - start;
@@ -295,6 +288,6 @@ export class Viewport {
     }
 
     private notify() {
-        this.onChange?.();
+        this.emit('change', undefined);
     }
 }

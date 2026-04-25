@@ -1,6 +1,6 @@
 import type {Settings, RendererEventMap} from "./types/Settings";
 import type {TypedEventEmitter} from "./TypedEventEmitter";
-import type {Viewport} from "./Viewport";
+import type {Camera} from "./camera/Camera";
 import type {MapState} from "./MapState";
 
 type Bounds = { x: number; y: number; width: number; height: number };
@@ -21,7 +21,7 @@ export type HitTestCallbacks = {
 
 /**
  * Handles all DOM interaction on the map container:
- * - Viewport: drag (mouse + touch), wheel zoom, pinch zoom, resize
+ * - Camera: drag (mouse + touch), wheel zoom, pinch zoom, resize
  * - Map: hover cursor, click, right-click, long-press, area exit clicks
  *
  * No Konva dependency — works with any rendering backend.
@@ -30,7 +30,7 @@ export class InteractionHandler {
 
     private readonly container: HTMLDivElement;
     private readonly settings: Settings;
-    private readonly viewport: Viewport;
+    private readonly camera: Camera;
     private readonly state: MapState;
     private readonly hitTest: HitTestCallbacks;
     private readonly events: TypedEventEmitter<RendererEventMap>;
@@ -47,14 +47,14 @@ export class InteractionHandler {
 
     constructor(
         container: HTMLDivElement,
-        viewport: Viewport,
+        camera: Camera,
         state: MapState,
         settings: Settings,
         hitTest: HitTestCallbacks,
         events: TypedEventEmitter<RendererEventMap>,
     ) {
         this.container = container;
-        this.viewport = viewport;
+        this.camera = camera;
         this.state = state;
         this.settings = settings;
         this.hitTest = hitTest;
@@ -95,19 +95,19 @@ export class InteractionHandler {
         this.cleanupFns.push(() => target.removeEventListener(event, handler, options));
     }
 
-    // ===== Viewport events (drag, zoom, resize) =====
+    // ===== Camera events (drag, zoom, resize) =====
 
     private initViewportEvents() {
         const container = this.container;
-        const viewport = this.viewport;
+        const camera = this.camera;
         const scaleBy = 1.1;
 
         // --- Resize ---
         const handleResize = () => {
-            viewport.setSize(container.clientWidth, container.clientHeight);
-            if (viewport.centerOnResize && this.state.positionRoomId) {
+            camera.setSize(container.clientWidth, container.clientHeight);
+            if (camera.centerOnResize && this.state.positionRoomId) {
                 const room = this.state.mapReader.getRoom(this.state.positionRoomId);
-                if (room) viewport.panToMapPoint(room.x, room.y);
+                if (room) camera.panToMapPoint(room.x, room.y);
             }
         };
 
@@ -126,29 +126,29 @@ export class InteractionHandler {
             pointerId = e.pointerId;
             container.setPointerCapture(e.pointerId);
             const rect = container.getBoundingClientRect();
-            viewport.startDrag(e.clientX - rect.left, e.clientY - rect.top);
+            camera.startDrag(e.clientX - rect.left, e.clientY - rect.top);
         });
 
         this.listen(container, 'pointermove', (e) => {
             if (!pointerDown || e.pointerId !== pointerId) return;
             const rect = container.getBoundingClientRect();
-            viewport.updateDrag(e.clientX - rect.left, e.clientY - rect.top);
-            this.events.emit('pan', viewport.getViewportBounds());
+            camera.updateDrag(e.clientX - rect.left, e.clientY - rect.top);
+            this.events.emit('pan', camera.getViewportBounds());
         });
 
         this.listen(container, 'pointerup', (e) => {
             if (e.pointerId !== pointerId) return;
             pointerDown = false;
             pointerId = undefined;
-            viewport.endDrag();
-            this.events.emit('pan', viewport.getViewportBounds());
+            camera.endDrag();
+            this.events.emit('pan', camera.getViewportBounds());
         });
 
         this.listen(container, 'pointercancel', (e) => {
             if (e.pointerId !== pointerId) return;
             pointerDown = false;
             pointerId = undefined;
-            viewport.endDrag();
+            camera.endDrag();
         });
 
         // --- Touch drag (single finger) + pinch zoom (two fingers) ---
@@ -159,9 +159,9 @@ export class InteractionHandler {
                 const touch = e.touches[0];
                 touchDragId = touch.identifier;
                 const rect = container.getBoundingClientRect();
-                viewport.startDrag(touch.clientX - rect.left, touch.clientY - rect.top);
+                camera.startDrag(touch.clientX - rect.left, touch.clientY - rect.top);
             } else {
-                if (viewport.isDragging()) viewport.endDrag();
+                if (camera.isDragging()) camera.endDrag();
                 touchDragId = undefined;
             }
         }, {passive: true});
@@ -172,7 +172,7 @@ export class InteractionHandler {
             // Pinch zoom (two fingers)
             if (touches.length >= 2) {
                 e.preventDefault();
-                if (viewport.isDragging()) viewport.endDrag();
+                if (camera.isDragging()) camera.endDrag();
                 touchDragId = undefined;
 
                 const rect = container.getBoundingClientRect();
@@ -186,30 +186,30 @@ export class InteractionHandler {
             if (touches.length === 1 && touchDragId === touches[0].identifier) {
                 const touch = touches[0];
                 const rect = container.getBoundingClientRect();
-                viewport.updateDrag(touch.clientX - rect.left, touch.clientY - rect.top);
-                this.events.emit('pan', viewport.getViewportBounds());
+                camera.updateDrag(touch.clientX - rect.left, touch.clientY - rect.top);
+                this.events.emit('pan', camera.getViewportBounds());
             }
         });
 
         this.listen(container, 'touchend', (e: TouchEvent) => {
             this.lastPinchDistance = undefined;
             if (e.touches.length === 0) {
-                if (viewport.isDragging()) {
-                    viewport.endDrag();
-                    this.events.emit('pan', viewport.getViewportBounds());
+                if (camera.isDragging()) {
+                    camera.endDrag();
+                    this.events.emit('pan', camera.getViewportBounds());
                 }
                 touchDragId = undefined;
             } else if (e.touches.length === 1) {
                 const touch = e.touches[0];
                 touchDragId = touch.identifier;
                 const rect = container.getBoundingClientRect();
-                viewport.startDrag(touch.clientX - rect.left, touch.clientY - rect.top);
+                camera.startDrag(touch.clientX - rect.left, touch.clientY - rect.top);
             }
         }, {passive: true});
 
         this.listen(container, 'touchcancel', () => {
             this.lastPinchDistance = undefined;
-            if (viewport.isDragging()) viewport.endDrag();
+            if (camera.isDragging()) camera.endDrag();
             touchDragId = undefined;
         }, {passive: true});
 
@@ -223,10 +223,10 @@ export class InteractionHandler {
             let direction = e.deltaY > 0 ? -1 : 1;
             if (e.ctrlKey) direction = -direction;
 
-            const newZoom = direction > 0 ? viewport.zoom * scaleBy : viewport.zoom / scaleBy;
-            if (viewport.zoomToPoint(newZoom, screenX, screenY)) {
-                this.events.emit('zoom', {zoom: viewport.zoom});
-                this.events.emit('pan', viewport.getViewportBounds());
+            const newZoom = direction > 0 ? camera.zoom * scaleBy : camera.zoom / scaleBy;
+            if (camera.zoomToPoint(newZoom, screenX, screenY)) {
+                this.events.emit('zoom', {zoom: camera.zoom});
+                this.events.emit('pan', camera.getViewportBounds());
             }
         }, {passive: false});
     }
@@ -241,11 +241,11 @@ export class InteractionHandler {
 
         const centerX = (p1.x + p2.x) / 2;
         const centerY = (p1.y + p2.y) / 2;
-        const newZoom = this.viewport.zoom * (distance / this.lastPinchDistance);
+        const newZoom = this.camera.zoom * (distance / this.lastPinchDistance);
 
-        if (this.viewport.zoomToPoint(newZoom, centerX, centerY)) {
-            this.events.emit('zoom', {zoom: this.viewport.zoom});
-            this.events.emit('pan', this.viewport.getViewportBounds());
+        if (this.camera.zoomToPoint(newZoom, centerX, centerY)) {
+            this.events.emit('zoom', {zoom: this.camera.zoom});
+            this.events.emit('pan', this.camera.getViewportBounds());
         }
 
         this.lastPinchDistance = distance;
