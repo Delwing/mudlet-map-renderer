@@ -1,10 +1,13 @@
 // --- Settings, types, colour utils ---
-export { createSettings } from './types/Settings';
+export {
+    createSettings, diffSettings, invalidationTargetsFor, SETTINGS_INVALIDATION,
+} from './types/Settings';
 export type {
     Settings, ViewportBounds, RendererEventMap, PerfSnapshot,
     CullingMode, RoomShape, LabelRenderMode, PlayerMarkerStyle,
     RoomClickEventDetail, RoomContextMenuEventDetail,
     ZoomChangeEventDetail, AreaExitClickEventDetail, PanEventDetail,
+    SettingsKey, InvalidationTarget,
 } from './types/Settings';
 export { darkenColor, colorLightness, hexToRgba } from './utils/color';
 

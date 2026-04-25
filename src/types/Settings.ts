@@ -186,6 +186,89 @@ export type Settings = {
     areaExitLabelFontSize: number;
 };
 
+/** Keys of {@link Settings}. */
+export type SettingsKey = keyof Settings;
+
+/**
+ * Targets a settings change can invalidate. The renderer re-runs only the
+ * paths matching the union of targets across all changed keys.
+ *
+ * - `background` — container CSS background color
+ * - `culling`    — visibility/spatial-index pass
+ * - `position`   — current-room marker + highlight overlay
+ * - `scene`      — full scene rebuild (rooms, exits, grid, labels)
+ *
+ * `scene` is a superset of the others: when present, only the scene rebuild
+ * runs (it already updates background and re-emits position/culling).
+ */
+export type InvalidationTarget = 'background' | 'culling' | 'position' | 'scene';
+
+/**
+ * Per-key invalidation map. Keys absent from this map fall back to
+ * `['scene']` (full rebuild).
+ */
+export const SETTINGS_INVALIDATION: Readonly<Partial<Record<SettingsKey, readonly InvalidationTarget[]>>> = Object.freeze({
+    backgroundColor: ['background'] as const,
+    cullingEnabled: ['culling'] as const,
+    cullingMode: ['culling'] as const,
+    cullingBounds: ['culling'] as const,
+    instantMapMove: [] as const,
+    perfCallback: [] as const,
+    playerMarker: ['position'] as const,
+    highlightCurrentRoom: ['position'] as const,
+    roomShape: ['scene', 'position'] as const,
+    roomSize: ['scene'] as const,
+    lineWidth: ['scene'] as const,
+    lineColor: ['scene'] as const,
+    labelRenderMode: ['scene'] as const,
+    transparentLabels: ['scene'] as const,
+    gridEnabled: ['scene'] as const,
+    gridSize: ['scene'] as const,
+    gridColor: ['scene'] as const,
+    gridLineWidth: ['scene'] as const,
+    borders: ['scene'] as const,
+    frameMode: ['scene'] as const,
+    coloredMode: ['scene'] as const,
+    emboss: ['scene'] as const,
+    areaName: ['scene'] as const,
+    fontFamily: ['scene'] as const,
+    uniformLevelSize: ['scene'] as const,
+    areaExitLabels: ['scene'] as const,
+    areaExitLabelFontSize: ['scene'] as const,
+});
+
+/**
+ * Diff a partial settings update against the current settings.
+ * Comparison is reference equality (`!==`) — pass a fresh object/array if
+ * you want a nested change to register.
+ *
+ * Keys whose value in `partial` is `undefined` are skipped. The returned
+ * Set contains only keys whose value would actually change.
+ */
+export function diffSettings(prev: Settings, partial: Partial<Settings>): Set<SettingsKey> {
+    const changed = new Set<SettingsKey>();
+    for (const key of Object.keys(partial) as SettingsKey[]) {
+        const next = partial[key];
+        if (next === undefined) continue;
+        if (prev[key] !== next) changed.add(key);
+    }
+    return changed;
+}
+
+/**
+ * Union of invalidation targets for the given changed keys.
+ * Keys without an explicit entry in {@link SETTINGS_INVALIDATION} default
+ * to `['scene']`.
+ */
+export function invalidationTargetsFor(changed: Iterable<SettingsKey>): Set<InvalidationTarget> {
+    const targets = new Set<InvalidationTarget>();
+    for (const key of changed) {
+        const list = SETTINGS_INVALIDATION[key] ?? (['scene'] as const);
+        for (const t of list) targets.add(t);
+    }
+    return targets;
+}
+
 /** Creates a new Settings object with default values. */
 export function createSettings(): Settings {
     return {

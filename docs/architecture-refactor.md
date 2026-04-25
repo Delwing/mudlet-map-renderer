@@ -220,46 +220,71 @@ Room/exit/grid rendering code now lives in one place. Visual bugs get fixed once
 
 ---
 
-## Phase 4 — Settings Contract
+## Phase 4 — Settings Contract ✅
 
-**Goal:** Make settings changes explicit and efficient.
+**Status:** Implemented. Adds an explicit, scoped path for settings updates on
+top of the existing in-place mutation; the underlying `Settings` object reference
+is preserved so the many sub-renderers that hold a long-lived reference (room
+shape, exit, grid, culling, etc.) continue to see the latest values without
+rewiring.
 
-### 4.1 Immutable Settings with Diff
+### 4.1 Diff helper
 
-```ts
-// Settings becomes a frozen object
-const settings = createSettings({ roomSize: 0.6, emboss: true });
-
-// Changes produce a new object + a diff
-const [next, changed] = updateSettings(settings, { roomSize: 0.8 });
-// changed = Set{'roomSize'}
-```
-
-### 4.2 Selective Invalidation
-
-Renderer maps setting keys to what needs re-rendering:
+`src/types/Settings.ts` exposes:
 
 ```ts
-const invalidationMap: Record<string, InvalidationTarget[]> = {
-  roomSize:        ['rooms', 'exits', 'grid'],
-  backgroundColor: ['grid'],
-  lineColor:       ['rooms', 'exits'],
-  gridEnabled:     ['grid'],
-  cullingMode:     ['culling'],
-  // ...
-};
+export type SettingsKey = keyof Settings;
+export function diffSettings(prev: Settings, partial: Partial<Settings>): Set<SettingsKey>;
 ```
 
-`renderer.applySettings(next)` diffs, unions the invalidation targets, and only re-renders what's needed.
+Comparison is reference equality (`!==`); pass a fresh object/array to register
+a nested change. `undefined` values in the partial are skipped.
+
+### 4.2 Selective invalidation
+
+Targets:
+
+| Target       | Effect                                    |
+|--------------|-------------------------------------------|
+| `background` | `backend.updateBackground()`              |
+| `culling`    | `backend.culling.scheduleCulling()`       |
+| `position`   | `state.refreshPosition()`                 |
+| `scene`      | full `backend.refresh()` (superset)       |
+
+```ts
+export const SETTINGS_INVALIDATION: Readonly<Partial<Record<SettingsKey, readonly InvalidationTarget[]>>>;
+export function invalidationTargetsFor(changed: Iterable<SettingsKey>): Set<InvalidationTarget>;
+```
+
+Keys without an explicit entry default to `['scene']`. `instantMapMove` /
+`perfCallback` map to `[]` (no re-render). `cullingMode`, `cullingEnabled`,
+`cullingBounds` map to `['culling']`. `playerMarker`, `highlightCurrentRoom`
+map to `['position']`. `roomShape` maps to `['scene', 'position']`. The full
+table is in `src/types/Settings.ts`.
 
 ### 4.3 Public API
 
+`MapRenderer` adds:
+
 ```ts
-renderer.updateSettings({ roomSize: 0.8 });  // triggers minimal re-render
-renderer.getSettings();                        // returns frozen copy
+renderer.updateSettings({ roomSize: 0.8 });   // returns Set<SettingsKey> of keys that changed
+renderer.getSettings();                         // returns frozen shallow copy (incl. playerMarker)
 ```
 
-**Validation:** Changing `backgroundColor` should not re-render rooms. Changing `roomSize` should re-render rooms + exits but not trigger a full `drawArea()`.
+`updateSettings()` mutates the live settings object in place and dispatches the
+union of invalidation targets. When `scene` is in the union, only the full
+refresh runs (it already covers the others). When the partial changes nothing,
+the call is a no-op and returns an empty set.
+
+### Validation
+
+`tests/settings.test.ts` covers:
+- diff returns the right key set, skips `undefined`, uses `!==` for nested objects
+- invalidation map is total over `keyof Settings` (guards against omissions)
+- `backgroundColor`-only change doesn't change SVG geometry (only the bg fill differs)
+- `roomSize` change rebuilds the scene (SVG materially differs)
+- `cullingMode` change doesn't rebuild the scene (SVG export is byte-identical)
+- `getSettings()` is frozen (top + `playerMarker`) and reflects current values
 
 ---
 

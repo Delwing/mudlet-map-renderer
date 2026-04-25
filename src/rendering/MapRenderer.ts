@@ -1,7 +1,7 @@
 import MapReader from "../reader/MapReader";
 import type Area from "../reader/Area";
-import type {ViewportBounds, RendererEventMap, CullingMode} from "../types/Settings";
-import {createSettings} from "../types/Settings";
+import type {ViewportBounds, RendererEventMap, CullingMode, SettingsKey, InvalidationTarget} from "../types/Settings";
+import {createSettings, diffSettings, invalidationTargetsFor} from "../types/Settings";
 import type {Settings} from "../types/Settings";
 import {MapState} from "../MapState";
 import {KonvaRenderBackend} from "./KonvaRenderBackend";
@@ -195,6 +195,57 @@ export class MapRenderer {
     refresh() {
         this.backend.updateBackground();
         this.backend.refresh();
+    }
+
+    /**
+     * Apply a partial update to the current settings and re-render only
+     * what the changed keys require (per `SETTINGS_INVALIDATION`).
+     *
+     * Returns the set of keys whose value actually changed. When nothing
+     * changed (shallow `!==` compare against the current values), the
+     * returned set is empty and no work is performed.
+     *
+     * ```ts
+     * renderer.updateSettings({backgroundColor: '#fff'}); // background only
+     * renderer.updateSettings({roomSize: 0.8});            // full scene rebuild
+     * renderer.updateSettings({cullingMode: 'none'});      // culling pass only
+     * ```
+     */
+    updateSettings(partial: Partial<Settings>): Set<SettingsKey> {
+        const settings = this.state.settings;
+        const changed = diffSettings(settings, partial);
+        if (changed.size === 0) return changed;
+
+        for (const key of changed) {
+            (settings as Record<string, unknown>)[key] = (partial as Record<string, unknown>)[key];
+        }
+
+        const targets = invalidationTargetsFor(changed);
+        this.applyInvalidationTargets(targets);
+        return changed;
+    }
+
+    /**
+     * Returns a frozen shallow copy of the current settings (the nested
+     * `playerMarker` is also frozen). Use {@link updateSettings} to mutate.
+     */
+    getSettings(): Readonly<Settings> {
+        const s = this.state.settings;
+        return Object.freeze({
+            ...s,
+            playerMarker: Object.freeze({...s.playerMarker}),
+        });
+    }
+
+    private applyInvalidationTargets(targets: Set<InvalidationTarget>) {
+        if (targets.has('scene')) {
+            // `refresh()` already covers background, culling, and position.
+            this.refresh();
+            return;
+        }
+        if (targets.has('background')) this.backend.updateBackground();
+        if (targets.has('culling')) this.backend.culling.scheduleCulling();
+        if (targets.has('position')) this.state.refreshPosition();
     }
 
     // --- Overlays ---
