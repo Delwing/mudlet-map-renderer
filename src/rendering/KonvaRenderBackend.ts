@@ -28,6 +28,8 @@ import ExplorationArea from "../reader/ExplorationArea";
 import type {LiveEffect} from "../overlay/LiveEffect";
 import type {SceneOverlay, SceneOverlayContext} from "../overlay/SceneOverlay";
 import type {ExportCanvas} from "../export/Exporter";
+import {HitTester} from "../hit/HitTester";
+import type {Shape} from "../scene/Shape";
 
 const currentRoomColor = 'rgb(120, 72, 0)';
 
@@ -62,6 +64,9 @@ export class KonvaRenderBackend implements InteractiveBackend {
     private readonly overlayLayerNode: LayerNode;
     private pipeline: ScenePipeline;
     private lastBuildResult?: SceneBuildResult;
+
+    readonly hitTester: HitTester = new HitTester();
+    private lastHitShapes: Shape[] = [];
 
     private positionMarker?: GroupNode;
     private highlightShapes: Map<number, GroupNode> = new Map();
@@ -154,7 +159,7 @@ export class KonvaRenderBackend implements InteractiveBackend {
 
             this.interactionHandler = new InteractionHandler(container, this.camera, state, state.settings, {
                 clientToMapPoint: (cx, cy) => this.camera.clientToMapPoint(cx, cy, container.getBoundingClientRect()),
-                findRoomAtPoint: (mx, my) => this.culling.findRoomAtMapPoint(mx, my),
+                findRoomAtPoint: (mx, my) => this.hitTester.findRoomAtPoint(mx, my),
                 getAreaExitHitZones: () => this.areaExitHitZones,
                 renderedToMapPoint: (x, y) => this.coordinateInverse(x, y),
             }, this.events);
@@ -190,6 +195,9 @@ export class KonvaRenderBackend implements InteractiveBackend {
         this.coordinateInverse = newInverse;
         this.culling.setCoordinateTransform(forward);
         this.pipeline.gridRenderer.setInverseTransform(newInverse);
+        if (this.lastHitShapes.length > 0) {
+            this.hitTester.build(this.lastHitShapes, this.state.settings.roomSize, forward);
+        }
 
         // Reposition camera so the same map point stays at screen center
         const scale = this.camera.getScale();
@@ -430,6 +438,8 @@ export class KonvaRenderBackend implements InteractiveBackend {
         const plane = currentAreaInstance.getPlane(currentZIndex);
         if (!plane) {
             this.culling.clear();
+            this.hitTester.clear();
+            this.lastHitShapes = [];
             this.areaExitHitZones = [];
             this.lastBuildResult = undefined;
             this.gridLayer.destroyChildren();
@@ -577,6 +587,8 @@ export class KonvaRenderBackend implements InteractiveBackend {
         this.culling.clear();
         this.areaExitHitZones = [];
         this.culling.computeBucketSize();
+        this.lastHitShapes = result.hitShapes;
+        this.hitTester.build(result.hitShapes, this.state.settings.roomSize, this._coordinateTransform);
 
         // Apply current camera scale to stage
         const scale = this.camera.getScale();
