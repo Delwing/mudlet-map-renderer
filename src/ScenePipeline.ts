@@ -5,7 +5,6 @@ import type Exit from "./reader/Exit";
 import type {Settings, ViewportBounds} from "./types/Settings";
 import type {DrawingBackend, GroupNode, LayerNode} from "./backend/DrawingBackend";
 import {IDENTITY_TRANSFORM} from "./backend/DrawingBackend";
-import {RoomShapeRenderer} from "./RoomShapeRenderer";
 import {GridRenderer} from "./GridRenderer";
 import ExitRenderer from "./ExitRenderer";
 import type {ExitDrawData} from "./ExitRenderer";
@@ -198,7 +197,6 @@ export class ScenePipeline {
     private readonly mapReader: MapReader;
     private readonly settings: Settings;
     private readonly backend: DrawingBackend;
-    readonly roomShapeRenderer: RoomShapeRenderer;
     readonly gridRenderer: GridRenderer;
     readonly exitRenderer: ExitRenderer;
 
@@ -228,7 +226,6 @@ export class ScenePipeline {
         this.roomLayer = layers.roomLayer;
         this.topLabelLayer = layers.topLabelLayer;
 
-        this.roomShapeRenderer = new RoomShapeRenderer(mapReader, settings, backend);
         this.gridRenderer = new GridRenderer(layers.gridLayer, settings, backend);
         this.exitRenderer = new ExitRenderer(mapReader, settings);
     }
