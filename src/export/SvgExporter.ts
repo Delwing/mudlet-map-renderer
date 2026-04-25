@@ -1,4 +1,4 @@
-import {SvgBackend, SvgGroupNode, SvgLayerNode} from "../backend/SvgBackend";
+import {SvgBackend, SvgLayerNode} from "../backend/SvgBackend";
 import {ScenePipeline} from "../ScenePipeline";
 import {computeHighlight, computePathOverlay, computePositionMarker} from "../scene/OverlayStyle";
 import {
@@ -82,18 +82,13 @@ export class SvgExporter implements Exporter<string | undefined> {
         // appended after the room layer, before the top-label layer.
         flush(this.buildBuiltInOverlayShapes(state));
 
-        // SceneOverlays still consume a DrawingBackend; reuse the same
-        // SvgBackend the pipeline already received so attribute formatting
-        // is consistent. Replaced when SceneOverlay migrates to shapes.
+        // SceneOverlays return shapes; flush them through the same
+        // DrawCommandBuilder + SvgRenderer path as the rest of the scene.
         for (const overlay of sceneOverlays) {
-            const out = overlay.render(svgBackend, state, viewportBounds);
-            const nodes = out === undefined ? [] : Array.isArray(out) ? out : [out];
-            for (const node of nodes) {
-                if (node instanceof SvgGroupNode) {
-                    const svg = node.toSvg();
-                    if (svg) lines.push(svg);
-                }
-            }
+            const out = overlay.render(state, viewportBounds);
+            if (!out) continue;
+            const overlayShapes = Array.isArray(out) ? out : [out];
+            flush(overlayShapes);
         }
 
         flush(result.sceneShapes.topLabel);

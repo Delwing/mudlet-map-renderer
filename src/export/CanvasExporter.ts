@@ -48,7 +48,7 @@ export interface CanvasExportOptions {
 export class CanvasExporter implements Exporter<ExportCanvas | undefined> {
     constructor(private readonly options: CanvasExportOptions) {}
 
-    render({state}: ExportContext): ExportCanvas | undefined {
+    render({state, sceneOverlays}: ExportContext): ExportCanvas | undefined {
         const {currentArea, currentZIndex, currentAreaInstance} = state;
         if (currentArea === undefined || currentZIndex === undefined || !currentAreaInstance) return;
 
@@ -106,6 +106,13 @@ export class CanvasExporter implements Exporter<ExportCanvas | undefined> {
         flush(result.sceneShapes.link);
         flush(result.sceneShapes.room);
         flush(this.buildBuiltInOverlayShapes(state));
+
+        for (const overlay of sceneOverlays) {
+            const out = overlay.render(state, viewportBounds);
+            if (!out) continue;
+            flush(Array.isArray(out) ? out : [out]);
+        }
+
         flush(result.sceneShapes.topLabel);
 
         return canvas as unknown as ExportCanvas;
