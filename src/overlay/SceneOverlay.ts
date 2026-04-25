@@ -1,6 +1,6 @@
-import type {DrawingBackend, GroupNode} from "../backend/DrawingBackend";
 import type {MapState} from "../MapState";
 import type {ViewportBounds} from "../types/Settings";
+import type {Shape} from "../scene/Shape";
 
 /**
  * Context handed to a {@link SceneOverlay} when it is registered. Gives the
@@ -20,9 +20,9 @@ export interface SceneOverlayContext {
 
 /**
  * Target-agnostic overlay. A {@link SceneOverlay} contributes static geometry
- * to the scene by calling draw primitives on the provided target, so it renders
- * in every output path: interactive canvas, SVG export, PNG export, and any
- * future {@link Exporter}.
+ * to the scene by emitting one or more {@link Shape}s, so it renders in every
+ * output path: interactive canvas, SVG export, PNG export, and any future
+ * {@link Exporter}.
  *
  * Overlays may opt into reactivity via {@link attach}: subscribe to MapState or
  * viewport events, then call `ctx.invalidate()` to re-render. Exporters skip
@@ -30,10 +30,14 @@ export interface SceneOverlayContext {
  *
  * ```ts
  * class BadgeOverlay implements SceneOverlay {
- *     render(target: DrawingBackend, state: MapState, bounds: ViewportBounds) {
- *         const group = target.createGroup(0, 0);
- *         target.addCircle(group, {cx: 5, cy: 5, radius: 0.4, fill: '#ff0'});
- *         return group;
+ *     render(state: MapState, bounds: ViewportBounds): Shape {
+ *         return {
+ *             type: 'circle',
+ *             cx: 5, cy: 5,
+ *             radius: 0.4,
+ *             paint: { fill: '#ff0' },
+ *             layer: 'overlay',
+ *         };
  *     }
  * }
  *
@@ -60,12 +64,12 @@ export interface SceneOverlay {
      * Contribute geometry to the scene. Called on register, on invalidate, and
      * by every exporter.
      *
-     * @returns a `GroupNode` (or array of them) that the renderer will attach
-     *   to the overlay layer. Return `void` to emit nothing this frame.
+     * @returns one or more world-space {@link Shape}s, or `void` to emit
+     *   nothing this frame. Shapes carry their own {@link Shape.layer} hint;
+     *   leaving it unset routes them to the overlay layer.
      */
     render(
-        target: DrawingBackend,
         state: MapState,
         bounds: ViewportBounds,
-    ): GroupNode | GroupNode[] | void;
+    ): Shape | Shape[] | void;
 }

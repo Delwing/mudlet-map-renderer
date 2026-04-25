@@ -31,7 +31,7 @@ import type {LiveEffect} from "../overlay/LiveEffect";
 import type {SceneOverlay, SceneOverlayContext} from "../overlay/SceneOverlay";
 import type {ExportCanvas} from "../export/Exporter";
 import {HitTester} from "../hit/HitTester";
-import type {Shape} from "../scene/Shape";
+import type {GroupShape, Shape} from "../scene/Shape";
 
 const currentRoomColor = 'rgb(120, 72, 0)';
 
@@ -433,11 +433,17 @@ export class KonvaRenderBackend implements InteractiveBackend {
     private renderSceneOverlay(id: string, overlay: SceneOverlay) {
         this.clearSceneOverlayNodes(id);
         const bounds = this.camera.getViewportBounds();
-        const out = overlay.render(this.drawingBackend, this.state, bounds);
+        const out = overlay.render(this.state, bounds);
         if (out) {
-            const nodes = Array.isArray(out) ? out : [out];
+            const shapes = Array.isArray(out) ? out : [out];
             const stored: GroupNode[] = [];
-            for (const node of nodes) {
+            for (const shape of shapes) {
+                // Wrap leaf shapes in a group so renderShapeToBackend (which
+                // walks GroupShape children) can attach them to the layer.
+                const groupShape: GroupShape = shape.type === "group"
+                    ? shape
+                    : {type: "group", x: 0, y: 0, children: [shape], layer: shape.layer};
+                const node = renderShapeToBackend(this.drawingBackend, groupShape);
                 this.overlayLayerNode.addNode(node);
                 stored.push(node);
             }
