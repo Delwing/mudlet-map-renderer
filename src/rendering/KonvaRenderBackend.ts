@@ -4,6 +4,7 @@ import type Plane from "../reader/Plane";
 import type {RendererEventMap} from "../types/Settings";
 import {ScenePipeline} from "../ScenePipeline";
 import type {SceneBuildResult, AreaExitHitZone, DrawnExitEntry, DrawnSpecialExitEntry, DrawnStubEntry} from "../ScenePipeline";
+import {GridRenderer} from "../GridRenderer";
 import type {MapState} from "../MapState";
 import {Camera} from "../camera/Camera";
 import {CullingManager} from "../CullingManager";
@@ -64,7 +65,11 @@ export class KonvaRenderBackend implements InteractiveBackend {
     private drawingBackend: DrawingBackend;
     private readonly positionLayerNode: LayerNode;
     private readonly overlayLayerNode: LayerNode;
+    private gridLayerNode!: RecordingLayerNode;
+    private topLabelLayerNode!: RecordingLayerNode;
     private pipeline: ScenePipeline;
+    /** Grid renderer owned locally — drives the grid Konva layer for cached redraws. */
+    private gridRenderer!: GridRenderer;
     private lastBuildResult?: SceneBuildResult;
 
     readonly hitTester: HitTester = new HitTester();
@@ -75,6 +80,8 @@ export class KonvaRenderBackend implements InteractiveBackend {
     private roomCullEntries: Map<CullEntry, DrawEntry> = new Map();
     private exitCullEntries: Map<CullEntry, DrawEntry> = new Map();
     private sceneNode!: DrawCommandLayerNode;
+    /** Lookup from a pipeline-emitted shape to the backend GroupNode it was walked into; rebuilt per buildScene. */
+    private shapeToGroup: Map<Shape, GroupNode> = new Map();
 
     private positionMarker?: GroupNode;
     private highlightShapes: Map<number, GroupNode> = new Map();
@@ -135,12 +142,10 @@ export class KonvaRenderBackend implements InteractiveBackend {
         this.overlayLayerNode = new KonvaLayerNode(this.overlayLayer);
 
         this.sceneNode = new DrawCommandLayerNode(sceneLayer);
-        this.pipeline = new ScenePipeline(state.mapReader, state.settings, this.drawingBackend, {
-            gridLayer: new RecordingLayerNode(this.gridLayer),
-            linkLayer: this.sceneNode,
-            roomLayer: this.sceneNode,
-            topLabelLayer: new RecordingLayerNode(this.topLabelLayer),
-        });
+        this.gridLayerNode = new RecordingLayerNode(this.gridLayer);
+        this.topLabelLayerNode = new RecordingLayerNode(this.topLabelLayer);
+        this.pipeline = new ScenePipeline(state.mapReader, state.settings);
+        this.gridRenderer = new GridRenderer(this.gridLayerNode, state.settings, this.drawingBackend);
 
         this.events = new TypedEventEmitter<RendererEventMap>(container);
 
@@ -188,12 +193,10 @@ export class KonvaRenderBackend implements InteractiveBackend {
     setDrawingBackend(backend: DrawingBackend) {
         this.drawingBackend = backend;
         this.sceneNode = new DrawCommandLayerNode(this.linkLayer);
-        this.pipeline = new ScenePipeline(this.state.mapReader, this.state.settings, backend, {
-            gridLayer: new RecordingLayerNode(this.gridLayer),
-            linkLayer: this.sceneNode,
-            roomLayer: this.sceneNode,
-            topLabelLayer: new RecordingLayerNode(this.topLabelLayer),
-        });
+        this.gridLayerNode = new RecordingLayerNode(this.gridLayer);
+        this.topLabelLayerNode = new RecordingLayerNode(this.topLabelLayer);
+        this.pipeline = new ScenePipeline(this.state.mapReader, this.state.settings);
+        this.gridRenderer = new GridRenderer(this.gridLayerNode, this.state.settings, backend);
         this.applyDrawingBackendTransforms(backend);
     }
 
@@ -210,7 +213,7 @@ export class KonvaRenderBackend implements InteractiveBackend {
         this._coordinateTransform = forward;
         this.coordinateInverse = newInverse;
         this.culling.setCoordinateTransform(forward);
-        this.pipeline.gridRenderer.setInverseTransform(newInverse);
+        this.gridRenderer.setInverseTransform(newInverse);
         if (this.lastHitShapes.length > 0) {
             this.hitTester.build(this.lastHitShapes, this.state.settings.roomSize, forward);
         }
@@ -253,9 +256,6 @@ export class KonvaRenderBackend implements InteractiveBackend {
         return this.lastBuildResult?.drawnStubs ?? [];
     }
 
-    get gridRenderer() {
-        return this.pipeline.gridRenderer;
-    }
 
     destroy() {
         if (this.destroyed) return;
@@ -334,7 +334,7 @@ export class KonvaRenderBackend implements InteractiveBackend {
         this.stage.position(this.camera.position);
         this.stage.batchDraw();
         const gridStart = performance.now();
-        this.pipeline.gridRenderer.render(this.camera.getViewportBounds());
+        this.gridRenderer.render(this.camera.getViewportBounds());
         this.culling.recordGridMs(performance.now() - gridStart);
         this.culling.scheduleCulling();
         const vpBounds = this.camera.getViewportBounds();
@@ -498,10 +498,47 @@ export class KonvaRenderBackend implements InteractiveBackend {
         this.clearOverlayShapes();
         this.currentRoomOverlay = [];
 
+        // Reset the scene-driving layer nodes; pipeline.buildScene only
+        // produces shapes now, so this renderer is responsible for walking
+        // them onto the Konva layers via the drawingBackend.
+        this.sceneNode.destroyChildren();
+        this.gridLayerNode.destroyChildren();
+        this.topLabelLayerNode.destroyChildren();
+
         const result = this.pipeline.buildScene(area, plane, zIndex, viewportBounds);
+
+        // Track shape → backend GroupNode so onSceneBuilt can hang cull
+        // entries off the right DrawEntry inside `sceneNode`.
+        this.shapeToGroup = new Map();
+
+        for (const shape of result.sceneShapes.grid) {
+            const group = this.shapeToGroupNode(shape);
+            this.gridLayerNode.addNode(group);
+        }
+        for (const shape of result.sceneShapes.link) {
+            const group = this.shapeToGroupNode(shape);
+            this.shapeToGroup.set(shape, group);
+            this.sceneNode.addNode(group);
+        }
+        for (const shape of result.sceneShapes.room) {
+            const group = this.shapeToGroupNode(shape);
+            this.shapeToGroup.set(shape, group);
+            this.sceneNode.addNode(group);
+        }
+        for (const shape of result.sceneShapes.topLabel) {
+            this.topLabelLayerNode.addNode(this.shapeToGroupNode(shape));
+        }
 
         this.lastBuildResult = result;
         return result;
+    }
+
+    /** Wrap a non-group shape and walk to backend, returning the GroupNode. */
+    private shapeToGroupNode(shape: Shape): GroupNode {
+        const groupShape: GroupShape = shape.type === "group"
+            ? shape
+            : {type: "group", x: 0, y: 0, children: [shape], layer: shape.layer};
+        return renderShapeToBackend(this.drawingBackend, groupShape);
     }
 
     private onSceneBuilt(result: SceneBuildResult) {
@@ -519,22 +556,26 @@ export class KonvaRenderBackend implements InteractiveBackend {
 
         const rs = this.state.settings.roomSize;
         const half = rs / 2;
-        for (const [, entry] of result.roomNodes) {
-            const drawEntry = this.sceneNode.getEntry(entry.group);
+        for (const [, ref] of result.roomShapeRefs) {
+            const groupNode = this.shapeToGroup.get(ref.shape);
+            if (!groupNode) continue;
+            const drawEntry = this.sceneNode.getEntry(groupNode);
             if (!drawEntry) continue;
             const cull: CullEntry = {
                 worldBbox: {
-                    minX: entry.room.x - half, minY: entry.room.y - half,
-                    maxX: entry.room.x + half, maxY: entry.room.y + half,
+                    minX: ref.room.x - half, minY: ref.room.y - half,
+                    maxX: ref.room.x + half, maxY: ref.room.y + half,
                 },
             };
             this.roomCullEntries.set(cull, drawEntry);
             this.culling.addRoomEntry(cull);
         }
-        for (const entry of result.standaloneExitNodes) {
-            const drawEntry = this.sceneNode.getEntry(entry.group);
+        for (const ref of result.standaloneExitShapeRefs) {
+            const groupNode = this.shapeToGroup.get(ref.shape);
+            if (!groupNode) continue;
+            const drawEntry = this.sceneNode.getEntry(groupNode);
             if (!drawEntry) continue;
-            const b = entry.bounds;
+            const b = ref.bounds;
             const cull: CullEntry = {
                 worldBbox: {minX: b.x, minY: b.y, maxX: b.x + b.width, maxY: b.y + b.height},
             };
@@ -622,7 +663,7 @@ export class KonvaRenderBackend implements InteractiveBackend {
             exits.forEach(exit => {
                 const data = exitRenderer.renderDataWithColor(exit, currentRoomColor, this.state.currentZIndex!);
                 if (data) {
-                    preRoomNodes.push(this.pipeline.renderExitData(data));
+                    preRoomNodes.push(renderShapeToBackend(this.drawingBackend, this.pipeline.buildExitShape(data)));
                 }
             });
         }

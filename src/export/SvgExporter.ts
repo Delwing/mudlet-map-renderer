@@ -1,4 +1,3 @@
-import {SvgBackend, SvgLayerNode} from "../backend/SvgBackend";
 import {ScenePipeline} from "../ScenePipeline";
 import {computeHighlight, computePathOverlay, computePositionMarker} from "../scene/OverlayStyle";
 import {
@@ -51,17 +50,7 @@ export class SvgExporter implements Exporter<string | undefined> {
             minY: bounds.y, maxY: bounds.y + bounds.h,
         };
 
-        // The pipeline still drives a DrawingBackend internally; we hand it an
-        // SvgBackend so {@link SceneOverlay}s rendered later can share the same
-        // namespace, but its emitted SVG is discarded — `result.sceneShapes`
-        // is the source of truth for the new SVG output path.
-        const svgBackend = new SvgBackend();
-        const pipeline = new ScenePipeline(state.mapReader, settings, svgBackend, {
-            gridLayer: new SvgLayerNode(),
-            linkLayer: new SvgLayerNode(),
-            roomLayer: new SvgLayerNode(),
-            topLabelLayer: new SvgLayerNode(),
-        });
+        const pipeline = new ScenePipeline(state.mapReader, settings);
         const result = pipeline.buildScene(area, plane, currentZIndex, viewportBounds);
 
         const lines: string[] = [];

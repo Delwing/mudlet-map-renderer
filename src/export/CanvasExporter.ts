@@ -1,5 +1,4 @@
 import Konva from "konva";
-import {SvgBackend, SvgLayerNode} from "../backend/SvgBackend";
 import {ScenePipeline} from "../ScenePipeline";
 import {computeHighlight, computePathOverlay, computePositionMarker} from "../scene/OverlayStyle";
 import {
@@ -65,17 +64,7 @@ export class CanvasExporter implements Exporter<ExportCanvas | undefined> {
             minY: bounds.y, maxY: bounds.y + bounds.h,
         };
 
-        // Run the pipeline against an SvgBackend purely to drive its internal
-        // addNode plumbing — `result.sceneShapes` is the source of truth for
-        // the canvas output. SvgBackend is chosen because it has zero Konva
-        // coupling, so this works in headless Node environments.
-        const noopBackend = new SvgBackend();
-        const pipeline = new ScenePipeline(state.mapReader, settings, noopBackend, {
-            gridLayer: new SvgLayerNode(),
-            linkLayer: new SvgLayerNode(),
-            roomLayer: new SvgLayerNode(),
-            topLabelLayer: new SvgLayerNode(),
-        });
+        const pipeline = new ScenePipeline(state.mapReader, settings);
         const result = pipeline.buildScene(area, plane, currentZIndex, viewportBounds);
 
         // Fit world bounds into the requested canvas size, preserving aspect
