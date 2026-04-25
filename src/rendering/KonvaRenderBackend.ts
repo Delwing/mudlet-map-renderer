@@ -253,10 +253,6 @@ export class KonvaRenderBackend implements InteractiveBackend {
         return this.lastBuildResult?.drawnStubs ?? [];
     }
 
-    get roomShapeRenderer() {
-        return this.pipeline.roomShapeRenderer;
-    }
-
     get gridRenderer() {
         return this.pipeline.gridRenderer;
     }
