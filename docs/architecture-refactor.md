@@ -378,34 +378,73 @@ const svg = renderer.export(new SvgExporter()); // implicit flush.
 
 ---
 
-## Phase 6 — PathFinder Separation (Optional)
+## Phase 6 — PathFinder Separation ✅
 
-**Goal:** Separate graph construction from pathfinding algorithms.
+**Status:** Implemented. Graph construction lives in `MapGraph` (already
+extracted in an earlier branch) and `PathFinder` consumes it; this phase
+finishes the separation by letting `PathFinder` accept a pre-built
+`MapGraph` directly and adding a synthetic-input factory so the algorithms
+can be tested without a `MapReader` or JSON fixture.
 
-### 6.1 Extract MapGraph
+### 6.1 MapGraph
 
-New file: `src/MapGraph.ts`
+`src/MapGraph.ts` exposes:
 
 ```ts
 class MapGraph {
   constructor(mapReader: MapReader);
-  getNeighbors(roomId: number): Array<{ roomId: number; weight: number; direction: string }>;
-  buildAdjacencyMap(options?: { visitedOnly?: Set<number> }): Map<number, Edge[]>;
+  constructor(synthetic: SyntheticGraphInput);
+  static fromSynthetic(input: SyntheticGraphInput): MapGraph;
+
+  getAdj(): Map<number, Edge[]>;
+  getGraphDefinition(): Record<string, Record<string, number>>;
+  getMaxEdgeDistance(): number;
+  getMinEdgeWeight(): number;
+  getRoom(id: number): RoomLike | undefined;
+}
+
+interface RoomLike { readonly id: number; readonly x: number; readonly y: number; readonly z: number }
+interface SyntheticGraphInput {
+  rooms: ReadonlyArray<RoomLike>;
+  edges: ReadonlyMap<number, ReadonlyArray<Edge>>;
 }
 ```
 
-### 6.2 Simplify PathFinder
+The MapReader path keeps its existing semantics (exit locks, special exits,
+exit weights, cross-area edges). The synthetic path skips all of that and
+just uses the `{rooms, edges}` you hand it — minimum surface needed for the
+A* heuristic (`getRoom(id).{x,y,z}`).
 
-PathFinder becomes algorithm-only:
+### 6.2 PathFinder
+
 ```ts
 class PathFinder {
-  constructor(graph: MapGraph);
-  setAlgorithm(algo: 'dijkstra' | 'astar'): void;
-  findPath(from: number, to: number): number[];
+  constructor(mapReader: MapReader, algorithm?: PathFindingAlgorithm);
+  constructor(graph: MapGraph, algorithm?: PathFindingAlgorithm);
+  get algorithm(): PathFindingAlgorithm;
+  setAlgorithm(algo: PathFindingAlgorithm): void;
+  findPath(from: number, to: number): number[] | null;
 }
 ```
 
-**Validation:** Pathfinding results identical. Can now unit-test pathfinding with synthetic graph fixtures.
+Two `PathFinder`s can share one `MapGraph` (e.g. a Dijkstra and an A*
+instance for parity testing) and the constructor no longer rebuilds the
+graph from the reader.
+
+### Validation
+
+`tests/synthetic-graph.test.ts` covers:
+- `MapGraph.fromSynthetic` builds adj / graphDefinition / minEdgeWeight /
+  maxEdgeDistance from raw `{rooms, edges}` input
+- Edges to unknown room ids are skipped
+- `getRoom` returns the synthetic room shape
+- Dijkstra picks the cheaper multi-hop path over a heavy direct shortcut
+  (1→2→3→4→5 cost 4, beats 1→5 cost 10)
+- A* and Dijkstra agree on the synthetic graph
+- Both algorithms return `null` for disconnected nodes
+- Two `PathFinder`s sharing one `MapGraph` produce consistent results
+- `new PathFinder(reader)` and `new PathFinder(new MapGraph(reader))`
+  produce identical paths on the test fixture across several pairs
 
 ---
 

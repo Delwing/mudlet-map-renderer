@@ -123,9 +123,11 @@ export default class PathFinder {
     private _algorithm: PathFindingAlgorithm;
     private readonly cache = new Map<string, number[] | null>();
 
-    constructor(mapReader: MapReader, algorithm: PathFindingAlgorithm = 'dijkstra') {
+    constructor(mapReader: MapReader, algorithm?: PathFindingAlgorithm);
+    constructor(graph: MapGraph, algorithm?: PathFindingAlgorithm);
+    constructor(source: MapReader | MapGraph, algorithm: PathFindingAlgorithm = 'dijkstra') {
         this._algorithm = algorithm;
-        this.mapGraph = new MapGraph(mapReader);
+        this.mapGraph = source instanceof MapGraph ? source : new MapGraph(source);
         this.dijkstraGraph = new Graph(this.mapGraph.getGraphDefinition());
     }
 
