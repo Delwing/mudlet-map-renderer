@@ -3,18 +3,14 @@ import {ScenePipeline} from "../ScenePipeline";
 import {applyStyleToShapes} from "../style/applyStyle";
 import {identityStyle} from "../style/Style";
 import type {Style} from "../style/Style";
-import {computeHighlight, computePathOverlay, computePositionMarker} from "../scene/OverlayStyle";
-import {
-    highlightToShapes,
-    pathToShapes,
-    positionMarkerToShape,
-} from "../scene/elements/OverlayLayout";
 import {buildDrawCommands} from "../draw/DrawCommandBuilder";
 import {renderToCanvas} from "../render/CanvasRenderer";
 import type {Shape} from "../scene/Shape";
-import type {MapState} from "../MapState";
 import type {Exporter, ExportContext, ExportCanvas} from "./Exporter";
 import {canvasToBytes} from "./canvasToBytes";
+import {flushSceneShapes} from "./flushSceneShapes";
+import {clipSceneToViewport} from "./clipSceneToViewport";
+import {projectExportBoundsToScene} from "./sceneBounds";
 
 export interface CanvasExportOptions {
     /** Width of the output image in pixels. */
@@ -62,23 +58,43 @@ export class CanvasExporter implements Exporter<ExportCanvas | undefined> {
         const {width, height} = this.options;
         const padding = this.options.padding ?? 3;
         const bounds = state.computeExportBounds(area, plane, this.options.roomId, padding);
-        const viewportBounds = {
-            minX: bounds.x, maxX: bounds.x + bounds.w,
-            minY: bounds.y, maxY: bounds.y + bounds.h,
+
+        // Fit scene-space bounds (post-style-projection) into the requested
+        // canvas size. Coordinate-warping styles (Isometric) render outside
+        // the world AABB, so fitting world bounds clips/offsets the scene.
+        const sceneBounds = projectExportBoundsToScene(bounds, style, settings.roomSize * 0.5);
+        const scale = Math.min(width / sceneBounds.w, height / sceneBounds.h);
+        const mapPixelW = sceneBounds.w * scale;
+        const mapPixelH = sceneBounds.h * scale;
+        const offsetX = (width - mapPixelW) / 2 - sceneBounds.x * scale;
+        const offsetY = (height - mapPixelH) / 2 - sceneBounds.y * scale;
+        const camera = {scale, offsetX, offsetY};
+
+        // Culling must cover the full canvas, not just the export region.
+        // When aspect ratios differ, the canvas has letterbox areas — rooms
+        // there are visible but would be incorrectly culled if we used the
+        // tight export bounds. The scene-space culling viewport extends by
+        // the letterbox amount (in scene-space units) on each side.
+        // For non-warping styles scene space = world space, so this equals
+        // the camera's world-space viewport. For Isometric the coordinateTransform
+        // maps room world-coords → scene-coords before the overlap check, so
+        // scene-space culling bounds are correct in both cases.
+        const xLetterbox = (width - mapPixelW) / (2 * scale);
+        const yLetterbox = (height - mapPixelH) / (2 * scale);
+        const cullingBounds = {
+            minX: sceneBounds.x - xLetterbox,
+            maxX: sceneBounds.x + sceneBounds.w + xLetterbox,
+            minY: sceneBounds.y - yLetterbox,
+            maxY: sceneBounds.y + sceneBounds.h + yLetterbox,
         };
 
-        const pipeline = new ScenePipeline(state.mapReader, settings);
-        const result = pipeline.buildScene(area, plane, currentZIndex, viewportBounds);
+        const transform = style.worldToScene
+            ? (x: number, y: number) => style.worldToScene!(x, y)
+            : undefined;
 
-        // Fit world bounds into the requested canvas size, preserving aspect
-        // ratio and centring the framed region. The resulting linear camera
-        // is what {@link buildDrawCommands} bakes into render-space coords.
-        const scale = Math.min(width / bounds.w, height / bounds.h);
-        const mapPixelW = bounds.w * scale;
-        const mapPixelH = bounds.h * scale;
-        const offsetX = (width - mapPixelW) / 2 - bounds.x * scale;
-        const offsetY = (height - mapPixelH) / 2 - bounds.y * scale;
-        const camera = {scale, offsetX, offsetY};
+        const pipeline = new ScenePipeline(state.mapReader, settings);
+        const result = pipeline.buildScene(area, plane, currentZIndex, cullingBounds);
+        const clipped = clipSceneToViewport(result, cullingBounds, settings, transform);
 
         const canvas = Konva.Util.createCanvasElement() as unknown as HTMLCanvasElement;
         canvas.width = width;
@@ -98,51 +114,17 @@ export class CanvasExporter implements Exporter<ExportCanvas | undefined> {
             renderToCanvas(ctx, buildDrawCommands(styled(shapes), camera));
         };
 
-        flush(result.sceneShapes.grid);
-        flush(result.sceneShapes.link);
-        flush(result.sceneShapes.room);
-        flush(this.buildBuiltInOverlayShapes(state));
-
-        for (const overlay of sceneOverlays) {
-            const out = overlay.render(state, viewportBounds);
-            if (!out) continue;
-            flush(Array.isArray(out) ? out : [out]);
-        }
-
-        flush(result.sceneShapes.topLabel);
+        const viewportBounds = {
+            minX: bounds.x, maxX: bounds.x + bounds.w,
+            minY: bounds.y, maxY: bounds.y + bounds.h,
+        };
+        flushSceneShapes(
+            clipped,
+            {state, viewportBounds, sceneOverlays, overlays: this.options.overlays},
+            flush,
+        );
 
         return canvas as unknown as ExportCanvas;
-    }
-
-    private buildBuiltInOverlayShapes(state: MapState): Shape[] {
-        const overlays = state.getOverlaysForArea(this.options.overlays);
-        if (!overlays) return [];
-        const settings = state.settings;
-        const out: Shape[] = [];
-
-        if (overlays.paths) {
-            for (const path of overlays.paths) {
-                const data = computePathOverlay(
-                    state.mapReader, settings, path.locations, path.color,
-                    state.currentArea!, state.currentZIndex!,
-                );
-                out.push(...pathToShapes(data));
-            }
-        }
-        if (overlays.highlights) {
-            for (const hl of overlays.highlights) {
-                const room = state.mapReader.getRoom(hl.roomId);
-                if (!room) continue;
-                out.push(...highlightToShapes(computeHighlight(room, hl.color, settings)));
-            }
-        }
-        if (overlays.position) {
-            const room = state.mapReader.getRoom(overlays.position.roomId);
-            if (room) {
-                out.push(positionMarkerToShape(computePositionMarker(room, settings)));
-            }
-        }
-        return out;
     }
 }
 

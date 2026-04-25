@@ -6,6 +6,7 @@ import { createSettings } from '../src/types/Settings';
 import { createTestMapReader } from './helpers';
 import type { Settings } from '../src/types/Settings';
 import type { SvgExportOptions } from '../src/SvgTypes';
+import { isometricShapeStyle } from '../src/style/shape';
 
 function exportArea(settingsOverrides?: Partial<Settings>) {
     const reader = createTestMapReader();
@@ -143,6 +144,85 @@ describe('SvgRenderBackend', () => {
                 },
             );
             expect(svg).toMatchSnapshot();
+        });
+    });
+
+    describe('coordinate-warping styles', () => {
+        // Regression: iso SVG export used to write the SVG viewBox in
+        // world space while shapes were drawn in (projected) scene space —
+        // for non-zero rotations the rooms drifted off the background and
+        // landed on transparent SVG with one side of the rect empty.
+        // viewBox + background must follow the projection.
+        it('isometric viewBox follows the scene-space projection, not world bounds', () => {
+            const reader = createTestMapReader();
+            const settings = createSettings();
+            const renderer = new MapRenderer(reader, settings);
+            renderer.drawArea(1, 0);
+            renderer.setStyle(isometricShapeStyle({ rotation: 30, depth: settings.roomSize * 0.3 }));
+
+            const svg = renderer.export(new SvgExporter());
+            expect(svg).toBeDefined();
+
+            const viewBox = svg!.match(/viewBox="(-?[\d.]+) (-?[\d.]+) (-?[\d.]+) (-?[\d.]+)"/);
+            expect(viewBox).not.toBeNull();
+            const [, vx, vy, vw, vh] = viewBox!.map(Number);
+
+            // Collect the AABB of every polygon vertex the SVG actually emitted.
+            const eps = 0.001;
+            let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+            let polyCount = 0;
+            for (const m of svg!.matchAll(/points="([^"]+)"/g)) {
+                polyCount++;
+                const coords = m[1].trim().split(/[\s,]+/).map(Number);
+                for (let i = 0; i < coords.length; i += 2) {
+                    if (coords[i] < minX) minX = coords[i];
+                    if (coords[i] > maxX) maxX = coords[i];
+                    if (coords[i + 1] < minY) minY = coords[i + 1];
+                    if (coords[i + 1] > maxY) maxY = coords[i + 1];
+                }
+            }
+            expect(polyCount).toBeGreaterThan(0);
+
+            // 1) Every projected polygon vertex must lie inside the viewBox —
+            //    this is the user-visible bug ("rooms on transparent background").
+            expect(minX).toBeGreaterThanOrEqual(vx - eps);
+            expect(maxX).toBeLessThanOrEqual(vx + vw + eps);
+            expect(minY).toBeGreaterThanOrEqual(vy - eps);
+            expect(maxY).toBeLessThanOrEqual(vy + vh + eps);
+
+            // 2) The viewBox must follow the iso projection — re-project the
+            //    world export bounds via the same Style and check the viewBox
+            //    is the projected AABB (plus the scenePad). Catches a regression
+            //    that uses world bounds for the viewBox.
+            const style = isometricShapeStyle({ rotation: 30, depth: settings.roomSize * 0.3 });
+            const w = renderer.state.computeExportBounds(
+                renderer.state.currentAreaInstance!,
+                renderer.state.currentAreaInstance!.getPlane(0)!,
+                undefined,
+                3,
+            );
+            const corners = [
+                style.worldToScene!(w.x, w.y),
+                style.worldToScene!(w.x + w.w, w.y),
+                style.worldToScene!(w.x, w.y + w.h),
+                style.worldToScene!(w.x + w.w, w.y + w.h),
+            ];
+            const projMinX = Math.min(...corners.map(c => c.x));
+            const projMaxX = Math.max(...corners.map(c => c.x));
+            const projMinY = Math.min(...corners.map(c => c.y));
+            const projMaxY = Math.max(...corners.map(c => c.y));
+            const projW = projMaxX - projMinX;
+            const projH = projMaxY - projMinY;
+
+            // viewBox must encompass the projected world AABB. World bounds
+            // would (for rotation=30°) be narrower than projected bounds —
+            // |projMaxX - projMinX| > |w.w|, since rotation skews the
+            // bounding box. Assert vw ≥ projW so the regression path
+            // (using world width = w.w) fails.
+            expect(vw).toBeGreaterThanOrEqual(projW - eps);
+            expect(vh).toBeGreaterThanOrEqual(projH - eps);
+            expect(vx).toBeLessThanOrEqual(projMinX + eps);
+            expect(vy).toBeLessThanOrEqual(projMinY + eps);
         });
     });
 

@@ -1,12 +1,9 @@
 import type {Settings} from "../../types/Settings";
 import {computeSpecialExits} from "../SpecialExitStyle";
 import type {SpecialExitData} from "../SpecialExitStyle";
-import type {DepthOffset} from "./ExitLayout";
 import type {GroupShape, Shape} from "../Shape";
 
 export interface SpecialExitLayoutOptions {
-    /** Cartesian offset applied to each special-exit group (style-driven). */
-    depthOffset?: DepthOffset;
     /** Stroke override (used by highlighted-room overlays). */
     colorOverride?: string;
 }
@@ -16,11 +13,7 @@ export interface SpecialExitLayoutOptions {
  * record. Lets callers compute the data once (e.g. ScenePipeline records
  * `drawnSpecialExits` for hit-testing) and reuse it for layout.
  */
-export function specialExitToShape(
-    se: SpecialExitData,
-    roomId: number,
-    depthOffset: DepthOffset = {x: 0, y: 0},
-): GroupShape {
+export function specialExitToShape(se: SpecialExitData, roomId: number): GroupShape {
     const children: Shape[] = [];
 
     children.push({
@@ -63,8 +56,8 @@ export function specialExitToShape(
 
     return {
         type: "group",
-        x: depthOffset.x,
-        y: depthOffset.y,
+        x: 0,
+        y: 0,
         layer: "link",
         hit: {
             kind: "specialExit",
@@ -77,16 +70,14 @@ export function specialExitToShape(
 
 /**
  * Pure layout for a room's custom-line special exits. Returns one
- * {@link GroupShape} per special exit, each positioned at the style's
- * depth offset and containing the line plus its optional arrow polygon
- * and door rectangle.
+ * {@link GroupShape} per special exit at the world origin; the active
+ * {@link Style} applies any depth offset for the link layer.
  */
 export function layoutSpecialExits(
     room: MapData.Room,
     settings: Settings,
     options: SpecialExitLayoutOptions = {},
 ): GroupShape[] {
-    const depthOffset = options.depthOffset ?? {x: 0, y: 0};
     return computeSpecialExits(room, settings, options.colorOverride)
-        .map(se => specialExitToShape(se, room.id, depthOffset));
+        .map(se => specialExitToShape(se, room.id));
 }

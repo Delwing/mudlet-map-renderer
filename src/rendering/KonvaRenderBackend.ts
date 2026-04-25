@@ -7,7 +7,7 @@ import type {SceneBuildResult, AreaExitHitZone, DrawnExitEntry, DrawnSpecialExit
 import type {MapState} from "../MapState";
 import {Camera} from "../camera/Camera";
 import {CullingManager} from "../CullingManager";
-import type {CullEntry} from "../CullingManager";
+import {clipSceneToViewport} from "../export/clipSceneToViewport";
 import {InteractionHandler} from "../InteractionHandler";
 import {TypedEventEmitter} from "../TypedEventEmitter";
 import {
@@ -30,7 +30,7 @@ import {layoutGrid} from "../scene/elements/GridLayout";
 import {specialExitToShape} from "../scene/elements/SpecialExitLayout";
 import {stubToShape} from "../scene/elements/StubLayout";
 import {
-    highlightToShapes, positionMarkerToShape, pathToShapes,
+    highlightToShape, positionMarkerToShape, pathToShapes,
 } from "../scene/elements/OverlayLayout";
 import ExplorationArea from "../reader/ExplorationArea";
 import type {LiveEffect} from "../overlay/LiveEffect";
@@ -83,10 +83,10 @@ export class KonvaRenderBackend implements InteractiveBackend {
     readonly hitTester: HitTester = new HitTester();
     private lastHitShapes: Shape[] = [];
 
-    // Maps from CullEntry (owned by CullingManager) → DrawEntry so the
-    // culling callbacks can toggle visibility without knowing about Konva.
-    private roomCullEntries: Map<CullEntry, DrawEntry> = new Map();
-    private exitCullEntries: Map<CullEntry, DrawEntry> = new Map();
+    // Shape → DrawEntry map rebuilt on each buildScene; used by applyClipping
+    // to toggle DrawEntry.visible without knowing about CullEntry or Konva internals.
+    private shapeToDrawEntry: Map<Shape, DrawEntry> = new Map();
+    private standaloneExitShapeSet: Set<Shape> = new Set();
     private sceneNode!: DrawCommandLayerNode;
     /** Lookup from a pipeline-emitted shape to its recording node; rebuilt per buildScene. */
     private shapeToGroup: Map<Shape, RecordingGroupNode> = new Map();
@@ -156,19 +156,7 @@ export class KonvaRenderBackend implements InteractiveBackend {
         this.events = new TypedEventEmitter<RendererEventMap>(container);
 
         // linkLayer and roomLayer share sceneNode; one batchDraw covers both.
-        this.culling = new CullingManager(this.camera, state.settings, {
-            setRoomVisible: (entry, visible) => {
-                const e = this.roomCullEntries.get(entry);
-                if (e) e.visible = visible;
-            },
-            setExitVisible: (entry, visible) => {
-                const e = this.exitCullEntries.get(entry);
-                if (e) e.visible = visible;
-            },
-            afterCulling: (roomsChanged, exitsChanged) => {
-                if (roomsChanged || exitsChanged) this.sceneNode.batchDraw();
-            },
-        });
+        this.culling = new CullingManager(state.settings, () => this.applyClipping());
 
         // Camera drives the stage
         this.cameraChangeHandler = () => this.applyViewportToStage();
@@ -184,11 +172,9 @@ export class KonvaRenderBackend implements InteractiveBackend {
                 this.stage.height(h);
             };
 
-            this.interactionHandler = new InteractionHandler(container, this.camera, state, state.settings, {
+            this.interactionHandler = new InteractionHandler(container, this.camera, state, {
                 clientToMapPoint: (cx, cy) => this.camera.clientToMapPoint(cx, cy, container.getBoundingClientRect()),
-                findRoomAtPoint: (mx, my) => this.hitTester.findRoomAtPoint(mx, my),
-                getAreaExitHitZones: () => this.areaExitHitZones,
-                renderedToMapPoint: (x, y) => this.coordinateInverse(x, y),
+                pickAtPoint: (x, y) => this.hitTester.pick(x, y),
             }, this.events);
         }
 
@@ -203,16 +189,33 @@ export class KonvaRenderBackend implements InteractiveBackend {
         this.topLabelLayerNode = new RecordingLayerNode(this.topLabelLayer);
         this.gridCachedBounds = null;
         this.pipeline = new ScenePipeline(this.state.mapReader, this.state.settings);
+
+        // Drop scene state pinned to the now-destroyed sceneNode/layers.
+        this.shapeToDrawEntry = new Map();
+        this.standaloneExitShapeSet = new Set();
+        this.shapeToGroup.clear();
+        this.areaExitHitZones = [];
+        this.lastBuildResult = undefined;
+        this.lastHitShapes = [];
+        this.hitTester.clear();
+
         this.applyStyleTransforms();
+        this.refresh();
     }
 
     /** Pull forward/inverse coord transforms from the active shape Style. */
     private applyStyleTransforms() {
-        const forward: CoordFn = this.currentStyle.worldToScene
-            ? (x, y) => this.currentStyle.worldToScene!(x, y)
+        // Capture the style pointer locally: the arrows below outlive setStyle
+        // calls (held by TerrainOverlay via updateViewport, by `oldInverse`
+        // below, etc.), so they must not dereference `this.currentStyle` at
+        // invocation time — that would resolve against whatever style was
+        // installed *later*, which may not implement worldToScene/sceneToWorld.
+        const style = this.currentStyle;
+        const forward: CoordFn = style.worldToScene
+            ? (x, y) => style.worldToScene!(x, y)
             : IDENTITY_TRANSFORM;
-        const newInverse: CoordFn = this.currentStyle.sceneToWorld
-            ? (x, y) => this.currentStyle.sceneToWorld!(x, y)
+        const newInverse: CoordFn = style.sceneToWorld
+            ? (x, y) => style.sceneToWorld!(x, y)
             : IDENTITY_TRANSFORM;
         const oldInverse = this.coordinateInverse;
 
@@ -362,9 +365,8 @@ export class KonvaRenderBackend implements InteractiveBackend {
         if (!currentAreaInstance || currentZIndex === undefined) return;
         const plane = currentAreaInstance.getPlane(currentZIndex);
         if (!plane) {
-            this.culling.clear();
-            this.roomCullEntries.clear();
-            this.exitCullEntries.clear();
+            this.shapeToDrawEntry = new Map();
+            this.standaloneExitShapeSet = new Set();
             this.hitTester.clear();
             this.lastHitShapes = [];
             this.lastBuildResult = undefined;
@@ -617,50 +619,71 @@ export class KonvaRenderBackend implements InteractiveBackend {
     }
 
     private onSceneBuilt(result: SceneBuildResult) {
-        this.culling.clear();
-        this.roomCullEntries.clear();
-        this.exitCullEntries.clear();
-        this.areaExitHitZones = [];
-        this.culling.computeBucketSize();
+        this.areaExitHitZones = result.areaExitHitZones;
         this.lastHitShapes = result.hitShapes;
         this.hitTester.build(result.hitShapes, this.state.settings.roomSize, this._coordinateTransform);
 
-        // Apply current camera scale to stage
         const scale = this.camera.getScale();
         this.stage.scale({x: scale, y: scale});
 
-        const rs = this.state.settings.roomSize;
-        const half = rs / 2;
-        for (const [, ref] of result.roomShapeRefs) {
-            const groupNode = this.shapeToGroup.get(ref.shape);
-            if (!groupNode) continue;
-            const drawEntry = this.sceneNode.getEntry(groupNode);
-            if (!drawEntry) continue;
-            const cull: CullEntry = {
-                worldBbox: {
-                    minX: ref.room.x - half, minY: ref.room.y - half,
-                    maxX: ref.room.x + half, maxY: ref.room.y + half,
-                },
-            };
-            this.roomCullEntries.set(cull, drawEntry);
-            this.culling.addRoomEntry(cull);
+        // Build shape → DrawEntry map for all scene shapes (link + room layers).
+        // TopLabel shapes live on a separate RecordingLayerNode and are always visible.
+        this.shapeToDrawEntry = new Map();
+        for (const [shape, node] of this.shapeToGroup) {
+            const drawEntry = this.sceneNode.getEntry(node);
+            if (drawEntry) this.shapeToDrawEntry.set(shape, drawEntry);
         }
-        for (const ref of result.standaloneExitShapeRefs) {
-            const groupNode = this.shapeToGroup.get(ref.shape);
-            if (!groupNode) continue;
-            const drawEntry = this.sceneNode.getEntry(groupNode);
-            if (!drawEntry) continue;
-            const b = ref.bounds;
-            const cull: CullEntry = {
-                worldBbox: {minX: b.x, minY: b.y, maxX: b.x + b.width, maxY: b.y + b.height},
-            };
-            this.exitCullEntries.set(cull, drawEntry);
-            this.culling.addExitEntry(cull);
-        }
-        this.areaExitHitZones = result.areaExitHitZones;
+        this.standaloneExitShapeSet = new Set(result.standaloneExitShapeRefs.map(r => r.shape));
 
-        this.culling.updateCulling();
+        this.applyClipping();
         this.stage.batchDraw();
+    }
+
+    private applyClipping(): void {
+        if (!this.lastBuildResult) return;
+        const perfStart = this.state.settings.perfCallback ? performance.now() : 0;
+
+        // cullingBounds overrides viewport to a sub-rect in screen-pixel space.
+        let viewport: ViewportBounds;
+        if (this.state.settings.cullingBounds) {
+            const scale = this.camera.getScale();
+            if (!scale) return;
+            const pos = this.camera.position;
+            const b = this.state.settings.cullingBounds;
+            viewport = {
+                minX: (b.x - pos.x) / scale,
+                maxX: (b.x + b.width - pos.x) / scale,
+                minY: (b.y - pos.y) / scale,
+                maxY: (b.y + b.height - pos.y) / scale,
+            };
+        } else {
+            viewport = this.camera.getViewportBounds();
+        }
+
+        const transform = this._coordinateTransform !== IDENTITY_TRANSFORM
+            ? this._coordinateTransform as (x: number, y: number) => {x: number; y: number}
+            : undefined;
+        const clipped = clipSceneToViewport(this.lastBuildResult, viewport, this.state.settings, transform);
+
+        const visibleSet = new Set<Shape>([...clipped.link, ...clipped.room]);
+        let changed = false;
+        for (const [shape, entry] of this.shapeToDrawEntry) {
+            const vis = visibleSet.has(shape);
+            if (entry.visible !== vis) {
+                entry.visible = vis;
+                changed = true;
+            }
+        }
+        if (changed) this.sceneNode.batchDraw();
+
+        if (perfStart) {
+            this.culling.recordStats({
+                cullingMs: performance.now() - perfStart,
+                visibleRooms: clipped.room.length,
+                totalRooms: this.lastBuildResult.roomShapeRefs.size,
+                visibleExits: clipped.link.filter(s => this.standaloneExitShapeSet.has(s)).length,
+            });
+        }
     }
 
     // --- Position & overlay ---
@@ -814,19 +837,15 @@ export class KonvaRenderBackend implements InteractiveBackend {
             const room = this.state.mapReader.getRoom(roomId);
             if (room && room.area === this.state.currentArea && room.z === this.state.currentZIndex) {
                 const data = computeHighlight(room, color, this.state.settings);
-                for (const s of highlightToShapes(data)) {
-                    const node = this.addStyledShape(s, this.overlayLayerNode);
-                    if (node) this.highlightShapes.set(roomId, node);
-                }
+                const node = this.addStyledShape(highlightToShape(data), this.overlayLayerNode);
+                if (node) this.highlightShapes.set(roomId, node);
             }
         }
         this.overlayLayerNode.batchDraw();
     }
 
     syncHighlights() {
-        for (const shape of this.highlightShapes.values()) {
-            shape.destroy();
-        }
+        for (const node of this.highlightShapes.values()) node.destroy();
         this.highlightShapes.clear();
 
         for (const [roomId, entry] of this.state.highlights) {
@@ -834,10 +853,8 @@ export class KonvaRenderBackend implements InteractiveBackend {
             const room = this.state.mapReader.getRoom(roomId);
             if (!room) continue;
             const data = computeHighlight(room, entry.color, this.state.settings);
-            for (const s of highlightToShapes(data)) {
-                const node = this.addStyledShape(s, this.overlayLayerNode);
-                if (node) this.highlightShapes.set(roomId, node);
-            }
+            const node = this.addStyledShape(highlightToShape(data), this.overlayLayerNode);
+            if (node) this.highlightShapes.set(roomId, node);
         }
         this.overlayLayerNode.batchDraw();
     }
@@ -864,9 +881,7 @@ export class KonvaRenderBackend implements InteractiveBackend {
     // --- Private helpers ---
 
     private clearOverlayShapes() {
-        for (const shape of this.highlightShapes.values()) {
-            shape.destroy();
-        }
+        for (const node of this.highlightShapes.values()) node.destroy();
         this.highlightShapes.clear();
         this.clearPathShapes();
     }

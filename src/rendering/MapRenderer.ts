@@ -202,6 +202,8 @@ export class MapRenderer {
 
     /**
      * Apply a {@link Style} to the interactive canvas and every export path.
+     * The backend rebuilds the current scene under the new style — no explicit
+     * `refresh()` is needed.
      *
      * ```ts
      * import {compose, Parchment, Sketchy} from 'mudlet-map-renderer';

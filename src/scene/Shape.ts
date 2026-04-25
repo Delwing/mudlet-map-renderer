@@ -38,6 +38,17 @@ export interface HitInfo {
     id?: number | string;
     /** Free-form payload returned to callers from {@link HitTester}. */
     payload?: unknown;
+    /**
+     * Multiplier on the current `roomSize` for the maximum pick distance.
+     * Smaller = stricter (used for thin geometry like exits and stubs).
+     * Defaults to a per-kind value when omitted (rooms 1.0, exits 0.35, stubs 0.3, …).
+     */
+    margin?: number;
+    /**
+     * Tiebreaker when multiple hits are within range. Higher = on top.
+     * Defaults to a per-kind value when omitted (rooms over exits over stubs, …).
+     */
+    priority?: number;
 }
 
 /** Common fields on every shape. */

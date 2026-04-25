@@ -205,7 +205,7 @@ function applyRenderMode(mode: string) {
             settings.fontFamily = 'Georgia, serif';
             break;
         case "parchment-pencil":
-            style = compose(Parchment, Sketchy({jitter, color: '#4a3728'}));
+            style = compose(Sketchy({jitter, color: '#4a3728'}), Parchment);
             settings.backgroundColor = '#f4e4c1';
             settings.lineColor = '#5c4033';
             settings.fontFamily = 'Georgia, serif';
@@ -218,9 +218,9 @@ function applyRenderMode(mode: string) {
         case "isometric-parchment": {
             const depth = settings.roomSize * 0.3;
             style = compose(
-                Parchment,
-                Sketchy({jitter, color: '#4a3728'}),
                 Isometric({depth, rotation: getIsoRotation()}),
+                Sketchy({jitter, color: '#4a3728'}),
+                Parchment,
             );
             settings.backgroundColor = '#f4e4c1';
             settings.lineColor = '#5c4033';

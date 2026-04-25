@@ -1,13 +1,9 @@
 /**
  * Shape-based {@link Style} implementations — geometry transformers per the
- * new {@link Style} interface in `../Style.ts`. Each style takes a
- * {@link Shape} and returns one or more transformed shapes; no backend
- * coupling.
+ * {@link Style} interface in `../Style.ts`. Each style takes a {@link Shape}
+ * and returns one or more transformed shapes; no backend coupling.
  *
- * These coexist with the legacy {@link DrawingBackend}-decorator versions in
- * the parent directory until step 11 of the refactor deletes the old ones.
- *
- * Usage (pre-wired via DrawCommandBuilder + KonvaRenderer in step 5/8):
+ * Usage:
  * ```ts
  * import {compose} from "../Style";
  * import {parchmentShapeStyle, sketchyShapeStyle} from "./shape";

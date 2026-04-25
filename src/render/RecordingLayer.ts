@@ -15,6 +15,7 @@
  */
 
 import Konva from "konva";
+import {BASE_SCALE} from "../camera/Camera";
 
 // --- Internal draw command types ---
 // These are the low-level Canvas2D-shaped commands captured per
@@ -297,7 +298,7 @@ export class DrawCommandLayerNode {
                     const tx = a * entry.x + c * entry.y + base.e;
                     const ty = b * entry.x + d * entry.y + base.f;
                     if (entry.noScaling) {
-                        ctx.setTransform(75, 0, 0, 75, tx, ty);
+                        ctx.setTransform(BASE_SCALE, 0, 0, BASE_SCALE, tx, ty);
                     } else {
                         ctx.setTransform(a, b, c, d, tx, ty);
                     }
@@ -373,7 +374,7 @@ export class RecordingLayerNode {
                     const tx = a * group.x + c * group.y + base.e;
                     const ty = b * group.x + d * group.y + base.f;
                     if (group.noScaling) {
-                        ctx.setTransform(75, 0, 0, 75, tx, ty);
+                        ctx.setTransform(BASE_SCALE, 0, 0, BASE_SCALE, tx, ty);
                     } else {
                         ctx.setTransform(a, b, c, d, tx, ty);
                     }

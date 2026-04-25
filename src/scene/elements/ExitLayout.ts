@@ -2,12 +2,7 @@ import type MapReader from "../../reader/MapReader";
 import type {Settings} from "../../types/Settings";
 import type {ExitDrawArrow, ExitDrawData} from "../../ExitRenderer";
 import {computeInnerExits} from "../InnerExitStyle";
-import type {GroupShape, PolygonShape, Shape} from "../Shape";
-
-export interface DepthOffset {
-    x: number;
-    y: number;
-}
+import type {GroupShape, HitInfo, PolygonShape, Shape} from "../Shape";
 
 /**
  * Pure layout for a room's inner exits (up/down/in/out triangles). Returns
@@ -44,11 +39,16 @@ export function layoutInnerExits(
 
 /**
  * Pure layout for a single inter-room link exit, given its computed
- * {@link ExitDrawData}. Returns a {@link GroupShape} positioned at the
- * style's `depthOffset` (zero for flat styles, non-zero for Isometric where
- * exits attach to the cube base instead of the top face).
+ * {@link ExitDrawData}. Returns a {@link GroupShape} at the world origin;
+ * the active {@link Style} (e.g. Isometric) is responsible for any
+ * cube-base offset on the link layer.
+ *
+ * `hit` is optional — callers that want the exit to participate in
+ * hit-testing pass an {@link HitInfo} carrying the exit identity (a, b,
+ * aDir, bDir). Omitted for one-off exit shapes used in current-room
+ * overlays where the exit isn't independently pickable.
  */
-export function layoutLinkExit(data: ExitDrawData, depthOffset: DepthOffset = {x: 0, y: 0}): GroupShape {
+export function layoutLinkExit(data: ExitDrawData, hit?: HitInfo): GroupShape {
     const children: Shape[] = [];
 
     for (const line of data.lines) {
@@ -83,9 +83,10 @@ export function layoutLinkExit(data: ExitDrawData, depthOffset: DepthOffset = {x
 
     return {
         type: "group",
-        x: depthOffset.x,
-        y: depthOffset.y,
+        x: 0,
+        y: 0,
         layer: "link",
+        ...(hit ? {hit} : {}),
         children,
     };
 }

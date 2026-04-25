@@ -18,12 +18,14 @@ import {hexToRgba} from "../../utils/color";
 
 /**
  * Build a highlight ring around a room. Circle rooms get a single dashed
- * stroke; rectangular variants get four independent dashed lines so the
- * corner dashes line up cleanly (same approach as the backend renderer).
+ * stroke; rectangular variants get four independent dashed lines (wrapped in
+ * a group) so the corner dashes line up cleanly — each side's dash pattern
+ * starts fresh at the corner instead of wrapping continuously around the
+ * perimeter (same approach as the backend renderer).
  */
-export function highlightToShapes(data: HighlightData): Shape[] {
+export function highlightToShape(data: HighlightData): Shape {
     if (data.shape === "circle") {
-        return [{
+        return {
             type: "circle",
             cx: data.cx, cy: data.cy,
             radius: data.size,
@@ -34,7 +36,7 @@ export function highlightToShapes(data: HighlightData): Shape[] {
                 dashEnabled: true,
             },
             layer: "overlay",
-        }];
+        };
     }
 
     const x1 = data.cx - data.size;
@@ -47,17 +49,22 @@ export function highlightToShapes(data: HighlightData): Shape[] {
         [x2, y2, x1, y2],
         [x1, y2, x1, y1],
     ];
-    return sides.map((points): Shape => ({
-        type: "line",
-        points,
-        paint: {
-            stroke: data.stroke,
-            strokeWidth: data.strokeWidth,
-            dash: data.dash,
-        },
-        lineCap: "butt",
+    return {
+        type: "group",
+        x: 0, y: 0,
+        children: sides.map((points): Shape => ({
+            type: "line",
+            points,
+            paint: {
+                stroke: data.stroke,
+                strokeWidth: data.strokeWidth,
+                dash: data.dash,
+            },
+            lineCap: "butt",
+            layer: "overlay",
+        })),
         layer: "overlay",
-    }));
+    };
 }
 
 /** Build the player-position marker. */

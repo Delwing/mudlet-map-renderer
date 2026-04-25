@@ -42,12 +42,6 @@ export interface Style {
 
     /** Inverse of {@link worldToScene}. */
     sceneToWorld?(x: number, y: number): {x: number; y: number};
-
-    /**
-     * Cartesian offset for exit-line groups so they connect at the cube base
-     * (Isometric) instead of the top face. Returns {x:0, y:0} for flat styles.
-     */
-    getExitDepthOffset?(): {x: number; y: number};
 }
 
 /** Identity style — passes shapes through unchanged. */
@@ -56,9 +50,30 @@ export const identityStyle: Style = {
 };
 
 /**
- * Compose a chain of styles into a single style. Shapes flow left → right:
- * `compose(Parchment, Sketchy)` first re-paints with Parchment, then wobbles
- * with Sketchy.
+ * Compose a chain of styles into a single style. Shapes flow **left → right**:
+ * the leftmost style transforms first, the rightmost transforms last and gets
+ * the final say on the emitted shapes.
+ *
+ * Order matters in two ways:
+ *
+ * 1. **Shape-changing styles must come before styles that depend on the new
+ *    geometry.** {@link sketchyShapeStyle} converts rect/circle into polygon,
+ *    and {@link isometricShapeStyle} only extrudes rect/circle into cubes — so
+ *    Iso must run before Sketchy or the cubes never form.
+ * 2. **Paint-rewriting styles overwrite earlier paint choices.** Put the style
+ *    whose colour palette you want on screen *last*: in
+ *    `compose(Sketchy(...), Parchment)` Parchment recolours Sketchy's pencil
+ *    fills/strokes into the parchment palette; reverse the order and Sketchy
+ *    repaints over Parchment's choices.
+ *
+ * Example — isometric parchment cubes with hand-drawn wobble:
+ * ```ts
+ * compose(
+ *     Isometric({depth, rotation}),         // rects → cube-face polygons
+ *     Sketchy({jitter, color: '#4a3728'}),  // wobble each polygon
+ *     Parchment,                            // recolour to parchment palette
+ * );
+ * ```
  */
 export function compose(...styles: Style[]): Style {
     if (styles.length === 0) return identityStyle;
@@ -94,17 +109,6 @@ export function compose(...styles: Style[]): Style {
                 if (style.sceneToWorld) p = style.sceneToWorld(p.x, p.y);
             }
             return p;
-        },
-
-        getExitDepthOffset() {
-            // Take the last non-zero offset in the chain. Today only Isometric
-            // sets this; chained styles that include Iso should preserve its
-            // offset regardless of where Iso sits in the chain.
-            for (let i = styles.length - 1; i >= 0; i--) {
-                const off = styles[i].getExitDepthOffset?.();
-                if (off && (off.x !== 0 || off.y !== 0)) return off;
-            }
-            return {x: 0, y: 0};
         },
     };
 }
