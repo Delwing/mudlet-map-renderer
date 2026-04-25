@@ -1,8 +1,7 @@
-import type {DrawingBackend, GroupNode} from "../backend/DrawingBackend";
 import type {MapState} from "../MapState";
 import type {ViewportBounds} from "../types/Settings";
 import {computeAmbientLight, type AmbientLightParams} from "../scene/AmbientLightStyle";
-import {renderAmbientLight} from "../scene/OverlayRenderer";
+import type {Shape} from "../scene/Shape";
 import type {SceneOverlay, SceneOverlayContext} from "./SceneOverlay";
 
 export type AmbientLightOptions = Partial<AmbientLightParams>;
@@ -59,15 +58,19 @@ export class AmbientLightOverlay implements SceneOverlay {
         this.ctx = undefined;
     }
 
-    render(
-        target: DrawingBackend,
-        state: MapState,
-        bounds: ViewportBounds,
-    ): GroupNode | void {
+    render(state: MapState, bounds: ViewportBounds): Shape | void {
         if (state.positionRoomId === undefined) return;
         const room = state.mapReader.getRoom(state.positionRoomId);
         if (!room) return;
         const data = computeAmbientLight(room.x, room.y, bounds, this.params);
-        return renderAmbientLight(target, data);
+        return {
+            type: "image",
+            x: data.cx - data.displaySize / 2,
+            y: data.cy - data.displaySize / 2,
+            width: data.displaySize,
+            height: data.displaySize,
+            src: data.src,
+            layer: "overlay",
+        };
     }
 }

@@ -3,10 +3,6 @@ import type Area from "./reader/Area";
 import type Plane from "./reader/Plane";
 import type Exit from "./reader/Exit";
 import type {Settings, ViewportBounds} from "./types/Settings";
-import type {DrawingBackend, GroupNode, LayerNode} from "./backend/DrawingBackend";
-import {IDENTITY_TRANSFORM} from "./backend/DrawingBackend";
-import {RoomShapeRenderer} from "./RoomShapeRenderer";
-import {GridRenderer} from "./GridRenderer";
 import ExitRenderer from "./ExitRenderer";
 import type {ExitDrawData} from "./ExitRenderer";
 import {computeStubs} from "./scene/StubStyle";
@@ -17,14 +13,25 @@ import {layoutLinkExit} from "./scene/elements/ExitLayout";
 import {specialExitToShape} from "./scene/elements/SpecialExitLayout";
 import {stubToShape} from "./scene/elements/StubLayout";
 import {labelToShape} from "./scene/elements/LabelLayout";
-import {renderShapeToBackend} from "./scene/elements/renderShapeToBackend";
-import type {Shape} from "./scene/Shape";
+import {layoutGrid} from "./scene/elements/GridLayout";
+import type {GroupShape, Shape} from "./scene/Shape";
 import {colorLightness} from "./utils/color";
 
 type Bounds = { x: number; y: number; width: number; height: number };
 
-export type RoomNodeEntry = { room: MapData.Room; group: GroupNode };
-export type StandaloneExitEntry = { group: GroupNode; bounds: Bounds; targetRoomId?: number };
+/**
+ * Reference to one room's body shape inside the scene. Keyed by roomId so
+ * downstream consumers (cull index, hit-test bookkeeping) can find a room
+ * shape by id without re-walking the scene tree.
+ */
+export type RoomShapeRef = { room: MapData.Room; shape: GroupShape };
+
+/**
+ * Reference to one drawn link-exit shape, paired with its world-space bounds
+ * and (optional) cross-area target room. Used by the live renderer to hang
+ * cull entries on each exit.
+ */
+export type StandaloneExitShapeRef = { shape: GroupShape; bounds: Bounds; targetRoomId?: number };
 export type AreaExitHitZone = {
     bounds: Bounds;
     targetRoomId: number;
@@ -90,15 +97,40 @@ export type DrawnStubEntry = {
     readonly strokeWidth: number;
 };
 
+/**
+ * World-space shapes for each logical layer. Same content the backend layer
+ * nodes received, but as plain SceneIR data — consumed by exporters that drive
+ * {@link buildDrawCommands} → engine renderers without going through a
+ * {@link DrawingBackend}.
+ *
+ * Order within each list mirrors the order in which the corresponding layer
+ * node received its `addNode` calls: e.g. `link` is labels → link exits → for
+ * each room (special exits, stubs); `room` is rooms → area name → area-exit
+ * labels.
+ */
+export type SceneShapesByLayer = {
+    grid: Shape[];
+    link: Shape[];
+    room: Shape[];
+    topLabel: Shape[];
+};
+
 export type SceneBuildResult = {
-    roomNodes: Map<number, RoomNodeEntry>;
-    standaloneExitNodes: StandaloneExitEntry[];
+    /** Room body shapes keyed by roomId — for cull-entry construction. */
+    roomShapeRefs: Map<number, RoomShapeRef>;
+    /** Link-exit shapes paired with bounds and area-target metadata. */
+    standaloneExitShapeRefs: StandaloneExitShapeRef[];
     areaExitHitZones: AreaExitHitZone[];
     drawnExits: DrawnExitEntry[];
     drawnSpecialExits: DrawnSpecialExitEntry[];
     drawnStubs: DrawnStubEntry[];
     /** World-space shapes carrying {@link HitInfo} annotations — fed to {@link HitTester}. */
     hitShapes: Shape[];
+    /**
+     * Engine-agnostic shape lists per logical layer. Drives
+     * {@link buildDrawCommands} + a per-engine renderer.
+     */
+    sceneShapes: SceneShapesByLayer;
 };
 
 /** Convert a `rgb(...)`, `rgba(...)`, or `#rrggbb` string to `rgba(r,g,b,alpha)`. */
@@ -163,41 +195,35 @@ function clusterByProximity<T extends { tip: { x: number; y: number } }>(
 }
 
 /**
- * Backend-agnostic scene composition pipeline.
- * Drives a DrawingBackend + LayerNode to render the full map scene.
+ * Engine-neutral scene composition pipeline.
  *
- * Both the interactive KonvaRenderBackend and exporters (SvgExporter,
- * CanvasExporter, …) drive this pipeline with their respective DrawingBackend.
+ * Walks a {@link MapData} area/plane and emits world-space {@link Shape}s per
+ * logical layer (grid / link / room / topLabel) plus the metadata downstream
+ * consumers need (cull entries, hit zones, drawn-geometry snapshots).
+ *
+ * The pipeline knows nothing about Konva, SVG, Canvas, or the
+ * {@link DrawCommandBuilder}: callers run the shape lists through whatever
+ * renderer fits their target. Both the interactive
+ * {@link KonvaRenderBackend} and the exporters consume the same
+ * {@link SceneBuildResult} this pipeline produces.
  */
 export class ScenePipeline {
     private readonly mapReader: MapReader;
     private readonly settings: Settings;
-    private readonly backend: DrawingBackend;
-    readonly roomShapeRenderer: RoomShapeRenderer;
-    readonly gridRenderer: GridRenderer;
     readonly exitRenderer: ExitRenderer;
 
-    private readonly gridLayer: LayerNode;
-    private readonly linkLayer: LayerNode;
-    private readonly roomLayer: LayerNode;
-    private readonly topLabelLayer: LayerNode | undefined;
+    // Per-layer shape accumulators reset on each buildScene; insertion order
+    // mirrors the legacy addNode call order so renderers can replay the scene
+    // without re-sorting (e.g. labels → link exits → special exits & stubs on
+    // the link layer; rooms → area name → area-exit labels on the room layer).
+    private gridShapes: Shape[] = [];
+    private linkShapes: Shape[] = [];
+    private roomShapes: Shape[] = [];
+    private topLabelShapes: Shape[] = [];
 
-    constructor(
-        mapReader: MapReader,
-        settings: Settings,
-        backend: DrawingBackend,
-        layers: { gridLayer: LayerNode; linkLayer: LayerNode; roomLayer: LayerNode; topLabelLayer?: LayerNode },
-    ) {
+    constructor(mapReader: MapReader, settings: Settings) {
         this.mapReader = mapReader;
         this.settings = settings;
-        this.backend = backend;
-        this.gridLayer = layers.gridLayer;
-        this.linkLayer = layers.linkLayer;
-        this.roomLayer = layers.roomLayer;
-        this.topLabelLayer = layers.topLabelLayer;
-
-        this.roomShapeRenderer = new RoomShapeRenderer(mapReader, settings, backend);
-        this.gridRenderer = new GridRenderer(layers.gridLayer, settings, backend);
         this.exitRenderer = new ExitRenderer(mapReader, settings);
     }
 
@@ -207,15 +233,14 @@ export class ScenePipeline {
      * Returns data for culling and interaction (room nodes, exit data, hit zones).
      */
     buildScene(area: Area, plane: Plane, zIndex: number, viewportBounds?: ViewportBounds): SceneBuildResult {
-        this.gridLayer.destroyChildren();
-        this.gridRenderer.invalidateCache();
-        this.linkLayer.destroyChildren();
-        this.roomLayer.destroyChildren();
-        this.topLabelLayer?.destroyChildren();
+        this.gridShapes = [];
+        this.linkShapes = [];
+        this.roomShapes = [];
+        this.topLabelShapes = [];
 
-        // Grid
+        // Grid shapes for the requested viewport.
         if (viewportBounds) {
-            this.gridRenderer.render(viewportBounds);
+            this.gridShapes.push(...layoutGrid(viewportBounds, this.settings));
         }
 
         // Labels
@@ -238,18 +263,24 @@ export class ScenePipeline {
             areaExitHitZones,
             area.getAreaId(),
             plane.getRooms() ?? [],
-            exitResult.standaloneExitNodes.map(n => n.bounds),
+            exitResult.standaloneExitShapeRefs.map(n => n.bounds),
         );
         areaExitHitZones.push(...labelHitZones);
 
         return {
-            roomNodes: roomResult.roomNodes,
-            standaloneExitNodes: exitResult.standaloneExitNodes,
+            roomShapeRefs: roomResult.roomShapeRefs,
+            standaloneExitShapeRefs: exitResult.standaloneExitShapeRefs,
             areaExitHitZones,
             drawnExits: exitResult.drawnExits,
             drawnSpecialExits: roomResult.drawnSpecialExits,
             drawnStubs: roomResult.drawnStubs,
             hitShapes: roomResult.hitShapes,
+            sceneShapes: {
+                grid: this.gridShapes,
+                link: this.linkShapes,
+                room: this.roomShapes,
+                topLabel: this.topLabelShapes,
+            },
         };
     }
 
@@ -260,34 +291,31 @@ export class ScenePipeline {
     // --- Rooms ---
 
     private renderRooms(rooms: MapData.Room[], _zIndex: number) {
-        const roomNodes = new Map<number, RoomNodeEntry>();
+        const roomShapeRefs = new Map<number, RoomShapeRef>();
         const areaExitHitZones: AreaExitHitZone[] = [];
         const drawnSpecialExits: DrawnSpecialExitEntry[] = [];
         const drawnStubs: DrawnStubEntry[] = [];
         const hitShapes: Shape[] = [];
-        const depthOffset = this.backend.getExitDepthOffset();
-        const flatPipeline = this.backend.getTransform() === IDENTITY_TRANSFORM;
 
-        // Queue room groups and add them to the room layer after all rooms'
-        // special exits and stubs have been added to the link layer. This keeps
-        // the correct z-order (all exits/stubs under all rooms) when the link
-        // and room layers are backed by the same recording node.
-        const queuedRoomNodes: Array<[MapData.Room, GroupNode]> = [];
+        // Queue room shapes and push them onto roomShapes after all rooms'
+        // special exits and stubs have been pushed onto linkShapes. This keeps
+        // the correct z-order (all exits/stubs under all rooms) on shared
+        // logical layers.
+        const queuedRoomShapes: Array<[MapData.Room, GroupShape]> = [];
 
         rooms.forEach(room => {
-            // Room body + inner exits — built as a single SceneIR group, walked
-            // to the backend.
-            const roomShape = layoutRoom(room, this.mapReader, this.settings, {flatPipeline});
+            // Room body + inner exits — emitted as a single SceneIR group.
+            // flatPipeline is always true now: per-style coordinate warping
+            // (e.g. Isometric) is applied downstream by Style.transform.
+            const roomShape = layoutRoom(room, this.mapReader, this.settings, {flatPipeline: true});
             roomShape.children.push(...layoutInnerExits(room, this.mapReader, this.settings));
             hitShapes.push(roomShape);
-            const roomNode = renderShapeToBackend(this.backend, roomShape);
 
-            // Special exits → link layer (depthOffset accounts for cube base).
-            // computeSpecialExits is called once and reused for both the SceneIR
-            // group and the drawnSpecialExits hit-testing record below.
+            // Special exits → link layer. depthOffset stays {0,0} — Style
+            // (e.g. Isometric) applies cube-base offsets when transforming.
             for (const se of computeSpecialExits(room, this.settings)) {
-                const seShape = specialExitToShape(se, room.id, depthOffset);
-                this.linkLayer.addNode(renderShapeToBackend(this.backend, seShape));
+                const seShape = specialExitToShape(se, room.id);
+                this.linkShapes.push(seShape);
 
                 const pts = se.line.points;
                 let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
@@ -333,10 +361,8 @@ export class ScenePipeline {
 
             // Stubs → link layer (so they render under rooms, like exits)
             for (const stub of computeStubs(room, this.settings)) {
-                this.linkLayer.addNode(renderShapeToBackend(
-                    this.backend,
-                    stubToShape(stub, depthOffset),
-                ));
+                const stubShape = stubToShape(stub);
+                this.linkShapes.push(stubShape);
                 drawnStubs.push({
                     roomId: stub.roomId,
                     direction: stub.direction,
@@ -347,30 +373,31 @@ export class ScenePipeline {
                 });
             }
 
-            queuedRoomNodes.push([room, roomNode]);
-            roomNodes.set(room.id, {room, group: roomNode});
+            queuedRoomShapes.push([room, roomShape]);
+            roomShapeRefs.set(room.id, {room, shape: roomShape});
         });
 
-        for (const [, roomNode] of queuedRoomNodes) {
-            this.roomLayer.addNode(roomNode);
+        for (const [, roomShape] of queuedRoomShapes) {
+            this.roomShapes.push(roomShape);
         }
 
-        return {roomNodes, areaExitHitZones, drawnSpecialExits, drawnStubs, hitShapes};
+        return {roomShapeRefs, areaExitHitZones, drawnSpecialExits, drawnStubs, hitShapes};
     }
 
     // --- Link Exits ---
 
     private renderLinkExits(exits: Exit[], zIndex: number) {
-        const standaloneExitNodes: StandaloneExitEntry[] = [];
+        const standaloneExitShapeRefs: StandaloneExitShapeRef[] = [];
         const areaExitHitZones: AreaExitHitZone[] = [];
         const drawnExits: DrawnExitEntry[] = [];
 
         exits.forEach(exit => {
             const data = this.exitRenderer.renderData(exit, zIndex);
             if (!data) return;
-            const group = this.renderExitData(data);
-            this.linkLayer.addNode(group);
-            standaloneExitNodes.push({group, bounds: data.bounds, targetRoomId: data.targetRoomId});
+            // depthOffset stays {0,0} — Style applies cube-base offset downstream.
+            const exitShape = layoutLinkExit(data);
+            this.linkShapes.push(exitShape);
+            standaloneExitShapeRefs.push({shape: exitShape, bounds: data.bounds, targetRoomId: data.targetRoomId});
             drawnExits.push({
                 a: exit.a,
                 b: exit.b,
@@ -391,28 +418,29 @@ export class ScenePipeline {
             }
         });
 
-        return {standaloneExitNodes, areaExitHitZones, drawnExits};
+        return {standaloneExitShapeRefs, areaExitHitZones, drawnExits};
     }
 
-    /** Render ExitDrawData through the DrawingBackend. */
-    renderExitData(data: ExitDrawData): GroupNode {
-        return renderShapeToBackend(
-            this.backend,
-            layoutLinkExit(data, this.backend.getExitDepthOffset()),
-        );
+    /**
+     * Build the world-space shape tree for one inter-room exit. Used by the
+     * live renderer's current-room overlay path to recolour a single exit
+     * without rebuilding the whole scene.
+     */
+    buildExitShape(data: ExitDrawData): GroupShape {
+        return layoutLinkExit(data);
     }
 
     // --- Labels ---
-
-    private targetLabelLayer(label: MapData.Label): LayerNode {
-        return (label.showOnTop && this.topLabelLayer) ? this.topLabelLayer : this.linkLayer;
-    }
 
     private renderLabels(labels: MapData.Label[]) {
         for (const label of labels) {
             const shape = labelToShape(label, this.settings);
             if (!shape) continue;
-            this.targetLabelLayer(label).addNode(renderShapeToBackend(this.backend, shape));
+            if (label.showOnTop) {
+                this.topLabelShapes.push(shape);
+            } else {
+                this.linkShapes.push(shape);
+            }
         }
     }
 
@@ -697,7 +725,7 @@ export class ScenePipeline {
                         },
                     ],
                 };
-                this.roomLayer.addNode(renderShapeToBackend(this.backend, labelShape));
+                this.roomShapes.push(labelShape);
 
                 // Label is clickable — navigate to the target area (any room from the
                 // cluster works since they all live there).
@@ -718,7 +746,7 @@ export class ScenePipeline {
         const name = area.getAreaName();
         if (!name) return;
         const bounds = this.getEffectiveBounds(area, plane);
-        this.roomLayer.addNode(renderShapeToBackend(this.backend, {
+        const areaNameShape: GroupShape = {
             type: "group",
             x: 0,
             y: 0,
@@ -732,6 +760,7 @@ export class ScenePipeline {
                 fontFamily: this.settings.fontFamily,
                 fill: this.settings.lineColor,
             }],
-        }));
+        };
+        this.roomShapes.push(areaNameShape);
     }
 }
