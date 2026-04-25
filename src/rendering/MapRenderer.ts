@@ -8,7 +8,7 @@ import {KonvaRenderBackend} from "./KonvaRenderBackend";
 import type {DrawingBackend, CoordFn, Style} from "../backend/DrawingBackend";
 import {identityStyle} from "../backend/DrawingBackend";
 import {CanvasBackend} from "../backend/CanvasBackend";
-import type {Viewport} from "../Viewport";
+import type {Camera} from "../camera/Camera";
 import type {CullingManager} from "../CullingManager";
 import type {TypedEventEmitter} from "../TypedEventEmitter";
 import type {LiveEffect} from "../overlay/LiveEffect";
@@ -18,7 +18,7 @@ import type {DrawnExitEntry, DrawnSpecialExitEntry, DrawnStubEntry} from "../Sce
 
 /** Contract for interactive render backends. */
 export interface InteractiveBackend {
-    readonly viewport: Viewport;
+    readonly camera: Camera;
     readonly culling: CullingManager;
     readonly events: TypedEventEmitter<RendererEventMap>;
     /** Forward map → render-space transform from the current drawing backend. */
@@ -38,7 +38,7 @@ export interface InteractiveBackend {
             paths?: Array<{ locations: number[]; color: string }>;
         };
     }): ExportCanvas | undefined;
-    /** Capture the current viewport as a canvas with background fill. */
+    /** Capture the current camera as a canvas with background fill. */
     exportCanvas(options?: { pixelRatio?: number }): ExportCanvas | undefined;
     addLiveEffect(id: string, effect: LiveEffect): void;
     removeLiveEffect(id: string): void;
@@ -265,7 +265,7 @@ export class MapRenderer {
         return exporter.render(context);
     }
 
-    // --- Viewport & interaction ---
+    // --- Camera & interaction ---
 
     on<K extends keyof RendererEventMap>(event: K, handler: (detail: RendererEventMap[K]) => void): void {
         this.backend.events.on(event, handler);
@@ -276,19 +276,19 @@ export class MapRenderer {
     }
 
     setZoom(zoom: number): boolean {
-        return this.backend.viewport.setZoom(zoom);
+        return this.backend.camera.setZoom(zoom);
     }
 
     zoomToCenter(zoom: number): boolean {
-        return this.backend.viewport.zoomToCenter(zoom);
+        return this.backend.camera.zoomToCenter(zoom);
     }
 
     getZoom(): number {
-        return this.backend.viewport.zoom;
+        return this.backend.camera.zoom;
     }
 
     getViewportBounds(): ViewportBounds {
-        return this.backend.viewport.getViewportBounds();
+        return this.backend.camera.getViewportBounds();
     }
 
     getAreaBounds(): ViewportBounds | null {
@@ -319,23 +319,23 @@ export class MapRenderer {
     fitArea(insets?: { top?: number; right?: number; bottom?: number; left?: number }) {
         const bounds = this.getAreaBounds();
         if (!bounds) return;
-        this.backend.viewport.fitToMapBounds(bounds.minX, bounds.maxX, bounds.minY, bounds.maxY, insets);
+        this.backend.camera.fitToMapBounds(bounds.minX, bounds.maxX, bounds.minY, bounds.maxY, insets);
     }
 
     get centerOnResize(): boolean {
-        return this.backend.viewport.centerOnResize;
+        return this.backend.camera.centerOnResize;
     }
 
     set centerOnResize(value: boolean) {
-        this.backend.viewport.centerOnResize = value;
+        this.backend.camera.centerOnResize = value;
     }
 
     get minZoom(): number {
-        return this.backend.viewport.minZoom;
+        return this.backend.camera.minZoom;
     }
 
     set minZoom(value: number) {
-        this.backend.viewport.minZoom = value;
+        this.backend.camera.minZoom = value;
     }
 
     setCullingMode(mode: CullingMode) {

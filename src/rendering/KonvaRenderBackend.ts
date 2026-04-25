@@ -5,7 +5,7 @@ import type {RendererEventMap} from "../types/Settings";
 import {ScenePipeline} from "../ScenePipeline";
 import type {SceneBuildResult, AreaExitHitZone, DrawnExitEntry, DrawnSpecialExitEntry, DrawnStubEntry} from "../ScenePipeline";
 import type {MapState} from "../MapState";
-import {Viewport} from "../Viewport";
+import {Camera} from "../camera/Camera";
 import {CullingManager} from "../CullingManager";
 import {InteractionHandler} from "../InteractionHandler";
 import {TypedEventEmitter} from "../TypedEventEmitter";
@@ -33,12 +33,12 @@ const currentRoomColor = 'rgb(120, 72, 0)';
  * Konva rendering engine. Owns the full rendering pipeline:
  * stage, layers, scene builder, culling, overlays.
  *
- * Viewport is the source of truth for transform state.
- * This backend subscribes to viewport.onChange and applies state to the Konva stage.
+ * Camera is the source of truth for transform state.
+ * This backend subscribes to the camera's `change` event and applies state to the Konva stage.
  *
  * Works identically in both modes:
- * - DOM container → stage attached to DOM, mouse/touch → viewport
- * - No container → headless stage, same viewport/culling, no input
+ * - DOM container → stage attached to DOM, mouse/touch → camera
+ * - No container → headless stage, same camera/culling, no input
  */
 export class KonvaRenderBackend implements InteractiveBackend {
     readonly stage: Konva.Stage;
@@ -49,7 +49,7 @@ export class KonvaRenderBackend implements InteractiveBackend {
     readonly overlayLayer: Konva.Layer;
     readonly positionLayer: Konva.Layer;
 
-    readonly viewport: Viewport;
+    readonly camera: Camera;
     readonly culling: CullingManager;
     readonly events: TypedEventEmitter<RendererEventMap>;
 
@@ -68,6 +68,7 @@ export class KonvaRenderBackend implements InteractiveBackend {
     private areaExitHitZones: AreaExitHitZone[] = [];
     private interactionHandler?: InteractionHandler;
     private origSetSize?: (w: number, h: number) => void;
+    private cameraChangeHandler?: () => void;
     private destroyed = false;
     private _coordinateTransform: CoordFn = IDENTITY_TRANSFORM;
     private coordinateInverse: CoordFn = IDENTITY_TRANSFORM;
@@ -92,10 +93,10 @@ export class KonvaRenderBackend implements InteractiveBackend {
                 draggable: false,
             });
             container.style.backgroundColor = state.settings.backgroundColor;
-            this.viewport = new Viewport(container.clientWidth, container.clientHeight);
+            this.camera = new Camera(container.clientWidth, container.clientHeight);
         } else {
             this.stage = new Konva.Stage({width: 1, height: 1});
-            this.viewport = new Viewport(1, 1);
+            this.camera = new Camera(1, 1);
         }
 
         this.gridLayer = new Konva.Layer({listening: false});
@@ -135,21 +136,22 @@ export class KonvaRenderBackend implements InteractiveBackend {
             state.settings,
         );
 
-        // Viewport drives the stage
-        this.viewport.onChange = () => this.applyViewportToStage();
+        // Camera drives the stage
+        this.cameraChangeHandler = () => this.applyViewportToStage();
+        this.camera.on('change', this.cameraChangeHandler);
 
         if (container) {
-            // Sync stage size when viewport resizes
-            this.origSetSize = this.viewport.setSize.bind(this.viewport);
+            // Sync stage size when camera resizes
+            this.origSetSize = this.camera.setSize.bind(this.camera);
             const origSetSize = this.origSetSize;
-            this.viewport.setSize = (w: number, h: number) => {
+            this.camera.setSize = (w: number, h: number) => {
                 origSetSize(w, h);
                 this.stage.width(w);
                 this.stage.height(h);
             };
 
-            this.interactionHandler = new InteractionHandler(container, this.viewport, state, state.settings, {
-                clientToMapPoint: (cx, cy) => this.viewport.clientToMapPoint(cx, cy, container.getBoundingClientRect()),
+            this.interactionHandler = new InteractionHandler(container, this.camera, state, state.settings, {
+                clientToMapPoint: (cx, cy) => this.camera.clientToMapPoint(cx, cy, container.getBoundingClientRect()),
                 findRoomAtPoint: (mx, my) => this.culling.findRoomAtMapPoint(mx, my),
                 getAreaExitHitZones: () => this.areaExitHitZones,
                 renderedToMapPoint: (x, y) => this.coordinateInverse(x, y),
@@ -174,7 +176,7 @@ export class KonvaRenderBackend implements InteractiveBackend {
 
     /**
      * Pull forward/inverse transforms from the drawing backend and propagate them
-     * to culling, grid rendering, and the viewport. Repositions the viewport so the
+     * to culling, grid rendering, and the camera. Repositions the camera so the
      * same map point stays under the screen center across transform changes.
      */
     private applyDrawingBackendTransforms(backend: DrawingBackend) {
@@ -187,18 +189,18 @@ export class KonvaRenderBackend implements InteractiveBackend {
         this.culling.setCoordinateTransform(forward);
         this.pipeline.gridRenderer.setInverseTransform(newInverse);
 
-        // Reposition viewport so the same map point stays at screen center
-        const scale = this.viewport.getScale();
-        const screenCX = this.viewport.width / 2;
-        const screenCY = this.viewport.height / 2;
+        // Reposition camera so the same map point stays at screen center
+        const scale = this.camera.getScale();
+        const screenCX = this.camera.width / 2;
+        const screenCY = this.camera.height / 2;
 
         // Screen center → old rendered space → map space → new rendered space
-        const oldRX = (screenCX - this.viewport.position.x) / scale;
-        const oldRY = (screenCY - this.viewport.position.y) / scale;
+        const oldRX = (screenCX - this.camera.position.x) / scale;
+        const oldRY = (screenCY - this.camera.position.y) / scale;
         const map = oldInverse(oldRX, oldRY);
         const nr = forward(map.x, map.y);
 
-        this.viewport.position = {
+        this.camera.position = {
             x: screenCX - nr.x * scale,
             y: screenCY - nr.y * scale,
         };
@@ -256,16 +258,19 @@ export class KonvaRenderBackend implements InteractiveBackend {
         this.sceneOverlayNodes.clear();
         this.viewportSubscribers.clear();
 
-        // Cancel any running viewport animation
-        this.viewport.cancelAnimation();
+        // Cancel any running camera animation
+        this.camera.cancelAnimation();
 
         // Restore monkey-patched setSize
         if (this.origSetSize) {
-            this.viewport.setSize = this.origSetSize;
+            this.camera.setSize = this.origSetSize;
         }
 
-        // Disconnect viewport from stage
-        this.viewport.onChange = undefined;
+        // Disconnect camera from stage
+        if (this.cameraChangeHandler) {
+            this.camera.off('change', this.cameraChangeHandler);
+            this.cameraChangeHandler = undefined;
+        }
 
         // Destroy all Konva nodes and the stage
         this.clearOverlayShapes();
@@ -299,18 +304,18 @@ export class KonvaRenderBackend implements InteractiveBackend {
         return composite;
     }
 
-    // --- Viewport → Stage (one-way, called from onChange) ---
+    // --- Camera → Stage (one-way, called from the camera's change event) ---
 
     private applyViewportToStage() {
-        const scale = this.viewport.getScale();
+        const scale = this.camera.getScale();
         this.stage.scale({x: scale, y: scale});
-        this.stage.position(this.viewport.position);
+        this.stage.position(this.camera.position);
         this.stage.batchDraw();
         const gridStart = performance.now();
-        this.pipeline.gridRenderer.render(this.viewport.getViewportBounds());
+        this.pipeline.gridRenderer.render(this.camera.getViewportBounds());
         this.culling.recordGridMs(performance.now() - gridStart);
         this.culling.scheduleCulling();
-        const vpBounds = this.viewport.getViewportBounds();
+        const vpBounds = this.camera.getViewportBounds();
         for (const cb of this.viewportSubscribers) cb();
         for (const plugin of this.liveEffects.values()) {
             plugin.updateViewport(vpBounds, scale, this.coordinateTransform);
@@ -340,16 +345,16 @@ export class KonvaRenderBackend implements InteractiveBackend {
         const {width, height} = options;
         const padding = options.padding ?? 3;
 
-        // Save current viewport state
-        const savedWidth = this.viewport.width;
-        const savedHeight = this.viewport.height;
-        const savedZoom = this.viewport.zoom;
-        const savedMinZoom = this.viewport.minZoom;
-        const savedPos = {...this.viewport.position};
+        // Save current camera state
+        const savedWidth = this.camera.width;
+        const savedHeight = this.camera.height;
+        const savedZoom = this.camera.zoom;
+        const savedMinZoom = this.camera.minZoom;
+        const savedPos = {...this.camera.position};
 
-        // Suppress onChange during export framing
-        const savedOnChange = this.viewport.onChange;
-        this.viewport.onChange = undefined;
+        // Suppress change handler during export framing
+        const savedHandler = this.cameraChangeHandler;
+        if (savedHandler) this.camera.off('change', savedHandler);
 
         // Frame for export — use transformed bounds so iso/transformed renders fill the canvas
         const rawBounds = this.state.computeExportBounds(area, plane, options.roomId, padding);
@@ -371,20 +376,20 @@ export class KonvaRenderBackend implements InteractiveBackend {
         const offsetX = (width - mapPixelW) / 2;
         const offsetY = (height - mapPixelH) / 2;
 
-        // Update viewport to match export framing so grid/culling use correct bounds.
-        // Set zoom so that viewport.getScale() === export scale.
+        // Update camera to match export framing so grid/culling use correct bounds.
+        // Set zoom so that camera.getScale() === export scale.
         const exportPosition = {x: offsetX - bounds.x * scale, y: offsetY - bounds.y * scale};
-        this.viewport.width = width;
-        this.viewport.height = height;
-        this.viewport.zoom = scale / (this.viewport.getScale() / this.viewport.zoom);
-        this.viewport.position = exportPosition;
+        this.camera.width = width;
+        this.camera.height = height;
+        this.camera.zoom = scale / (this.camera.getScale() / this.camera.zoom);
+        this.camera.position = exportPosition;
 
         this.stage.width(width);
         this.stage.height(height);
         this.stage.scale({x: scale, y: scale});
         this.stage.position(exportPosition);
 
-        this.pipeline.gridRenderer.render(this.viewport.getViewportBounds());
+        this.pipeline.gridRenderer.render(this.camera.getViewportBounds());
         this.culling.updateCulling();
 
         // Composite the transparent stage output onto a background-filled canvas.
@@ -400,12 +405,12 @@ export class KonvaRenderBackend implements InteractiveBackend {
         ctx.drawImage(stageCanvas, 0, 0);
 
         // Restore
-        this.viewport.width = savedWidth;
-        this.viewport.height = savedHeight;
-        this.viewport.zoom = savedZoom;
-        this.viewport.minZoom = savedMinZoom;
-        this.viewport.position = savedPos;
-        this.viewport.onChange = savedOnChange;
+        this.camera.width = savedWidth;
+        this.camera.height = savedHeight;
+        this.camera.zoom = savedZoom;
+        this.camera.minZoom = savedMinZoom;
+        this.camera.position = savedPos;
+        if (savedHandler) this.camera.on('change', savedHandler);
 
         this.stage.width(savedWidth);
         this.stage.height(savedHeight);
@@ -431,7 +436,7 @@ export class KonvaRenderBackend implements InteractiveBackend {
             return;
         }
         this.updateBackground();
-        const result = this.buildScene(currentAreaInstance, plane, currentZIndex, this.viewport.getViewportBounds());
+        const result = this.buildScene(currentAreaInstance, plane, currentZIndex, this.camera.getViewportBounds());
         this.onSceneBuilt(result);
         this.syncHighlights();
         this.syncPaths();
@@ -447,7 +452,7 @@ export class KonvaRenderBackend implements InteractiveBackend {
         this.removeLiveEffect(id);
         effect.attach(this.overlayLayer);
         this.liveEffects.set(id, effect);
-        effect.updateViewport(this.viewport.getViewportBounds(), this.viewport.getScale(), this.coordinateTransform);
+        effect.updateViewport(this.camera.getViewportBounds(), this.camera.getScale(), this.coordinateTransform);
     }
 
     removeLiveEffect(id: string) {
@@ -500,7 +505,7 @@ export class KonvaRenderBackend implements InteractiveBackend {
 
     private renderSceneOverlay(id: string, overlay: SceneOverlay) {
         this.clearSceneOverlayNodes(id);
-        const bounds = this.viewport.getViewportBounds();
+        const bounds = this.camera.getViewportBounds();
         const out = overlay.render(this.drawingBackend, this.state, bounds);
         if (out) {
             const nodes = Array.isArray(out) ? out : [out];
@@ -534,7 +539,7 @@ export class KonvaRenderBackend implements InteractiveBackend {
             const room = state.mapReader.getRoom(roomId);
             if (room) {
                 const p = this.mapPoint(room.x, room.y);
-                this.viewport.panToMapPointAnimated(p.x, p.y,
+                this.camera.panToMapPointAnimated(p.x, p.y,
                     instant || this.state.settings.instantMapMove);
             }
         });
@@ -571,8 +576,8 @@ export class KonvaRenderBackend implements InteractiveBackend {
         this.areaExitHitZones = [];
         this.culling.computeBucketSize();
 
-        // Apply current viewport scale to stage
-        const scale = this.viewport.getScale();
+        // Apply current camera scale to stage
+        const scale = this.camera.getScale();
         this.stage.scale({x: scale, y: scale});
 
         for (const [, entry] of result.roomNodes) {
@@ -609,7 +614,7 @@ export class KonvaRenderBackend implements InteractiveBackend {
 
         if (center) {
             const p = this.mapPoint(room.x, room.y);
-            this.viewport.panToMapPointAnimated(p.x, p.y,
+            this.camera.panToMapPointAnimated(p.x, p.y,
                 instant || this.state.settings.instantMapMove);
         }
 

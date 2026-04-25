@@ -470,7 +470,7 @@ async function initialize() {
             // new area's bounds. No position/zoom change — just minZoom.
             const bounds = renderer.getAreaBounds();
             if (bounds) {
-                renderer.minZoom = renderer.backend.viewport.computeFitZoom(
+                renderer.minZoom = renderer.backend.camera.computeFitZoom(
                     bounds.minX, bounds.maxX, bounds.minY, bounds.maxY,
                 );
             }
