@@ -4,13 +4,19 @@ import type Plane from "./reader/Plane";
 import type Exit from "./reader/Exit";
 import type {Settings, ViewportBounds} from "./types/Settings";
 import type {DrawingBackend, GroupNode, LayerNode} from "./backend/DrawingBackend";
+import {IDENTITY_TRANSFORM} from "./backend/DrawingBackend";
 import {RoomShapeRenderer} from "./RoomShapeRenderer";
 import {GridRenderer} from "./GridRenderer";
 import ExitRenderer from "./ExitRenderer";
-import type {ExitDrawData, ExitDrawArrow} from "./ExitRenderer";
+import type {ExitDrawData} from "./ExitRenderer";
 import {computeStubs} from "./scene/StubStyle";
 import {computeSpecialExits} from "./scene/SpecialExitStyle";
-import {computeInnerExits} from "./scene/InnerExitStyle";
+import {layoutRoom} from "./scene/elements/RoomLayout";
+import {layoutInnerExits} from "./scene/elements/ExitLayout";
+import {layoutLinkExit} from "./scene/elements/ExitLayout";
+import {specialExitToShape} from "./scene/elements/SpecialExitLayout";
+import {stubToShape} from "./scene/elements/StubLayout";
+import {renderShapeToBackend} from "./scene/elements/renderShapeToBackend";
 import {colorLightness} from "./utils/color";
 
 type Bounds = { x: number; y: number; width: number; height: number };
@@ -259,8 +265,8 @@ export class ScenePipeline {
         const areaExitHitZones: AreaExitHitZone[] = [];
         const drawnSpecialExits: DrawnSpecialExitEntry[] = [];
         const drawnStubs: DrawnStubEntry[] = [];
-        const rs = this.settings.roomSize;
-        const depthOff = this.backend.getExitDepthOffset();
+        const depthOffset = this.backend.getExitDepthOffset();
+        const flatPipeline = this.backend.getTransform() === IDENTITY_TRANSFORM;
 
         // Queue room groups and add them to the room layer after all rooms'
         // special exits and stubs have been added to the link layer. This keeps
@@ -269,36 +275,19 @@ export class ScenePipeline {
         const queuedRoomNodes: Array<[MapData.Room, GroupNode]> = [];
 
         rooms.forEach(room => {
-            // Room shape (through DrawingBackend)
-            const roomNode = this.roomShapeRenderer.createRoomGroup(room);
+            // Room body + inner exits — built as a single SceneIR group, walked
+            // to the backend.
+            const roomShape = layoutRoom(room, this.mapReader, this.settings, {flatPipeline});
+            roomShape.children.push(...layoutInnerExits(room, this.mapReader, this.settings));
+            const roomNode = renderShapeToBackend(this.backend, roomShape);
 
-            // Special exits → link layer (offset for cube depth)
+            // Special exits → link layer (depthOffset accounts for cube base).
+            // computeSpecialExits is called once and reused for both the SceneIR
+            // group and the drawnSpecialExits hit-testing record below.
             for (const se of computeSpecialExits(room, this.settings)) {
-                const seGroup = this.backend.createGroup(depthOff.x, depthOff.y);
-                this.backend.addLine(seGroup, {
-                    points: se.line.points,
-                    stroke: se.line.stroke,
-                    strokeWidth: se.line.strokeWidth,
-                    dash: se.line.dash,
-                });
-                if (se.arrow) {
-                    const a = se.arrow;
-                    this.backend.addPolygon(seGroup, {
-                        vertices: [a.tipX, a.tipY, a.x1, a.y1, a.x2, a.y2],
-                        fill: a.fill,
-                        stroke: a.stroke,
-                        strokeWidth: a.strokeWidth,
-                    });
-                }
-                if (se.door) {
-                    const d = se.door;
-                    this.backend.addRect(seGroup, {
-                        x: d.x, y: d.y, width: d.width, height: d.height,
-                        stroke: d.stroke, strokeWidth: d.strokeWidth,
-                    });
-                }
-                this.linkLayer.addNode(seGroup);
-                // Record drawn geometry for hit-testing consumers.
+                const seShape = specialExitToShape(se, room.id, depthOffset);
+                this.linkLayer.addNode(renderShapeToBackend(this.backend, seShape));
+
                 const pts = se.line.points;
                 let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
                 for (let i = 0; i < pts.length; i += 2) {
@@ -315,8 +304,8 @@ export class ScenePipeline {
                     strokeWidth: se.line.strokeWidth,
                     dash: se.line.dash,
                     hasArrow: !!se.arrow,
-                    arrowTip: se.arrow ? { x: se.arrow.tipX, y: se.arrow.tipY } : undefined,
-                    bounds: { x: minX, y: minY, width: maxX - minX, height: maxY - minY },
+                    arrowTip: se.arrow ? {x: se.arrow.tipX, y: se.arrow.tipY} : undefined,
+                    bounds: {x: minX, y: minY, width: maxX - minX, height: maxY - minY},
                 });
             }
 
@@ -343,13 +332,10 @@ export class ScenePipeline {
 
             // Stubs → link layer (so they render under rooms, like exits)
             for (const stub of computeStubs(room, this.settings)) {
-                const stubGroup = this.backend.createGroup(depthOff.x, depthOff.y);
-                this.backend.addLine(stubGroup, {
-                    points: [stub.x1, stub.y1, stub.x2, stub.y2],
-                    stroke: stub.stroke,
-                    strokeWidth: stub.strokeWidth,
-                });
-                this.linkLayer.addNode(stubGroup);
+                this.linkLayer.addNode(renderShapeToBackend(
+                    this.backend,
+                    stubToShape(stub, depthOffset),
+                ));
                 drawnStubs.push({
                     roomId: stub.roomId,
                     direction: stub.direction,
@@ -357,23 +343,6 @@ export class ScenePipeline {
                     x2: stub.x2, y2: stub.y2,
                     stroke: stub.stroke,
                     strokeWidth: stub.strokeWidth,
-                });
-            }
-
-            // Inner exits → room group (relative coordinates)
-            const gx = room.x - rs / 2;
-            const gy = room.y - rs / 2;
-            const {triangles} = computeInnerExits(room, this.mapReader, this.settings);
-            for (const tri of triangles) {
-                const relVertices: number[] = [];
-                for (let i = 0; i < tri.vertices.length; i += 2) {
-                    relVertices.push(tri.vertices[i] - gx, tri.vertices[i + 1] - gy);
-                }
-                this.backend.addPolygon(roomNode, {
-                    vertices: relVertices,
-                    fill: tri.fill,
-                    stroke: tri.stroke,
-                    strokeWidth: tri.strokeWidth,
                 });
             }
 
@@ -426,48 +395,10 @@ export class ScenePipeline {
 
     /** Render ExitDrawData through the DrawingBackend. */
     renderExitData(data: ExitDrawData): GroupNode {
-        const depthOff = this.backend.getExitDepthOffset();
-        const group = this.backend.createGroup(depthOff.x, depthOff.y);
-        for (const line of data.lines) {
-            this.backend.addLine(group, {
-                points: line.points,
-                stroke: line.stroke, strokeWidth: line.strokeWidth,
-                dash: line.dash,
-            });
-        }
-        for (const arrow of data.arrows) {
-            this.renderArrow(group, arrow);
-        }
-        for (const door of data.doors) {
-            this.backend.addRect(group, {
-                x: door.x, y: door.y,
-                width: door.width, height: door.height,
-                stroke: door.stroke, strokeWidth: door.strokeWidth,
-            });
-        }
-        return group;
-    }
-
-    private renderArrow(group: GroupNode, arrow: ExitDrawArrow) {
-        this.backend.addLine(group, {
-            points: arrow.points,
-            stroke: arrow.stroke, strokeWidth: arrow.strokeWidth,
-            dash: arrow.dash,
-        });
-        const lastIdx = arrow.points.length - 2;
-        const tipX = arrow.points[lastIdx], tipY = arrow.points[lastIdx + 1];
-        const prevX = arrow.points[lastIdx - 2], prevY = arrow.points[lastIdx - 1];
-        const angle = Math.atan2(tipY - prevY, tipX - prevX);
-        const pl = arrow.pointerLength, pw = arrow.pointerWidth / 2;
-        const x1 = tipX - pl * Math.cos(angle - Math.atan2(pw, pl));
-        const y1 = tipY - pl * Math.sin(angle - Math.atan2(pw, pl));
-        const x2 = tipX - pl * Math.cos(angle + Math.atan2(pw, pl));
-        const y2 = tipY - pl * Math.sin(angle + Math.atan2(pw, pl));
-        this.backend.addPolygon(group, {
-            vertices: [tipX, tipY, x1, y1, x2, y2],
-            fill: arrow.fill, stroke: arrow.stroke,
-            strokeWidth: arrow.strokeWidth,
-        });
+        return renderShapeToBackend(
+            this.backend,
+            layoutLinkExit(data, this.backend.getExitDepthOffset()),
+        );
     }
 
     // --- Labels ---

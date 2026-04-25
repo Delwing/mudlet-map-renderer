@@ -1,5 +1,6 @@
 import type {Settings} from "../../types/Settings";
 import {computeStubs} from "../StubStyle";
+import type {StubData} from "../StubStyle";
 import type {DepthOffset} from "./ExitLayout";
 import type {GroupShape} from "../Shape";
 
@@ -11,18 +12,14 @@ export interface StubLayoutOptions {
 }
 
 /**
- * Pure layout for a room's stub indicators (the short lines for each entry
- * in `room.stubs`). Returns one {@link GroupShape} per stub, positioned at
- * the style's depth offset.
+ * Build a {@link GroupShape} for a single already-computed stub. Lets callers
+ * compute the data once and reuse it for both layout and hit-testing records.
  */
-export function layoutStubs(
-    room: MapData.Room,
-    settings: Settings,
-    options: StubLayoutOptions = {},
-): GroupShape[] {
-    const depthOffset = options.depthOffset ?? {x: 0, y: 0};
-
-    return computeStubs(room, settings, options.colorOverride).map(stub => ({
+export function stubToShape(
+    stub: StubData,
+    depthOffset: DepthOffset = {x: 0, y: 0},
+): GroupShape {
+    return {
         type: "group",
         x: depthOffset.x,
         y: depthOffset.y,
@@ -40,5 +37,20 @@ export function layoutStubs(
                 strokeWidth: stub.strokeWidth,
             },
         }],
-    }));
+    };
+}
+
+/**
+ * Pure layout for a room's stub indicators (the short lines for each entry
+ * in `room.stubs`). Returns one {@link GroupShape} per stub, positioned at
+ * the style's depth offset.
+ */
+export function layoutStubs(
+    room: MapData.Room,
+    settings: Settings,
+    options: StubLayoutOptions = {},
+): GroupShape[] {
+    const depthOffset = options.depthOffset ?? {x: 0, y: 0};
+    return computeStubs(room, settings, options.colorOverride)
+        .map(stub => stubToShape(stub, depthOffset));
 }
