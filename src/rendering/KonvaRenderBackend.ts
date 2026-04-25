@@ -8,6 +8,7 @@ import type {MapState} from "../MapState";
 import {Viewport} from "../Viewport";
 import {CullingManager} from "../CullingManager";
 import {InteractionHandler} from "../InteractionHandler";
+import {RenderScheduler, DirtyFlag} from "../RenderScheduler";
 import {TypedEventEmitter} from "../TypedEventEmitter";
 import {KonvaLayerNode} from "../backend/KonvaBackend";
 import {CanvasBackend, RecordingLayerNode} from "../backend/CanvasBackend";
@@ -79,6 +80,10 @@ export class KonvaRenderBackend implements InteractiveBackend {
     private sceneOverlays: Map<string, SceneOverlay> = new Map();
     private sceneOverlayNodes: Map<string, GroupNode[]> = new Map();
     private viewportSubscribers: Set<() => void> = new Set();
+    private readonly scheduler: RenderScheduler;
+    /** Latched parameters for the next batched position flush. */
+    private pendingPositionCenter = false;
+    private pendingPositionInstant = false;
 
     constructor(state: MapState, container?: HTMLDivElement, drawingBackend?: DrawingBackend) {
         this.state = state;
@@ -156,8 +161,54 @@ export class KonvaRenderBackend implements InteractiveBackend {
             }, this.events);
         }
 
+        this.scheduler = new RenderScheduler((flags) => this.flushFlags(flags));
+
         this.applyDrawingBackendTransforms(this.drawingBackend);
         this.subscribeToState(state);
+    }
+
+    /** Process pending dirty flags synchronously. */
+    flush() {
+        this.scheduler.flush();
+    }
+
+    /** OR `flags` into the pending set; flush runs on the next frame. */
+    markDirty(flags: DirtyFlag) {
+        this.scheduler.markDirty(flags);
+    }
+
+    private flushFlags(flags: DirtyFlag) {
+        // Scene is the superset; refresh() rebuilds everything.
+        if (flags & DirtyFlag.Scene) {
+            this.pendingPositionCenter = false;
+            this.pendingPositionInstant = false;
+            this.refresh();
+            return;
+        }
+        if (flags & DirtyFlag.Background) {
+            this.updateBackground();
+        }
+        if (flags & DirtyFlag.Highlights) {
+            this.syncHighlights();
+        }
+        if (flags & DirtyFlag.Paths) {
+            this.syncPaths();
+        }
+        if (flags & DirtyFlag.Position) {
+            const center = this.pendingPositionCenter;
+            const instant = this.pendingPositionInstant;
+            this.pendingPositionCenter = false;
+            this.pendingPositionInstant = false;
+            this.onPositionChanged(this.state.positionRoomId, center, instant);
+        }
+        if (flags & DirtyFlag.SceneOverlays) {
+            for (const [id, overlay] of this.sceneOverlays) {
+                this.renderSceneOverlay(id, overlay);
+            }
+        }
+        if (flags & DirtyFlag.Culling) {
+            this.culling.scheduleCulling();
+        }
     }
 
     setDrawingBackend(backend: DrawingBackend) {
@@ -236,6 +287,9 @@ export class KonvaRenderBackend implements InteractiveBackend {
     destroy() {
         if (this.destroyed) return;
         this.destroyed = true;
+
+        // Cancel any pending scheduled flush
+        this.scheduler.destroy();
 
         // Remove all MapState event subscriptions
         this.state.events.removeAllListeners();
@@ -523,14 +577,20 @@ export class KonvaRenderBackend implements InteractiveBackend {
 
     private subscribeToState(state: MapState) {
         state.events.on('area', () => {
-            this.refresh();
+            this.scheduler.markDirty(DirtyFlag.Scene);
         });
 
-        state.events.on('position', ({roomId, center, areaChanged}) => {
-            this.onPositionChanged(roomId, center, areaChanged);
+        state.events.on('position', ({center, areaChanged}) => {
+            // OR-merge across the tick: any setPosition with center=true
+            // should still center; same for the area-changed → instant flag.
+            this.pendingPositionCenter ||= center;
+            this.pendingPositionInstant ||= areaChanged;
+            this.scheduler.markDirty(DirtyFlag.Position);
         });
 
         state.events.on('center', ({roomId, instant}) => {
+            // Pan animations are time-sensitive; start them synchronously.
+            // The animation will then drive batched renders via viewport.onChange.
             const room = state.mapReader.getRoom(roomId);
             if (room) {
                 const p = this.mapPoint(room.x, room.y);
@@ -539,16 +599,16 @@ export class KonvaRenderBackend implements InteractiveBackend {
             }
         });
 
-        state.events.on('highlight', ({roomId, color}) => {
-            this.syncHighlight(roomId, color);
+        state.events.on('highlight', () => {
+            this.scheduler.markDirty(DirtyFlag.Highlights);
         });
 
         state.events.on('path', () => {
-            this.syncPaths();
+            this.scheduler.markDirty(DirtyFlag.Paths);
         });
 
         state.events.on('clear', () => {
-            this.syncHighlights();
+            this.scheduler.markDirty(DirtyFlag.Highlights);
         });
     }
 

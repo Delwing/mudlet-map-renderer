@@ -8,6 +8,7 @@ import {KonvaRenderBackend} from "./KonvaRenderBackend";
 import type {DrawingBackend, CoordFn, Style} from "../backend/DrawingBackend";
 import {identityStyle} from "../backend/DrawingBackend";
 import {CanvasBackend} from "../backend/CanvasBackend";
+import {DirtyFlag} from "../RenderScheduler";
 import type {Viewport} from "../Viewport";
 import type {CullingManager} from "../CullingManager";
 import type {TypedEventEmitter} from "../TypedEventEmitter";
@@ -26,6 +27,10 @@ export interface InteractiveBackend {
     setDrawingBackend(backend: DrawingBackend): void;
     updateBackground(): void;
     refresh(): void;
+    /** Mark portions of the rendered output dirty; flushed on the next frame. */
+    markDirty(flags: DirtyFlag): void;
+    /** Process pending dirty flags synchronously. */
+    flush(): void;
     /** Render a specific region to canvas (for headless / bounded export). */
     toCanvas(options: {
         width: number;
@@ -198,6 +203,22 @@ export class MapRenderer {
     }
 
     /**
+     * Process any pending batched render work synchronously.
+     *
+     * State mutations (`drawArea`, `setPosition`, `renderHighlight`, …) and
+     * `updateSettings` mark portions of the rendered output dirty and let the
+     * backend coalesce them into one frame. Call `flush()` when you need to
+     * read rendered state on the same tick (exports, hit-test data, tests).
+     *
+     * `export()` and the `getDrawn*` accessors flush automatically — explicit
+     * calls are only needed when reading external state derived from the
+     * Konva stage.
+     */
+    flush() {
+        this.backend.flush();
+    }
+
+    /**
      * Apply a partial update to the current settings and re-render only
      * what the changed keys require (per `SETTINGS_INVALIDATION`).
      *
@@ -238,14 +259,12 @@ export class MapRenderer {
     }
 
     private applyInvalidationTargets(targets: Set<InvalidationTarget>) {
-        if (targets.has('scene')) {
-            // `refresh()` already covers background, culling, and position.
-            this.refresh();
-            return;
-        }
-        if (targets.has('background')) this.backend.updateBackground();
-        if (targets.has('culling')) this.backend.culling.scheduleCulling();
-        if (targets.has('position')) this.state.refreshPosition();
+        let flags: DirtyFlag = DirtyFlag.None;
+        if (targets.has('scene'))      flags |= DirtyFlag.Scene;
+        if (targets.has('background')) flags |= DirtyFlag.Background;
+        if (targets.has('culling'))    flags |= DirtyFlag.Culling;
+        if (targets.has('position'))   flags |= DirtyFlag.Position;
+        this.backend.markDirty(flags);
     }
 
     // --- Overlays ---
@@ -277,11 +296,13 @@ export class MapRenderer {
      * patterns, one-way arrows, and the renderer's suppression rules.
      */
     getDrawnExits(): readonly DrawnExitEntry[] {
+        this.backend.flush();
         return this.backend.getDrawnExits();
     }
 
     /** Companion to {@link getDrawnExits} for custom-line special exits. */
     getDrawnSpecialExits(): readonly DrawnSpecialExitEntry[] {
+        this.backend.flush();
         return this.backend.getDrawnSpecialExits();
     }
 
@@ -291,6 +312,7 @@ export class MapRenderer {
      * render space and match what's on screen.
      */
     getDrawnStubs(): readonly DrawnStubEntry[] {
+        this.backend.flush();
         return this.backend.getDrawnStubs();
     }
 
@@ -307,6 +329,11 @@ export class MapRenderer {
      * ```
      */
     export<T>(exporter: Exporter<T>): T {
+        // Flush any batched render work so exporters that read backend state
+        // (canvas/PNG via `backend.toCanvas`) see the up-to-date scene. SVG
+        // export builds its own pipeline and is unaffected, but the cost is
+        // a no-op when nothing is pending.
+        this.backend.flush();
         const context: ExportContext = {
             state: this.state,
             backend: this.backend,

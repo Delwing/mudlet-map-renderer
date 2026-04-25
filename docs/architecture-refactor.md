@@ -288,65 +288,93 @@ the call is a no-op and returns an empty set.
 
 ---
 
-## Phase 5 — Dirty Tracking & Render Scheduling
+## Phase 5 — Dirty Tracking & Render Scheduling ✅
 
-**Goal:** Batch multiple state changes into a single render pass per frame.
+**Status:** Implemented. State mutations and `updateSettings` no longer render
+inline; they OR bit flags into a per-backend `RenderScheduler` that flushes
+once per `requestAnimationFrame` (microtask fallback in non-DOM environments).
 
 ### 5.1 Dirty Flag System
 
+`src/RenderScheduler.ts` defines:
+
 ```ts
-enum DirtyFlag {
-  Rooms      = 1 << 0,
-  Exits      = 1 << 1,
-  Grid       = 1 << 2,
-  Position   = 1 << 3,
-  Highlights = 1 << 4,
-  Path       = 1 << 5,
-  Culling    = 1 << 6,
-}
+export const DirtyFlag = {
+    None: 0,
+    Scene: 1 << 0,           // full scene rebuild (superset)
+    Background: 1 << 1,      // CSS background color
+    Position: 1 << 2,        // position marker + current-room overlay
+    Highlights: 1 << 3,      // highlight overlay
+    Paths: 1 << 4,           // path overlay
+    Culling: 1 << 5,         // visibility / spatial-index pass
+    SceneOverlays: 1 << 6,   // scene overlays
+} as const;
 ```
 
-State-mutating methods set flags instead of rendering immediately:
-- `setPosition()` → sets `DirtyFlag.Position`
-- `renderHighlight()` → sets `DirtyFlag.Highlights`
-- `updateSettings({roomSize})` → sets `DirtyFlag.Rooms | DirtyFlag.Exits`
+`Scene` is a superset: when set, `flush` runs the full `backend.refresh()` and
+the other flags short-circuit.
 
 ### 5.2 Render Scheduler
 
 ```ts
 class RenderScheduler {
-  private dirty: number = 0;
-  private scheduled = false;
-
-  markDirty(flags: number) {
-    this.dirty |= flags;
-    if (!this.scheduled) {
-      this.scheduled = true;
-      requestAnimationFrame(() => this.flush());
-    }
-  }
-
-  private flush() {
-    const flags = this.dirty;
-    this.dirty = 0;
-    this.scheduled = false;
-    // re-render only what's flagged
-    if (flags & DirtyFlag.Rooms) this.renderRooms();
-    if (flags & DirtyFlag.Exits) this.renderExits();
-    // ...
-  }
+    constructor(flushFn: (flags: DirtyFlag) => void);
+    markDirty(flags: DirtyFlag): void;
+    flush(): void;
+    pending(): DirtyFlag;
+    isScheduled(): boolean;
+    destroy(): void;
 }
 ```
 
+`KonvaRenderBackend` owns one scheduler. State events from `MapState` map to
+flags:
+
+| Event       | Flag                 | Notes |
+|-------------|----------------------|-------|
+| `area`      | `Scene`              | full rebuild |
+| `position`  | `Position`           | latches latest `center` / `instant` (OR-merge) |
+| `highlight` | `Highlights`         | uses `syncHighlights` (full re-sync from state) |
+| `path`      | `Paths`              | |
+| `clear`     | `Highlights`         | |
+| `center`    | (synchronous)        | starts a viewport pan animation; subsequent renders batch via `viewport.onChange` |
+
+`MapRenderer.updateSettings()` (Phase 4) now ORs `InvalidationTarget`s into
+`DirtyFlag`s and calls `backend.markDirty(...)` — the work is deferred to the
+next flush along with any concurrent state mutations.
+
 ### 5.3 Immediate Escape Hatch
 
-For cases where the caller needs synchronous rendering (export, tests):
+`MapRenderer.flush()` processes pending flags synchronously. To keep existing
+callers from having to think about batching, `MapRenderer.export()` and the
+`getDrawn*` accessors (`getDrawnExits`, `getDrawnSpecialExits`,
+`getDrawnStubs`) auto-flush before reading.
 
 ```ts
-renderer.flush();  // process all pending dirty flags immediately
+renderer.drawArea(1, 0);
+renderer.renderHighlight(2, '#f00');
+renderer.setPosition(3, true);
+// ... no render yet — all batched.
+renderer.flush();   // exactly one Scene refresh runs.
+// or:
+const svg = renderer.export(new SvgExporter()); // implicit flush.
 ```
 
-**Validation:** Calling `setPosition()` + `renderHighlight()` + `updateSettings()` in the same tick results in exactly one render pass. Measurable FPS improvement on rapid state changes.
+### Validation
+
+`tests/render-scheduler.test.ts` covers:
+- `markDirty` calls before flush coalesce into one `flushFn` invocation
+- `flush()` runs synchronously and clears state
+- `flush()` cancels the scheduled rAF (no double dispatch)
+- `markDirty(None)` and `flush()` with nothing pending are no-ops
+- `destroy()` cancels pending work and silences future `markDirty`
+- `drawArea` defers `backend.refresh` until `flush()`
+- `drawArea + renderHighlight + renderPath + setPosition` in one tick →
+  exactly **one** `backend.refresh` call after `flush()` (Scene short-circuit)
+- `MapRenderer.export()` auto-flushes
+- `updateSettings({backgroundColor})` only invokes `updateBackground`
+- `updateSettings({roomSize})` triggers a single Scene refresh
+- Mixing `updateSettings({roomSize})` with state mutations stays at one refresh
 
 ---
 

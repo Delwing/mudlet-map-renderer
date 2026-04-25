@@ -20,6 +20,7 @@ export { MapState } from './MapState';
 export type { MapStateEventMap, HighlightEntry, PathEntry } from './MapState';
 export { KonvaRenderBackend } from './rendering/KonvaRenderBackend';
 export { Viewport } from './Viewport';
+export { RenderScheduler, DirtyFlag } from './RenderScheduler';
 
 // --- Drawing primitives ---
 export type {
