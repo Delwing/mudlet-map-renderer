@@ -1,0 +1,83 @@
+import type {Settings} from "../../types/Settings";
+import {computeSpecialExits} from "../SpecialExitStyle";
+import type {DepthOffset} from "./ExitLayout";
+import type {GroupShape, Shape} from "../Shape";
+
+export interface SpecialExitLayoutOptions {
+    /** Cartesian offset applied to each special-exit group (style-driven). */
+    depthOffset?: DepthOffset;
+    /** Stroke override (used by highlighted-room overlays). */
+    colorOverride?: string;
+}
+
+/**
+ * Pure layout for a room's custom-line special exits. Returns one
+ * {@link GroupShape} per special exit, each positioned at the style's
+ * depth offset and containing the line plus its optional arrow polygon
+ * and door rectangle.
+ */
+export function layoutSpecialExits(
+    room: MapData.Room,
+    settings: Settings,
+    options: SpecialExitLayoutOptions = {},
+): GroupShape[] {
+    const depthOffset = options.depthOffset ?? {x: 0, y: 0};
+    const groups: GroupShape[] = [];
+
+    for (const se of computeSpecialExits(room, settings, options.colorOverride)) {
+        const children: Shape[] = [];
+
+        children.push({
+            type: "line",
+            points: se.line.points,
+            paint: {
+                stroke: se.line.stroke,
+                strokeWidth: se.line.strokeWidth,
+                dash: se.line.dash,
+            },
+        });
+
+        if (se.arrow) {
+            const a = se.arrow;
+            children.push({
+                type: "polygon",
+                vertices: [a.tipX, a.tipY, a.x1, a.y1, a.x2, a.y2],
+                paint: {
+                    fill: a.fill,
+                    stroke: a.stroke,
+                    strokeWidth: a.strokeWidth,
+                },
+            });
+        }
+
+        if (se.door) {
+            const d = se.door;
+            children.push({
+                type: "rect",
+                x: d.x,
+                y: d.y,
+                width: d.width,
+                height: d.height,
+                paint: {
+                    stroke: d.stroke,
+                    strokeWidth: d.strokeWidth,
+                },
+            });
+        }
+
+        groups.push({
+            type: "group",
+            x: depthOffset.x,
+            y: depthOffset.y,
+            layer: "link",
+            hit: {
+                kind: "specialExit",
+                id: `${room.id}:${se.dir}`,
+                payload: {roomId: room.id, exitName: se.dir},
+            },
+            children,
+        });
+    }
+
+    return groups;
+}
