@@ -34,9 +34,10 @@ export interface Exporter<T> {
 }
 
 /**
- * Canvas returned by {@link InteractiveBackend.toCanvas} and
- * {@link CanvasExporter}. Describes the portable surface common to the
- * browser `HTMLCanvasElement` and the `canvas` package's Node-side Canvas:
+ * Canvas returned by {@link CanvasExporter} and
+ * {@link InteractiveBackend.exportCanvas}. Describes the portable surface
+ * common to the browser `HTMLCanvasElement` and the `canvas` package's
+ * Node-side Canvas:
  *
  *   - Portable:  `width`, `height`, `getContext`, `toDataURL`.
  *   - Browser:   `toBlob(cb)` (optional here; use when serializing to a Blob).

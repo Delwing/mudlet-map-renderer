@@ -4,12 +4,13 @@
  * Mirrors the browser-script's preview behavior so the export/preview
  * scenarios (especially iso) can be tested in the lib directly.
  *
- * Captures a full-area PNG via renderer.backend.toCanvas() (which doesn't
- * disturb the visible viewport) and tracks the current viewport position
- * as a rectangle inside the preview.
+ * Captures a full-area PNG via {@link CanvasExporter} (which doesn't disturb
+ * the visible viewport) and tracks the current viewport position as a
+ * rectangle inside the preview.
  */
 
 import type {MapRenderer, ViewportBounds} from "@src";
+import {CanvasExporter} from "@src";
 
 const MAX_SIZE = 400;
 
@@ -47,7 +48,7 @@ export class DemoPreview {
         const width = aspect >= 1 ? MAX_SIZE : Math.round(MAX_SIZE * aspect);
         const height = aspect >= 1 ? Math.round(MAX_SIZE / aspect) : MAX_SIZE;
 
-        const canvas = this.renderer.backend.toCanvas({width, height, padding: 3});
+        const canvas = this.renderer.export(new CanvasExporter({width, height, padding: 3}));
         if (!canvas) return;
 
         // Size the preview box to the area aspect ratio
