@@ -1,12 +1,27 @@
-import Konva from "konva";
-import type {
-    DrawingBackend,
-    GroupNode, LayerNode, CoordFn,
-    RectConfig, CircleConfig, LineConfig, PolygonConfig, TextConfig, ImageConfig,
-} from "./DrawingBackend";
-import {IDENTITY_TRANSFORM} from "./DrawingBackend";
+/**
+ * Konva-side replay infrastructure for {@link Shape}-derived draw commands.
+ *
+ * A {@link RecordingGroupNode} captures one positional group of low-level
+ * draw commands (rect / circle / line / polygon / text / image, optionally
+ * wrapped by an affine transform). It stays as plain data until either
+ * - `materialize()` makes it into a single `Konva.Group` containing one
+ *   `Konva.Shape` whose `sceneFunc` replays the captured commands, or
+ * - it is added to a {@link RecordingLayerNode} / {@link DrawCommandLayerNode}
+ *   that batches many groups into one shared `Konva.Shape` per layer.
+ *
+ * The single-`sceneFunc` per layer is the fast path used by the main scene
+ * because it lets culling toggle individual entries (`DrawEntry.visible`)
+ * without paying Konva's per-node overhead.
+ */
 
-// --- Draw command types ---
+import Konva from "konva";
+
+// --- Internal draw command types ---
+// These are the low-level Canvas2D-shaped commands captured per
+// RecordingGroupNode. They differ from src/draw/DrawCommand.ts (which is
+// camera-transformed render-space output for export pipelines): commands
+// here stay in group-local coordinates and are replayed under whatever
+// transform Konva has already applied to the layer.
 
 type RectCommand = { type: 'rect'; x: number; y: number; w: number; h: number; fill?: string; stroke?: string; sw: number; cr: number; dash?: number[] };
 type CircleCommand = { type: 'circle'; cx: number; cy: number; r: number; fill?: string; stroke?: string; sw: number; dash?: number[] };
@@ -15,11 +30,17 @@ type PolygonCommand = { type: 'polygon'; vertices: number[]; fill?: string; stro
 type TextCommand = { type: 'text'; x: number; y: number; text: string; fontSize: number; fontFamily: string; fontStyle: string; fill: string; align: string; vAlign: string; w: number; h: number; baselineRatio?: number; transform?: [number, number, number, number, number, number] };
 type ImageCommand = { type: 'image'; x: number; y: number; w: number; h: number; image: HTMLImageElement | any; transform?: [number, number, number, number, number, number] };
 
-type DrawCommand = RectCommand | CircleCommand | LineCommand | PolygonCommand | TextCommand | ImageCommand;
+export type RecordingDrawCommand =
+    | RectCommand
+    | CircleCommand
+    | LineCommand
+    | PolygonCommand
+    | TextCommand
+    | ImageCommand;
 
 // --- Canvas2D replay ---
 
-function replayCommand(ctx: CanvasRenderingContext2D, cmd: DrawCommand) {
+function replayCommand(ctx: CanvasRenderingContext2D, cmd: RecordingDrawCommand) {
     switch (cmd.type) {
         case 'rect': {
             ctx.beginPath();
@@ -94,18 +115,15 @@ function replayCommand(ctx: CanvasRenderingContext2D, cmd: DrawCommand) {
             break;
         }
         case 'text': {
-            // Scale up sub-pixel font sizes so Canvas2D text metrics and alignment
-            // work correctly. node-canvas (and some browsers) produce broken
-            // alignment for font sizes < 1px.
+            // Sub-pixel font sizes break Canvas2D text metrics on some
+            // engines (notably node-canvas). Render at TEXT_SCALE × the
+            // requested size and counter-scale so output stays pixel-correct.
             const TEXT_SCALE = 100;
             const scaledSize = cmd.fontSize * TEXT_SCALE;
             const font = `${cmd.fontStyle} ${scaledSize}px ${cmd.fontFamily}`;
             ctx.save();
             ctx.font = font;
             ctx.fillStyle = cmd.fill;
-            // Use pixel-measured baselineRatio when available: the browser's
-            // textBaseline='middle' uses font-wide metrics, which mis-centers
-            // glyphs whose visual bounds differ from the font em-box (e.g. "T").
             const hasBaselineRatio = cmd.baselineRatio !== undefined;
             if (cmd.transform) {
                 ctx.transform(...cmd.transform);
@@ -158,13 +176,19 @@ function replayCommand(ctx: CanvasRenderingContext2D, cmd: DrawCommand) {
 
 // --- Recording group node ---
 
-export class RecordingGroupNode implements GroupNode {
+/**
+ * One positional group of recorded draw commands. Used as both the unit a
+ * shape walker emits and the cull-tracking handle inside
+ * {@link DrawCommandLayerNode}. Lazily materializes into a `Konva.Group` /
+ * `Konva.Shape` pair when added directly to a Konva layer.
+ */
+export class RecordingGroupNode {
     x: number;
     y: number;
     _visible = true;
     noScaling = false;
-    readonly commands: DrawCommand[] = [];
-    /** Lazily created when this group is materialized for a KonvaLayerNode. */
+    readonly commands: RecordingDrawCommand[] = [];
+    /** Lazily created when this group is materialized for a Konva.Layer. */
     _konvaGroup?: Konva.Group;
 
     constructor(x: number, y: number) {
@@ -202,8 +226,9 @@ export class RecordingGroupNode implements GroupNode {
     }
 
     /**
-     * Materialize this recording as a Konva.Group + Konva.Shape.
-     * Used when the group is added to a KonvaLayerNode (overlay/position layers).
+     * Materialize this recording as a Konva.Group + Konva.Shape. Used by
+     * {@link MaterializingLayerNode} for layers that want individual nodes
+     * (overlay, position) rather than a single bulk replay.
      */
     materialize(): Konva.Group {
         if (this._konvaGroup) return this._konvaGroup;
@@ -231,16 +256,15 @@ export class RecordingGroupNode implements GroupNode {
 // --- Pure-data draw entry ---
 
 /**
- * A lightweight record extracted from a {@link RecordingGroupNode} and stored
- * by {@link DrawCommandLayerNode}.  Contains only plain data — no Konva node
- * reference — so it can be toggled by the culling callbacks without any
- * knowledge of Konva.
+ * Lightweight record extracted from a {@link RecordingGroupNode} when added
+ * to a {@link DrawCommandLayerNode}. Contains only plain data so culling
+ * callbacks can toggle visibility without a Konva node reference.
  */
 export type DrawEntry = {
     x: number;
     y: number;
     noScaling: boolean;
-    readonly commands: DrawCommand[];
+    readonly commands: RecordingDrawCommand[];
     visible: boolean;
 };
 
@@ -248,19 +272,12 @@ export type DrawEntry = {
 
 /**
  * LayerNode backed by a single Konva.Shape whose sceneFunc replays
- * {@link DrawEntry} objects.  Replaces {@link RecordingLayerNode} for the
- * main scene layer: entries hold pure data with no Konva coupling, so the
- * culling bridge can toggle visibility without needing a GroupNode reference.
- *
- * GroupNodes added via {@link addNode} must be {@link RecordingGroupNode}
- * instances; their position, noScaling flag, and command list are extracted
- * into a {@link DrawEntry}.  The original GroupNode is kept as a lookup key
- * so callers can retrieve the entry after ScenePipeline has added nodes (see
- * {@link getEntry}).
+ * {@link DrawEntry} objects. Used for the main scene layer where individual
+ * shapes need cull toggling.
  */
-export class DrawCommandLayerNode implements LayerNode {
+export class DrawCommandLayerNode {
     private readonly entries: DrawEntry[] = [];
-    private readonly nodeToEntry = new Map<GroupNode, DrawEntry>();
+    private readonly nodeToEntry = new Map<RecordingGroupNode, DrawEntry>();
     private readonly konvaLayer: Konva.Layer;
     private konvaShape: Konva.Shape;
 
@@ -294,8 +311,7 @@ export class DrawCommandLayerNode implements LayerNode {
         konvaLayer.add(this.konvaShape);
     }
 
-    addNode(node: GroupNode): void {
-        if (!(node instanceof RecordingGroupNode)) return;
+    addNode(node: RecordingGroupNode): void {
         const entry: DrawEntry = {
             x: node.x,
             y: node.y,
@@ -309,7 +325,7 @@ export class DrawCommandLayerNode implements LayerNode {
     }
 
     /** Return the DrawEntry created when `node` was added, or undefined if not found. */
-    getEntry(node: GroupNode): DrawEntry | undefined {
+    getEntry(node: RecordingGroupNode): DrawEntry | undefined {
         return this.nodeToEntry.get(node);
     }
 
@@ -329,20 +345,20 @@ export class DrawCommandLayerNode implements LayerNode {
     }
 }
 
-// --- Recording layer node ---
+// --- RecordingLayerNode ---
 
 /**
- * A LayerNode backed by a single Konva.Shape whose sceneFunc replays
- * all recorded groups. Much faster than individual Konva nodes.
+ * Layer backed by a single Konva.Shape whose sceneFunc replays every added
+ * {@link RecordingGroupNode} in order. Used for layers that don't need
+ * per-shape cull toggling (grid, top-label).
  */
-export class RecordingLayerNode implements LayerNode {
+export class RecordingLayerNode {
     private groups: RecordingGroupNode[] = [];
     private readonly konvaLayer: Konva.Layer;
     private konvaShape: Konva.Shape;
 
     constructor(konvaLayer: Konva.Layer) {
         this.konvaLayer = konvaLayer;
-        // Remove any previous children (e.g. from a prior RecordingLayerNode or KonvaLayerNode)
         konvaLayer.destroyChildren();
         const self = this;
         this.konvaShape = new Konva.Shape({
@@ -350,16 +366,12 @@ export class RecordingLayerNode implements LayerNode {
             perfectDrawEnabled: false,
             sceneFunc: (context) => {
                 const ctx = context._context as CanvasRenderingContext2D;
-                // Capture the base transform that Konva applied (stage scale + position).
-                // We'll use setTransform per group to match Konva's per-node precision.
                 const base = ctx.getTransform();
                 const a = base.a, b = base.b, c = base.c, d = base.d;
                 for (const group of self.groups) {
                     if (!group._visible) continue;
-                    // Compute absolute translation like Konva: tx = a*gx + c*gy + e
                     const tx = a * group.x + c * group.y + base.e;
                     const ty = b * group.x + d * group.y + base.f;
-                    // noScaling groups: anchor to map position, render at BASE_SCALE (zoom=1 size)
                     if (group.noScaling) {
                         ctx.setTransform(75, 0, 0, 75, tx, ty);
                     } else {
@@ -369,25 +381,15 @@ export class RecordingLayerNode implements LayerNode {
                         replayCommand(ctx, cmd);
                     }
                 }
-                // Restore the original transform
                 ctx.setTransform(base);
             },
         });
         konvaLayer.add(this.konvaShape);
     }
 
-    private ensureShape() {
-        // Re-add the shape if it was destroyed externally (e.g. by ScenePipeline calling destroyChildren)
-        if (!this.konvaShape.getParent()) {
-            this.konvaLayer.add(this.konvaShape);
-        }
-    }
-
-    addNode(node: GroupNode) {
-        if (node instanceof RecordingGroupNode) {
-            this.groups.push(node);
-            this.ensureShape();
-        }
+    addNode(node: RecordingGroupNode) {
+        this.groups.push(node);
+        this.ensureShape();
     }
 
     destroyChildren() {
@@ -397,130 +399,34 @@ export class RecordingLayerNode implements LayerNode {
     batchDraw() {
         this.konvaLayer.batchDraw();
     }
+
+    private ensureShape() {
+        if (!this.konvaShape.getParent()) {
+            this.konvaLayer.add(this.konvaShape);
+        }
+    }
 }
 
-// --- Canvas drawing backend ---
-
-function createImageElement(src: string): HTMLImageElement | any {
-    const image = typeof Konva !== 'undefined'
-        ? Konva.Util.createImageElement()
-        : (typeof Image !== 'undefined' ? new Image() : null);
-    if (image) image.src = src;
-    return image;
-}
+// --- MaterializingLayerNode ---
 
 /**
- * DrawingBackend that records draw commands into RecordingGroupNodes.
- * Commands are replayed via Canvas2D in a single Konva.Shape sceneFunc
- * per layer, eliminating per-node Konva overhead.
- *
- * Drop-in replacement for KonvaBackend. Decorator backends wrap this
- * the same way they wrap KonvaBackend.
+ * Layer that materializes each added {@link RecordingGroupNode} as its own
+ * `Konva.Group`. Used for layers where the renderer keeps a reference to
+ * each node (overlay highlights, position marker) so it can destroy them
+ * individually.
  */
-export class CanvasBackend implements DrawingBackend {
+export class MaterializingLayerNode {
+    constructor(private readonly konvaLayer: Konva.Layer) {}
 
-    createGroup(x: number, y: number): RecordingGroupNode {
-        return new RecordingGroupNode(x, y);
+    addNode(node: RecordingGroupNode) {
+        this.konvaLayer.add(node.materialize());
     }
 
-    addRect(parent: GroupNode, config: RectConfig) {
-        if (!(parent instanceof RecordingGroupNode)) return;
-        parent.commands.push({
-            type: 'rect',
-            x: config.x, y: config.y,
-            w: config.width, h: config.height,
-            fill: config.fill,
-            stroke: config.stroke,
-            sw: config.strokeWidth ?? 0,
-            cr: config.cornerRadius ?? 0,
-            dash: (config.dashEnabled !== false && config.dash) ? config.dash : undefined,
-        });
+    destroyChildren() {
+        this.konvaLayer.destroyChildren();
     }
 
-    addCircle(parent: GroupNode, config: CircleConfig) {
-        if (!(parent instanceof RecordingGroupNode)) return;
-        parent.commands.push({
-            type: 'circle',
-            cx: config.cx, cy: config.cy, r: config.radius,
-            fill: config.fill,
-            stroke: config.stroke,
-            sw: config.strokeWidth ?? 0,
-            dash: (config.dashEnabled !== false && config.dash) ? config.dash : undefined,
-        });
-    }
-
-    addLine(parent: GroupNode, config: LineConfig) {
-        if (!(parent instanceof RecordingGroupNode)) return;
-        parent.commands.push({
-            type: 'line',
-            points: config.points,
-            stroke: config.stroke,
-            sw: config.strokeWidth ?? 0,
-            dash: config.dash,
-            lineCap: config.lineCap,
-            lineJoin: config.lineJoin,
-            alpha: config.alpha,
-        });
-    }
-
-    addGridLine(parent: GroupNode, config: LineConfig) {
-        this.addLine(parent, config);
-    }
-
-    addPolygon(parent: GroupNode, config: PolygonConfig) {
-        if (!(parent instanceof RecordingGroupNode)) return;
-        parent.commands.push({
-            type: 'polygon',
-            vertices: config.vertices,
-            fill: config.fill,
-            stroke: config.stroke,
-            sw: config.strokeWidth ?? 0,
-        });
-    }
-
-    addText(parent: GroupNode, config: TextConfig) {
-        if (!(parent instanceof RecordingGroupNode)) return;
-        parent.commands.push({
-            type: 'text',
-            x: config.x, y: config.y,
-            text: config.text,
-            fontSize: config.fontSize,
-            fontFamily: config.fontFamily ?? 'sans-serif',
-            fontStyle: config.fontStyle ?? 'normal',
-            fill: config.fill ?? 'black',
-            align: config.align ?? 'left',
-            vAlign: config.verticalAlign ?? 'top',
-            w: config.width ?? 0,
-            h: config.height ?? 0,
-            baselineRatio: config.baselineRatio,
-            transform: config.transform,
-        });
-    }
-
-    addImage(parent: GroupNode, config: ImageConfig) {
-        if (!(parent instanceof RecordingGroupNode)) return;
-        parent.commands.push({
-            type: 'image',
-            x: config.x, y: config.y,
-            w: config.width, h: config.height,
-            image: createImageElement(config.src),
-            transform: config.transform,
-        });
-    }
-
-    supportsBatchExitRendering(): boolean {
-        return true;
-    }
-
-    getExitDepthOffset(): { x: number; y: number } {
-        return {x: 0, y: 0};
-    }
-
-    getTransform(): CoordFn {
-        return IDENTITY_TRANSFORM;
-    }
-
-    getInverseTransform(): CoordFn {
-        return IDENTITY_TRANSFORM;
+    batchDraw() {
+        this.konvaLayer.batchDraw();
     }
 }

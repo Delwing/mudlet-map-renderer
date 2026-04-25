@@ -22,17 +22,32 @@ export { HitTester } from './hit/HitTester';
 export type { HitResult } from './hit/HitTester';
 export type { CullEntry, CullingCallbacks } from './CullingManager';
 
-// --- Drawing primitives ---
-export type {
-    DrawingBackend, GroupNode, LayerNode, CoordFn,
-    RectConfig, CircleConfig, LineConfig, PolygonConfig, TextConfig, ImageConfig,
-} from './backend/DrawingBackend';
-export { IDENTITY_TRANSFORM } from './backend/DrawingBackend';
+// --- Coordinate helpers (kept for advanced consumers integrating styles) ---
+export type { CoordFn } from './coord/CoordFn';
+export { IDENTITY_TRANSFORM } from './coord/CoordFn';
 
-// --- Target classes (exposed for custom styles / exporters) ---
-export { CanvasBackend, RecordingLayerNode, DrawCommandLayerNode } from './backend/CanvasBackend';
-export type { DrawEntry } from './backend/CanvasBackend';
-export { SvgBackend, SvgGroupNode, SvgLayerNode } from './backend/SvgBackend';
+// --- Konva-side replay infrastructure (advanced) ---
+export {
+    DrawCommandLayerNode, MaterializingLayerNode, RecordingLayerNode, RecordingGroupNode,
+} from './render/RecordingLayer';
+export type { DrawEntry, RecordingDrawCommand } from './render/RecordingLayer';
+export { shapeToRecording } from './render/shapeToRecording';
+
+// --- SceneIR types (Shape, DrawCommand, draw helpers) ---
+export type {
+    Shape, ShapeBase, RectShape, CircleShape, LineShape, PolygonShape,
+    TextShape, ImageShape, GroupShape, Paint, HitInfo, LayerId, Bbox, SceneIR,
+} from './scene/Shape';
+export type {
+    DrawCommand, DrawCommandBatch, RectCommand, CircleCommand, LineCommand,
+    PolygonCommand, TextCommand, ImageCommand, PrimitiveDrawCommand, StackDrawCommand,
+    PushTransformCommand, PopTransformCommand, PushClipCommand, PopClipCommand,
+} from './draw/DrawCommand';
+export { buildDrawCommands } from './draw/DrawCommandBuilder';
+export type { CameraTransform } from './draw/DrawCommandBuilder';
+export { svgFromBatches } from './render/SvgRenderer';
+export { renderToCanvas } from './render/CanvasRenderer';
+export type { ImageFactory, CanvasRenderOptions } from './render/CanvasRenderer';
 
 // --- Styles (target-agnostic; engine-neutral shape transformers) ---
 export {
