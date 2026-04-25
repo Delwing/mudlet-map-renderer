@@ -97,6 +97,8 @@ export type SceneBuildResult = {
     drawnExits: DrawnExitEntry[];
     drawnSpecialExits: DrawnSpecialExitEntry[];
     drawnStubs: DrawnStubEntry[];
+    /** World-space shapes carrying {@link HitInfo} annotations — fed to {@link HitTester}. */
+    hitShapes: Shape[];
 };
 
 /** Convert a `rgb(...)`, `rgba(...)`, or `#rrggbb` string to `rgba(r,g,b,alpha)`. */
@@ -247,6 +249,7 @@ export class ScenePipeline {
             drawnExits: exitResult.drawnExits,
             drawnSpecialExits: roomResult.drawnSpecialExits,
             drawnStubs: roomResult.drawnStubs,
+            hitShapes: roomResult.hitShapes,
         };
     }
 
@@ -261,6 +264,7 @@ export class ScenePipeline {
         const areaExitHitZones: AreaExitHitZone[] = [];
         const drawnSpecialExits: DrawnSpecialExitEntry[] = [];
         const drawnStubs: DrawnStubEntry[] = [];
+        const hitShapes: Shape[] = [];
         const depthOffset = this.backend.getExitDepthOffset();
         const flatPipeline = this.backend.getTransform() === IDENTITY_TRANSFORM;
 
@@ -275,6 +279,7 @@ export class ScenePipeline {
             // to the backend.
             const roomShape = layoutRoom(room, this.mapReader, this.settings, {flatPipeline});
             roomShape.children.push(...layoutInnerExits(room, this.mapReader, this.settings));
+            hitShapes.push(roomShape);
             const roomNode = renderShapeToBackend(this.backend, roomShape);
 
             // Special exits → link layer (depthOffset accounts for cube base).
@@ -350,7 +355,7 @@ export class ScenePipeline {
             this.roomLayer.addNode(roomNode);
         }
 
-        return {roomNodes, areaExitHitZones, drawnSpecialExits, drawnStubs};
+        return {roomNodes, areaExitHitZones, drawnSpecialExits, drawnStubs, hitShapes};
     }
 
     // --- Link Exits ---
