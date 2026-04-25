@@ -1,23 +1,38 @@
-import {SvgBackend, SvgGroupNode, SvgLayerNode} from "../backend/SvgBackend";
 import {ScenePipeline} from "../ScenePipeline";
-import {computeHighlight, computePositionMarker, computePathOverlay} from "../scene/OverlayStyle";
-import {renderHighlight, renderPositionMarker, renderPathOverlay} from "../scene/OverlayRenderer";
-import type {SvgExportOptions, SvgOverlays} from "../SvgTypes";
+import {computeHighlight, computePathOverlay, computePositionMarker} from "../scene/OverlayStyle";
+import {
+    highlightToShapes,
+    pathToShapes,
+    positionMarkerToShape,
+} from "../scene/elements/OverlayLayout";
+import {buildDrawCommands} from "../draw/DrawCommandBuilder";
+import {svgFromBatches} from "../render/SvgRenderer";
+import type {Shape} from "../scene/Shape";
+import type {SvgExportOptions} from "../SvgTypes";
 import type {MapState} from "../MapState";
-import type {DrawingBackend} from "../backend/DrawingBackend";
+import {applyStyleToShapes} from "../style/applyStyle";
+import {identityStyle} from "../style/Style";
+import type {Style} from "../style/Style";
 import type {Exporter, ExportContext} from "./Exporter";
 
+const IDENTITY_CAMERA = {scale: 1, offsetX: 0, offsetY: 0};
+
 function escapeXml(s: string): string {
-    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 }
 
 /**
- * Renders the current scene as an SVG string through the shared
- * {@link ScenePipeline}. The context's style is applied so styled exports
- * match the on-screen canvas; {@link SceneOverlay}s from the context are
- * rendered into the SVG alongside the scene. `LiveEffect`s are intentionally
- * ignored by design.
+ * Renders the current scene as an SVG string by driving
+ * {@link ScenePipeline} → {@link buildDrawCommands} → {@link svgFromBatches}.
+ *
+ * The pipeline is rebuilt with bounded viewport bounds (so the grid layout
+ * matches the export region), then `sceneShapes` is flushed through the
+ * draw-command pipeline at scale 1 — coordinates land inside the SVG
+ * viewBox in world space, identical to the legacy SvgBackend output. Active
+ * {@link SceneOverlay}s are still rendered against an {@link SvgBackend}
+ * so user code that builds custom overlays via the DrawingBackend keeps
+ * working until the overlay API is migrated to shapes.
  */
 export class SvgExporter implements Exporter<string | undefined> {
     constructor(private readonly options: SvgExportOptions = {}) {}
@@ -33,66 +48,54 @@ export class SvgExporter implements Exporter<string | undefined> {
         const settings = state.settings;
         const padding = this.options.padding ?? 3;
         const bounds = state.computeExportBounds(area, plane, this.options.roomId, padding);
-
-        const rawSvgBackend = new SvgBackend();
-        const svgBackend: DrawingBackend = style(rawSvgBackend);
-        const gridLayer = new SvgLayerNode();
-        const linkLayer = new SvgLayerNode();
-        const roomLayer = new SvgLayerNode();
-        const topLabelLayer = new SvgLayerNode();
-
-        const pipeline = new ScenePipeline(state.mapReader, settings, svgBackend, {
-            gridLayer, linkLayer, roomLayer, topLabelLayer,
-        });
-
         const viewportBounds = {
             minX: bounds.x, maxX: bounds.x + bounds.w,
             minY: bounds.y, maxY: bounds.y + bounds.h,
         };
 
-        pipeline.buildScene(area, plane, currentZIndex, viewportBounds);
+        const pipeline = new ScenePipeline(state.mapReader, settings);
+        const result = pipeline.buildScene(area, plane, currentZIndex, viewportBounds);
+        const ctx = {scale: 1, roomSize: settings.roomSize};
+        const styled = (shapes: Shape[]): Shape[] =>
+            style === identityStyle ? shapes : applyStyleToShapes(shapes, style as Style, ctx);
 
         const lines: string[] = [];
         lines.push(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="${bounds.x} ${bounds.y} ${bounds.w} ${bounds.h}">`);
         lines.push(`<rect x="${bounds.x}" y="${bounds.y}" width="${bounds.w}" height="${bounds.h}" fill="${escapeXml(settings.backgroundColor)}"/>`);
 
-        const gridSvg = gridLayer.toSvg();
-        if (gridSvg) lines.push(gridSvg);
-        const linkSvg = linkLayer.toSvg();
-        if (linkSvg) lines.push(linkSvg);
-        const roomSvg = roomLayer.toSvg();
-        if (roomSvg) lines.push(roomSvg);
+        const flush = (shapes: Shape[]) => {
+            if (shapes.length === 0) return;
+            lines.push(...svgFromBatches(buildDrawCommands(styled(shapes), IDENTITY_CAMERA)));
+        };
 
-        const overlays = state.getOverlaysForArea(this.options.overlays);
-        this.renderBuiltInOverlays(overlays, svgBackend, state, viewportBounds, lines);
+        flush(result.sceneShapes.grid);
+        flush(result.sceneShapes.link);
+        flush(result.sceneShapes.room);
 
+        // Built-in overlays (paths under highlights under the position marker)
+        // emit at the same z as the legacy `renderBuiltInOverlays` did:
+        // appended after the room layer, before the top-label layer.
+        flush(this.buildBuiltInOverlayShapes(state));
+
+        // SceneOverlays return shapes; flush them through the same
+        // DrawCommandBuilder + SvgRenderer path as the rest of the scene.
         for (const overlay of sceneOverlays) {
-            const out = overlay.render(svgBackend, state, viewportBounds);
-            const nodes = out === undefined ? [] : Array.isArray(out) ? out : [out];
-            for (const node of nodes) {
-                if (node instanceof SvgGroupNode) {
-                    const svg = node.toSvg();
-                    if (svg) lines.push(svg);
-                }
-            }
+            const out = overlay.render(state, viewportBounds);
+            if (!out) continue;
+            flush(Array.isArray(out) ? out : [out]);
         }
 
-        const topLabelSvg = topLabelLayer.toSvg();
-        if (topLabelSvg) lines.push(topLabelSvg);
+        flush(result.sceneShapes.topLabel);
 
-        lines.push('</svg>');
-        return lines.join('\n');
+        lines.push("</svg>");
+        return lines.join("\n");
     }
 
-    private renderBuiltInOverlays(
-        overlays: SvgOverlays | undefined,
-        svgBackend: DrawingBackend,
-        state: MapState,
-        viewportBounds: { minX: number; maxX: number; minY: number; maxY: number },
-        lines: string[],
-    ) {
-        if (!overlays) return;
+    private buildBuiltInOverlayShapes(state: MapState): Shape[] {
+        const overlays = state.getOverlaysForArea(this.options.overlays);
+        if (!overlays) return [];
         const settings = state.settings;
+        const out: Shape[] = [];
 
         if (overlays.paths) {
             for (const path of overlays.paths) {
@@ -100,29 +103,22 @@ export class SvgExporter implements Exporter<string | undefined> {
                     state.mapReader, settings, path.locations, path.color,
                     state.currentArea!, state.currentZIndex!,
                 );
-                const group = renderPathOverlay(svgBackend, data) as SvgGroupNode;
-                const svg = group.toSvg();
-                if (svg) lines.push(svg);
+                out.push(...pathToShapes(data));
             }
         }
         if (overlays.highlights) {
             for (const hl of overlays.highlights) {
                 const room = state.mapReader.getRoom(hl.roomId);
                 if (!room) continue;
-                const data = computeHighlight(room, hl.color, settings);
-                const group = renderHighlight(svgBackend, data) as SvgGroupNode;
-                const svg = group.toSvg();
-                if (svg) lines.push(svg);
+                out.push(...highlightToShapes(computeHighlight(room, hl.color, settings)));
             }
         }
         if (overlays.position) {
             const room = state.mapReader.getRoom(overlays.position.roomId);
             if (room) {
-                const data = computePositionMarker(room, settings);
-                const group = renderPositionMarker(svgBackend, data) as SvgGroupNode;
-                const svg = group.toSvg();
-                if (svg) lines.push(svg);
+                out.push(positionMarkerToShape(computePositionMarker(room, settings)));
             }
         }
+        return out;
     }
 }

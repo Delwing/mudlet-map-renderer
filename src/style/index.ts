@@ -1,6 +1,8 @@
 /**
- * Target-agnostic visual styles. Each style is a {@link Style} function that
- * wraps a target in a brand-preserving decorator.
+ * Target-agnostic visual styles. Each style is a {@link Style} that transforms
+ * world-space {@link Shape}s before they hit culling, hit-testing, and the
+ * draw-command pipeline. The same style drives interactive canvas rendering,
+ * SVG export, and Canvas / PNG rasterization.
  *
  * Usage:
  * ```ts
@@ -13,61 +15,36 @@
  * );
  * renderer.setStyle(style);
  * ```
- *
- * Styles work over any target (interactive canvas or SVG export), so the same
- * style drives on-screen rendering, SVG export, and PNG rasterization.
  */
 
-import type {DrawingBackend, Style} from "../backend/DrawingBackend";
-import {ParchmentStyle} from "./ParchmentStyle";
-import {BlueprintStyle} from "./BlueprintStyle";
-import {NeonStyle} from "./NeonStyle";
-import {SketchyStyle} from "./SketchyStyle";
-import {IsometricStyle} from "./IsometricStyle";
-import type {IsometricRotation} from "./IsometricStyle";
+import type {Style} from "./Style";
+import {parchmentShapeStyle} from "./shape/ParchmentStyle";
+import {blueprintShapeStyle} from "./shape/BlueprintStyle";
+import {neonShapeStyle} from "./shape/NeonStyle";
+import {sketchyShapeStyle, type SketchyOptions} from "./shape/SketchyStyle";
+import {isometricShapeStyle, type IsometricOptions, type IsometricRotation} from "./shape/IsometricStyle";
 
-export {compose, identityStyle} from "../backend/DrawingBackend";
-export type {Style} from "../backend/DrawingBackend";
+export {compose, identityStyle} from "./Style";
+export type {Style, StyleContext} from "./Style";
+export {applyStyleToShapes} from "./applyStyle";
 
 /** Warm sepia / old-parchment palette. */
-export const Parchment: Style = (<T extends DrawingBackend>(t: T) =>
-    new ParchmentStyle(t)) as Style;
+export const Parchment: Style = parchmentShapeStyle;
 
 /** Technical blueprint aesthetic — white lines on deep blue. */
-export const Blueprint: Style = (<T extends DrawingBackend>(t: T) =>
-    new BlueprintStyle(t)) as Style;
+export const Blueprint: Style = blueprintShapeStyle;
 
 /** Cyberpunk / neon aesthetic — glowing outlines on dark background. */
-export const Neon: Style = (<T extends DrawingBackend>(t: T) =>
-    new NeonStyle(t)) as Style;
-
-export interface SketchyOptions {
-    /** Jitter amount in map units. */
-    jitter: number;
-    /** Pencil color (hex or rgb). */
-    color: string;
-}
+export const Neon: Style = neonShapeStyle;
 
 /** Hand-drawn pencil wobble. */
 export function Sketchy(options: SketchyOptions): Style {
-    return (<T extends DrawingBackend>(t: T) =>
-        new SketchyStyle(t, options.jitter, options.color)) as Style;
-}
-
-export interface IsometricOptions {
-    /** Cube side face height. Defaults to 0.18. */
-    depth?: number;
-    /** Rotation angle in degrees. Defaults to 0. */
-    rotation?: IsometricRotation;
+    return sketchyShapeStyle(options);
 }
 
 /** 2:1 isometric projection with optional cube depth. */
 export function Isometric(options: IsometricOptions = {}): Style {
-    return (<T extends DrawingBackend>(t: T) =>
-        new IsometricStyle(t, options)) as Style;
+    return isometricShapeStyle(options);
 }
 
-export type {IsometricRotation};
-
-// Re-export classes for advanced users (subclassing, custom compositions).
-export {ParchmentStyle, BlueprintStyle, NeonStyle, SketchyStyle, IsometricStyle};
+export type {SketchyOptions, IsometricOptions, IsometricRotation};
