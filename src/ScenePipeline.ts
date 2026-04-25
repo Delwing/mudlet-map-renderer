@@ -16,7 +16,9 @@ import {layoutInnerExits} from "./scene/elements/ExitLayout";
 import {layoutLinkExit} from "./scene/elements/ExitLayout";
 import {specialExitToShape} from "./scene/elements/SpecialExitLayout";
 import {stubToShape} from "./scene/elements/StubLayout";
+import {labelToShape} from "./scene/elements/LabelLayout";
 import {renderShapeToBackend} from "./scene/elements/renderShapeToBackend";
+import type {Shape} from "./scene/Shape";
 import {colorLightness} from "./utils/color";
 
 type Bounds = { x: number; y: number; width: number; height: number };
@@ -96,12 +98,6 @@ export type SceneBuildResult = {
     drawnSpecialExits: DrawnSpecialExitEntry[];
     drawnStubs: DrawnStubEntry[];
 };
-
-function getLabelColor(color: MapData.Color): string {
-    const alpha = (color?.alpha ?? 255) / 255;
-    const clamp = (value: number) => Math.min(255, Math.max(0, value ?? 0));
-    return `rgba(${clamp(color?.r)}, ${clamp(color?.g)}, ${clamp(color?.b)}, ${alpha})`;
-}
 
 /** Convert a `rgb(...)`, `rgba(...)`, or `#rrggbb` string to `rgba(r,g,b,alpha)`. */
 function colorWithAlpha(color: string, alpha: number): string {
@@ -408,58 +404,11 @@ export class ScenePipeline {
     }
 
     private renderLabels(labels: MapData.Label[]) {
-        if (this.settings.labelRenderMode === "none") return;
-
-        labels.forEach(label => {
-            const lx = label.X;
-            const ly = -label.Y;
-            const noScaling = !!label.noScaling;
-            // noScaling groups are anchored at (lx,ly) with content at (0,0) so the
-            // RecordingLayerNode can cancel out the stage zoom for those groups only.
-            const gx = noScaling ? lx : 0;
-            const gy = noScaling ? ly : 0;
-            const cx = noScaling ? 0 : lx;
-            const cy = noScaling ? 0 : ly;
-
-            if (this.settings.labelRenderMode === "image" && label.pixMap) {
-                const group = this.backend.createGroup(gx, gy);
-                this.backend.addImage(group, {
-                    x: cx, y: cy,
-                    width: label.Width, height: label.Height,
-                    src: `data:image/png;base64,${label.pixMap}`,
-                });
-                if (noScaling) group.noScaling = true;
-                this.targetLabelLayer(label).addNode(group);
-                return;
-            }
-
-            const group = this.backend.createGroup(gx, gy);
-
-            if ((label.BgColor?.alpha ?? 0) > 0 && !this.settings.transparentLabels) {
-                this.backend.addRect(group, {
-                    x: cx, y: cy, width: label.Width, height: label.Height,
-                    fill: getLabelColor(label.BgColor),
-                });
-            }
-
-            if (label.Text) {
-                const ratio = Math.min(0.75, label.Width / Math.max(label.Text.length / 2, 1));
-                const fontSize = Math.max(0.1, Math.min(ratio, Math.max(label.Height * 0.9, 0.1)));
-
-                this.backend.addText(group, {
-                    x: cx, y: cy,
-                    width: label.Width, height: label.Height,
-                    text: label.Text,
-                    fontSize,
-                    fill: getLabelColor(label.FgColor),
-                    align: "center",
-                    verticalAlign: "middle",
-                });
-            }
-
-            if (noScaling) group.noScaling = true;
-            this.targetLabelLayer(label).addNode(group);
-        });
+        for (const label of labels) {
+            const shape = labelToShape(label, this.settings);
+            if (!shape) continue;
+            this.targetLabelLayer(label).addNode(renderShapeToBackend(this.backend, shape));
+        }
     }
 
     // --- Area Exit Labels ---
@@ -710,28 +659,40 @@ export class ScenePipeline {
                 // arrow color at low alpha still reads as dark and needs light text.
                 const effectiveBg = blendOverBackground(p.color, this.settings.backgroundColor, FILL_ALPHA);
                 const textColor = colorLightness(effectiveBg) > 0.55 ? '#000' : '#fff';
-                const group = this.backend.createGroup(0, 0);
-                this.backend.addRect(group, {
-                    x: p.boxX, y: p.boxY,
-                    width: p.boxW, height: p.boxH,
-                    fill,
-                    stroke: p.color,
-                    strokeWidth,
-                    cornerRadius,
-                });
-                this.backend.addText(group, {
-                    x: p.boxX + padX,
-                    y: p.boxY + padY,
-                    width: p.boxW - padX * 2,
-                    height: p.boxH - padY * 2,
-                    text: name,
-                    fontSize,
-                    fontFamily: this.settings.fontFamily,
-                    fill: textColor,
-                    align: 'center',
-                    verticalAlign: 'middle',
-                });
-                this.roomLayer.addNode(group);
+                const labelShape: Shape = {
+                    type: "group",
+                    x: 0,
+                    y: 0,
+                    layer: "room",
+                    hit: {
+                        kind: "areaExit",
+                        id: p.cluster[0].targetRoomId,
+                        payload: {targetRoomId: p.cluster[0].targetRoomId},
+                    },
+                    children: [
+                        {
+                            type: "rect",
+                            x: p.boxX, y: p.boxY,
+                            width: p.boxW, height: p.boxH,
+                            cornerRadius,
+                            paint: {fill, stroke: p.color, strokeWidth},
+                        },
+                        {
+                            type: "text",
+                            x: p.boxX + padX,
+                            y: p.boxY + padY,
+                            width: p.boxW - padX * 2,
+                            height: p.boxH - padY * 2,
+                            text: name,
+                            fontSize,
+                            fontFamily: this.settings.fontFamily,
+                            fill: textColor,
+                            align: "center",
+                            verticalAlign: "middle",
+                        },
+                    ],
+                };
+                this.roomLayer.addNode(renderShapeToBackend(this.backend, labelShape));
 
                 // Label is clickable — navigate to the target area (any room from the
                 // cluster works since they all live there).
@@ -752,15 +713,20 @@ export class ScenePipeline {
         const name = area.getAreaName();
         if (!name) return;
         const bounds = this.getEffectiveBounds(area, plane);
-        const group = this.backend.createGroup(0, 0);
-        this.backend.addText(group, {
-            x: bounds.minX - 3.5,
-            y: bounds.minY - 4.5,
-            text: name,
-            fontSize: 2.5,
-            fontFamily: this.settings.fontFamily,
-            fill: this.settings.lineColor,
-        });
-        this.roomLayer.addNode(group);
+        this.roomLayer.addNode(renderShapeToBackend(this.backend, {
+            type: "group",
+            x: 0,
+            y: 0,
+            layer: "room",
+            children: [{
+                type: "text",
+                x: bounds.minX - 3.5,
+                y: bounds.minY - 4.5,
+                text: name,
+                fontSize: 2.5,
+                fontFamily: this.settings.fontFamily,
+                fill: this.settings.lineColor,
+            }],
+        }));
     }
 }
