@@ -11,7 +11,8 @@ import type {CullEntry} from "../CullingManager";
 import {InteractionHandler} from "../InteractionHandler";
 import {TypedEventEmitter} from "../TypedEventEmitter";
 import {KonvaLayerNode} from "../backend/KonvaBackend";
-import {CanvasBackend, RecordingLayerNode} from "../backend/CanvasBackend";
+import {CanvasBackend, RecordingLayerNode, DrawCommandLayerNode} from "../backend/CanvasBackend";
+import type {DrawEntry} from "../backend/CanvasBackend";
 import type {InteractiveBackend} from "./MapRenderer";
 import type {DrawingBackend, GroupNode, LayerNode, CoordFn} from "../backend/DrawingBackend";
 import {IDENTITY_TRANSFORM} from "../backend/DrawingBackend";
@@ -69,11 +70,11 @@ export class KonvaRenderBackend implements InteractiveBackend {
     readonly hitTester: HitTester = new HitTester();
     private lastHitShapes: Shape[] = [];
 
-    // Maps from CullEntry (owned by CullingManager) → Konva GroupNode,
-    // so culling callbacks can call group.setVisible without CullingManager
-    // knowing about Konva.
-    private roomCullEntries: Map<CullEntry, GroupNode> = new Map();
-    private exitCullEntries: Map<CullEntry, GroupNode> = new Map();
+    // Maps from CullEntry (owned by CullingManager) → DrawEntry so the
+    // culling callbacks can toggle visibility without knowing about Konva.
+    private roomCullEntries: Map<CullEntry, DrawEntry> = new Map();
+    private exitCullEntries: Map<CullEntry, DrawEntry> = new Map();
+    private sceneNode!: DrawCommandLayerNode;
 
     private positionMarker?: GroupNode;
     private highlightShapes: Map<number, GroupNode> = new Map();
@@ -133,26 +134,28 @@ export class KonvaRenderBackend implements InteractiveBackend {
         this.positionLayerNode = new KonvaLayerNode(this.positionLayer);
         this.overlayLayerNode = new KonvaLayerNode(this.overlayLayer);
 
-        const sceneNode = new RecordingLayerNode(sceneLayer);
+        this.sceneNode = new DrawCommandLayerNode(sceneLayer);
         this.pipeline = new ScenePipeline(state.mapReader, state.settings, this.drawingBackend, {
             gridLayer: new RecordingLayerNode(this.gridLayer),
-            linkLayer: sceneNode,
-            roomLayer: sceneNode,
+            linkLayer: this.sceneNode,
+            roomLayer: this.sceneNode,
             topLabelLayer: new RecordingLayerNode(this.topLabelLayer),
         });
 
         this.events = new TypedEventEmitter<RendererEventMap>(container);
 
-        // linkLayer and roomLayer are the same sceneNode; one batchDraw covers both.
+        // linkLayer and roomLayer share sceneNode; one batchDraw covers both.
         this.culling = new CullingManager(this.camera, state.settings, {
             setRoomVisible: (entry, visible) => {
-                this.roomCullEntries.get(entry)?.setVisible(visible);
+                const e = this.roomCullEntries.get(entry);
+                if (e) e.visible = visible;
             },
             setExitVisible: (entry, visible) => {
-                this.exitCullEntries.get(entry)?.setVisible(visible);
+                const e = this.exitCullEntries.get(entry);
+                if (e) e.visible = visible;
             },
             afterCulling: (roomsChanged, exitsChanged) => {
-                if (roomsChanged || exitsChanged) sceneNode.batchDraw();
+                if (roomsChanged || exitsChanged) this.sceneNode.batchDraw();
             },
         });
 
@@ -184,11 +187,11 @@ export class KonvaRenderBackend implements InteractiveBackend {
 
     setDrawingBackend(backend: DrawingBackend) {
         this.drawingBackend = backend;
-        const sceneNode = new RecordingLayerNode(this.linkLayer);
+        this.sceneNode = new DrawCommandLayerNode(this.linkLayer);
         this.pipeline = new ScenePipeline(this.state.mapReader, this.state.settings, backend, {
             gridLayer: new RecordingLayerNode(this.gridLayer),
-            linkLayer: sceneNode,
-            roomLayer: sceneNode,
+            linkLayer: this.sceneNode,
+            roomLayer: this.sceneNode,
             topLabelLayer: new RecordingLayerNode(this.topLabelLayer),
         });
         this.applyDrawingBackendTransforms(backend);
@@ -613,21 +616,25 @@ export class KonvaRenderBackend implements InteractiveBackend {
         const rs = this.state.settings.roomSize;
         const half = rs / 2;
         for (const [, entry] of result.roomNodes) {
+            const drawEntry = this.sceneNode.getEntry(entry.group);
+            if (!drawEntry) continue;
             const cull: CullEntry = {
                 worldBbox: {
                     minX: entry.room.x - half, minY: entry.room.y - half,
                     maxX: entry.room.x + half, maxY: entry.room.y + half,
                 },
             };
-            this.roomCullEntries.set(cull, entry.group);
+            this.roomCullEntries.set(cull, drawEntry);
             this.culling.addRoomEntry(cull);
         }
         for (const entry of result.standaloneExitNodes) {
+            const drawEntry = this.sceneNode.getEntry(entry.group);
+            if (!drawEntry) continue;
             const b = entry.bounds;
             const cull: CullEntry = {
                 worldBbox: {minX: b.x, minY: b.y, maxX: b.x + b.width, maxY: b.y + b.height},
             };
-            this.exitCullEntries.set(cull, entry.group);
+            this.exitCullEntries.set(cull, drawEntry);
             this.culling.addExitEntry(cull);
         }
         this.areaExitHitZones = result.areaExitHitZones;
