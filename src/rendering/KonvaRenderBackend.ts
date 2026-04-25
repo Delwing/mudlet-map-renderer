@@ -22,6 +22,8 @@ import {
     renderHighlight, renderPositionMarker, renderPathOverlay,
     renderSpecialExitGroup, renderStubsGroup, renderInnerExitsGroup,
 } from "../scene/OverlayRenderer";
+import {layoutRoom} from "../scene/elements/RoomLayout";
+import {renderShapeToBackend} from "../scene/elements/renderShapeToBackend";
 import ExplorationArea from "../reader/ExplorationArea";
 import type {LiveEffect} from "../overlay/LiveEffect";
 import type {SceneOverlay, SceneOverlayContext} from "../overlay/SceneOverlay";
@@ -708,12 +710,16 @@ export class KonvaRenderBackend implements InteractiveBackend {
 
         roomsToRedraw.forEach((roomToRedraw, id) => {
             const isCurrent = id === room.id;
-            const overlayNode = this.pipeline.roomShapeRenderer.createRoomGroup(
+            const overlayShape = layoutRoom(
                 roomToRedraw,
+                this.state.mapReader,
+                settings,
                 {
                     strokeOverride: isCurrent ? currentRoomColor : settings.lineColor,
+                    flatPipeline: this.drawingBackend.getTransform() === IDENTITY_TRANSFORM,
                 },
             );
+            const overlayNode = renderShapeToBackend(this.drawingBackend, overlayShape);
             this.positionLayerNode.addNode(overlayNode);
             this.currentRoomOverlay.push(overlayNode);
         });
