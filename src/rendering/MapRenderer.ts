@@ -5,9 +5,9 @@ import {createSettings} from "../types/Settings";
 import type {Settings} from "../types/Settings";
 import {MapState} from "../MapState";
 import {KonvaRenderBackend} from "./KonvaRenderBackend";
-import type {DrawingBackend, CoordFn, Style} from "../backend/DrawingBackend";
-import {identityStyle} from "../backend/DrawingBackend";
-import {CanvasBackend} from "../backend/CanvasBackend";
+import type {CoordFn} from "../backend/DrawingBackend";
+import type {Style} from "../style/Style";
+import {identityStyle} from "../style/Style";
 import type {Camera} from "../camera/Camera";
 import type {CullingManager} from "../CullingManager";
 import type {TypedEventEmitter} from "../TypedEventEmitter";
@@ -30,9 +30,14 @@ export interface InteractiveBackend {
     readonly culling: CullingManager;
     readonly hitTester: HitTester;
     readonly events: TypedEventEmitter<RendererEventMap>;
-    /** Forward map → render-space transform from the current drawing backend. */
+    /** Forward map → render-space transform from the active style (identity for flat styles). */
     readonly coordinateTransform: CoordFn;
-    setDrawingBackend(backend: DrawingBackend): void;
+    /**
+     * Apply a target-agnostic {@link Style} to the live scene. The style
+     * transforms world-space shapes (paint, geometry, projection) before they
+     * are rasterized; the backend re-renders the current scene to reflect it.
+     */
+    setStyle(style: Style): void;
     updateBackground(): void;
     refresh(): void;
     /** Capture the current camera as a canvas with background fill. */
@@ -207,7 +212,7 @@ export class MapRenderer {
      */
     setStyle(style: Style) {
         this.currentStyle = style;
-        this.backend.setDrawingBackend(style(new CanvasBackend()));
+        this.backend.setStyle(style);
     }
 
     /** Equivalent to `setStyle(identityStyle)`. */

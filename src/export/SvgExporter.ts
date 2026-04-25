@@ -10,6 +10,9 @@ import {svgFromBatches} from "../render/SvgRenderer";
 import type {Shape} from "../scene/Shape";
 import type {SvgExportOptions} from "../SvgTypes";
 import type {MapState} from "../MapState";
+import {applyStyleToShapes} from "../style/applyStyle";
+import {identityStyle} from "../style/Style";
+import type {Style} from "../style/Style";
 import type {Exporter, ExportContext} from "./Exporter";
 
 const IDENTITY_CAMERA = {scale: 1, offsetX: 0, offsetY: 0};
@@ -34,7 +37,7 @@ function escapeXml(s: string): string {
 export class SvgExporter implements Exporter<string | undefined> {
     constructor(private readonly options: SvgExportOptions = {}) {}
 
-    render({state, sceneOverlays}: ExportContext): string | undefined {
+    render({state, style, sceneOverlays}: ExportContext): string | undefined {
         const {currentArea, currentZIndex, currentAreaInstance} = state;
         if (currentArea === undefined || currentZIndex === undefined || !currentAreaInstance) return;
 
@@ -52,6 +55,9 @@ export class SvgExporter implements Exporter<string | undefined> {
 
         const pipeline = new ScenePipeline(state.mapReader, settings);
         const result = pipeline.buildScene(area, plane, currentZIndex, viewportBounds);
+        const ctx = {scale: 1, roomSize: settings.roomSize};
+        const styled = (shapes: Shape[]): Shape[] =>
+            style === identityStyle ? shapes : applyStyleToShapes(shapes, style as Style, ctx);
 
         const lines: string[] = [];
         lines.push(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="${bounds.x} ${bounds.y} ${bounds.w} ${bounds.h}">`);
@@ -59,7 +65,7 @@ export class SvgExporter implements Exporter<string | undefined> {
 
         const flush = (shapes: Shape[]) => {
             if (shapes.length === 0) return;
-            lines.push(...svgFromBatches(buildDrawCommands(shapes, IDENTITY_CAMERA)));
+            lines.push(...svgFromBatches(buildDrawCommands(styled(shapes), IDENTITY_CAMERA)));
         };
 
         flush(result.sceneShapes.grid);
@@ -76,8 +82,7 @@ export class SvgExporter implements Exporter<string | undefined> {
         for (const overlay of sceneOverlays) {
             const out = overlay.render(state, viewportBounds);
             if (!out) continue;
-            const overlayShapes = Array.isArray(out) ? out : [out];
-            flush(overlayShapes);
+            flush(Array.isArray(out) ? out : [out]);
         }
 
         flush(result.sceneShapes.topLabel);

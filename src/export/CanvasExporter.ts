@@ -1,5 +1,8 @@
 import Konva from "konva";
 import {ScenePipeline} from "../ScenePipeline";
+import {applyStyleToShapes} from "../style/applyStyle";
+import {identityStyle} from "../style/Style";
+import type {Style} from "../style/Style";
 import {computeHighlight, computePathOverlay, computePositionMarker} from "../scene/OverlayStyle";
 import {
     highlightToShapes,
@@ -47,7 +50,7 @@ export interface CanvasExportOptions {
 export class CanvasExporter implements Exporter<ExportCanvas | undefined> {
     constructor(private readonly options: CanvasExportOptions) {}
 
-    render({state, sceneOverlays}: ExportContext): ExportCanvas | undefined {
+    render({state, style, sceneOverlays}: ExportContext): ExportCanvas | undefined {
         const {currentArea, currentZIndex, currentAreaInstance} = state;
         if (currentArea === undefined || currentZIndex === undefined || !currentAreaInstance) return;
 
@@ -86,9 +89,13 @@ export class CanvasExporter implements Exporter<ExportCanvas | undefined> {
         ctx.fillStyle = settings.backgroundColor;
         ctx.fillRect(0, 0, width, height);
 
+        const styleCtx = {scale, roomSize: settings.roomSize};
+        const styled = (shapes: Shape[]): Shape[] =>
+            style === identityStyle ? shapes : applyStyleToShapes(shapes, style as Style, styleCtx);
+
         const flush = (shapes: Shape[]) => {
             if (shapes.length === 0) return;
-            renderToCanvas(ctx, buildDrawCommands(shapes, camera));
+            renderToCanvas(ctx, buildDrawCommands(styled(shapes), camera));
         };
 
         flush(result.sceneShapes.grid);

@@ -26,26 +26,22 @@ export type { CullEntry, CullingCallbacks } from './CullingManager';
 export type {
     DrawingBackend, GroupNode, LayerNode, CoordFn,
     RectConfig, CircleConfig, LineConfig, PolygonConfig, TextConfig, ImageConfig,
-    Style,
 } from './backend/DrawingBackend';
-export { BaseStyle, compose, identityStyle, IDENTITY_TRANSFORM } from './backend/DrawingBackend';
+export { IDENTITY_TRANSFORM } from './backend/DrawingBackend';
 
 // --- Target classes (exposed for custom styles / exporters) ---
 export { CanvasBackend, RecordingLayerNode, DrawCommandLayerNode } from './backend/CanvasBackend';
 export type { DrawEntry } from './backend/CanvasBackend';
 export { SvgBackend, SvgGroupNode, SvgLayerNode } from './backend/SvgBackend';
 
-// --- Style classes (low-level; the Style factories below are preferred) ---
-export {
-    SketchyStyle, ParchmentStyle, BlueprintStyle, NeonStyle, IsometricStyle,
-} from './style';
-export type { IsometricRotation } from './style';
-
-// --- Styles (target-agnostic; preferred API) ---
+// --- Styles (target-agnostic; engine-neutral shape transformers) ---
 export {
     Parchment, Blueprint, Neon, Sketchy, Isometric,
+    compose, identityStyle, applyStyleToShapes,
 } from './style';
-export type { SketchyOptions, IsometricOptions } from './style';
+export type {
+    Style, StyleContext, SketchyOptions, IsometricOptions, IsometricRotation,
+} from './style';
 
 // --- Exporters (pluggable output formats) ---
 export type { Exporter, ExportContext, ExportCanvas } from './export/Exporter';
