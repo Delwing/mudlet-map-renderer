@@ -15,11 +15,13 @@ import type {LiveEffect} from "../overlay/LiveEffect";
 import type {SceneOverlay} from "../overlay/SceneOverlay";
 import type {Exporter, ExportContext, ExportCanvas} from "../export/Exporter";
 import type {DrawnExitEntry, DrawnSpecialExitEntry, DrawnStubEntry} from "../ScenePipeline";
+import type {HitTester, HitResult} from "../hit/HitTester";
 
 /** Contract for interactive render backends. */
 export interface InteractiveBackend {
     readonly camera: Camera;
     readonly culling: CullingManager;
+    readonly hitTester: HitTester;
     readonly events: TypedEventEmitter<RendererEventMap>;
     /** Forward map → render-space transform from the current drawing backend. */
     readonly coordinateTransform: CoordFn;
@@ -215,6 +217,27 @@ export class MapRenderer {
 
     removeLiveEffect(id: string) {
         this.backend.removeLiveEffect(id);
+    }
+
+    // --- Hit testing ---
+
+    /**
+     * Hit-test a world-space map point against the current scene.
+     *
+     * Returns the nearest pickable shape at `(worldX, worldY)`, or `null`
+     * when no hittable shape is within range.  Coordinates must be in the
+     * same flat map space as room positions — the method applies the active
+     * style's world→scene projection internally, so callers never need to
+     * think about Isometric mode.
+     *
+     * ```ts
+     * const hit = renderer.hitTest(room.x, room.y);
+     * if (hit?.kind === 'room') console.log('room', hit.id);
+     * ```
+     */
+    hitTest(worldX: number, worldY: number): HitResult | null {
+        const rendered = this.backend.coordinateTransform(worldX, worldY);
+        return this.backend.hitTester.pick(rendered.x, rendered.y);
     }
 
     // --- Drawn geometry (hit-testing integration) ---

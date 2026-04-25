@@ -18,6 +18,8 @@ export type { MapStateEventMap, HighlightEntry, PathEntry } from './MapState';
 export { KonvaRenderBackend } from './rendering/KonvaRenderBackend';
 export { Camera } from './camera/Camera';
 export type { CameraEventMap } from './camera/Camera';
+export { HitTester } from './hit/HitTester';
+export type { HitResult } from './hit/HitTester';
 
 // --- Drawing primitives ---
 export type {
