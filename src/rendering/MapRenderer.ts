@@ -5,7 +5,7 @@ import {createSettings} from "../types/Settings";
 import type {Settings} from "../types/Settings";
 import {MapState} from "../MapState";
 import {KonvaRenderBackend} from "./KonvaRenderBackend";
-import type {CoordFn} from "../backend/DrawingBackend";
+import type {CoordFn} from "../coord/CoordFn";
 import type {Style} from "../style/Style";
 import {identityStyle} from "../style/Style";
 import type {Camera} from "../camera/Camera";
