@@ -1,5 +1,5 @@
 import type {MapState} from "../MapState";
-import type {Style} from "../backend/DrawingBackend";
+import type {Style} from "../style/Style";
 import type {SceneOverlay} from "../overlay/SceneOverlay";
 import type {InteractiveBackend} from "../rendering/MapRenderer";
 
