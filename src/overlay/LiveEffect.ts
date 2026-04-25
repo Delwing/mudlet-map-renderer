@@ -22,7 +22,7 @@ export type CoordinateTransform = (x: number, y: number) => { x: number; y: numb
  *     updateViewport(bounds, scale) { ... }
  *     destroy() { this.shape?.destroy(); }
  * }
- * renderer.addLiveEffect('pulse', new PulseEffect());
+ * renderer.konvaBackend?.addLiveEffect('pulse', new PulseEffect());
  * ```
  */
 export interface LiveEffect {

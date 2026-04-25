@@ -11,13 +11,20 @@ import {CanvasBackend} from "../backend/CanvasBackend";
 import type {Camera} from "../camera/Camera";
 import type {CullingManager} from "../CullingManager";
 import type {TypedEventEmitter} from "../TypedEventEmitter";
-import type {LiveEffect} from "../overlay/LiveEffect";
 import type {SceneOverlay} from "../overlay/SceneOverlay";
 import type {Exporter, ExportContext, ExportCanvas} from "../export/Exporter";
 import type {DrawnExitEntry, DrawnSpecialExitEntry, DrawnStubEntry} from "../ScenePipeline";
 import type {HitTester, HitResult} from "../hit/HitTester";
 
-/** Contract for interactive render backends. */
+/**
+ * Contract for interactive render backends.
+ *
+ * Engine-neutral surface — anything that requires a specific render engine
+ * (Konva layers for live effects, Konva.Stage for `toCanvas`) is intentionally
+ * not on this interface and lives only on the concrete backend. Users who
+ * need engine-specific APIs hold a reference to the concrete renderer (e.g.
+ * via {@link MapRenderer.konvaBackend}).
+ */
 export interface InteractiveBackend {
     readonly camera: Camera;
     readonly culling: CullingManager;
@@ -28,22 +35,8 @@ export interface InteractiveBackend {
     setDrawingBackend(backend: DrawingBackend): void;
     updateBackground(): void;
     refresh(): void;
-    /** Render a specific region to canvas (for headless / bounded export). */
-    toCanvas(options: {
-        width: number;
-        height: number;
-        roomId?: number;
-        padding?: number;
-        overlays?: {
-            position?: { roomId: number };
-            highlights?: Array<{ roomId: number; color: string }>;
-            paths?: Array<{ locations: number[]; color: string }>;
-        };
-    }): ExportCanvas | undefined;
     /** Capture the current camera as a canvas with background fill. */
     exportCanvas(options?: { pixelRatio?: number }): ExportCanvas | undefined;
-    addLiveEffect(id: string, effect: LiveEffect): void;
-    removeLiveEffect(id: string): void;
     addSceneOverlay(id: string, overlay: SceneOverlay): void;
     removeSceneOverlay(id: string): void;
     getSceneOverlays(): Iterable<SceneOverlay>;
@@ -73,8 +66,9 @@ export interface InteractiveBackend {
  * - **{@link export}** runs an {@link Exporter} plug-in and returns its output
  *   (SVG string, PNG data URL, canvas, PDF bytes, …). New formats are added by
  *   shipping new `Exporter<T>` implementations — no new methods on this class.
- * - **{@link addSceneOverlay}** / **{@link addLiveEffect}** distinguish scene
- *   content (appears everywhere) from animated effects (interactive only).
+ * - **{@link addSceneOverlay}** is target-agnostic and appears in every output.
+ *   Animated effects live on the Konva renderer (`konvaBackend.addLiveEffect`)
+ *   because they need a `Konva.Layer`, which only exists there.
  */
 export class MapRenderer {
     readonly state: MapState;
@@ -83,6 +77,42 @@ export class MapRenderer {
 
     get settings(): Settings {
         return this.state.settings;
+    }
+
+    /** Camera owned by the active interactive backend. */
+    get camera(): Camera {
+        return this.backend.camera;
+    }
+
+    /** Culling manager owned by the active interactive backend. */
+    get culling(): CullingManager {
+        return this.backend.culling;
+    }
+
+    /** Hit-test index owned by the active interactive backend. */
+    get hitTester(): HitTester {
+        return this.backend.hitTester;
+    }
+
+    /** Renderer event emitter (room click, area exit click, zoom change, …). */
+    get events(): TypedEventEmitter<RendererEventMap> {
+        return this.backend.events;
+    }
+
+    /**
+     * Concrete Konva renderer when the active backend is one. Returns
+     * `undefined` for custom backend factories that produce something else.
+     *
+     * Use this to reach Konva-specific APIs that don't belong on the
+     * engine-neutral facade — most importantly {@link KonvaRenderBackend.addLiveEffect}
+     * and {@link KonvaRenderBackend.removeLiveEffect}.
+     *
+     * ```ts
+     * renderer.konvaBackend?.addLiveEffect('weather', new RainEffect());
+     * ```
+     */
+    get konvaBackend(): KonvaRenderBackend | undefined {
+        return this.backend instanceof KonvaRenderBackend ? this.backend : undefined;
     }
 
     /**
@@ -208,15 +238,6 @@ export class MapRenderer {
 
     removeSceneOverlay(id: string) {
         this.backend.removeSceneOverlay(id);
-    }
-
-    /** Interactive-only animated effect; skipped by exporters. */
-    addLiveEffect(id: string, effect: LiveEffect) {
-        this.backend.addLiveEffect(id, effect);
-    }
-
-    removeLiveEffect(id: string) {
-        this.backend.removeLiveEffect(id);
     }
 
     // --- Hit testing ---
