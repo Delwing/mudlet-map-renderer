@@ -8,14 +8,14 @@ import {IDENTITY_TRANSFORM} from "./DrawingBackend";
 
 // --- Draw command types ---
 
-type RectCommand = { type: 'rect'; x: number; y: number; w: number; h: number; fill?: string; stroke?: string; sw: number; cr: number; dash?: number[] };
-type CircleCommand = { type: 'circle'; cx: number; cy: number; r: number; fill?: string; stroke?: string; sw: number; dash?: number[] };
-type LineCommand = { type: 'line'; points: number[]; stroke?: string; sw: number; dash?: number[]; lineCap?: string; lineJoin?: string; alpha?: number };
-type PolygonCommand = { type: 'polygon'; vertices: number[]; fill?: string; stroke?: string; sw: number };
-type TextCommand = { type: 'text'; x: number; y: number; text: string; fontSize: number; fontFamily: string; fontStyle: string; fill: string; align: string; vAlign: string; w: number; h: number; baselineRatio?: number; transform?: [number, number, number, number, number, number] };
-type ImageCommand = { type: 'image'; x: number; y: number; w: number; h: number; image: HTMLImageElement | any; transform?: [number, number, number, number, number, number] };
+export type RectCommand    = { type: 'rect';    x: number; y: number; w: number; h: number; fill?: string; stroke?: string; sw: number; cr: number; dash?: number[] };
+export type CircleCommand  = { type: 'circle';  cx: number; cy: number; r: number; fill?: string; stroke?: string; sw: number; dash?: number[] };
+export type LineCommand    = { type: 'line';    points: number[]; stroke?: string; sw: number; dash?: number[]; lineCap?: string; lineJoin?: string; alpha?: number };
+export type PolygonCommand = { type: 'polygon'; vertices: number[]; fill?: string; stroke?: string; sw: number };
+export type TextCommand    = { type: 'text';    x: number; y: number; text: string; fontSize: number; fontFamily: string; fontStyle: string; fill: string; align: string; vAlign: string; w: number; h: number; baselineRatio?: number; transform?: [number, number, number, number, number, number] };
+export type ImageCommand   = { type: 'image';   x: number; y: number; w: number; h: number; image: HTMLImageElement | any; src?: string; transform?: [number, number, number, number, number, number] };
 
-type DrawCommand = RectCommand | CircleCommand | LineCommand | PolygonCommand | TextCommand | ImageCommand;
+export type DrawCommand = RectCommand | CircleCommand | LineCommand | PolygonCommand | TextCommand | ImageCommand;
 
 // --- Canvas2D replay ---
 
@@ -158,7 +158,7 @@ function replayCommand(ctx: CanvasRenderingContext2D, cmd: DrawCommand) {
 
 // --- Recording group node ---
 
-export class RecordingGroupNode implements GroupNode {
+export class SceneGroupNode implements GroupNode {
     x: number;
     y: number;
     _visible = true;
@@ -234,14 +234,14 @@ export class RecordingGroupNode implements GroupNode {
  * A LayerNode backed by a single Konva.Shape whose sceneFunc replays
  * all recorded groups. Much faster than individual Konva nodes.
  */
-export class RecordingLayerNode implements LayerNode {
-    private groups: RecordingGroupNode[] = [];
+export class CanvasLayerNode implements LayerNode {
+    private groups: SceneGroupNode[] = [];
     private readonly konvaLayer: Konva.Layer;
     private konvaShape: Konva.Shape;
 
     constructor(konvaLayer: Konva.Layer) {
         this.konvaLayer = konvaLayer;
-        // Remove any previous children (e.g. from a prior RecordingLayerNode or KonvaLayerNode)
+        // Remove any previous children (e.g. from a prior CanvasLayerNode or KonvaLayerNode)
         konvaLayer.destroyChildren();
         const self = this;
         this.konvaShape = new Konva.Shape({
@@ -283,7 +283,7 @@ export class RecordingLayerNode implements LayerNode {
     }
 
     addNode(node: GroupNode) {
-        if (node instanceof RecordingGroupNode) {
+        if (node instanceof SceneGroupNode) {
             this.groups.push(node);
             this.ensureShape();
         }
@@ -309,21 +309,21 @@ function createImageElement(src: string): HTMLImageElement | any {
 }
 
 /**
- * DrawingBackend that records draw commands into RecordingGroupNodes.
+ * DrawingBackend that records draw commands into SceneGroupNodes.
  * Commands are replayed via Canvas2D in a single Konva.Shape sceneFunc
  * per layer, eliminating per-node Konva overhead.
  *
- * Drop-in replacement for KonvaBackend. Decorator backends wrap this
- * the same way they wrap KonvaBackend.
+ * Records draw commands into SceneGroupNodes for replay via Canvas2D
+ * or SVG. Decorator backends wrap this to apply style transforms.
  */
 export class CanvasBackend implements DrawingBackend {
 
-    createGroup(x: number, y: number): RecordingGroupNode {
-        return new RecordingGroupNode(x, y);
+    createGroup(x: number, y: number): SceneGroupNode {
+        return new SceneGroupNode(x, y);
     }
 
     addRect(parent: GroupNode, config: RectConfig) {
-        if (!(parent instanceof RecordingGroupNode)) return;
+        if (!(parent instanceof SceneGroupNode)) return;
         parent.commands.push({
             type: 'rect',
             x: config.x, y: config.y,
@@ -337,7 +337,7 @@ export class CanvasBackend implements DrawingBackend {
     }
 
     addCircle(parent: GroupNode, config: CircleConfig) {
-        if (!(parent instanceof RecordingGroupNode)) return;
+        if (!(parent instanceof SceneGroupNode)) return;
         parent.commands.push({
             type: 'circle',
             cx: config.cx, cy: config.cy, r: config.radius,
@@ -349,7 +349,7 @@ export class CanvasBackend implements DrawingBackend {
     }
 
     addLine(parent: GroupNode, config: LineConfig) {
-        if (!(parent instanceof RecordingGroupNode)) return;
+        if (!(parent instanceof SceneGroupNode)) return;
         parent.commands.push({
             type: 'line',
             points: config.points,
@@ -367,7 +367,7 @@ export class CanvasBackend implements DrawingBackend {
     }
 
     addPolygon(parent: GroupNode, config: PolygonConfig) {
-        if (!(parent instanceof RecordingGroupNode)) return;
+        if (!(parent instanceof SceneGroupNode)) return;
         parent.commands.push({
             type: 'polygon',
             vertices: config.vertices,
@@ -378,7 +378,7 @@ export class CanvasBackend implements DrawingBackend {
     }
 
     addText(parent: GroupNode, config: TextConfig) {
-        if (!(parent instanceof RecordingGroupNode)) return;
+        if (!(parent instanceof SceneGroupNode)) return;
         parent.commands.push({
             type: 'text',
             x: config.x, y: config.y,
@@ -397,12 +397,13 @@ export class CanvasBackend implements DrawingBackend {
     }
 
     addImage(parent: GroupNode, config: ImageConfig) {
-        if (!(parent instanceof RecordingGroupNode)) return;
+        if (!(parent instanceof SceneGroupNode)) return;
         parent.commands.push({
             type: 'image',
             x: config.x, y: config.y,
             w: config.width, h: config.height,
             image: createImageElement(config.src),
+            src: config.src,
             transform: config.transform,
         });
     }

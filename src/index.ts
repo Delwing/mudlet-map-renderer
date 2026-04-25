@@ -29,7 +29,9 @@ export { BaseStyle, compose, identityStyle, IDENTITY_TRANSFORM } from './backend
 
 // --- Target classes (exposed for custom styles / exporters) ---
 export { CanvasBackend } from './backend/CanvasBackend';
-export { SvgBackend, SvgGroupNode, SvgLayerNode } from './backend/SvgBackend';
+export type { DrawCommand } from './backend/CanvasBackend';
+export { SvgLayerNode } from './backend/SvgLayerNode';
+export { SvgRenderingBackend } from './rendering/SvgRenderingBackend';
 
 // --- Style classes (low-level; the Style factories below are preferred) ---
 export {

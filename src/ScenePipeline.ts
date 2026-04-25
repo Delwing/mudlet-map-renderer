@@ -482,7 +482,7 @@ export class ScenePipeline {
             const ly = -label.Y;
             const noScaling = !!label.noScaling;
             // noScaling groups are anchored at (lx,ly) with content at (0,0) so the
-            // RecordingLayerNode can cancel out the stage zoom for those groups only.
+            // CanvasLayerNode can cancel out the stage zoom for those groups only.
             const gx = noScaling ? lx : 0;
             const gy = noScaling ? ly : 0;
             const cx = noScaling ? 0 : lx;

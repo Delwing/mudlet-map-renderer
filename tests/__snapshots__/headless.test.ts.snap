@@ -4,7 +4,7 @@ exports[`HeadlessRenderer > combined overlays > snapshot - position + highlights
 "<svg xmlns="http://www.w3.org/2000/svg" viewBox="-10.5 -14 24 19.5">
 <rect x="-10.5" y="-14" width="24" height="19.5" fill="#000000"/>
 <rect x="-2" y="2" width="5" height="0.5" fill="rgba(0, 0, 0, 0.39215686274509803)"/>
-<text x="0.5" y="2.25" font-size="0.45" fill="rgba(255, 255, 255, 1)" text-anchor="middle" dominant-baseline="central">Welcome to the Village</text>
+<text x="0.5" y="2.25" font-size="0.45" font-family="sans-serif" fill="rgba(255, 255, 255, 1)" text-anchor="middle" dominant-baseline="central">Welcome to the Village</text>
 <polyline points="0,-0.2875 0,-1.7125" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
 <rect x="-0.15" y="-1.15" width="0.3" height="0.3" fill="none" stroke="rgb(10, 155, 10)" stroke-width="0.025"/>
 <polyline points="0.2875,0 1.7125,0" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
@@ -78,6 +78,16 @@ exports[`HeadlessRenderer > combined overlays > snapshot - position + highlights
 <rect x="0" y="0" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 </g>
 <text x="-7.5" y="-8.5" font-size="2.5" font-family="sans-serif" fill="rgb(225, 255, 225)" text-anchor="start" dominant-baseline="auto">Test Village</text>
+<polyline points="1.5725,-0.4275 2.4275,-0.4275" stroke="#ff0000" stroke-width="0.1" stroke-dasharray="0.05 0.05" stroke-linecap="butt" fill="none"/>
+<polyline points="2.4275,-0.4275 2.4275,0.4275" stroke="#ff0000" stroke-width="0.1" stroke-dasharray="0.05 0.05" stroke-linecap="butt" fill="none"/>
+<polyline points="2.4275,0.4275 1.5725,0.4275" stroke="#ff0000" stroke-width="0.1" stroke-dasharray="0.05 0.05" stroke-linecap="butt" fill="none"/>
+<polyline points="1.5725,0.4275 1.5725,-0.4275" stroke="#ff0000" stroke-width="0.1" stroke-dasharray="0.05 0.05" stroke-linecap="butt" fill="none"/>
+<polyline points="-0.4275,-4.4275 0.4275,-4.4275" stroke="#0000ff" stroke-width="0.1" stroke-dasharray="0.05 0.05" stroke-linecap="butt" fill="none"/>
+<polyline points="0.4275,-4.4275 0.4275,-3.5725" stroke="#0000ff" stroke-width="0.1" stroke-dasharray="0.05 0.05" stroke-linecap="butt" fill="none"/>
+<polyline points="0.4275,-3.5725 -0.4275,-3.5725" stroke="#0000ff" stroke-width="0.1" stroke-dasharray="0.05 0.05" stroke-linecap="butt" fill="none"/>
+<polyline points="-0.4275,-3.5725 -0.4275,-4.4275" stroke="#0000ff" stroke-width="0.1" stroke-dasharray="0.05 0.05" stroke-linecap="butt" fill="none"/>
+<polyline points="0,-4 0,-3.7 0,-2.3 0,-2 0,-1.7 0,-0.3 0,0 0.3,0 1.7,0 2,0" stroke="black" stroke-width="0.2" stroke-linecap="round" stroke-linejoin="round" opacity="0.8" fill="none"/>
+<polyline points="0,-4 0,-3.7 0,-2.3 0,-2 0,-1.7 0,-0.3 0,0 0.3,0 1.7,0 2,0" stroke="#66E64D" stroke-width="0.1" stroke-linecap="round" stroke-linejoin="round" opacity="0.8" fill="none"/>
 <polyline points="0,-4 0,-3.7 0,-2.3 0,-2 0,-1.7 0,-0.3 0,0 0.3,0 1.7,0 2,0" stroke="black" stroke-width="0.2" stroke-linecap="round" stroke-linejoin="round" opacity="0.8" fill="none"/>
 <polyline points="0,-4 0,-3.7 0,-2.3 0,-2 0,-1.7 0,-0.3 0,0 0.3,0 1.7,0 2,0" stroke="#66E64D" stroke-width="0.1" stroke-linecap="round" stroke-linejoin="round" opacity="0.8" fill="none"/>
 <polyline points="1.5725,-0.4275 2.4275,-0.4275" stroke="#ff0000" stroke-width="0.1" stroke-dasharray="0.05 0.05" stroke-linecap="butt" fill="none"/>
@@ -96,7 +106,7 @@ exports[`HeadlessRenderer > drawArea + exportSvg > snapshot - basic area export 
 "<svg xmlns="http://www.w3.org/2000/svg" viewBox="-10.5 -14 24 19.5">
 <rect x="-10.5" y="-14" width="24" height="19.5" fill="#000000"/>
 <rect x="-2" y="2" width="5" height="0.5" fill="rgba(0, 0, 0, 0.39215686274509803)"/>
-<text x="0.5" y="2.25" font-size="0.45" fill="rgba(255, 255, 255, 1)" text-anchor="middle" dominant-baseline="central">Welcome to the Village</text>
+<text x="0.5" y="2.25" font-size="0.45" font-family="sans-serif" fill="rgba(255, 255, 255, 1)" text-anchor="middle" dominant-baseline="central">Welcome to the Village</text>
 <polyline points="0,-0.2875 0,-1.7125" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
 <rect x="-0.15" y="-1.15" width="0.3" height="0.3" fill="none" stroke="rgb(10, 155, 10)" stroke-width="0.025"/>
 <polyline points="0.2875,0 1.7125,0" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
@@ -177,7 +187,7 @@ exports[`HeadlessRenderer > highlights > snapshot - multiple highlights 1`] = `
 "<svg xmlns="http://www.w3.org/2000/svg" viewBox="-10.5 -14 24 19.5">
 <rect x="-10.5" y="-14" width="24" height="19.5" fill="#000000"/>
 <rect x="-2" y="2" width="5" height="0.5" fill="rgba(0, 0, 0, 0.39215686274509803)"/>
-<text x="0.5" y="2.25" font-size="0.45" fill="rgba(255, 255, 255, 1)" text-anchor="middle" dominant-baseline="central">Welcome to the Village</text>
+<text x="0.5" y="2.25" font-size="0.45" font-family="sans-serif" fill="rgba(255, 255, 255, 1)" text-anchor="middle" dominant-baseline="central">Welcome to the Village</text>
 <polyline points="0,-0.2875 0,-1.7125" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
 <rect x="-0.15" y="-1.15" width="0.3" height="0.3" fill="none" stroke="rgb(10, 155, 10)" stroke-width="0.025"/>
 <polyline points="0.2875,0 1.7125,0" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
@@ -259,6 +269,14 @@ exports[`HeadlessRenderer > highlights > snapshot - multiple highlights 1`] = `
 <polyline points="2.4275,-0.4275 2.4275,0.4275" stroke="#00ff00" stroke-width="0.1" stroke-dasharray="0.05 0.05" stroke-linecap="butt" fill="none"/>
 <polyline points="2.4275,0.4275 1.5725,0.4275" stroke="#00ff00" stroke-width="0.1" stroke-dasharray="0.05 0.05" stroke-linecap="butt" fill="none"/>
 <polyline points="1.5725,0.4275 1.5725,-0.4275" stroke="#00ff00" stroke-width="0.1" stroke-dasharray="0.05 0.05" stroke-linecap="butt" fill="none"/>
+<polyline points="-0.4275,-0.4275 0.4275,-0.4275" stroke="#ff0000" stroke-width="0.1" stroke-dasharray="0.05 0.05" stroke-linecap="butt" fill="none"/>
+<polyline points="0.4275,-0.4275 0.4275,0.4275" stroke="#ff0000" stroke-width="0.1" stroke-dasharray="0.05 0.05" stroke-linecap="butt" fill="none"/>
+<polyline points="0.4275,0.4275 -0.4275,0.4275" stroke="#ff0000" stroke-width="0.1" stroke-dasharray="0.05 0.05" stroke-linecap="butt" fill="none"/>
+<polyline points="-0.4275,0.4275 -0.4275,-0.4275" stroke="#ff0000" stroke-width="0.1" stroke-dasharray="0.05 0.05" stroke-linecap="butt" fill="none"/>
+<polyline points="1.5725,-0.4275 2.4275,-0.4275" stroke="#00ff00" stroke-width="0.1" stroke-dasharray="0.05 0.05" stroke-linecap="butt" fill="none"/>
+<polyline points="2.4275,-0.4275 2.4275,0.4275" stroke="#00ff00" stroke-width="0.1" stroke-dasharray="0.05 0.05" stroke-linecap="butt" fill="none"/>
+<polyline points="2.4275,0.4275 1.5725,0.4275" stroke="#00ff00" stroke-width="0.1" stroke-dasharray="0.05 0.05" stroke-linecap="butt" fill="none"/>
+<polyline points="1.5725,0.4275 1.5725,-0.4275" stroke="#00ff00" stroke-width="0.1" stroke-dasharray="0.05 0.05" stroke-linecap="butt" fill="none"/>
 </svg>"
 `;
 
@@ -266,7 +284,7 @@ exports[`HeadlessRenderer > highlights > snapshot - single highlight 1`] = `
 "<svg xmlns="http://www.w3.org/2000/svg" viewBox="-10.5 -14 24 19.5">
 <rect x="-10.5" y="-14" width="24" height="19.5" fill="#000000"/>
 <rect x="-2" y="2" width="5" height="0.5" fill="rgba(0, 0, 0, 0.39215686274509803)"/>
-<text x="0.5" y="2.25" font-size="0.45" fill="rgba(255, 255, 255, 1)" text-anchor="middle" dominant-baseline="central">Welcome to the Village</text>
+<text x="0.5" y="2.25" font-size="0.45" font-family="sans-serif" fill="rgba(255, 255, 255, 1)" text-anchor="middle" dominant-baseline="central">Welcome to the Village</text>
 <polyline points="0,-0.2875 0,-1.7125" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
 <rect x="-0.15" y="-1.15" width="0.3" height="0.3" fill="none" stroke="rgb(10, 155, 10)" stroke-width="0.025"/>
 <polyline points="0.2875,0 1.7125,0" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
@@ -344,6 +362,10 @@ exports[`HeadlessRenderer > highlights > snapshot - single highlight 1`] = `
 <polyline points="0.4275,-0.4275 0.4275,0.4275" stroke="#ff0000" stroke-width="0.1" stroke-dasharray="0.05 0.05" stroke-linecap="butt" fill="none"/>
 <polyline points="0.4275,0.4275 -0.4275,0.4275" stroke="#ff0000" stroke-width="0.1" stroke-dasharray="0.05 0.05" stroke-linecap="butt" fill="none"/>
 <polyline points="-0.4275,0.4275 -0.4275,-0.4275" stroke="#ff0000" stroke-width="0.1" stroke-dasharray="0.05 0.05" stroke-linecap="butt" fill="none"/>
+<polyline points="-0.4275,-0.4275 0.4275,-0.4275" stroke="#ff0000" stroke-width="0.1" stroke-dasharray="0.05 0.05" stroke-linecap="butt" fill="none"/>
+<polyline points="0.4275,-0.4275 0.4275,0.4275" stroke="#ff0000" stroke-width="0.1" stroke-dasharray="0.05 0.05" stroke-linecap="butt" fill="none"/>
+<polyline points="0.4275,0.4275 -0.4275,0.4275" stroke="#ff0000" stroke-width="0.1" stroke-dasharray="0.05 0.05" stroke-linecap="butt" fill="none"/>
+<polyline points="-0.4275,0.4275 -0.4275,-0.4275" stroke="#ff0000" stroke-width="0.1" stroke-dasharray="0.05 0.05" stroke-linecap="butt" fill="none"/>
 </svg>"
 `;
 
@@ -351,7 +373,7 @@ exports[`HeadlessRenderer > paths > snapshot - path overlay 1`] = `
 "<svg xmlns="http://www.w3.org/2000/svg" viewBox="-10.5 -14 24 19.5">
 <rect x="-10.5" y="-14" width="24" height="19.5" fill="#000000"/>
 <rect x="-2" y="2" width="5" height="0.5" fill="rgba(0, 0, 0, 0.39215686274509803)"/>
-<text x="0.5" y="2.25" font-size="0.45" fill="rgba(255, 255, 255, 1)" text-anchor="middle" dominant-baseline="central">Welcome to the Village</text>
+<text x="0.5" y="2.25" font-size="0.45" font-family="sans-serif" fill="rgba(255, 255, 255, 1)" text-anchor="middle" dominant-baseline="central">Welcome to the Village</text>
 <polyline points="0,-0.2875 0,-1.7125" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
 <rect x="-0.15" y="-1.15" width="0.3" height="0.3" fill="none" stroke="rgb(10, 155, 10)" stroke-width="0.025"/>
 <polyline points="0.2875,0 1.7125,0" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
@@ -427,6 +449,8 @@ exports[`HeadlessRenderer > paths > snapshot - path overlay 1`] = `
 <text x="-7.5" y="-8.5" font-size="2.5" font-family="sans-serif" fill="rgb(225, 255, 225)" text-anchor="start" dominant-baseline="auto">Test Village</text>
 <polyline points="0,-4 0,-3.7 0,-2.3 0,-2 0,-1.7 0,-0.3 0,0 0.3,0 1.7,0 2,0" stroke="black" stroke-width="0.2" stroke-linecap="round" stroke-linejoin="round" opacity="0.8" fill="none"/>
 <polyline points="0,-4 0,-3.7 0,-2.3 0,-2 0,-1.7 0,-0.3 0,0 0.3,0 1.7,0 2,0" stroke="#66E64D" stroke-width="0.1" stroke-linecap="round" stroke-linejoin="round" opacity="0.8" fill="none"/>
+<polyline points="0,-4 0,-3.7 0,-2.3 0,-2 0,-1.7 0,-0.3 0,0 0.3,0 1.7,0 2,0" stroke="black" stroke-width="0.2" stroke-linecap="round" stroke-linejoin="round" opacity="0.8" fill="none"/>
+<polyline points="0,-4 0,-3.7 0,-2.3 0,-2 0,-1.7 0,-0.3 0,0 0.3,0 1.7,0 2,0" stroke="#66E64D" stroke-width="0.1" stroke-linecap="round" stroke-linejoin="round" opacity="0.8" fill="none"/>
 </svg>"
 `;
 
@@ -434,7 +458,7 @@ exports[`HeadlessRenderer > paths > snapshot - path with custom color 1`] = `
 "<svg xmlns="http://www.w3.org/2000/svg" viewBox="-10.5 -14 24 19.5">
 <rect x="-10.5" y="-14" width="24" height="19.5" fill="#000000"/>
 <rect x="-2" y="2" width="5" height="0.5" fill="rgba(0, 0, 0, 0.39215686274509803)"/>
-<text x="0.5" y="2.25" font-size="0.45" fill="rgba(255, 255, 255, 1)" text-anchor="middle" dominant-baseline="central">Welcome to the Village</text>
+<text x="0.5" y="2.25" font-size="0.45" font-family="sans-serif" fill="rgba(255, 255, 255, 1)" text-anchor="middle" dominant-baseline="central">Welcome to the Village</text>
 <polyline points="0,-0.2875 0,-1.7125" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
 <rect x="-0.15" y="-1.15" width="0.3" height="0.3" fill="none" stroke="rgb(10, 155, 10)" stroke-width="0.025"/>
 <polyline points="0.2875,0 1.7125,0" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
@@ -510,6 +534,8 @@ exports[`HeadlessRenderer > paths > snapshot - path with custom color 1`] = `
 <text x="-7.5" y="-8.5" font-size="2.5" font-family="sans-serif" fill="rgb(225, 255, 225)" text-anchor="start" dominant-baseline="auto">Test Village</text>
 <polyline points="0,0 0,-0.3 0,-1.7 0,-2 0,-2.3 0,-3.7 0,-4" stroke="black" stroke-width="0.2" stroke-linecap="round" stroke-linejoin="round" opacity="0.8" fill="none"/>
 <polyline points="0,0 0,-0.3 0,-1.7 0,-2 0,-2.3 0,-3.7 0,-4" stroke="#ff0000" stroke-width="0.1" stroke-linecap="round" stroke-linejoin="round" opacity="0.8" fill="none"/>
+<polyline points="0,0 0,-0.3 0,-1.7 0,-2 0,-2.3 0,-3.7 0,-4" stroke="black" stroke-width="0.2" stroke-linecap="round" stroke-linejoin="round" opacity="0.8" fill="none"/>
+<polyline points="0,0 0,-0.3 0,-1.7 0,-2 0,-2.3 0,-3.7 0,-4" stroke="#ff0000" stroke-width="0.1" stroke-linecap="round" stroke-linejoin="round" opacity="0.8" fill="none"/>
 </svg>"
 `;
 
@@ -517,7 +543,7 @@ exports[`HeadlessRenderer > position > snapshot - with position marker 1`] = `
 "<svg xmlns="http://www.w3.org/2000/svg" viewBox="-10.5 -14 24 19.5">
 <rect x="-10.5" y="-14" width="24" height="19.5" fill="#000000"/>
 <rect x="-2" y="2" width="5" height="0.5" fill="rgba(0, 0, 0, 0.39215686274509803)"/>
-<text x="0.5" y="2.25" font-size="0.45" fill="rgba(255, 255, 255, 1)" text-anchor="middle" dominant-baseline="central">Welcome to the Village</text>
+<text x="0.5" y="2.25" font-size="0.45" font-family="sans-serif" fill="rgba(255, 255, 255, 1)" text-anchor="middle" dominant-baseline="central">Welcome to the Village</text>
 <polyline points="0,-0.2875 0,-1.7125" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
 <rect x="-0.15" y="-1.15" width="0.3" height="0.3" fill="none" stroke="rgb(10, 155, 10)" stroke-width="0.025"/>
 <polyline points="0.2875,0 1.7125,0" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>

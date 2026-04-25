@@ -1,27 +1,23 @@
-import {SvgBackend, SvgGroupNode, SvgLayerNode} from "../backend/SvgBackend";
-import {ScenePipeline} from "../ScenePipeline";
-import {computeHighlight, computePositionMarker, computePathOverlay} from "../scene/OverlayStyle";
-import {renderHighlight, renderPositionMarker, renderPathOverlay} from "../scene/OverlayRenderer";
-import type {SvgExportOptions, SvgOverlays} from "../SvgTypes";
-import type {MapState} from "../MapState";
-import type {DrawingBackend} from "../backend/DrawingBackend";
-import type {Exporter, ExportContext} from "./Exporter";
-
-function escapeXml(s: string): string {
-    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-}
+import {Camera} from '../Camera';
+import {SvgRenderingBackend} from '../rendering/SvgRenderingBackend';
+import type {MapRenderer} from '../rendering/MapRenderer';
+import {computeHighlight, computePositionMarker, computePathOverlay} from '../scene/OverlayStyle';
+import {renderHighlight, renderPositionMarker, renderPathOverlay} from '../scene/OverlayRenderer';
+import type {SvgExportOptions, SvgOverlays} from '../SvgTypes';
+import type {MapState} from '../MapState';
+import type {Exporter, ExportContext} from './Exporter';
+import type {ViewportBounds} from '../types/Settings';
 
 /**
- * Renders the current scene as an SVG string. Creates a ScenePipeline with
- * an SVG backend and passes SVG layer nodes to buildScene — the same code path
- * as interactive rendering, just with a different backend and output target.
+ * Renders the current scene as an SVG string via SvgRenderingBackend.
+ * Attaches a backend with an export camera, optionally renders custom
+ * overlays into the backend's overlay layer, then serialises and destroys.
  */
 export class SvgExporter implements Exporter<string | undefined> {
     constructor(private readonly options: SvgExportOptions = {}) {}
 
-    render({state, style, sceneOverlays}: ExportContext): string | undefined {
-        const {currentArea, currentZIndex, currentAreaInstance} = state;
+    render({ state, renderer, style, sceneOverlays }: ExportContext): string | undefined {
+        const { currentArea, currentZIndex, currentAreaInstance } = state;
         if (currentArea === undefined || currentZIndex === undefined || !currentAreaInstance) return;
 
         const area = currentAreaInstance;
@@ -31,65 +27,51 @@ export class SvgExporter implements Exporter<string | undefined> {
         const settings = state.settings;
         const padding = this.options.padding ?? 3;
         const bounds = state.computeExportBounds(area, plane, this.options.roomId, padding);
-
-        const rawSvgBackend = new SvgBackend();
-        const svgBackend: DrawingBackend = style(rawSvgBackend);
-
-        const gridLayer = new SvgLayerNode();
-        const linkLayer = new SvgLayerNode();
-        const roomLayer = new SvgLayerNode();
-        const topLabelLayer = new SvgLayerNode();
-
-        const pipeline = new ScenePipeline(state.mapReader, settings, svgBackend);
-
-        const viewportBounds = {
+        const viewportBounds: ViewportBounds = {
             minX: bounds.x, maxX: bounds.x + bounds.w,
             minY: bounds.y, maxY: bounds.y + bounds.h,
         };
 
-        pipeline.buildScene(area, plane, currentZIndex, { gridLayer, linkLayer, roomLayer, topLabelLayer }, viewportBounds);
+        // Build an export camera whose viewport covers exactly the export bounds.
+        // fitToMapBounds with dimensions = bounds * BASE_SCALE yields zoom=1,
+        // so getViewportBounds() == { minX: bounds.x, maxX: bounds.x+w, ... }.
+        const exportCam = new Camera(1, 1);
+        const baseScale = exportCam.getScale(); // BASE_SCALE * zoom=1
+        exportCam.width  = Math.max(1, Math.ceil(bounds.w * baseScale));
+        exportCam.height = Math.max(1, Math.ceil(bounds.h * baseScale));
+        exportCam.fitToMapBounds(bounds.x, bounds.x + bounds.w, bounds.y, bounds.y + bounds.h);
 
-        const lines: string[] = [];
-        lines.push(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="${bounds.x} ${bounds.y} ${bounds.w} ${bounds.h}">`);
-        lines.push(`<rect x="${bounds.x}" y="${bounds.y}" width="${bounds.w}" height="${bounds.h}" fill="${escapeXml(settings.backgroundColor)}"/>`);
+        // Attach SVG backend — scene builds immediately in _attachBackend.
+        // renderer is always a MapRenderer at runtime; ExportContext uses RendererHandle for decoupling.
+        const svgBackend = new SvgRenderingBackend(renderer as unknown as MapRenderer, exportCam, style);
 
-        const gridSvg = gridLayer.toSvg();
-        if (gridSvg) lines.push(gridSvg);
-        const linkSvg = linkLayer.toSvg();
-        if (linkSvg) lines.push(linkSvg);
-        const roomSvg = roomLayer.toSvg();
-        if (roomSvg) lines.push(roomSvg);
-
+        // Render custom built-in overlays (options.overlays) into the overlay layer.
         const overlays = state.getOverlaysForArea(this.options.overlays);
-        this.renderBuiltInOverlays(overlays, svgBackend, state, viewportBounds, lines);
-
-        for (const overlay of sceneOverlays) {
-            const out = overlay.render(svgBackend, state, viewportBounds);
-            const nodes = out === undefined ? [] : Array.isArray(out) ? out : [out];
-            for (const node of nodes) {
-                if (node instanceof SvgGroupNode) {
-                    const svg = node.toSvg();
-                    if (svg) lines.push(svg);
-                }
-            }
+        if (overlays) {
+            this.renderOverlaysToBackend(overlays, svgBackend, state, viewportBounds);
         }
 
-        const topLabelSvg = topLabelLayer.toSvg();
-        if (topLabelSvg) lines.push(topLabelSvg);
+        // Render scene overlays into the overlay layer.
+        for (const overlay of sceneOverlays) {
+            const out = overlay.render(svgBackend.drawingBackend, state, viewportBounds);
+            if (!out) continue;
+            const nodes = Array.isArray(out) ? out : [out];
+            for (const node of nodes) svgBackend.overlayLayer.addNode(node);
+        }
 
-        lines.push('</svg>');
-        return lines.join('\n');
+        const svg = svgBackend.toSvg(bounds);
+        svgBackend.destroy();
+        return svg;
     }
 
-    private renderBuiltInOverlays(
-        overlays: SvgOverlays | undefined,
-        svgBackend: DrawingBackend,
+    private renderOverlaysToBackend(
+        overlays: SvgOverlays,
+        svgBackend: SvgRenderingBackend,
         state: MapState,
-        viewportBounds: { minX: number; maxX: number; minY: number; maxY: number },
-        lines: string[],
+        _viewportBounds: ViewportBounds,
     ) {
-        if (!overlays) return;
         const settings = state.settings;
+        const db = svgBackend.drawingBackend;
 
         if (overlays.paths) {
             for (const path of overlays.paths) {
@@ -97,9 +79,7 @@ export class SvgExporter implements Exporter<string | undefined> {
                     state.mapReader, settings, path.locations, path.color,
                     state.currentArea!, state.currentZIndex!,
                 );
-                const group = renderPathOverlay(svgBackend, data) as SvgGroupNode;
-                const svg = group.toSvg();
-                if (svg) lines.push(svg);
+                svgBackend.overlayLayer.addNode(renderPathOverlay(db, data));
             }
         }
         if (overlays.highlights) {
@@ -107,18 +87,14 @@ export class SvgExporter implements Exporter<string | undefined> {
                 const room = state.mapReader.getRoom(hl.roomId);
                 if (!room) continue;
                 const data = computeHighlight(room, hl.color, settings);
-                const group = renderHighlight(svgBackend, data) as SvgGroupNode;
-                const svg = group.toSvg();
-                if (svg) lines.push(svg);
+                svgBackend.overlayLayer.addNode(renderHighlight(db, data));
             }
         }
         if (overlays.position) {
             const room = state.mapReader.getRoom(overlays.position.roomId);
             if (room) {
                 const data = computePositionMarker(room, settings);
-                const group = renderPositionMarker(svgBackend, data) as SvgGroupNode;
-                const svg = group.toSvg();
-                if (svg) lines.push(svg);
+                svgBackend.overlayLayer.addNode(renderPositionMarker(db, data));
             }
         }
     }

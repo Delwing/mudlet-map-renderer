@@ -68,7 +68,7 @@ class PerfMonitor {
  */
 export class CullingManager {
 
-    private readonly camera: Camera;
+    private camera: Camera;
     private readonly settings: Settings;
     private redrawCallback?: (roomDirty: boolean, linkDirty: boolean) => void;
 
@@ -95,6 +95,10 @@ export class CullingManager {
     constructor(camera: Camera, settings: Settings) {
         this.camera = camera;
         this.settings = settings;
+    }
+
+    setCamera(camera: Camera): void {
+        this.camera = camera;
     }
 
     /** Called by KonvaLayerManager to receive batchDraw notifications. */

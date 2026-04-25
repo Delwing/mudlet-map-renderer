@@ -1,37 +1,34 @@
 import Konva from "konva";
 import type {Camera} from "../Camera";
-import type {Settings, RendererEventMap} from "../types/Settings";
-import {KonvaLayerNode} from "../backend/KonvaBackend";
-import {RecordingLayerNode} from "../backend/CanvasBackend";
+import type {RendererEventMap, ViewportBounds} from "../types/Settings";
+import {KonvaLayerNode} from "../backend/KonvaLayerNode";
+import {CanvasLayerNode} from "../backend/CanvasBackend";
 import {CanvasBackend} from "../backend/CanvasBackend";
-import type {DrawingBackend, GroupNode, LayerNode, CoordFn, Style} from "../backend/DrawingBackend";
-import {identityStyle, IDENTITY_TRANSFORM} from "../backend/DrawingBackend";
+import type {DrawingBackend, LayerNode, GroupNode, CoordFn, Style} from "../backend/DrawingBackend";
+import {IDENTITY_TRANSFORM} from "../backend/DrawingBackend";
 import {TypedEventEmitter} from "../TypedEventEmitter";
 import {InteractionHandler} from "../InteractionHandler";
-import type {SceneBuildResult, AreaExitHitZone} from "../ScenePipeline";
+import type {AreaExitHitZone} from "../ScenePipeline";
 import type {MapState} from "../MapState";
 import type {MapRenderer, RenderingBackend} from "./MapRenderer";
 import type {LiveEffect} from "../overlay/LiveEffect";
 import type {SceneOverlay, SceneOverlayContext} from "../overlay/SceneOverlay";
 import type {ExportCanvas} from "../export/Exporter";
 import ExplorationArea from "../reader/ExplorationArea";
-import {computeHighlight, computePositionMarker, computePathOverlay} from "../scene/OverlayStyle";
 import {computeStubs} from "../scene/StubStyle";
 import {computeSpecialExits} from "../scene/SpecialExitStyle";
 import {computeInnerExits} from "../scene/InnerExitStyle";
 import {
-    renderHighlight, renderPositionMarker, renderPathOverlay,
     renderSpecialExitGroup, renderStubsGroup, renderInnerExitsGroup,
 } from "../scene/OverlayRenderer";
-import type Area from "../reader/Area";
-import type Plane from "../reader/Plane";
 
 const currentRoomColor = 'rgb(120, 72, 0)';
 
 /**
  * Konva rendering backend for MapRenderer. Creates and manages the Konva
- * Stage and layers, owns the interactive rendering pipeline (scene building,
- * overlays, interaction, live effects).
+ * Stage and layers. Passive: exposes layers and drawingBackend, responds to
+ * camera/position changes driven by MapRenderer. All orchestration (scene
+ * building, overlay sync, culling) is handled externally by MapRenderer.
  *
  * Implements RenderingBackend so MapRenderer can forward style/refresh/overlay
  * calls to it without a Konva dependency.
@@ -44,20 +41,31 @@ const currentRoomColor = 'rgb(120, 72, 0)';
  */
 export class KonvaLayerManager implements RenderingBackend {
     readonly stage: Konva.Stage;
-    readonly gridLayer: Konva.Layer;
-    readonly overlayLayer: Konva.Layer;
-    readonly positionLayer: Konva.Layer;
-    readonly topLabelLayer: Konva.Layer;
     readonly events: TypedEventEmitter<RendererEventMap>;
 
-    private readonly sceneLayer: Konva.Layer;
-    readonly sceneNode: RecordingLayerNode;
-    readonly gridLayerNode: RecordingLayerNode;
-    readonly topLabelLayerNode: RecordingLayerNode;
-    readonly overlayLayerNode: KonvaLayerNode;
-    readonly positionLayerNode: KonvaLayerNode;
+    // Raw Konva.Layer references — used for toCanvas/exportCanvas and layer setup
+    private readonly _gridKonvaLayer: Konva.Layer;
+    private readonly _sceneKonvaLayer: Konva.Layer;
+    private readonly _positionKonvaLayer: Konva.Layer;
+    private readonly _overlayKonvaLayer: Konva.Layer;
+    private readonly _topLabelKonvaLayer: Konva.Layer;
 
-    private drawingBackend: DrawingBackend;
+    // CanvasLayerNode / KonvaLayerNode wrappers
+    private readonly _gridLayerNode: CanvasLayerNode;
+    readonly sceneNode: CanvasLayerNode;
+    private readonly _topLabelLayerNode: CanvasLayerNode;
+    private readonly _overlayLayerNode: KonvaLayerNode;
+    private readonly _positionLayerNode: KonvaLayerNode;
+
+    // --- RenderingBackend: LayerNode layer properties ---
+    get gridLayer(): LayerNode { return this._gridLayerNode; }
+    get linkLayer(): LayerNode { return this.sceneNode; }
+    get roomLayer(): LayerNode { return this.sceneNode; }
+    get topLabelLayer(): LayerNode { return this._topLabelLayerNode; }
+    get overlayLayer(): LayerNode { return this._overlayLayerNode; }
+    get positionLayer(): LayerNode { return this._positionLayerNode; }
+
+    drawingBackend: DrawingBackend;
     private _coordinateTransform: CoordFn = IDENTITY_TRANSFORM;
     private coordinateInverse: CoordFn = IDENTITY_TRANSFORM;
 
@@ -65,30 +73,24 @@ export class KonvaLayerManager implements RenderingBackend {
 
     private readonly renderer: MapRenderer;
     private readonly state: MapState;
-    private readonly camera: Camera;
+    readonly camera: Camera;
     private interactionHandler?: InteractionHandler;
     private origCameraSetSize?: (w: number, h: number) => void;
-    private unsubscribeCamera?: () => void;
-    private origCameraOnChange?: (() => void) | undefined;
-    private destroyed = false;
-    private lastBuildResult?: SceneBuildResult;
 
-    private positionMarker?: GroupNode;
-    private highlightShapes: Map<number, GroupNode> = new Map();
-    private pathShapes: GroupNode[] = [];
+    private destroyed = false;
+
     private currentRoomOverlay: GroupNode[] = [];
-    private areaExitHitZones: AreaExitHitZone[] = [];
+    areaExitHitZones: AreaExitHitZone[] = [];
     private liveEffects: Map<string, LiveEffect> = new Map();
     private sceneOverlays: Map<string, SceneOverlay> = new Map();
     private sceneOverlayNodes: Map<string, GroupNode[]> = new Map();
-    private cameraSubscribers: Set<() => void> = new Set();
 
     private readonly container?: HTMLDivElement;
 
-    constructor(container: HTMLDivElement | undefined, renderer: MapRenderer) {
+    constructor(container: HTMLDivElement | undefined, renderer: MapRenderer, camera?: Camera) {
         this.renderer = renderer;
         this.state = renderer.state;
-        this.camera = renderer.camera;
+        this.camera = camera ?? renderer.camera;
         this.container = container;
 
         const settings = this.state.settings;
@@ -105,33 +107,29 @@ export class KonvaLayerManager implements RenderingBackend {
             this.stage = new Konva.Stage({ width: 1, height: 1 });
         }
 
-        this.gridLayer = new Konva.Layer({ listening: false });
-        this.stage.add(this.gridLayer);
+        this._gridKonvaLayer = new Konva.Layer({ listening: false });
+        this.stage.add(this._gridKonvaLayer);
 
-        this.sceneLayer = new Konva.Layer({ listening: false });
-        this.stage.add(this.sceneLayer);
+        this._sceneKonvaLayer = new Konva.Layer({ listening: false });
+        this.stage.add(this._sceneKonvaLayer);
 
-        this.positionLayer = new Konva.Layer({ listening: false });
-        this.stage.add(this.positionLayer);
+        this._positionKonvaLayer = new Konva.Layer({ listening: false });
+        this.stage.add(this._positionKonvaLayer);
 
-        this.overlayLayer = new Konva.Layer({ listening: false });
-        this.stage.add(this.overlayLayer);
+        this._overlayKonvaLayer = new Konva.Layer({ listening: false });
+        this.stage.add(this._overlayKonvaLayer);
 
-        this.topLabelLayer = new Konva.Layer({ listening: false });
-        this.stage.add(this.topLabelLayer);
+        this._topLabelKonvaLayer = new Konva.Layer({ listening: false });
+        this.stage.add(this._topLabelKonvaLayer);
 
-        this.sceneNode = new RecordingLayerNode(this.sceneLayer);
-        this.gridLayerNode = new RecordingLayerNode(this.gridLayer);
-        this.topLabelLayerNode = new RecordingLayerNode(this.topLabelLayer);
-        this.overlayLayerNode = new KonvaLayerNode(this.overlayLayer);
-        this.positionLayerNode = new KonvaLayerNode(this.positionLayer);
+        this._gridLayerNode = new CanvasLayerNode(this._gridKonvaLayer);
+        this.sceneNode = new CanvasLayerNode(this._sceneKonvaLayer);
+        this._topLabelLayerNode = new CanvasLayerNode(this._topLabelKonvaLayer);
+        this._overlayLayerNode = new KonvaLayerNode(this._overlayKonvaLayer);
+        this._positionLayerNode = new KonvaLayerNode(this._positionKonvaLayer);
 
         this.drawingBackend = new CanvasBackend();
         this.events = new TypedEventEmitter<RendererEventMap>(container);
-
-        renderer.culling.setRedrawCallback((roomDirty, linkDirty) => {
-            if (roomDirty || linkDirty) this.sceneNode.batchDraw();
-        });
 
         if (container) {
             // Sync camera to container dimensions immediately
@@ -155,9 +153,6 @@ export class KonvaLayerManager implements RenderingBackend {
 
         this.applyDrawingBackendTransforms(this.drawingBackend);
 
-        this.unsubscribeCamera = this.camera.addChangeListener(() => this.applyViewportToStage());
-
-        this.subscribeToState();
         renderer._attachBackend(this);
     }
 
@@ -173,29 +168,47 @@ export class KonvaLayerManager implements RenderingBackend {
         }
     }
 
-    refresh() {
-        const {currentAreaInstance, currentZIndex, positionRoomId} = this.state;
-        if (!currentAreaInstance || currentZIndex === undefined) return;
-        const plane = currentAreaInstance.getPlane(currentZIndex);
-        if (!plane) {
-            this.clearScene();
-            return;
+    /**
+     * Called by MapRenderer when the camera changes. Updates stage transform
+     * and live effects. Does NOT render the grid or schedule culling — MapRenderer
+     * handles those.
+     */
+    onCameraChanged(scale: number, position: { x: number; y: number }, viewportBounds: ViewportBounds) {
+        this.stage.scale({x: scale, y: scale});
+        this.stage.position(position);
+        this.stage.batchDraw();
+        for (const effect of this.liveEffects.values()) {
+            effect.updateViewport(viewportBounds, scale, this._coordinateTransform);
         }
-        const result = this.buildScene(currentAreaInstance, plane, currentZIndex, this.camera.getViewportBounds());
-        this.onSceneBuilt(result);
-        this.syncHighlights();
-        this.syncPaths();
-        if (positionRoomId !== undefined) this.onPositionChanged(positionRoomId, false, false);
-        for (const [id, overlay] of this.sceneOverlays) this.renderSceneOverlay(id, overlay);
     }
 
-    private clearScene() {
-        this.renderer.culling.clear();
-        this.areaExitHitZones = [];
-        this.lastBuildResult = undefined;
-        this.gridLayer.destroyChildren();
-        this.sceneNode.destroyChildren();
-        this.stage.batchDraw();
+    /**
+     * Called by MapRenderer when the tracked position room changes.
+     * Rebuilds the currentRoomOverlay on positionLayerNode. Does NOT add the
+     * position marker and does NOT call batchDraw on positionLayer —
+     * MapRenderer does both after this returns.
+     */
+    onPositionChanged(roomId: number | undefined, center: boolean, areaChanged: boolean) {
+        this._positionLayerNode.destroyChildren();
+        this.clearCurrentRoomOverlay();
+
+        if (roomId === undefined) {
+            this._overlayLayerNode.batchDraw();
+            return;
+        }
+
+        const room = this.state.mapReader.getRoom(roomId);
+        if (!room) return;
+
+        this.updateCurrentRoomOverlay(room);
+    }
+
+    /**
+     * Animate a pan to the given render-space coordinates via InteractionHandler.
+     * Called by MapRenderer when handling a 'center' state event.
+     */
+    animatePanTo(renderX: number, renderY: number) {
+        this.interactionHandler?.animatePanTo(renderX, renderY);
     }
 
     onSceneOverlayAdded(id: string, overlay: SceneOverlay) {
@@ -212,7 +225,7 @@ export class KonvaLayerManager implements RenderingBackend {
         overlay.detach?.();
         this.sceneOverlays.delete(id);
         this.clearSceneOverlayNodes(id);
-        this.overlayLayer.batchDraw();
+        this._overlayKonvaLayer.batchDraw();
     }
 
     toCanvas(options: {
@@ -234,9 +247,10 @@ export class KonvaLayerManager implements RenderingBackend {
         const savedZoom = this.camera.zoom;
         const savedMinZoom = this.camera.minZoom;
         const savedPos = {...this.camera.position};
-        // Suppress camera notifications during export framing
-        this.unsubscribeCamera?.();
-        this.unsubscribeCamera = undefined;
+
+        // Temporarily suppress camera change notifications during export framing
+        const tempUnsub = this.camera.addChangeListener(() => {});
+        tempUnsub();
 
         const rawBounds = this.state.computeExportBounds(currentAreaInstance, plane, options.roomId, padding);
         const fn = this._coordinateTransform;
@@ -265,7 +279,7 @@ export class KonvaLayerManager implements RenderingBackend {
         this.stage.scale({x: scale, y: scale});
         this.stage.position(exportPosition);
 
-        this.renderer.pipeline.gridRenderer.render(this.gridLayerNode, this.camera.getViewportBounds());
+        this.renderer.pipeline.gridRenderer.render(this._gridLayerNode, this.camera.getViewportBounds());
         this.renderer.culling.updateCulling();
 
         const stageCanvas = this.stage.toCanvas({width, height}) as HTMLCanvasElement;
@@ -282,10 +296,11 @@ export class KonvaLayerManager implements RenderingBackend {
         this.camera.zoom = savedZoom;
         this.camera.minZoom = savedMinZoom;
         this.camera.position = savedPos;
-        this.unsubscribeCamera = this.camera.addChangeListener(() => this.applyViewportToStage());
+
         this.stage.width(savedWidth);
         this.stage.height(savedHeight);
-        this.applyViewportToStage();
+        this.stage.scale({x: this.camera.getScale(), y: this.camera.getScale()});
+        this.stage.position(savedPos);
         this.renderer.culling.updateCulling();
 
         return composite;
@@ -304,9 +319,9 @@ export class KonvaLayerManager implements RenderingBackend {
         return composite;
     }
 
-    getDrawnExits() { return this.lastBuildResult?.drawnExits ?? []; }
-    getDrawnSpecialExits() { return this.lastBuildResult?.drawnSpecialExits ?? []; }
-    getDrawnStubs() { return this.lastBuildResult?.drawnStubs ?? []; }
+    getDrawnExits() { return [] as const; }
+    getDrawnSpecialExits() { return [] as const; }
+    getDrawnStubs() { return [] as const; }
 
     destroy() {
         if (this.destroyed) return;
@@ -324,26 +339,22 @@ export class KonvaLayerManager implements RenderingBackend {
             for (const node of nodes) node.destroy();
         }
         this.sceneOverlayNodes.clear();
-        this.cameraSubscribers.clear();
 
         if (this.origCameraSetSize) this.camera.setSize = this.origCameraSetSize;
-        this.unsubscribeCamera?.();
 
-        this.clearOverlayShapes();
         this.clearCurrentRoomOverlay();
-        if (this.positionMarker) { this.positionMarker.destroy(); this.positionMarker = undefined; }
 
         this.stage.destroy();
         this.events.removeAllListeners();
-        this.renderer._detachBackend();
+        this.renderer._detachBackend(this);
     }
 
     // --- Live effects ---
 
     addLiveEffect(id: string, effect: LiveEffect) {
         this.removeLiveEffect(id);
-        const requestRedraw = () => this.overlayLayer.batchDraw();
-        effect.attach(this.overlayLayer, requestRedraw);
+        const requestRedraw = () => this._overlayKonvaLayer.batchDraw();
+        effect.attach(this._overlayKonvaLayer, requestRedraw);
         this.liveEffects.set(id, effect);
         effect.updateViewport(this.camera.getViewportBounds(), this.camera.getScale(), this._coordinateTransform);
     }
@@ -353,23 +364,7 @@ export class KonvaLayerManager implements RenderingBackend {
         if (existing) { existing.destroy(); this.liveEffects.delete(id); }
     }
 
-    // --- Internal: viewport → stage ---
-
-    private applyViewportToStage() {
-        const scale = this.camera.getScale();
-        this.stage.scale({x: scale, y: scale});
-        this.stage.position(this.camera.position);
-        this.stage.batchDraw();
-        const gridStart = performance.now();
-        this.renderer.pipeline.gridRenderer.render(this.gridLayerNode, this.camera.getViewportBounds());
-        this.renderer.culling.recordGridMs(performance.now() - gridStart);
-        this.renderer.culling.scheduleCulling();
-        const vpBounds = this.camera.getViewportBounds();
-        for (const cb of this.cameraSubscribers) cb();
-        for (const effect of this.liveEffects.values()) {
-            effect.updateViewport(vpBounds, scale, this._coordinateTransform);
-        }
-    }
+    // --- Internal: drawing backend ---
 
     private applyDrawingBackend(backend: DrawingBackend) {
         const forward = backend.getTransform();
@@ -379,7 +374,6 @@ export class KonvaLayerManager implements RenderingBackend {
         this._coordinateTransform = forward;
         this.coordinateInverse = newInverse;
         this.renderer.culling.setCoordinateTransform(forward);
-        this.renderer.pipeline.gridRenderer.setInverseTransform(newInverse);
         this.renderer.pipeline.gridRenderer.setInverseTransform(newInverse);
 
         const scale = this.camera.getScale();
@@ -393,7 +387,8 @@ export class KonvaLayerManager implements RenderingBackend {
 
         this.drawingBackend = backend;
         this.renderer.pipeline.setBackend(backend);
-        this.applyViewportToStage();
+        // MapRenderer.setStyle() will call pipeline.setBackend() + culling.setCoordinateTransform()
+        // again and then _buildScene(), so no need to trigger a redraw here.
     }
 
     private applyDrawingBackendTransforms(backend: DrawingBackend) {
@@ -401,130 +396,24 @@ export class KonvaLayerManager implements RenderingBackend {
         this.coordinateInverse = backend.getInverseTransform();
         this.renderer.culling.setCoordinateTransform(this._coordinateTransform);
         this.renderer.pipeline.gridRenderer.setInverseTransform(this.coordinateInverse);
-        this.renderer.pipeline.gridRenderer.setInverseTransform(this.coordinateInverse);
     }
 
-    private mapPoint(x: number, y: number) { return this._coordinateTransform(x, y); }
-
-    // --- Internal: scene lifecycle ---
-
-    private buildScene(area: Area, plane: Plane, zIndex: number, viewportBounds?: import("../types/Settings").ViewportBounds): SceneBuildResult {
-        this.positionLayer.destroyChildren();
-        this.positionMarker = undefined;
-        this.clearOverlayShapes();
-        this.currentRoomOverlay = [];
-
-        const result = this.renderer.pipeline.buildScene(area, plane, zIndex, {
-            gridLayer: this.gridLayerNode,
-            linkLayer: this.sceneNode,
-            roomLayer: this.sceneNode,
-            topLabelLayer: this.topLabelLayerNode,
-        }, viewportBounds);
-
-        this.lastBuildResult = result;
-        return result;
-    }
-
-    private onSceneBuilt(result: SceneBuildResult) {
-        this.renderer.culling.clear();
-        this.areaExitHitZones = [];
-        this.renderer.culling.computeBucketSize();
-
-        const scale = this.camera.getScale();
-        this.stage.scale({x: scale, y: scale});
-
-        for (const [, entry] of result.roomNodes) {
-            this.renderer.culling.roomNodes.set(entry.room.id, entry);
-            this.renderer.culling.addRoomToSpatialIndex(entry);
-        }
-        for (const entry of result.standaloneExitNodes) {
-            this.renderer.culling.standaloneExitNodes.push(entry);
-            this.renderer.culling.addStandaloneExitToSpatialIndex(entry);
-        }
-        this.renderer.culling.setExitBoundsRoomSize();
-        this.areaExitHitZones = result.areaExitHitZones;
-
-        this.renderer.culling.updateCulling();
-        this.stage.batchDraw();
-    }
-
-    private subscribeToState() {
-        const state = this.state;
-        state.events.on('area', () => this.refresh());
-
-        state.events.on('position', ({roomId, center, areaChanged}) => {
-            this.onPositionChanged(roomId, center, areaChanged);
-        });
-
-        state.events.on('center', ({roomId, instant}) => {
-            const room = state.mapReader.getRoom(roomId);
-            if (room) {
-                const p = this.mapPoint(room.x, room.y);
-                if (instant || this.state.settings.instantMapMove) {
-                    this.camera.panToMapPoint(p.x, p.y);
-                } else {
-                    this.interactionHandler?.animatePanTo(p.x, p.y);
-                }
-            }
-        });
-
-        state.events.on('highlight', ({roomId, color}) => this.syncHighlight(roomId, color));
-        state.events.on('path', () => this.syncPaths());
-        state.events.on('clear', () => this.syncHighlights());
-    }
-
-    // --- Internal: position & current-room overlay ---
-
-    private onPositionChanged(roomId: number | undefined, center: boolean, instant: boolean) {
-        if (roomId === undefined) {
-            if (this.positionMarker) { this.positionMarker.destroy(); this.positionMarker = undefined; }
-            this.positionLayerNode.batchDraw();
-            this.clearCurrentRoomOverlay();
-            this.overlayLayerNode.batchDraw();
-            return;
-        }
-
-        const room = this.state.mapReader.getRoom(roomId);
-        if (!room) return;
-
-        if (center) {
-            const p = this.mapPoint(room.x, room.y);
-            if (instant || this.state.settings.instantMapMove) {
-                this.camera.panToMapPoint(p.x, p.y);
-            } else {
-                this.interactionHandler?.animatePanTo(p.x, p.y);
-            }
-        }
-
-        this.updateCurrentRoomOverlay(room);
-        this.applyPositionMarker(room);
-    }
-
-    private applyPositionMarker(room: MapData.Room) {
-        if (this.positionMarker) this.positionMarker.destroy();
-        const data = computePositionMarker(room, this.state.settings);
-        this.positionMarker = renderPositionMarker(this.drawingBackend, data);
-        this.positionLayerNode.addNode(this.positionMarker);
-    }
+    // --- Internal: current-room overlay ---
 
     private clearCurrentRoomOverlay() {
         this.currentRoomOverlay.forEach(node => node.destroy());
         this.currentRoomOverlay = [];
-        this.positionLayerNode.batchDraw();
     }
 
     private updateCurrentRoomOverlay(room: MapData.Room) {
         this.clearCurrentRoomOverlay();
 
         if (room.area !== this.state.currentArea || room.z !== this.state.currentZIndex) {
-            this.positionLayerNode.batchDraw();
             return;
         }
 
         const settings = this.state.settings;
         if (!settings.highlightCurrentRoom) {
-            if (this.positionMarker) this.positionMarker.moveToTop();
-            this.positionLayerNode.batchDraw();
             return;
         }
 
@@ -561,7 +450,7 @@ export class KonvaLayerManager implements RenderingBackend {
         });
 
         preRoomNodes.forEach(node => {
-            this.positionLayerNode.addNode(node);
+            this._positionLayerNode.addNode(node);
             this.currentRoomOverlay.push(node);
         });
 
@@ -570,7 +459,7 @@ export class KonvaLayerManager implements RenderingBackend {
             const overlayNode = this.renderer.pipeline.roomShapeRenderer.createRoomGroup(roomToRedraw, {
                 strokeOverride: isCurrent ? currentRoomColor : settings.lineColor,
             });
-            this.positionLayerNode.addNode(overlayNode);
+            this._positionLayerNode.addNode(overlayNode);
             this.currentRoomOverlay.push(overlayNode);
         });
 
@@ -578,72 +467,10 @@ export class KonvaLayerManager implements RenderingBackend {
             const {triangles} = computeInnerExits(roomToRedraw, this.state.mapReader, settings);
             if (triangles.length > 0) {
                 const group = renderInnerExitsGroup(this.drawingBackend, triangles);
-                this.positionLayerNode.addNode(group);
+                this._positionLayerNode.addNode(group);
                 this.currentRoomOverlay.push(group);
             }
         });
-
-        if (this.positionMarker) this.positionMarker.moveToTop();
-        this.positionLayerNode.batchDraw();
-    }
-
-    // --- Internal: highlight & path sync ---
-
-    syncHighlight(roomId: number, color: string | undefined) {
-        const existing = this.highlightShapes.get(roomId);
-        if (existing) { existing.destroy(); this.highlightShapes.delete(roomId); }
-        if (color !== undefined) {
-            const room = this.state.mapReader.getRoom(roomId);
-            if (room && room.area === this.state.currentArea && room.z === this.state.currentZIndex) {
-                const data = computeHighlight(room, color, this.state.settings);
-                const shape = renderHighlight(this.drawingBackend, data);
-                this.overlayLayerNode.addNode(shape);
-                this.highlightShapes.set(roomId, shape);
-            }
-        }
-        this.overlayLayerNode.batchDraw();
-    }
-
-    syncHighlights() {
-        for (const shape of this.highlightShapes.values()) shape.destroy();
-        this.highlightShapes.clear();
-        for (const [roomId, entry] of this.state.highlights) {
-            if (entry.area !== this.state.currentArea || entry.z !== this.state.currentZIndex) continue;
-            const room = this.state.mapReader.getRoom(roomId);
-            if (!room) continue;
-            const data = computeHighlight(room, entry.color, this.state.settings);
-            const shape = renderHighlight(this.drawingBackend, data);
-            this.overlayLayerNode.addNode(shape);
-            this.highlightShapes.set(roomId, shape);
-        }
-        this.overlayLayerNode.batchDraw();
-    }
-
-    syncPaths() {
-        this.clearPathShapes();
-        const {currentArea, currentZIndex} = this.state;
-        if (currentArea === undefined || currentZIndex === undefined) return;
-        for (const path of this.state.paths) {
-            const data = computePathOverlay(
-                this.state.mapReader, this.state.settings,
-                path.locations, path.color, currentArea, currentZIndex,
-            );
-            const group = renderPathOverlay(this.drawingBackend, data);
-            this.overlayLayerNode.addNode(group);
-            this.pathShapes.push(group);
-        }
-        this.overlayLayerNode.batchDraw();
-    }
-
-    private clearOverlayShapes() {
-        for (const shape of this.highlightShapes.values()) shape.destroy();
-        this.highlightShapes.clear();
-        this.clearPathShapes();
-    }
-
-    private clearPathShapes() {
-        for (const shape of this.pathShapes) shape.destroy();
-        this.pathShapes = [];
     }
 
     // --- Internal: scene overlays ---
@@ -651,10 +478,7 @@ export class KonvaLayerManager implements RenderingBackend {
     private createOverlayContext(id: string, overlay: SceneOverlay): SceneOverlayContext {
         return {
             state: this.state,
-            onViewportChange: (cb) => {
-                this.cameraSubscribers.add(cb);
-                return () => this.cameraSubscribers.delete(cb);
-            },
+            onViewportChange: (cb) => this.camera.addChangeListener(cb),
             invalidate: () => {
                 if (this.sceneOverlays.get(id) !== overlay) return;
                 this.renderSceneOverlay(id, overlay);
@@ -670,12 +494,12 @@ export class KonvaLayerManager implements RenderingBackend {
             const nodes = Array.isArray(out) ? out : [out];
             const stored: GroupNode[] = [];
             for (const node of nodes) {
-                this.overlayLayerNode.addNode(node);
+                this._overlayLayerNode.addNode(node);
                 stored.push(node);
             }
             this.sceneOverlayNodes.set(id, stored);
         }
-        this.overlayLayer.batchDraw();
+        this._overlayKonvaLayer.batchDraw();
     }
 
     private clearSceneOverlayNodes(id: string) {
@@ -685,4 +509,3 @@ export class KonvaLayerManager implements RenderingBackend {
         this.sceneOverlayNodes.delete(id);
     }
 }
-
