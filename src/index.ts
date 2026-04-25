@@ -18,6 +18,9 @@ export type { MapStateEventMap, HighlightEntry, PathEntry } from './MapState';
 export { KonvaRenderBackend } from './rendering/KonvaRenderBackend';
 export { Camera } from './camera/Camera';
 export type { CameraEventMap } from './camera/Camera';
+export { HitTester } from './hit/HitTester';
+export type { HitResult } from './hit/HitTester';
+export type { CullEntry, CullingCallbacks } from './CullingManager';
 
 // --- Drawing primitives ---
 export type {
@@ -28,7 +31,8 @@ export type {
 export { BaseStyle, compose, identityStyle, IDENTITY_TRANSFORM } from './backend/DrawingBackend';
 
 // --- Target classes (exposed for custom styles / exporters) ---
-export { CanvasBackend } from './backend/CanvasBackend';
+export { CanvasBackend, RecordingLayerNode, DrawCommandLayerNode } from './backend/CanvasBackend';
+export type { DrawEntry } from './backend/CanvasBackend';
 export { SvgBackend, SvgGroupNode, SvgLayerNode } from './backend/SvgBackend';
 
 // --- Style classes (low-level; the Style factories below are preferred) ---
