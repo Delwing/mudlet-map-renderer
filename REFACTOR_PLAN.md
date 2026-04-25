@@ -127,7 +127,11 @@ src/
   Konva stage.
 - `src/overlay/SceneOverlay.ts` → returns `Shape[]`. `LiveEffect.ts` stays
   Konva-bound (documented escape hatch — interactive only).
-- `src/rendering/MapRenderer.ts` → facade; public surface preserved (see below).
+- `src/rendering/MapRenderer.ts` → facade. Public surface preserved (see
+  below) **except live-effect APIs**: `addLiveEffect` / `removeLiveEffect`
+  move off the facade onto the Konva renderer/exporter, since they need a
+  `Konva.Layer` and that layer only exists there. Users keep a reference to
+  the Konva renderer/exporter to interact with effects.
 
 ### New
 
@@ -156,9 +160,11 @@ src/
 ### Kept (facade)
 
 - `MapRenderer` — same constructor + `drawArea`, `setPosition`, `setStyle`,
-  `export`, highlight/path APIs, overlay APIs, `getDrawnExits` /
-  `getDrawnSpecialExits` / `getDrawnStubs`, getters `state`, `camera`,
-  `culling`, `events`.
+  `export`, highlight/path APIs, `addSceneOverlay` / `removeSceneOverlay`,
+  `getDrawnExits` / `getDrawnSpecialExits` / `getDrawnStubs`, getters
+  `state`, `camera`, `culling`, `events`. **Note**: `addLiveEffect` /
+  `removeLiveEffect` are no longer on the facade — see the Konva renderer
+  surface below.
 - Exporters: `SvgExporter`, `PngExporter`, `CanvasExporter`,
   `PngBytesExporter`, `canvasToBytes`.
 - Overlays: `SceneOverlay`, `LiveEffect`, `AmbientLightOverlay`.
@@ -179,6 +185,11 @@ src/
   users / external renderers.
 - `MapRenderer.hitTest(worldX, worldY)` — fulfils "library will provide full
   hit testing".
+- **`KonvaRenderer.addLiveEffect(effect)` / `removeLiveEffect(effect)`** —
+  Konva-only state lives on the Konva renderer/exporter. The facade exposes a
+  `mapRenderer.konva` (or equivalent) handle to retrieve this renderer when
+  the active backend is Konva. Other exporters do not have these methods,
+  reflecting that live effects are inherently interactive-Konva-only.
 
 ## Execution sequence (single big-bang)
 
@@ -222,9 +233,12 @@ step through:
 - **`RecordingLayerNode` single-sceneFunc replay** is what makes culling cheap
   on Konva today; the new Konva renderer must keep this technique or per-frame
   cost regresses.
-- **`LiveEffect`** needs a `Konva.Layer`. Stays as the documented escape hatch
-  — `KonvaRenderer` exposes `getLayer('overlay')` for live effects only;
-  not part of the IR.
+- **`LiveEffect`** needs a `Konva.Layer`, so it's modelled as state owned by
+  `KonvaRenderer` rather than the facade. `addLiveEffect` / `removeLiveEffect`
+  are methods on the Konva renderer; users hold a reference to that renderer
+  to manage effects. SVG / PNG / Canvas exporters expose no such API. This
+  keeps Konva-awareness genuinely localized to the one renderer that owns a
+  Konva stage, instead of leaking through the facade.
 - **`SceneOverlay` consumers** in user code currently get a `DrawingBackend`.
   Breaking change: they get a small `ShapeBuilder` helper. Documented in
   CHANGELOG.
