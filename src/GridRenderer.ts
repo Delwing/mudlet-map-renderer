@@ -25,6 +25,10 @@ export class GridRenderer {
         this.invalidateCache();
     }
 
+    getInverseTransform(): (x: number, y: number) => { x: number; y: number } {
+        return this.inverseTransform;
+    }
+
     invalidateCache() {
         this.cachedBounds = null;
     }

@@ -17,8 +17,9 @@ import {layoutLinkExit} from "./scene/elements/ExitLayout";
 import {specialExitToShape} from "./scene/elements/SpecialExitLayout";
 import {stubToShape} from "./scene/elements/StubLayout";
 import {labelToShape} from "./scene/elements/LabelLayout";
+import {layoutGrid} from "./scene/elements/GridLayout";
 import {renderShapeToBackend} from "./scene/elements/renderShapeToBackend";
-import type {Shape} from "./scene/Shape";
+import type {GroupShape, Shape} from "./scene/Shape";
 import {colorLightness} from "./utils/color";
 
 type Bounds = { x: number; y: number; width: number; height: number };
@@ -90,6 +91,24 @@ export type DrawnStubEntry = {
     readonly strokeWidth: number;
 };
 
+/**
+ * World-space shapes for each logical layer. Same content the backend layer
+ * nodes received, but as plain SceneIR data — consumed by exporters that drive
+ * {@link buildDrawCommands} → engine renderers without going through a
+ * {@link DrawingBackend}.
+ *
+ * Order within each list mirrors the order in which the corresponding layer
+ * node received its `addNode` calls: e.g. `link` is labels → link exits → for
+ * each room (special exits, stubs); `room` is rooms → area name → area-exit
+ * labels.
+ */
+export type SceneShapesByLayer = {
+    grid: Shape[];
+    link: Shape[];
+    room: Shape[];
+    topLabel: Shape[];
+};
+
 export type SceneBuildResult = {
     roomNodes: Map<number, RoomNodeEntry>;
     standaloneExitNodes: StandaloneExitEntry[];
@@ -99,6 +118,12 @@ export type SceneBuildResult = {
     drawnStubs: DrawnStubEntry[];
     /** World-space shapes carrying {@link HitInfo} annotations — fed to {@link HitTester}. */
     hitShapes: Shape[];
+    /**
+     * Engine-agnostic shape lists per logical layer. Exporters drive these
+     * through {@link buildDrawCommands} + a per-engine renderer instead of
+     * mirroring the backend output.
+     */
+    sceneShapes: SceneShapesByLayer;
 };
 
 /** Convert a `rgb(...)`, `rgba(...)`, or `#rrggbb` string to `rgba(r,g,b,alpha)`. */
@@ -182,6 +207,13 @@ export class ScenePipeline {
     private readonly roomLayer: LayerNode;
     private readonly topLabelLayer: LayerNode | undefined;
 
+    // Per-layer shape accumulators reset on each buildScene; mirror the
+    // addNode order so exporters can replay the scene without the backend.
+    private gridShapes: Shape[] = [];
+    private linkShapes: Shape[] = [];
+    private roomShapes: Shape[] = [];
+    private topLabelShapes: Shape[] = [];
+
     constructor(
         mapReader: MapReader,
         settings: Settings,
@@ -213,9 +245,19 @@ export class ScenePipeline {
         this.roomLayer.destroyChildren();
         this.topLabelLayer?.destroyChildren();
 
-        // Grid
+        this.gridShapes = [];
+        this.linkShapes = [];
+        this.roomShapes = [];
+        this.topLabelShapes = [];
+
+        // Grid — populate the backend gridLayer (with caching) and accumulate
+        // shapes for the engine-agnostic export path.
         if (viewportBounds) {
             this.gridRenderer.render(viewportBounds);
+            const gridLines = layoutGrid(viewportBounds, this.settings, {
+                inverseTransform: this.gridRenderer.getInverseTransform(),
+            });
+            this.gridShapes.push(...gridLines);
         }
 
         // Labels
@@ -250,6 +292,12 @@ export class ScenePipeline {
             drawnSpecialExits: roomResult.drawnSpecialExits,
             drawnStubs: roomResult.drawnStubs,
             hitShapes: roomResult.hitShapes,
+            sceneShapes: {
+                grid: this.gridShapes,
+                link: this.linkShapes,
+                room: this.roomShapes,
+                topLabel: this.topLabelShapes,
+            },
         };
     }
 
@@ -272,7 +320,7 @@ export class ScenePipeline {
         // special exits and stubs have been added to the link layer. This keeps
         // the correct z-order (all exits/stubs under all rooms) when the link
         // and room layers are backed by the same recording node.
-        const queuedRoomNodes: Array<[MapData.Room, GroupNode]> = [];
+        const queuedRoomNodes: Array<[MapData.Room, GroupNode, GroupShape]> = [];
 
         rooms.forEach(room => {
             // Room body + inner exits — built as a single SceneIR group, walked
@@ -287,6 +335,7 @@ export class ScenePipeline {
             // group and the drawnSpecialExits hit-testing record below.
             for (const se of computeSpecialExits(room, this.settings)) {
                 const seShape = specialExitToShape(se, room.id, depthOffset);
+                this.linkShapes.push(seShape);
                 this.linkLayer.addNode(renderShapeToBackend(this.backend, seShape));
 
                 const pts = se.line.points;
@@ -333,9 +382,11 @@ export class ScenePipeline {
 
             // Stubs → link layer (so they render under rooms, like exits)
             for (const stub of computeStubs(room, this.settings)) {
+                const stubShape = stubToShape(stub, depthOffset);
+                this.linkShapes.push(stubShape);
                 this.linkLayer.addNode(renderShapeToBackend(
                     this.backend,
-                    stubToShape(stub, depthOffset),
+                    stubShape,
                 ));
                 drawnStubs.push({
                     roomId: stub.roomId,
@@ -347,11 +398,12 @@ export class ScenePipeline {
                 });
             }
 
-            queuedRoomNodes.push([room, roomNode]);
+            queuedRoomNodes.push([room, roomNode, roomShape]);
             roomNodes.set(room.id, {room, group: roomNode});
         });
 
-        for (const [, roomNode] of queuedRoomNodes) {
+        for (const [, roomNode, roomShape] of queuedRoomNodes) {
+            this.roomShapes.push(roomShape);
             this.roomLayer.addNode(roomNode);
         }
 
@@ -368,7 +420,9 @@ export class ScenePipeline {
         exits.forEach(exit => {
             const data = this.exitRenderer.renderData(exit, zIndex);
             if (!data) return;
-            const group = this.renderExitData(data);
+            const exitShape = layoutLinkExit(data, this.backend.getExitDepthOffset());
+            this.linkShapes.push(exitShape);
+            const group = renderShapeToBackend(this.backend, exitShape);
             this.linkLayer.addNode(group);
             standaloneExitNodes.push({group, bounds: data.bounds, targetRoomId: data.targetRoomId});
             drawnExits.push({
@@ -404,15 +458,18 @@ export class ScenePipeline {
 
     // --- Labels ---
 
-    private targetLabelLayer(label: MapData.Label): LayerNode {
-        return (label.showOnTop && this.topLabelLayer) ? this.topLabelLayer : this.linkLayer;
-    }
-
     private renderLabels(labels: MapData.Label[]) {
         for (const label of labels) {
             const shape = labelToShape(label, this.settings);
             if (!shape) continue;
-            this.targetLabelLayer(label).addNode(renderShapeToBackend(this.backend, shape));
+            const target = (label.showOnTop && this.topLabelLayer) ? "top" : "link";
+            if (target === "top") {
+                this.topLabelShapes.push(shape);
+                this.topLabelLayer!.addNode(renderShapeToBackend(this.backend, shape));
+            } else {
+                this.linkShapes.push(shape);
+                this.linkLayer.addNode(renderShapeToBackend(this.backend, shape));
+            }
         }
     }
 
@@ -697,6 +754,7 @@ export class ScenePipeline {
                         },
                     ],
                 };
+                this.roomShapes.push(labelShape);
                 this.roomLayer.addNode(renderShapeToBackend(this.backend, labelShape));
 
                 // Label is clickable — navigate to the target area (any room from the
@@ -718,7 +776,7 @@ export class ScenePipeline {
         const name = area.getAreaName();
         if (!name) return;
         const bounds = this.getEffectiveBounds(area, plane);
-        this.roomLayer.addNode(renderShapeToBackend(this.backend, {
+        const areaNameShape: GroupShape = {
             type: "group",
             x: 0,
             y: 0,
@@ -732,6 +790,8 @@ export class ScenePipeline {
                 fontFamily: this.settings.fontFamily,
                 fill: this.settings.lineColor,
             }],
-        }));
+        };
+        this.roomShapes.push(areaNameShape);
+        this.roomLayer.addNode(renderShapeToBackend(this.backend, areaNameShape));
     }
 }
