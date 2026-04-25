@@ -1,10 +1,50 @@
-import type {Settings, CullingMode, PerfSnapshot} from "./types/Settings";
-import type {GroupNode, LayerNode} from "./backend/DrawingBackend";
+/**
+ * CullingManager — spatial index + viewport culling over engine-agnostic
+ * {@link CullEntry} objects.
+ *
+ * The manager knows nothing about Konva, SVG, or any rendering engine.
+ * Callers receive visibility changes through {@link CullingCallbacks} and are
+ * responsible for applying them to their own node graph.
+ *
+ * Coordinate contract:
+ *   - Entries carry world-space bounding boxes.
+ *   - An optional {@link CoordinateTransform} projects world → rendered space
+ *     (identity for flat styles; iso-projection for IsometricStyle).
+ *   - The camera viewport (from {@link Camera.getViewportBounds}) is in rendered
+ *     space, so the transform must be set before the first culling pass when an
+ *     iso-style is active.
+ */
 
-export type CoordinateTransform = (x: number, y: number) => { x: number; y: number };
-export type RoomNodeEntry = { room: MapData.Room; group: GroupNode };
-type Bounds = { x: number; y: number; width: number; height: number };
-export type StandaloneExitEntry = { group: GroupNode; bounds: Bounds; targetRoomId?: number };
+import type {Settings, CullingMode, PerfSnapshot} from "./types/Settings";
+import type {Camera} from "./camera/Camera";
+import type {Bbox} from "./scene/Shape";
+
+export type CoordinateTransform = (x: number, y: number) => {x: number; y: number};
+
+/** An entry tracked by the CullingManager. */
+export interface CullEntry {
+    /** Axis-aligned bounding box in world (flat-map) space. */
+    worldBbox: Bbox;
+}
+
+/**
+ * Callbacks invoked by the CullingManager as visibility changes during
+ * {@link CullingManager.updateCulling}.
+ */
+export interface CullingCallbacks {
+    /** Called whenever a room entry changes visibility. */
+    setRoomVisible(entry: CullEntry, visible: boolean): void;
+    /** Called whenever an exit entry changes visibility. */
+    setExitVisible(entry: CullEntry, visible: boolean): void;
+    /**
+     * Called once at the end of each culling pass.
+     * `roomsChanged` / `exitsChanged` indicate whether any visibility changed
+     * for the respective layer — use them to decide whether to redraw.
+     */
+    afterCulling(roomsChanged: boolean, exitsChanged: boolean): void;
+}
+
+// ── PerfMonitor ───────────────────────────────────────────────────────────────
 
 class PerfMonitor {
     private samples: PerfSnapshot[] = [];
@@ -25,9 +65,7 @@ class PerfMonitor {
     record(snapshot: PerfSnapshot) {
         if (!this.callback) return;
         this.samples.push(snapshot);
-        if (this.samples.length >= this.windowSize) {
-            this.flush();
-        }
+        if (this.samples.length >= this.windowSize) this.flush();
     }
 
     computeFps(): number {
@@ -40,7 +78,7 @@ class PerfMonitor {
     private flush() {
         const n = this.samples.length;
         if (n === 0) return;
-        const avg: PerfSnapshot = { cullingMs: 0, gridMs: 0, visibleRooms: 0, totalRooms: 0, visibleExits: 0, fps: 0 };
+        const avg: PerfSnapshot = {cullingMs: 0, gridMs: 0, visibleRooms: 0, totalRooms: 0, visibleExits: 0, fps: 0};
         for (const s of this.samples) {
             avg.cullingMs += s.cullingMs;
             avg.gridMs += s.gridMs;
@@ -60,55 +98,45 @@ class PerfMonitor {
     }
 }
 
-export type StageInfo = {
-    scaleX(): number;
-    position(): { x: number; y: number };
-    width(): number;
-    height(): number;
-};
+// ── CullingManager ────────────────────────────────────────────────────────────
 
 /**
  * Manages spatial indexing and viewport culling for rooms and exits.
- * Toggles node visibility based on what's in the viewport.
- * No direct Konva dependency.
+ *
+ * Replaces the former Konva-aware version: there is no `StageInfo`, no
+ * `GroupNode.setVisible` call, and no `LayerNode.batchDraw` call.  Instead the
+ * caller provides {@link CullingCallbacks} to handle those effects.
  */
 export class CullingManager {
 
-    private readonly stageInfo: StageInfo;
-    private readonly roomLayer: LayerNode;
-    private readonly linkLayer: LayerNode;
+    private readonly camera: Camera;
     private readonly settings: Settings;
+    private readonly callbacks: CullingCallbacks;
 
-    // Node collections (owned by Renderer, shared by reference)
-    roomNodes: Map<number, RoomNodeEntry> = new Map();
-    standaloneExitNodes: StandaloneExitEntry[] = [];
+    // Room entries
+    private roomEntries: CullEntry[] = [];
+    private roomSpatialIndex = new Map<number, Set<CullEntry>>();
+    private visibleRooms: Set<CullEntry> = new Set();
+    private bufferRoomSet: Set<CullEntry> = new Set();
+    private bufferRoomCandidates: Set<CullEntry> = new Set();
 
-    // Spatial index
+    // Exit entries
+    private exitEntries: CullEntry[] = [];
+    private exitSpatialIndex = new Map<number, Set<CullEntry>>();
+    private visibleExits: Set<CullEntry> = new Set();
+    private bufferExitSet: Set<CullEntry> = new Set();
+    private bufferExitCandidates: Set<CullEntry> = new Set();
+
     spatialBucketSize = 5;
-    private roomSpatialIndex: Map<number, Set<RoomNodeEntry>> = new Map();
-    private exitSpatialIndex: Map<number, Set<StandaloneExitEntry>> = new Map();
-    private visibleRooms: Set<RoomNodeEntry> = new Set();
-    private visibleStandaloneExitNodes: Set<StandaloneExitEntry> = new Set();
-    private bufferRoomSet: Set<RoomNodeEntry> = new Set();
-    private bufferExitSet: Set<StandaloneExitEntry> = new Set();
-    private bufferRoomCandidates: Set<RoomNodeEntry> = new Set();
-    private bufferExitCandidates: Set<StandaloneExitEntry> = new Set();
-    private standaloneExitBoundsRoomSize?: number;
+    private coordinateTransform: CoordinateTransform = (x, y) => ({x, y});
     private cullingScheduled = false;
     private perfMonitor = new PerfMonitor();
-    private coordinateTransform: CoordinateTransform = (x, y) => ({x, y});
     private lastGridMs = 0;
 
-    constructor(
-        stageInfo: StageInfo,
-        roomLayer: LayerNode,
-        linkLayer: LayerNode,
-        settings: Settings,
-    ) {
-        this.stageInfo = stageInfo;
-        this.roomLayer = roomLayer;
-        this.linkLayer = linkLayer;
+    constructor(camera: Camera, settings: Settings, callbacks: CullingCallbacks) {
+        this.camera = camera;
         this.settings = settings;
+        this.callbacks = callbacks;
     }
 
     setCoordinateTransform(fn: CoordinateTransform) {
@@ -119,137 +147,32 @@ export class CullingManager {
         this.lastGridMs = ms;
     }
 
-    private transformPoint(x: number, y: number): { x: number; y: number } {
-        return this.coordinateTransform(x, y);
-    }
-
-    private transformBounds(b: Bounds): Bounds {
-        const fn = this.coordinateTransform;
-        const c1 = fn(b.x, b.y);
-        const c2 = fn(b.x + b.width, b.y);
-        const c3 = fn(b.x + b.width, b.y + b.height);
-        const c4 = fn(b.x, b.y + b.height);
-        const minX = Math.min(c1.x, c2.x, c3.x, c4.x);
-        const maxX = Math.max(c1.x, c2.x, c3.x, c4.x);
-        const minY = Math.min(c1.y, c2.y, c3.y, c4.y);
-        const maxY = Math.max(c1.y, c2.y, c3.y, c4.y);
-        return {x: minX, y: minY, width: maxX - minX, height: maxY - minY};
-    }
-
     computeBucketSize() {
         this.spatialBucketSize = Math.max(this.settings.roomSize * 10, 5);
     }
 
     clear() {
-        this.roomNodes.clear();
-        this.standaloneExitNodes = [];
-        this.standaloneExitBoundsRoomSize = undefined;
+        this.roomEntries = [];
+        this.exitEntries = [];
         this.roomSpatialIndex.clear();
         this.exitSpatialIndex.clear();
         this.visibleRooms.clear();
-        this.visibleStandaloneExitNodes.clear();
+        this.visibleExits.clear();
     }
 
-    private getBucketKey(bucketX: number, bucketY: number) {
-        return bucketX * 1000003 + bucketY;
+    // ── Entry registration ────────────────────────────────────────────────────
+
+    addRoomEntry(entry: CullEntry) {
+        this.roomEntries.push(entry);
+        this.indexEntry(entry, this.roomSpatialIndex);
     }
 
-    private forEachBucket(minX: number, minY: number, maxX: number, maxY: number, callback: (key: number) => void) {
-        const bucketSize = this.spatialBucketSize;
-        const safeMinX = Math.min(minX, maxX);
-        const safeMaxX = Math.max(minX, maxX);
-        const safeMinY = Math.min(minY, maxY);
-        const safeMaxY = Math.max(minY, maxY);
-        const minBucketX = Math.floor(safeMinX / bucketSize);
-        const maxBucketX = Math.floor(safeMaxX / bucketSize);
-        const minBucketY = Math.floor(safeMinY / bucketSize);
-        const maxBucketY = Math.floor(safeMaxY / bucketSize);
-
-        for (let bucketX = minBucketX; bucketX <= maxBucketX; bucketX++) {
-            for (let bucketY = minBucketY; bucketY <= maxBucketY; bucketY++) {
-                callback(this.getBucketKey(bucketX, bucketY));
-            }
-        }
+    addExitEntry(entry: CullEntry) {
+        this.exitEntries.push(entry);
+        this.indexEntry(entry, this.exitSpatialIndex);
     }
 
-    addRoomToSpatialIndex(entry: RoomNodeEntry) {
-        const halfSize = this.settings.roomSize / 2;
-        const tb = this.transformBounds({
-            x: entry.room.x - halfSize, y: entry.room.y - halfSize,
-            width: this.settings.roomSize, height: this.settings.roomSize,
-        });
-        this.forEachBucket(tb.x, tb.y, tb.x + tb.width, tb.y + tb.height, key => {
-            let bucket = this.roomSpatialIndex.get(key);
-            if (!bucket) { bucket = new Set(); this.roomSpatialIndex.set(key, bucket); }
-            bucket.add(entry);
-        });
-    }
-
-    addStandaloneExitToSpatialIndex(entry: StandaloneExitEntry) {
-        const tb = this.transformBounds(entry.bounds);
-        this.forEachBucket(tb.x, tb.y, tb.x + tb.width, tb.y + tb.height, key => {
-            let bucket = this.exitSpatialIndex.get(key);
-            if (!bucket) { bucket = new Set(); this.exitSpatialIndex.set(key, bucket); }
-            bucket.add(entry);
-        });
-    }
-
-
-    findRoomAtMapPoint(mapX: number, mapY: number): MapData.Room | null {
-        // Use a generous margin to cover iso diamonds (2x wider than Cartesian squares)
-        const margin = this.settings.roomSize;
-        const key = this.getBucketKey(
-            Math.floor(mapX / this.spatialBucketSize),
-            Math.floor(mapY / this.spatialBucketSize),
-        );
-        const bucket = this.roomSpatialIndex.get(key);
-        if (!bucket) return null;
-        let best: MapData.Room | null = null;
-        let bestDist = Infinity;
-        for (const entry of bucket) {
-            const t = this.transformPoint(entry.room.x, entry.room.y);
-            const dx = mapX - t.x;
-            const dy = mapY - t.y;
-            if (dx >= -margin && dx <= margin && dy >= -margin && dy <= margin) {
-                const dist = dx * dx + dy * dy;
-                if (dist < bestDist) { bestDist = dist; best = entry.room; }
-            }
-        }
-        return best;
-    }
-
-    markExitBoundsStale() {
-        this.standaloneExitBoundsRoomSize = undefined;
-    }
-
-    setExitBoundsRoomSize() {
-        this.standaloneExitBoundsRoomSize = this.settings.roomSize;
-    }
-
-    private collectRoomCandidates(minX: number, minY: number, maxX: number, maxY: number) {
-        const result = this.bufferRoomCandidates;
-        result.clear();
-        this.forEachBucket(minX, minY, maxX, maxY, key => {
-            this.roomSpatialIndex.get(key)?.forEach(entry => result.add(entry));
-        });
-        return result;
-    }
-
-    private collectStandaloneExitCandidates(minX: number, minY: number, maxX: number, maxY: number) {
-        const result = this.bufferExitCandidates;
-        result.clear();
-        this.forEachBucket(minX, minY, maxX, maxY, key => {
-            this.exitSpatialIndex.get(key)?.forEach(entry => result.add(entry));
-        });
-        return result;
-    }
-
-    private refreshStandaloneExitBoundsIfNeeded() {
-        if (this.standaloneExitBoundsRoomSize === this.settings.roomSize) return;
-        this.exitSpatialIndex.clear();
-        this.standaloneExitNodes.forEach(entry => this.addStandaloneExitToSpatialIndex(entry));
-        this.standaloneExitBoundsRoomSize = this.settings.roomSize;
-    }
+    // ── Culling ───────────────────────────────────────────────────────────────
 
     scheduleCulling() {
         if (this.cullingScheduled) return;
@@ -266,110 +189,113 @@ export class CullingManager {
     }
 
     updateCulling() {
-        if (this.roomNodes.size === 0 && this.standaloneExitNodes.length === 0) return;
-
-        const scale = this.stageInfo.scaleX();
-        if (!scale) return;
+        if (this.roomEntries.length === 0 && this.exitEntries.length === 0) return;
 
         this.perfMonitor.setCallback(this.settings.perfCallback);
         const perfStart = this.settings.perfCallback ? performance.now() : 0;
 
-        const stagePosition = this.stageInfo.position();
-        const halfSize = this.settings.roomSize / 2;
-        const bounds = this.settings.cullingBounds;
-        const viewportMinX = bounds ? bounds.x : 0;
-        const viewportMaxX = bounds ? bounds.x + bounds.width : this.stageInfo.width();
-        const viewportMinY = bounds ? bounds.y : 0;
-        const viewportMaxY = bounds ? bounds.y + bounds.height : this.stageInfo.height();
-        const minX = (Math.min(viewportMinX, viewportMaxX) - stagePosition.x) / scale;
-        const maxX = (Math.max(viewportMinX, viewportMaxX) - stagePosition.x) / scale;
-        const minY = (Math.min(viewportMinY, viewportMaxY) - stagePosition.y) / scale;
-        const maxY = (Math.max(viewportMinY, viewportMaxY) - stagePosition.y) / scale;
-
-        let roomLayerNeedsDraw = false;
-        let linkLayerNeedsDraw = false;
-
-        const mode: CullingMode = this.settings.cullingEnabled ? this.settings.cullingMode ?? "indexed" : "none";
-        const searchMinX = minX - halfSize;
-        const searchMaxX = maxX + halfSize;
-        const searchMinY = minY - halfSize;
-        const searchMaxY = maxY + halfSize;
-
-        this.refreshStandaloneExitBoundsIfNeeded();
-
-        if (mode === "none") {
-            this.roomNodes.forEach(entry => {
-                if (!entry.group.isVisible()) { entry.group.setVisible(true); roomLayerNeedsDraw = true; }
-            });
-            this.standaloneExitNodes.forEach(entry => {
-                if (!entry.group.isVisible()) { entry.group.setVisible(true); linkLayerNeedsDraw = true; }
-            });
-            if (roomLayerNeedsDraw) this.roomLayer.batchDraw();
-            if (linkLayerNeedsDraw) this.linkLayer.batchDraw();
-            this.visibleRooms.clear();
-            this.roomNodes.forEach(entry => this.visibleRooms.add(entry));
-            this.visibleStandaloneExitNodes.clear();
-            this.standaloneExitNodes.forEach(entry => this.visibleStandaloneExitNodes.add(entry));
-            return;
+        // Viewport bounds in rendered space (camera map space).
+        // cullingBounds overrides to a sub-rectangle in screen-pixel space.
+        let minX: number, maxX: number, minY: number, maxY: number;
+        if (this.settings.cullingBounds) {
+            const scale = this.camera.getScale();
+            if (!scale) return;
+            const pos = this.camera.position;
+            const b = this.settings.cullingBounds;
+            minX = (b.x - pos.x) / scale;
+            maxX = (b.x + b.width - pos.x) / scale;
+            minY = (b.y - pos.y) / scale;
+            maxY = (b.y + b.height - pos.y) / scale;
+        } else {
+            if (!this.camera.getScale()) return;
+            const vp = this.camera.getViewportBounds();
+            minX = vp.minX;
+            maxX = vp.maxX;
+            minY = vp.minY;
+            maxY = vp.maxY;
         }
 
-        if (mode === "basic") {
+        const mode: CullingMode = this.settings.cullingEnabled
+            ? (this.settings.cullingMode ?? "indexed")
+            : "none";
+        const halfSize = this.settings.roomSize / 2;
+
+        let roomsChanged = false;
+        let exitsChanged = false;
+
+        if (mode === "none") {
+            this.roomEntries.forEach(entry => {
+                if (!this.visibleRooms.has(entry)) {
+                    this.visibleRooms.add(entry);
+                    this.callbacks.setRoomVisible(entry, true);
+                    roomsChanged = true;
+                }
+            });
+            this.exitEntries.forEach(entry => {
+                if (!this.visibleExits.has(entry)) {
+                    this.visibleExits.add(entry);
+                    this.callbacks.setExitVisible(entry, true);
+                    exitsChanged = true;
+                }
+            });
+
+        } else if (mode === "basic") {
             const nextVisibleRooms = this.bufferRoomSet;
             nextVisibleRooms.clear();
-            const roomSize = this.settings.roomSize;
-            this.roomNodes.forEach(entry => {
-                const tb = this.transformBounds({
-                    x: entry.room.x - halfSize, y: entry.room.y - halfSize,
-                    width: roomSize, height: roomSize,
-                });
-                const isVisible = tb.x + tb.width >= minX && tb.x <= maxX &&
-                    tb.y + tb.height >= minY && tb.y <= maxY;
-                if (entry.group.isVisible() !== isVisible) { entry.group.setVisible(isVisible); roomLayerNeedsDraw = true; }
+            this.roomEntries.forEach(entry => {
+                const tb = this.transformedBbox(entry.worldBbox);
+                const isVisible = tb.maxX >= minX && tb.minX <= maxX && tb.maxY >= minY && tb.minY <= maxY;
+                const wasVisible = this.visibleRooms.has(entry);
+                if (isVisible !== wasVisible) {
+                    this.callbacks.setRoomVisible(entry, isVisible);
+                    roomsChanged = true;
+                }
+                if (isVisible) nextVisibleRooms.add(entry);
+            });
+            this.bufferRoomSet = this.visibleRooms;
+            this.visibleRooms = nextVisibleRooms;
+
+            exitsChanged = this.cullExits(minX, maxX, minY, maxY, false);
+
+        } else {
+            // "indexed" mode
+            const searchMinX = minX - halfSize;
+            const searchMaxX = maxX + halfSize;
+            const searchMinY = minY - halfSize;
+            const searchMaxY = maxY + halfSize;
+
+            const roomCandidates = this.collectCandidates(
+                searchMinX, searchMinY, searchMaxX, searchMaxY, this.roomSpatialIndex, this.bufferRoomCandidates,
+            );
+            const nextVisibleRooms = this.bufferRoomSet;
+            nextVisibleRooms.clear();
+
+            roomCandidates.forEach(entry => {
+                const tb = this.transformedBbox(entry.worldBbox);
+                const isVisible = tb.maxX >= minX && tb.minX <= maxX && tb.maxY >= minY && tb.minY <= maxY;
+                const wasVisible = this.visibleRooms.has(entry);
+                if (isVisible !== wasVisible) {
+                    this.callbacks.setRoomVisible(entry, isVisible);
+                    roomsChanged = true;
+                }
                 if (isVisible) nextVisibleRooms.add(entry);
             });
 
-            const result = this.cullExits(minX, maxX, minY, maxY);
-            linkLayerNeedsDraw = result.changed;
+            // Hide rooms that were visible but are no longer candidates
+            this.visibleRooms.forEach(entry => {
+                if (!roomCandidates.has(entry)) {
+                    this.callbacks.setRoomVisible(entry, false);
+                    roomsChanged = true;
+                }
+            });
 
             this.bufferRoomSet = this.visibleRooms;
             this.visibleRooms = nextVisibleRooms;
-            if (roomLayerNeedsDraw) this.roomLayer.batchDraw();
-            if (linkLayerNeedsDraw) this.linkLayer.batchDraw();
-            return;
+
+            exitsChanged = this.cullExits(minX, maxX, minY, maxY, true);
         }
 
-        // "indexed" mode
-        const roomCandidates = this.collectRoomCandidates(searchMinX, searchMinY, searchMaxX, searchMaxY);
-        const nextVisibleRooms = this.bufferRoomSet;
-        nextVisibleRooms.clear();
-
-        const roomSize = this.settings.roomSize;
-        roomCandidates.forEach(entry => {
-            const tb = this.transformBounds({
-                x: entry.room.x - halfSize, y: entry.room.y - halfSize,
-                width: roomSize, height: roomSize,
-            });
-            const isVisible = tb.x + tb.width >= minX && tb.x <= maxX &&
-                tb.y + tb.height >= minY && tb.y <= maxY;
-            if (entry.group.isVisible() !== isVisible) { entry.group.setVisible(isVisible); roomLayerNeedsDraw = true; }
-            if (isVisible) nextVisibleRooms.add(entry);
-        });
-
-        this.visibleRooms.forEach(entry => {
-            if (!roomCandidates.has(entry) && entry.group.isVisible()) {
-                entry.group.setVisible(false);
-                roomLayerNeedsDraw = true;
-            }
-        });
-
-        this.bufferRoomSet = this.visibleRooms;
-        this.visibleRooms = nextVisibleRooms;
-
-        const exitResult = this.cullExits(minX, maxX, minY, maxY, true);
-        linkLayerNeedsDraw = exitResult.changed;
-
-        if (roomLayerNeedsDraw) this.roomLayer.batchDraw();
-        if (linkLayerNeedsDraw) this.linkLayer.batchDraw();
+        this.callbacks.afterCulling(roomsChanged, exitsChanged);
 
         if (this.settings.perfCallback) {
             const cullingMs = performance.now() - perfStart;
@@ -378,44 +304,110 @@ export class CullingManager {
             this.perfMonitor.record({
                 cullingMs, gridMs,
                 visibleRooms: this.visibleRooms.size,
-                totalRooms: this.roomNodes.size,
-                visibleExits: this.visibleStandaloneExitNodes.size,
+                totalRooms: this.roomEntries.length,
+                visibleExits: this.visibleExits.size,
                 fps: this.perfMonitor.computeFps(),
             });
         }
     }
 
-    private cullExits(minX: number, maxX: number, minY: number, maxY: number, useIndex = false): { changed: boolean } {
+    // ── Private helpers ───────────────────────────────────────────────────────
+
+    private cullExits(minX: number, maxX: number, minY: number, maxY: number, useIndex: boolean): boolean {
         const candidates = useIndex
-            ? this.collectStandaloneExitCandidates(minX - this.settings.roomSize, minY - this.settings.roomSize, maxX + this.settings.roomSize, maxY + this.settings.roomSize)
-            : this.standaloneExitNodes;
+            ? this.collectCandidates(
+                minX - this.settings.roomSize, minY - this.settings.roomSize,
+                maxX + this.settings.roomSize, maxY + this.settings.roomSize,
+                this.exitSpatialIndex, this.bufferExitCandidates,
+            )
+            : this.exitEntries;
 
         const nextVisible = this.bufferExitSet;
         nextVisible.clear();
         let changed = false;
 
-        const check = (entry: StandaloneExitEntry) => {
-            const b = this.transformBounds(entry.bounds);
-            const isVisible = b.x + b.width >= minX && b.x <= maxX && b.y + b.height >= minY && b.y <= maxY;
-            if (entry.group.isVisible() !== isVisible) { entry.group.setVisible(isVisible); changed = true; }
+        const check = (entry: CullEntry) => {
+            const b = this.transformedBbox(entry.worldBbox);
+            const isVisible = b.maxX >= minX && b.minX <= maxX && b.maxY >= minY && b.minY <= maxY;
+            const wasVisible = this.visibleExits.has(entry);
+            if (isVisible !== wasVisible) {
+                this.callbacks.setExitVisible(entry, isVisible);
+                changed = true;
+            }
             if (isVisible) nextVisible.add(entry);
         };
 
-        (candidates as Iterable<StandaloneExitEntry>)[Symbol.iterator]
-            ? (candidates as Set<StandaloneExitEntry>).forEach(check)
-            : (candidates as StandaloneExitEntry[]).forEach(check);
+        if (Array.isArray(candidates)) {
+            candidates.forEach(check);
+        } else {
+            (candidates as Set<CullEntry>).forEach(check);
+        }
 
-        // Hide exits that were visible but aren't candidates anymore (indexed mode)
-        this.visibleStandaloneExitNodes.forEach(entry => {
-            if (!nextVisible.has(entry) && entry.group.isVisible()) {
-                entry.group.setVisible(false);
+        // Hide exits that were visible but are no longer candidates (indexed mode)
+        this.visibleExits.forEach(entry => {
+            if (!nextVisible.has(entry)) {
+                this.callbacks.setExitVisible(entry, false);
                 changed = true;
             }
         });
 
-        this.bufferExitSet = this.visibleStandaloneExitNodes;
-        this.visibleStandaloneExitNodes = nextVisible;
+        this.bufferExitSet = this.visibleExits;
+        this.visibleExits = nextVisible;
 
-        return {changed};
+        return changed;
+    }
+
+    private transformedBbox(bbox: Bbox): Bbox {
+        const fn = this.coordinateTransform;
+        const c1 = fn(bbox.minX, bbox.minY);
+        const c2 = fn(bbox.maxX, bbox.minY);
+        const c3 = fn(bbox.maxX, bbox.maxY);
+        const c4 = fn(bbox.minX, bbox.maxY);
+        return {
+            minX: Math.min(c1.x, c2.x, c3.x, c4.x),
+            minY: Math.min(c1.y, c2.y, c3.y, c4.y),
+            maxX: Math.max(c1.x, c2.x, c3.x, c4.x),
+            maxY: Math.max(c1.y, c2.y, c3.y, c4.y),
+        };
+    }
+
+    private indexEntry(entry: CullEntry, index: Map<number, Set<CullEntry>>) {
+        const tb = this.transformedBbox(entry.worldBbox);
+        const size = this.spatialBucketSize;
+        const bMinX = Math.floor(tb.minX / size);
+        const bMaxX = Math.floor(tb.maxX / size);
+        const bMinY = Math.floor(tb.minY / size);
+        const bMaxY = Math.floor(tb.maxY / size);
+        for (let bx = bMinX; bx <= bMaxX; bx++) {
+            for (let by = bMinY; by <= bMaxY; by++) {
+                const key = this.getBucketKey(bx, by);
+                let bucket = index.get(key);
+                if (!bucket) { bucket = new Set(); index.set(key, bucket); }
+                bucket.add(entry);
+            }
+        }
+    }
+
+    private collectCandidates(
+        minX: number, minY: number, maxX: number, maxY: number,
+        index: Map<number, Set<CullEntry>>,
+        result: Set<CullEntry>,
+    ): Set<CullEntry> {
+        result.clear();
+        const size = this.spatialBucketSize;
+        const bMinX = Math.floor(minX / size);
+        const bMaxX = Math.floor(maxX / size);
+        const bMinY = Math.floor(minY / size);
+        const bMaxY = Math.floor(maxY / size);
+        for (let bx = bMinX; bx <= bMaxX; bx++) {
+            for (let by = bMinY; by <= bMaxY; by++) {
+                index.get(this.getBucketKey(bx, by))?.forEach(e => result.add(e));
+            }
+        }
+        return result;
+    }
+
+    private getBucketKey(bx: number, by: number): number {
+        return bx * 1000003 + by;
     }
 }

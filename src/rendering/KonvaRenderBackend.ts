@@ -7,6 +7,7 @@ import type {SceneBuildResult, AreaExitHitZone, DrawnExitEntry, DrawnSpecialExit
 import type {MapState} from "../MapState";
 import {Camera} from "../camera/Camera";
 import {CullingManager} from "../CullingManager";
+import type {CullEntry} from "../CullingManager";
 import {InteractionHandler} from "../InteractionHandler";
 import {TypedEventEmitter} from "../TypedEventEmitter";
 import {KonvaLayerNode} from "../backend/KonvaBackend";
@@ -67,6 +68,12 @@ export class KonvaRenderBackend implements InteractiveBackend {
 
     readonly hitTester: HitTester = new HitTester();
     private lastHitShapes: Shape[] = [];
+
+    // Maps from CullEntry (owned by CullingManager) → Konva GroupNode,
+    // so culling callbacks can call group.setVisible without CullingManager
+    // knowing about Konva.
+    private roomCullEntries: Map<CullEntry, GroupNode> = new Map();
+    private exitCullEntries: Map<CullEntry, GroupNode> = new Map();
 
     private positionMarker?: GroupNode;
     private highlightShapes: Map<number, GroupNode> = new Map();
@@ -136,12 +143,18 @@ export class KonvaRenderBackend implements InteractiveBackend {
 
         this.events = new TypedEventEmitter<RendererEventMap>(container);
 
-        this.culling = new CullingManager(
-            this.stage,
-            sceneNode,
-            sceneNode,
-            state.settings,
-        );
+        // linkLayer and roomLayer are the same sceneNode; one batchDraw covers both.
+        this.culling = new CullingManager(this.camera, state.settings, {
+            setRoomVisible: (entry, visible) => {
+                this.roomCullEntries.get(entry)?.setVisible(visible);
+            },
+            setExitVisible: (entry, visible) => {
+                this.exitCullEntries.get(entry)?.setVisible(visible);
+            },
+            afterCulling: (roomsChanged, exitsChanged) => {
+                if (roomsChanged || exitsChanged) sceneNode.batchDraw();
+            },
+        });
 
         // Camera drives the stage
         this.cameraChangeHandler = () => this.applyViewportToStage();
@@ -438,9 +451,10 @@ export class KonvaRenderBackend implements InteractiveBackend {
         const plane = currentAreaInstance.getPlane(currentZIndex);
         if (!plane) {
             this.culling.clear();
+            this.roomCullEntries.clear();
+            this.exitCullEntries.clear();
             this.hitTester.clear();
             this.lastHitShapes = [];
-            this.areaExitHitZones = [];
             this.lastBuildResult = undefined;
             this.gridLayer.destroyChildren();
             this.linkLayer.destroyChildren();
@@ -585,6 +599,8 @@ export class KonvaRenderBackend implements InteractiveBackend {
 
     private onSceneBuilt(result: SceneBuildResult) {
         this.culling.clear();
+        this.roomCullEntries.clear();
+        this.exitCullEntries.clear();
         this.areaExitHitZones = [];
         this.culling.computeBucketSize();
         this.lastHitShapes = result.hitShapes;
@@ -594,15 +610,26 @@ export class KonvaRenderBackend implements InteractiveBackend {
         const scale = this.camera.getScale();
         this.stage.scale({x: scale, y: scale});
 
+        const rs = this.state.settings.roomSize;
+        const half = rs / 2;
         for (const [, entry] of result.roomNodes) {
-            this.culling.roomNodes.set(entry.room.id, entry);
-            this.culling.addRoomToSpatialIndex(entry);
+            const cull: CullEntry = {
+                worldBbox: {
+                    minX: entry.room.x - half, minY: entry.room.y - half,
+                    maxX: entry.room.x + half, maxY: entry.room.y + half,
+                },
+            };
+            this.roomCullEntries.set(cull, entry.group);
+            this.culling.addRoomEntry(cull);
         }
         for (const entry of result.standaloneExitNodes) {
-            this.culling.standaloneExitNodes.push(entry);
-            this.culling.addStandaloneExitToSpatialIndex(entry);
+            const b = entry.bounds;
+            const cull: CullEntry = {
+                worldBbox: {minX: b.x, minY: b.y, maxX: b.x + b.width, maxY: b.y + b.height},
+            };
+            this.exitCullEntries.set(cull, entry.group);
+            this.culling.addExitEntry(cull);
         }
-        this.culling.setExitBoundsRoomSize();
         this.areaExitHitZones = result.areaExitHitZones;
 
         this.culling.updateCulling();

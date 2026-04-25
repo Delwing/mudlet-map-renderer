@@ -20,6 +20,7 @@ export { Camera } from './camera/Camera';
 export type { CameraEventMap } from './camera/Camera';
 export { HitTester } from './hit/HitTester';
 export type { HitResult } from './hit/HitTester';
+export type { CullEntry, CullingCallbacks } from './CullingManager';
 
 // --- Drawing primitives ---
 export type {
