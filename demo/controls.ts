@@ -6,6 +6,7 @@ import type {WeatherType} from "./WeatherOverlay";
 import {TerrainOverlay} from "./TerrainOverlay";
 import type {TerrainEffectType, TerrainRoom} from "./TerrainOverlay";
 import {FogOfWarOverlay} from "./FogOfWarOverlay";
+import {HitAreaOverlay} from "./HitAreaOverlay";
 
 function rgbToHex(rgb: string): string {
     const match = rgb.match(/(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
@@ -556,6 +557,18 @@ export function initControls(settings: Settings, renderer: MapRenderer, getCurre
             updateFogOfWar();
         } else {
             renderer.konvaBackend?.removeLiveEffect('fog-of-war');
+        }
+    });
+
+    // --- Hit area debug overlay ---
+
+    const hitAreasToggle = document.getElementById("hit-areas-toggle") as HTMLInputElement | null;
+
+    hitAreasToggle?.addEventListener("change", () => {
+        if (hitAreasToggle.checked) {
+            renderer.addSceneOverlay("hit-areas", new HitAreaOverlay(renderer.hitTester));
+        } else {
+            renderer.removeSceneOverlay("hit-areas");
         }
     });
 

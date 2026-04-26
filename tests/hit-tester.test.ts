@@ -116,17 +116,17 @@ describe("HitTester — basic flat hit test", () => {
 
     it("returns null when click is farther than roomSize from any room", () => {
         tester.build([makeRoomGroup(0, 0, 1)], roomSize);
-        // roomSize margin = 1; click at (2, 0) is 2 units away from center
+        // room margin = 0.3×roomSize = 0.3; click at (2, 0) is 1.5 from edge
         expect(tester.pick(2, 0)).toBeNull();
     });
 
     it("picks within the roomSize margin from the room's edge", () => {
         tester.build([makeRoomGroup(0, 0, 1)], roomSize);
-        // Room rect is [-0.5, 0.5]; rooms have a margin of 1.0×roomSize
+        // Room rect is [-0.5, 0.5]; rooms have a margin of 0.3×roomSize = 0.3
         // measured from the rect edge (point-to-rect distance, not point-to-center).
-        expect(tester.pick(0.9, 0)).not.toBeNull();   // inside the rect
-        expect(tester.pick(1.4, 0)).not.toBeNull();   // 0.9 from edge — within margin
-        expect(tester.pick(1.6, 0)).toBeNull();       // 1.1 from edge — outside margin
+        expect(tester.pick(0.3, 0)).not.toBeNull();   // inside the rect
+        expect(tester.pick(0.7, 0)).not.toBeNull();   // 0.2 from edge — within margin
+        expect(tester.pick(0.9, 0)).toBeNull();       // 0.4 from edge — outside margin
     });
 
     it("findRoomAtPoint returns the Room payload", () => {

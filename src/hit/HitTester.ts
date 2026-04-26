@@ -40,6 +40,16 @@ export interface HitResult {
     centerY: number;
 }
 
+/** One entry returned by {@link HitTester.debugEntries} for visualisation. */
+export interface HitDebugEntry {
+    kind: string;
+    geoms: ReadonlyArray<HitGeom>;
+    /** Max distance from shape edge that still registers as a hit (rendered-space units). */
+    marginRadius: number;
+    /** Rendered-space bbox of the hit geometry. */
+    minX: number; maxX: number; minY: number; maxY: number;
+}
+
 /** Per-kind defaults used when {@link HitInfo.priority} is omitted. */
 const DEFAULT_PRIORITY: Record<string, number> = {
     areaExit: 110,
@@ -52,7 +62,7 @@ const DEFAULT_PRIORITY: Record<string, number> = {
 
 /** Per-kind defaults used when {@link HitInfo.margin} is omitted. */
 const DEFAULT_MARGIN: Record<string, number> = {
-    room: 1.0,
+    room: 0.3,
     areaExit: 1.0,
     label: 1.0,
     specialExit: 0.5,
@@ -60,7 +70,7 @@ const DEFAULT_MARGIN: Record<string, number> = {
     stub: 0.3,
 };
 
-type HitGeom =
+export type HitGeom =
     | {type: "polyline"; pts: number[]; closed: boolean}
     | {type: "circle"; cx: number; cy: number; r: number};
 
@@ -186,6 +196,22 @@ export class HitTester {
         const result = this.pick(x, y);
         if (!result || result.kind !== "room") return null;
         return (result.payload as MapData.Room) ?? null;
+    }
+
+    /**
+     * Returns hit geometry for every entry, for debug visualisation.
+     * Coordinates are in **rendered space** (world space for flat styles).
+     */
+    debugEntries(): HitDebugEntry[] {
+        return this.entries.map(e => ({
+            kind: e.info.kind,
+            geoms: e.geoms,
+            marginRadius: e.margin * this.roomSize,
+            minX: e.rMinX,
+            maxX: e.rMaxX,
+            minY: e.rMinY,
+            maxY: e.rMaxY,
+        }));
     }
 
     // ── Private ───────────────────────────────────────────────────────────────
