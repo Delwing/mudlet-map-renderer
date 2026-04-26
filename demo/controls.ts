@@ -1,5 +1,5 @@
 import {MapRenderer, CullingMode, RoomShape, PathFinder, SvgExporter, PngBlobExporter, AmbientLightOverlay} from "@src";
-import type {Settings, LabelRenderMode, PerfSnapshot, PathFindingAlgorithm} from "@src";
+import type {Settings, LabelRenderMode, PathFindingAlgorithm} from "@src";
 import type MapReader from "@src/reader/MapReader";
 import {WeatherOverlay} from "./WeatherOverlay";
 import type {WeatherType} from "./WeatherOverlay";
@@ -595,31 +595,3 @@ export function initControls(settings: Settings, renderer: MapRenderer, getCurre
     return { explorationToggle, updateCullingStatus, updateTerrainRooms, updateFogOfWar };
 }
 
-export function initPerfMonitor(settings: Settings) {
-    const fpsElement = document.getElementById("fps") as HTMLDivElement | null;
-    const perfStatsElement = document.getElementById("perf-stats") as HTMLDivElement | null;
-
-    if (fpsElement) {
-        let lastSampleTime = performance.now();
-        let frameCount = 0;
-        const updateFps = (timestamp: number) => {
-            frameCount += 1;
-            const elapsed = timestamp - lastSampleTime;
-            if (elapsed >= 500) {
-                fpsElement.textContent = `FPS: ${((frameCount / elapsed) * 1000).toFixed(1)}`;
-                frameCount = 0;
-                lastSampleTime = timestamp;
-            }
-            requestAnimationFrame(updateFps);
-        };
-        requestAnimationFrame(updateFps);
-    }
-
-    if (perfStatsElement) {
-        settings.perfCallback = (stats: PerfSnapshot) => {
-            perfStatsElement.textContent =
-                `cull: ${stats.cullingMs.toFixed(2)}ms  grid: ${stats.gridMs.toFixed(2)}ms\n` +
-                `rooms: ${stats.visibleRooms}/${stats.totalRooms}  exits: ${stats.visibleExits}`;
-        };
-    }
-}

@@ -22,24 +22,7 @@ class ExplorationPlane extends Plane {
     }
 
     override getBounds() {
-        const rooms = this.getRooms();
-        if (!rooms.length) {
-            return this.basePlane.getBounds();
-        }
-        return rooms.reduce(
-            (acc, room) => ({
-                minX: Math.min(acc.minX, room.x),
-                maxX: Math.max(acc.maxX, room.x),
-                minY: Math.min(acc.minY, room.y),
-                maxY: Math.max(acc.maxY, room.y),
-            }),
-            {
-                minX: Number.POSITIVE_INFINITY,
-                maxX: Number.NEGATIVE_INFINITY,
-                minY: Number.POSITIVE_INFINITY,
-                maxY: Number.NEGATIVE_INFINITY,
-            }
-        );
+        return this.basePlane.getBounds();
     }
 
 }

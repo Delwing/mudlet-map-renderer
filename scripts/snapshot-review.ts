@@ -1,5 +1,6 @@
 import "konva/canvas-backend";
 import { writeFileSync, mkdirSync, readFileSync, existsSync, rmSync } from "fs";
+import { execSync } from "child_process";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 
@@ -14,9 +15,27 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..");
 const REVIEW_DIR = join(ROOT, "snapshot-review");
 
+const FROM_MASTER = process.argv.includes("--from-master");
+
 const SVG_SNAP = join(ROOT, "tests/__snapshots__/svg-export.test.ts.snap");
 const HEADLESS_SNAP = join(ROOT, "tests/__snapshots__/headless.test.ts.snap");
 const CANVAS_SNAP = join(ROOT, "tests/__snapshots__/canvas-export.test.ts.snap");
+
+function toRelPath(abs: string): string {
+    return abs.startsWith(ROOT) ? abs.slice(ROOT.length + 1).replace(/\\/g, "/") : abs;
+}
+
+function readSnapContent(absPath: string): string {
+    if (FROM_MASTER) {
+        const rel = toRelPath(absPath);
+        try {
+            return execSync(`git show master:${rel}`, { encoding: "utf-8", cwd: ROOT, maxBuffer: 16 * 1024 * 1024 });
+        } catch (e) {
+            console.warn(`  [warn] Could not read ${rel} from master (${(e as Error).message?.split("\n")[0]}), falling back to local`);
+        }
+    }
+    return readFileSync(absPath, "utf-8");
+}
 
 const WIDTH = 400;
 const HEIGHT = 300;
@@ -215,7 +234,7 @@ const snapCache = new Map<string, Map<string, string>>();
 function loadSnap(path: string): Map<string, string> {
     let cached = snapCache.get(path);
     if (cached) return cached;
-    const content = readFileSync(path, "utf-8");
+    const content = readSnapContent(path);
     cached = new Map<string, string>();
     // exports[`KEY`] = `VALUE`;  (VALUE may span lines)
     const re = /exports\[`([^`]+)`\]\s*=\s*`([\s\S]*?)`;\n/g;
@@ -232,14 +251,24 @@ function unwrapSvg(s: string): string {
     return t;
 }
 
-// Canvas snapshots: `\n{\n  "data": [...],\n  "type": "Buffer",\n}\n`
+// Canvas snapshots — two possible formats:
+//   New (Vitest ≥1.x):  Uint8Array [\n  137,\n  80, ...\n]
+//   Old (Buffer JSON):  {\n  "data": [...],\n  "type": "Buffer",\n}
 function parseBuffer(s: string): Buffer {
-    const cleaned = s.trim().replace(/,(\s*[\]}])/g, "$1");
+    const trimmed = s.trim();
+    if (trimmed.startsWith("Uint8Array [")) {
+        const inner = trimmed.slice("Uint8Array [".length, trimmed.lastIndexOf("]"));
+        const nums = inner.split(",").map(n => parseInt(n.trim(), 10)).filter(n => !isNaN(n));
+        return Buffer.from(nums);
+    }
+    const cleaned = trimmed.replace(/,(\s*[\]}])/g, "$1");
     const obj = JSON.parse(cleaned) as { data: number[]; type: string };
     return Buffer.from(obj.data);
 }
 
 // === Run ===
+
+if (FROM_MASTER) console.log("Using master branch snapshots as baseline (--from-master)");
 
 if (existsSync(REVIEW_DIR)) rmSync(REVIEW_DIR, { recursive: true });
 mkdirSync(join(REVIEW_DIR, "before"), { recursive: true });
@@ -256,14 +285,14 @@ type Result = {
     afterDataUri: string;
 };
 
-function dataUri(ext: "svg" | "png", content: Buffer | string): string {
+function dataUri(ext: "svg" | "png", content: Uint8Array | string): string {
     if (ext === "svg") {
-        const raw = typeof content === "string" ? content : content.toString("utf-8");
+        const raw = typeof content === "string" ? content : Buffer.from(content).toString("utf-8");
         // SVGs only declare viewBox — inject pixel width/height so <img> can size them.
         const sized = ensureSvgSize(raw);
         return `data:image/svg+xml;base64,${Buffer.from(sized, "utf-8").toString("base64")}`;
     }
-    const buf = typeof content === "string" ? Buffer.from(content) : content;
+    const buf = typeof content === "string" ? Buffer.from(content) : Buffer.from(content);
     return `data:image/png;base64,${buf.toString("base64")}`;
 }
 
@@ -436,7 +465,7 @@ body.show-diff .card.open .card-body { grid-template-columns: 1fr 1fr 1fr; }
 body.show-bbox .img-wrap .bbox-overlay.has-box { display: block; }
 .zoom-lens {
     position: absolute; pointer-events: none;
-    width: 180px; height: 180px;
+    width: 360px; height: 360px;
     border: 2px solid var(--text); border-radius: 50%;
     background-repeat: no-repeat; background-color: #000;
     box-shadow: 0 4px 16px rgba(0,0,0,0.6);
@@ -716,11 +745,11 @@ function loadImage(src) {
 // Hovering any image in a card shows a magnifier on every image in that card,
 // at the corresponding pixel coordinate (image-natural-coords aligned).
 
-const LENS_SIZE = 180;
+const LENS_SIZE = 360;
 // PNGs: zoom by 6× to make pixel grid visible.
 // SVGs: re-rasterize at this width for crisp vector zoom.
-const PNG_ZOOM = 6;
-const SVG_RENDER_WIDTH = 2000;
+const PNG_ZOOM = 12;
+const SVG_RENDER_WIDTH = 4000;
 
 cards.forEach(card => {
     const wraps = card.querySelectorAll('.pane:not(.pane-diff) .img-wrap');

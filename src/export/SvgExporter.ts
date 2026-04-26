@@ -1,4 +1,5 @@
 import {ScenePipeline} from "../ScenePipeline";
+import {Camera} from "../camera/Camera";
 import {buildDrawCommands} from "../draw/DrawCommandBuilder";
 import {svgFromBatches} from "../render/SvgRenderer";
 import type {Shape} from "../scene/Shape";
@@ -44,17 +45,16 @@ export class SvgExporter implements Exporter<string | undefined> {
         const settings = state.settings;
         const padding = this.options.padding ?? 3;
         const bounds = state.computeExportBounds(area, plane, this.options.roomId, padding);
-        const viewportBounds = {
-            minX: bounds.x, maxX: bounds.x + bounds.w,
-            minY: bounds.y, maxY: bounds.y + bounds.h,
-        };
+        const exportCamera = Camera.forMapBounds(bounds.x, bounds.x + bounds.w, bounds.y, bounds.y + bounds.h);
+        const viewportBounds = exportCamera.getViewportBounds();
 
         const pipeline = new ScenePipeline(state.mapReader, settings);
-        const result = pipeline.buildScene(area, plane, currentZIndex, viewportBounds);
-        const transform = style.worldToScene
-            ? (x: number, y: number) => style.worldToScene!(x, y)
-            : undefined;
-        const clipped = clipSceneToViewport(result, viewportBounds, settings, transform);
+        const result = pipeline.buildScene(area, plane, currentZIndex);
+        const transforms = {
+            forward: style.worldToScene ? (x: number, y: number) => style.worldToScene!(x, y) : undefined,
+            inverse: style.sceneToWorld ? (x: number, y: number) => style.sceneToWorld!(x, y) : undefined,
+        };
+        const clipped = clipSceneToViewport(result, viewportBounds, settings, transforms);
         const ctx = {scale: 1, roomSize: settings.roomSize};
         const styled = (shapes: Shape[]): Shape[] =>
             style === identityStyle ? shapes : applyStyleToShapes(shapes, style as Style, ctx);

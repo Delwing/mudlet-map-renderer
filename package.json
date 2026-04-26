@@ -23,6 +23,7 @@
     "demo:headless": "tsx --tsconfig demo/tsconfig.json demo/headless.ts",
     "demo:regenerate": "tsx --tsconfig demo/tsconfig.json demo/regenerate-outputs.ts",
     "snapshot-review": "tsx scripts/snapshot-review.ts",
+    "snapshot-review:master": "tsx scripts/snapshot-review.ts --from-master",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:visual": "playwright test",
