@@ -141,6 +141,8 @@ export function buildDrawCommands(
                     fontFamily: shape.fontFamily ?? "sans-serif",
                     fontStyle: shape.fontStyle ?? "normal",
                     fill: shape.fill ?? "black",
+                    stroke: shape.stroke,
+                    sw: (shape.strokeWidth ?? 0) * scale,
                     align: shape.align ?? "left",
                     vAlign: shape.verticalAlign ?? "top",
                     w: (shape.width ?? 0) * scale,

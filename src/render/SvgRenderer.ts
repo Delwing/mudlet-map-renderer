@@ -144,7 +144,10 @@ function svgElement(cmd: PrimitiveDrawCommand): string | undefined {
                 ? ` transform="matrix(${cmd.transform.join(",")})"`
                 : "";
             const weight = cmd.fontStyle === "bold" ? ` font-weight="bold"` : "";
-            return `<text${attr("x", x)}${attr("y", y)}${attr("font-size", cmd.fontSize)}${cmd.fontFamily ? attr("font-family", cmd.fontFamily) : ""}${weight}${attr("fill", cmd.fill)} text-anchor="${anchor}" dominant-baseline="${baseline}"${transformAttr}>${escapeXml(cmd.text)}</text>`;
+            const strokeAttr = cmd.stroke && cmd.sw > 0
+                ? ` stroke="${cmd.stroke}" stroke-width="${cmd.sw}" paint-order="stroke fill"`
+                : "";
+            return `<text${attr("x", x)}${attr("y", y)}${attr("font-size", cmd.fontSize)}${cmd.fontFamily ? attr("font-family", cmd.fontFamily) : ""}${weight}${attr("fill", cmd.fill)}${strokeAttr} text-anchor="${anchor}" dominant-baseline="${baseline}"${transformAttr}>${escapeXml(cmd.text)}</text>`;
         }
         case "image": {
             if (cmd.transform) {

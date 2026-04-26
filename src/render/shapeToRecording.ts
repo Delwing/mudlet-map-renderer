@@ -102,6 +102,8 @@ function addShape(
                 fontFamily: shape.fontFamily ?? "sans-serif",
                 fontStyle: shape.fontStyle ?? "normal",
                 fill: shape.fill ?? "black",
+                stroke: shape.stroke,
+                sw: shape.strokeWidth ?? 0,
                 align: shape.align ?? "left",
                 vAlign: shape.verticalAlign ?? "top",
                 w: shape.width ?? 0,

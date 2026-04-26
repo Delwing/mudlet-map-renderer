@@ -187,6 +187,11 @@ function replayPrimitive(
             ctx.save();
             ctx.font = font;
             ctx.fillStyle = cmd.fill;
+            if (cmd.stroke && cmd.sw > 0) {
+                ctx.strokeStyle = cmd.stroke;
+                ctx.lineWidth = cmd.sw * TEXT_SCALE;
+                ctx.lineJoin = "round";
+            }
             const hasBaselineRatio = cmd.baselineRatio !== undefined;
             if (cmd.transform) {
                 ctx.transform(...cmd.transform);
@@ -195,10 +200,14 @@ function replayPrimitive(
                 if (hasBaselineRatio) {
                     ctx.textBaseline = "alphabetic";
                     const by = (cmd.h / 2 + cmd.baselineRatio! * cmd.fontSize) * TEXT_SCALE;
+                    if (cmd.stroke && cmd.sw > 0) ctx.strokeText(cmd.text, cmd.w * TEXT_SCALE / 2, by);
                     ctx.fillText(cmd.text, cmd.w * TEXT_SCALE / 2, by);
                 } else {
                     ctx.textBaseline = "middle";
-                    ctx.fillText(cmd.text, cmd.w * TEXT_SCALE / 2, cmd.h * TEXT_SCALE / 2);
+                    const mx = cmd.w * TEXT_SCALE / 2;
+                    const my = cmd.h * TEXT_SCALE / 2;
+                    if (cmd.stroke && cmd.sw > 0) ctx.strokeText(cmd.text, mx, my);
+                    ctx.fillText(cmd.text, mx, my);
                 }
             } else if (cmd.w > 0 && cmd.h > 0) {
                 ctx.textAlign = (cmd.align || "left");
@@ -211,16 +220,19 @@ function replayPrimitive(
                 if (cmd.vAlign === "middle" && hasBaselineRatio) {
                     ctx.textBaseline = "alphabetic";
                     const ty = cmd.y + cmd.h / 2 + cmd.baselineRatio! * cmd.fontSize;
+                    if (cmd.stroke && cmd.sw > 0) ctx.strokeText(cmd.text, tx * TEXT_SCALE, ty * TEXT_SCALE);
                     ctx.fillText(cmd.text, tx * TEXT_SCALE, ty * TEXT_SCALE);
                 } else {
                     ctx.textBaseline = cmd.vAlign === "middle" ? "middle" : "top";
                     const ty = cmd.vAlign === "middle" ? cmd.y + cmd.h / 2 : cmd.y;
+                    if (cmd.stroke && cmd.sw > 0) ctx.strokeText(cmd.text, tx * TEXT_SCALE, ty * TEXT_SCALE);
                     ctx.fillText(cmd.text, tx * TEXT_SCALE, ty * TEXT_SCALE);
                 }
             } else {
                 ctx.textAlign = "left";
                 ctx.textBaseline = "top";
                 ctx.scale(1 / TEXT_SCALE, 1 / TEXT_SCALE);
+                if (cmd.stroke && cmd.sw > 0) ctx.strokeText(cmd.text, cmd.x * TEXT_SCALE, cmd.y * TEXT_SCALE);
                 ctx.fillText(cmd.text, cmd.x * TEXT_SCALE, cmd.y * TEXT_SCALE);
             }
             ctx.restore();

@@ -10,7 +10,7 @@ import type {
     DrawnSpecialExitEntry,
     DrawnStubEntry,
 } from "../ScenePipeline";
-import {clipSceneToViewport} from "../export/clipSceneToViewport";
+import {clipSceneToViewport, buildCullingVisibilityMap} from "../export/clipSceneToViewport";
 import type {Camera} from "../camera/Camera";
 import type {CoordFn} from "../coord/CoordFn";
 import {IDENTITY_TRANSFORM} from "../coord/CoordFn";
@@ -101,6 +101,21 @@ export class SceneManager {
     resetPipeline(mapReader: MapReader): void {
         this.pipeline = new ScenePipeline(mapReader, this.settings);
         this.reset();
+    }
+
+    /**
+     * Lightweight cull for the interactive render path.  Returns a
+     * `Map<Shape, boolean>` where absent shapes are unmanaged pass-throughs
+     * (always visible).  Avoids the 12 Sets + 2 filtered arrays produced by
+     * the full {@link cull} path.
+     */
+    cullInteractive(coordinateTransform: CoordFn = IDENTITY_TRANSFORM): Map<Shape, boolean> {
+        if (!this.lastBuildResult) return new Map();
+        const viewport = this.camera.getCullingViewport(this.settings.cullingBounds);
+        const transforms: SceneTransforms | undefined = coordinateTransform !== IDENTITY_TRANSFORM
+            ? {forward: coordinateTransform as (x: number, y: number) => {x: number; y: number}}
+            : undefined;
+        return buildCullingVisibilityMap(this.lastBuildResult, viewport, this.settings, transforms);
     }
 
     cull(coordinateTransform: CoordFn = IDENTITY_TRANSFORM): CullOutput {

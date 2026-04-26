@@ -28,7 +28,7 @@ type RectCommand = { type: 'rect'; x: number; y: number; w: number; h: number; f
 type CircleCommand = { type: 'circle'; cx: number; cy: number; r: number; fill?: string; stroke?: string; sw: number; dash?: number[] };
 type LineCommand = { type: 'line'; points: number[]; stroke?: string; sw: number; dash?: number[]; lineCap?: string; lineJoin?: string; alpha?: number };
 type PolygonCommand = { type: 'polygon'; vertices: number[]; fill?: string; stroke?: string; sw: number };
-type TextCommand = { type: 'text'; x: number; y: number; text: string; fontSize: number; fontFamily: string; fontStyle: string; fill: string; align: string; vAlign: string; w: number; h: number; baselineRatio?: number; transform?: [number, number, number, number, number, number] };
+type TextCommand = { type: 'text'; x: number; y: number; text: string; fontSize: number; fontFamily: string; fontStyle: string; fill: string; stroke?: string; sw: number; align: string; vAlign: string; w: number; h: number; baselineRatio?: number; transform?: [number, number, number, number, number, number] };
 type ImageCommand = { type: 'image'; x: number; y: number; w: number; h: number; image: HTMLImageElement | any; transform?: [number, number, number, number, number, number] };
 
 export type RecordingDrawCommand =
@@ -125,6 +125,11 @@ function replayCommand(ctx: CanvasRenderingContext2D, cmd: RecordingDrawCommand)
             ctx.save();
             ctx.font = font;
             ctx.fillStyle = cmd.fill;
+            if (cmd.stroke && cmd.sw > 0) {
+                ctx.strokeStyle = cmd.stroke;
+                ctx.lineWidth = cmd.sw * TEXT_SCALE;
+                ctx.lineJoin = 'round';
+            }
             const hasBaselineRatio = cmd.baselineRatio !== undefined;
             if (cmd.transform) {
                 ctx.transform(...cmd.transform);
@@ -133,10 +138,14 @@ function replayCommand(ctx: CanvasRenderingContext2D, cmd: RecordingDrawCommand)
                 if (hasBaselineRatio) {
                     ctx.textBaseline = 'alphabetic';
                     const by = (cmd.h / 2 + cmd.baselineRatio! * cmd.fontSize) * TEXT_SCALE;
+                    if (cmd.stroke && cmd.sw > 0) ctx.strokeText(cmd.text, cmd.w * TEXT_SCALE / 2, by);
                     ctx.fillText(cmd.text, cmd.w * TEXT_SCALE / 2, by);
                 } else {
                     ctx.textBaseline = 'middle';
-                    ctx.fillText(cmd.text, cmd.w * TEXT_SCALE / 2, cmd.h * TEXT_SCALE / 2);
+                    const mx = cmd.w * TEXT_SCALE / 2;
+                    const my = cmd.h * TEXT_SCALE / 2;
+                    if (cmd.stroke && cmd.sw > 0) ctx.strokeText(cmd.text, mx, my);
+                    ctx.fillText(cmd.text, mx, my);
                 }
             } else if (cmd.w > 0 && cmd.h > 0) {
                 ctx.textAlign = (cmd.align || 'left') as CanvasTextAlign;
@@ -145,16 +154,19 @@ function replayCommand(ctx: CanvasRenderingContext2D, cmd: RecordingDrawCommand)
                 if (cmd.vAlign === 'middle' && hasBaselineRatio) {
                     ctx.textBaseline = 'alphabetic';
                     const ty = cmd.y + cmd.h / 2 + cmd.baselineRatio! * cmd.fontSize;
+                    if (cmd.stroke && cmd.sw > 0) ctx.strokeText(cmd.text, tx * TEXT_SCALE, ty * TEXT_SCALE);
                     ctx.fillText(cmd.text, tx * TEXT_SCALE, ty * TEXT_SCALE);
                 } else {
                     ctx.textBaseline = cmd.vAlign === 'middle' ? 'middle' : 'top';
                     const ty = cmd.vAlign === 'middle' ? cmd.y + cmd.h / 2 : cmd.y;
+                    if (cmd.stroke && cmd.sw > 0) ctx.strokeText(cmd.text, tx * TEXT_SCALE, ty * TEXT_SCALE);
                     ctx.fillText(cmd.text, tx * TEXT_SCALE, ty * TEXT_SCALE);
                 }
             } else {
                 ctx.textAlign = 'left';
                 ctx.textBaseline = 'top';
                 ctx.scale(1 / TEXT_SCALE, 1 / TEXT_SCALE);
+                if (cmd.stroke && cmd.sw > 0) ctx.strokeText(cmd.text, cmd.x * TEXT_SCALE, cmd.y * TEXT_SCALE);
                 ctx.fillText(cmd.text, cmd.x * TEXT_SCALE, cmd.y * TEXT_SCALE);
             }
             ctx.restore();

@@ -51,7 +51,7 @@ export type { ImageFactory, CanvasRenderOptions } from './render/CanvasRenderer'
 
 // --- Styles (target-agnostic; engine-neutral shape transformers) ---
 export {
-    Parchment, Blueprint, Neon, Sketchy, Isometric,
+    Parchment, Blueprint, Neon, Sketchy, Isometric, Construction, SciFi,
     compose, identityStyle, applyStyleToShapes,
 } from './style';
 export type {

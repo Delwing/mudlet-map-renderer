@@ -3,7 +3,7 @@ import {
     createSettings,
     PathFinder,
     compose, identityStyle,
-    Parchment, Blueprint, Neon, Sketchy, Isometric,
+    Parchment, Blueprint, Neon, Sketchy, Isometric, Construction, SciFi,
     type Style,
 } from "@src";
 import type {Settings} from "@src";
@@ -21,6 +21,7 @@ import {
 const stageElement = document.getElementById("stage") as HTMLDivElement;
 const statusElement = document.getElementById("status") as HTMLDivElement;
 const walkerStatusElement = document.getElementById("walker-status") as HTMLDivElement;
+const fpsElement = document.getElementById("fps") as HTMLDivElement | null;
 const walkerToggleButton = document.getElementById("walker-toggle") as HTMLButtonElement | null;
 const areaSelect = document.getElementById("area-select") as HTMLSelectElement | null;
 const levelSelect = document.getElementById("level-select") as HTMLSelectElement | null;
@@ -55,6 +56,27 @@ let savedLineColor: string;
 let savedFontFamily: string;
 let updateTerrainRooms: () => void = () => {};
 let updateFogOfWar: () => void = () => {};
+
+// --- FPS counter ---
+
+function startFpsCounter() {
+    if (!fpsElement) return;
+    let lastSampleTime = performance.now();
+    let frameCount = 0;
+    const updateFps = (timestamp: number) => {
+        frameCount += 1;
+        const elapsed = timestamp - lastSampleTime;
+        if (elapsed >= 500) {
+            fpsElement.textContent = `FPS: ${((frameCount / elapsed) * 1000).toFixed(1)}`;
+            frameCount = 0;
+            lastSampleTime = timestamp;
+        }
+        requestAnimationFrame(updateFps);
+    };
+    requestAnimationFrame(updateFps);
+}
+
+startFpsCounter();
 
 // --- Helpers ---
 
@@ -237,6 +259,16 @@ function applyRenderMode(mode: string) {
             style = Neon;
             settings.backgroundColor = '#0a0a0f';
             settings.lineColor = '#00ffaa';
+            break;
+        case "construction":
+            style = Construction;
+            settings.backgroundColor = '#2a2a2a';
+            settings.lineColor = '#ffc200';
+            break;
+        case "scifi":
+            style = SciFi;
+            settings.backgroundColor = '#030810';
+            settings.lineColor = '#0a2a3d';
             break;
     }
 

@@ -3,6 +3,61 @@ import type {ViewportBounds, Settings} from "../types/Settings";
 import type {Shape} from "../scene/Shape";
 import {layoutGrid} from "../scene/elements/GridLayout";
 
+/**
+ * Interactive-path optimised alternative to {@link clipSceneToViewport}.
+ *
+ * Returns a single `Map<Shape, boolean>` where `true` means the shape is
+ * inside the viewport and `false` means it should be hidden.  Shapes absent
+ * from the map are "unmanaged" pass-throughs (noScaling labels, overlays) and
+ * should be treated as visible.
+ *
+ * Allocation budget per frame: 1 Map instead of the 12 Sets + 2 filtered
+ * arrays that {@link clipSceneToViewport} produces.
+ */
+export function buildCullingVisibilityMap(
+    result: SceneBuildResult,
+    viewportBounds: ViewportBounds,
+    settings: Settings,
+    transforms?: SceneTransforms,
+): Map<Shape, boolean> {
+    if (!settings.cullingEnabled) return new Map();
+
+    const {minX, maxX, minY, maxY} = viewportBounds;
+    const half = settings.roomSize / 2;
+    const fn = transforms?.forward;
+
+    const inView = (bMinX: number, bMinY: number, bMaxX: number, bMaxY: number): boolean => {
+        if (fn) {
+            const tb = transformedBbox(bMinX, bMinY, bMaxX, bMaxY, fn);
+            return tb.maxX >= minX && tb.minX <= maxX && tb.maxY >= minY && tb.minY <= maxY;
+        }
+        return bMaxX >= minX && bMinX <= maxX && bMaxY >= minY && bMinY <= maxY;
+    };
+
+    const visibility = new Map<Shape, boolean>();
+
+    for (const {room, shape} of result.roomShapeRefs.values()) {
+        visibility.set(shape, inView(room.x - half, room.y - half, room.x + half, room.y + half));
+    }
+    for (const {shape, bounds: b} of result.standaloneExitShapeRefs) {
+        visibility.set(shape, inView(b.x, b.y, b.x + b.width, b.y + b.height));
+    }
+    for (const {shape, bounds: b} of result.labelShapeRefs) {
+        visibility.set(shape, inView(b.x, b.y, b.x + b.width, b.y + b.height));
+    }
+    for (const {shape, bounds: b} of result.specialExitShapeRefs) {
+        visibility.set(shape, inView(b.x, b.y, b.x + b.width, b.y + b.height));
+    }
+    for (const {shape, bounds: b} of result.stubShapeRefs) {
+        visibility.set(shape, inView(b.x, b.y, b.x + b.width, b.y + b.height));
+    }
+    for (const {shape, bounds: b} of result.areaExitLabelShapeRefs) {
+        visibility.set(shape, inView(b.x, b.y, b.x + b.width, b.y + b.height));
+    }
+
+    return visibility;
+}
+
 type TransformFn = (x: number, y: number) => {x: number; y: number};
 
 /** Forward and inverse coordinate transforms for styles that warp space (e.g. Isometric). */
@@ -31,26 +86,15 @@ function transformedBbox(
 
 /**
  * Filter scene shapes to only those that intersect the given viewport, and
- * generate the grid for that viewport — the shared cull step used by every
- * rendering path.
+ * generate the grid for that viewport — the shared cull step used by export
+ * paths (SVG, PNG).
  *
- * Interactive path: {@link KonvaRenderBackend} calls this on every camera
- * change and applies the result by toggling {@link DrawEntry.visible}. The
- * grid output is ignored there (the backend manages its own cached grid).
+ * Uses {@link buildCullingVisibilityMap} for the predicate so culling logic
+ * lives in one place.  Shapes absent from the map are unmanaged pass-throughs
+ * (noScaling labels, overlays) and are always included.
  *
- * Export paths (SVG, PNG): called once; result is flushed through
- * {@link flushSceneShapes}. The grid in the returned `SceneShapesByLayer`
- * is the authoritative grid for the export.
- *
- * Culled shape types:
- *  - Rooms: by room-centre bbox (`roomShapeRefs`).
- *  - Standalone exits: by exit bounds (`standaloneExitShapeRefs`).
- *  - Labels (non-noScaling): by world-space bounds (`labelShapeRefs`).
- *  - Custom lines (special exits): by line bounds (`specialExitShapeRefs`).
- *  - Stubs: by line-segment bounds (`stubShapeRefs`).
- *  - Area-exit labels: by placed box bounds (`areaExitLabelShapeRefs`).
- *  - noScaling labels: always included.
- *  - topLabel layer: always included.
+ * Interactive path uses {@link buildCullingVisibilityMap} directly and skips
+ * building these filtered arrays.
  *
  * When `settings.cullingEnabled` is false the original {@link SceneShapesByLayer}
  * is returned (with grid appended).
@@ -72,92 +116,11 @@ export function clipSceneToViewport(
         return {...result.sceneShapes, grid};
     }
 
-    const {minX, maxX, minY, maxY} = viewportBounds;
-    const half = settings.roomSize / 2;
-    const fn = transforms?.forward;
-
-    const inView = (bMinX: number, bMinY: number, bMaxX: number, bMaxY: number): boolean => {
-        if (fn) {
-            const tb = transformedBbox(bMinX, bMinY, bMaxX, bMaxY, fn);
-            return tb.maxX >= minX && tb.minX <= maxX && tb.maxY >= minY && tb.minY <= maxY;
-        }
-        return bMaxX >= minX && bMinX <= maxX && bMaxY >= minY && bMinY <= maxY;
-    };
-
-    // Rooms
-    const managedRoomShapes = new Set<Shape>();
-    const visibleRoomShapes = new Set<Shape>();
-    for (const {room, shape} of result.roomShapeRefs.values()) {
-        managedRoomShapes.add(shape);
-        if (inView(room.x - half, room.y - half, room.x + half, room.y + half)) {
-            visibleRoomShapes.add(shape);
-        }
-    }
-
-    // Standalone inter-room exits
-    const standaloneExitShapes = new Set<Shape>();
-    const visibleExitShapes = new Set<Shape>();
-    for (const {shape, bounds: b} of result.standaloneExitShapeRefs) {
-        standaloneExitShapes.add(shape);
-        if (inView(b.x, b.y, b.x + b.width, b.y + b.height)) {
-            visibleExitShapes.add(shape);
-        }
-    }
-
-    // Labels (non-noScaling only; noScaling labels are always included because
-    // their Width/Height are in screen pixels, not map units).
-    const managedLabelShapes = new Set<Shape>();
-    const visibleLabelShapes = new Set<Shape>();
-    for (const {shape, bounds: b} of result.labelShapeRefs) {
-        managedLabelShapes.add(shape);
-        if (inView(b.x, b.y, b.x + b.width, b.y + b.height)) {
-            visibleLabelShapes.add(shape);
-        }
-    }
-
-    // Custom lines (special exits)
-    const managedSpecialExitShapes = new Set<Shape>();
-    const visibleSpecialExitShapes = new Set<Shape>();
-    for (const {shape, bounds: b} of result.specialExitShapeRefs) {
-        managedSpecialExitShapes.add(shape);
-        if (inView(b.x, b.y, b.x + b.width, b.y + b.height)) {
-            visibleSpecialExitShapes.add(shape);
-        }
-    }
-
-    // Stubs
-    const managedStubShapes = new Set<Shape>();
-    const visibleStubShapes = new Set<Shape>();
-    for (const {shape, bounds: b} of result.stubShapeRefs) {
-        managedStubShapes.add(shape);
-        if (inView(b.x, b.y, b.x + b.width, b.y + b.height)) {
-            visibleStubShapes.add(shape);
-        }
-    }
-
-    // Area-exit labels (on the room layer)
-    const managedAreaExitLabelShapes = new Set<Shape>();
-    const visibleAreaExitLabelShapes = new Set<Shape>();
-    for (const {shape, bounds: b} of result.areaExitLabelShapeRefs) {
-        managedAreaExitLabelShapes.add(shape);
-        if (inView(b.x, b.y, b.x + b.width, b.y + b.height)) {
-            visibleAreaExitLabelShapes.add(shape);
-        }
-    }
-
+    const visibility = buildCullingVisibilityMap(result, viewportBounds, settings, transforms);
     return {
         grid,
-        link: result.sceneShapes.link.filter(s => {
-            if (managedLabelShapes.has(s)) return visibleLabelShapes.has(s);
-            if (managedSpecialExitShapes.has(s)) return visibleSpecialExitShapes.has(s);
-            if (managedStubShapes.has(s)) return visibleStubShapes.has(s);
-            if (standaloneExitShapes.has(s)) return visibleExitShapes.has(s);
-            return true;
-        }),
-        room: result.sceneShapes.room.filter(s => {
-            if (managedAreaExitLabelShapes.has(s)) return visibleAreaExitLabelShapes.has(s);
-            return !managedRoomShapes.has(s) || visibleRoomShapes.has(s);
-        }),
+        link: result.sceneShapes.link.filter(s => visibility.get(s) ?? true),
+        room: result.sceneShapes.room.filter(s => visibility.get(s) ?? true),
         topLabel: result.sceneShapes.topLabel,
     };
 }

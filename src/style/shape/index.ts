@@ -22,3 +22,5 @@ export {sketchyShapeStyle} from "./SketchyStyle";
 export type {SketchyOptions} from "./SketchyStyle";
 export {isometricShapeStyle} from "./IsometricStyle";
 export type {IsometricOptions, IsometricRotation} from "./IsometricStyle";
+export {constructionShapeStyle} from "./ConstructionStyle";
+export {scifiShapeStyle} from "./SciFiStyle";
