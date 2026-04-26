@@ -1,5 +1,6 @@
 import Konva from "konva";
 import {ScenePipeline} from "../ScenePipeline";
+import {Camera} from "../camera/Camera";
 import {applyStyleToShapes} from "../style/applyStyle";
 import {identityStyle} from "../style/Style";
 import type {Style} from "../style/Style";
@@ -68,33 +69,22 @@ export class CanvasExporter implements Exporter<ExportCanvas | undefined> {
         const mapPixelH = sceneBounds.h * scale;
         const offsetX = (width - mapPixelW) / 2 - sceneBounds.x * scale;
         const offsetY = (height - mapPixelH) / 2 - sceneBounds.y * scale;
-        const camera = {scale, offsetX, offsetY};
+        const renderCam = {scale, offsetX, offsetY};
 
-        // Culling must cover the full canvas, not just the export region.
-        // When aspect ratios differ, the canvas has letterbox areas — rooms
-        // there are visible but would be incorrectly culled if we used the
-        // tight export bounds. The scene-space culling viewport extends by
-        // the letterbox amount (in scene-space units) on each side.
-        // For non-warping styles scene space = world space, so this equals
-        // the camera's world-space viewport. For Isometric the coordinateTransform
-        // maps room world-coords → scene-coords before the overlap check, so
-        // scene-space culling bounds are correct in both cases.
-        const xLetterbox = (width - mapPixelW) / (2 * scale);
-        const yLetterbox = (height - mapPixelH) / (2 * scale);
-        const cullingBounds = {
-            minX: sceneBounds.x - xLetterbox,
-            maxX: sceneBounds.x + sceneBounds.w + xLetterbox,
-            minY: sceneBounds.y - yLetterbox,
-            maxY: sceneBounds.y + sceneBounds.h + yLetterbox,
+        // Culling must cover the full canvas, not just the tight export region.
+        // Camera.forRenderCamera reproduces the letterbox-extended viewport from
+        // the fitted transform, so rooms in aspect-ratio padding areas are not
+        // incorrectly culled.
+        const cullingCamera = Camera.forRenderCamera(width, height, scale, offsetX, offsetY);
+
+        const transforms = {
+            forward: style.worldToScene ? (x: number, y: number) => style.worldToScene!(x, y) : undefined,
+            inverse: style.sceneToWorld ? (x: number, y: number) => style.sceneToWorld!(x, y) : undefined,
         };
 
-        const transform = style.worldToScene
-            ? (x: number, y: number) => style.worldToScene!(x, y)
-            : undefined;
-
         const pipeline = new ScenePipeline(state.mapReader, settings);
-        const result = pipeline.buildScene(area, plane, currentZIndex, cullingBounds);
-        const clipped = clipSceneToViewport(result, cullingBounds, settings, transform);
+        const result = pipeline.buildScene(area, plane, currentZIndex);
+        const clipped = clipSceneToViewport(result, cullingCamera.getViewportBounds(), settings, transforms);
 
         const canvas = Konva.Util.createCanvasElement() as unknown as HTMLCanvasElement;
         canvas.width = width;
@@ -111,13 +101,10 @@ export class CanvasExporter implements Exporter<ExportCanvas | undefined> {
 
         const flush = (shapes: Shape[]) => {
             if (shapes.length === 0) return;
-            renderToCanvas(ctx, buildDrawCommands(styled(shapes), camera));
+            renderToCanvas(ctx, buildDrawCommands(styled(shapes), renderCam));
         };
 
-        const viewportBounds = {
-            minX: bounds.x, maxX: bounds.x + bounds.w,
-            minY: bounds.y, maxY: bounds.y + bounds.h,
-        };
+        const viewportBounds = Camera.forMapBounds(bounds.x, bounds.x + bounds.w, bounds.y, bounds.y + bounds.h).getViewportBounds();
         flushSceneShapes(
             clipped,
             {state, viewportBounds, sceneOverlays, overlays: this.options.overlays},

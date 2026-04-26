@@ -1,7 +1,7 @@
 // --- Settings, types, colour utils ---
 export { createSettings } from './types/Settings';
 export type {
-    Settings, ViewportBounds, RendererEventMap, PerfSnapshot,
+    Settings, ViewportBounds, RendererEventMap,
     CullingMode, RoomShape, LabelRenderMode, PlayerMarkerStyle,
     RoomClickEventDetail, RoomContextMenuEventDetail,
     ZoomChangeEventDetail, AreaExitClickEventDetail, PanEventDetail,

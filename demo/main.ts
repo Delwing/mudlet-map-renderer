@@ -8,7 +8,7 @@ import {
 } from "@src";
 import type {Settings} from "@src";
 import MapReader from "@src/reader/MapReader";
-import {initControls, initPerfMonitor} from "./controls";
+import {initControls} from "./controls";
 import {initContextMenu} from "./context-menu";
 import {Walker} from "./walker";
 import {DemoPreview} from "./Preview";
@@ -270,7 +270,7 @@ async function initialize() {
     renderer = new MapRenderer(mapReader, settings, stageElement);
     preview = new DemoPreview(stageElement, renderer);
 
-    // Controls & perf
+    // Controls
     const controlsResult = initControls(settings, renderer, () => currentRoomId, pathFinder, updateDestinationGuidance, (color) => {
         pathColor = color;
         if (currentDestinationPath) {
@@ -281,7 +281,6 @@ async function initialize() {
     const explorationToggle = controlsResult.explorationToggle;
     updateTerrainRooms = controlsResult.updateTerrainRooms;
     updateFogOfWar = controlsResult.updateFogOfWar;
-    initPerfMonitor(settings);
     initContextMenu(stageElement, renderer, mapReader, moveToRoom, (msg) => updateStatus(roomStatusElement, msg));
 
     // Walker
@@ -371,7 +370,12 @@ async function initialize() {
         } else {
             mapReader.clearExplorationDecoration();
         }
-        renderer.setPosition(currentRoomId, false);
+        const viewedArea = renderer.state.currentArea;
+        const viewedZ = renderer.state.currentZIndex;
+        if (viewedArea !== undefined && viewedZ !== undefined) {
+            renderer.drawArea(viewedArea, viewedZ);
+        }
+        renderer.updatePositionMarker(currentRoomId);
         const currentRoom = mapReader.getRoom(currentRoomId);
         if (currentRoom) updateAreaStatus(currentRoom.area);
         updateDestinationGuidance();

@@ -1,0 +1,126 @@
+import type Area from "../reader/Area";
+import type Plane from "../reader/Plane";
+import type {Settings} from "../types/Settings";
+import {ScenePipeline} from "../ScenePipeline";
+import type {
+    SceneBuildResult,
+    SceneShapesByLayer,
+    AreaExitHitZone,
+    DrawnExitEntry,
+    DrawnSpecialExitEntry,
+    DrawnStubEntry,
+} from "../ScenePipeline";
+import {clipSceneToViewport} from "../export/clipSceneToViewport";
+import type {Camera} from "../camera/Camera";
+import type {CoordFn} from "../coord/CoordFn";
+import {IDENTITY_TRANSFORM} from "../coord/CoordFn";
+import type {SceneTransforms} from "../export/clipSceneToViewport";
+import type {GroupShape, Shape} from "../scene/Shape";
+import type MapReader from "../reader/MapReader";
+import type {ExitDrawData} from "../ExitRenderer";
+
+export interface CullStats {
+    visibleRooms: number;
+    totalRooms: number;
+    visibleExits: number;
+}
+
+export interface CullOutput {
+    shapes: SceneShapesByLayer;
+    stats: CullStats;
+}
+
+const EMPTY_SCENE: SceneShapesByLayer = {grid: [], link: [], room: [], topLabel: []};
+
+/**
+ * Encapsulates the scene build + cull pipeline for the interactive renderer.
+ *
+ * Owns {@link ScenePipeline} and the last {@link SceneBuildResult}. Backends
+ * call {@link rebuild} when the area/plane changes, then {@link cull} on each
+ * viewport update to get the currently-visible shapes. Neither the pipeline
+ * nor {@link clipSceneToViewport} need to be referenced outside this class.
+ */
+export class SceneManager {
+    private pipeline: ScenePipeline;
+    private lastBuildResult?: SceneBuildResult;
+    private standaloneExitShapeSet: Set<Shape> = new Set();
+
+    constructor(
+        private readonly camera: Camera,
+        private readonly settings: Settings,
+        mapReader: MapReader,
+    ) {
+        this.pipeline = new ScenePipeline(mapReader, settings);
+    }
+
+    get exitRenderer() {
+        return this.pipeline.exitRenderer;
+    }
+
+    get lastResult(): SceneBuildResult | undefined {
+        return this.lastBuildResult;
+    }
+
+    get drawnExits(): readonly DrawnExitEntry[] {
+        return this.lastBuildResult?.drawnExits ?? [];
+    }
+
+    get drawnSpecialExits(): readonly DrawnSpecialExitEntry[] {
+        return this.lastBuildResult?.drawnSpecialExits ?? [];
+    }
+
+    get drawnStubs(): readonly DrawnStubEntry[] {
+        return this.lastBuildResult?.drawnStubs ?? [];
+    }
+
+    get areaExitHitZones(): readonly AreaExitHitZone[] {
+        return this.lastBuildResult?.areaExitHitZones ?? [];
+    }
+
+    get hitShapes(): readonly Shape[] {
+        return this.lastBuildResult?.hitShapes ?? [];
+    }
+
+    rebuild(area: Area, plane: Plane, zIndex: number): SceneBuildResult {
+        this.lastBuildResult = this.pipeline.buildScene(area, plane, zIndex);
+        this.standaloneExitShapeSet = new Set(
+            this.lastBuildResult.standaloneExitShapeRefs.map(r => r.shape),
+        );
+        return this.lastBuildResult;
+    }
+
+    buildExitShape(data: ExitDrawData): GroupShape {
+        return this.pipeline.buildExitShape(data);
+    }
+
+    reset(): void {
+        this.lastBuildResult = undefined;
+        this.standaloneExitShapeSet = new Set();
+    }
+
+    resetPipeline(mapReader: MapReader): void {
+        this.pipeline = new ScenePipeline(mapReader, this.settings);
+        this.reset();
+    }
+
+    cull(coordinateTransform: CoordFn = IDENTITY_TRANSFORM): CullOutput {
+        if (!this.lastBuildResult) {
+            return {shapes: EMPTY_SCENE, stats: {visibleRooms: 0, totalRooms: 0, visibleExits: 0}};
+        }
+
+        const viewport = this.camera.getCullingViewport(this.settings.cullingBounds);
+        const transforms: SceneTransforms | undefined = coordinateTransform !== IDENTITY_TRANSFORM
+            ? {forward: coordinateTransform as (x: number, y: number) => {x: number; y: number}}
+            : undefined;
+        const shapes = clipSceneToViewport(this.lastBuildResult, viewport, this.settings, transforms);
+
+        return {
+            shapes,
+            stats: {
+                visibleRooms: shapes.room.length,
+                totalRooms: this.lastBuildResult.roomShapeRefs.size,
+                visibleExits: shapes.link.filter(s => this.standaloneExitShapeSet.has(s)).length,
+            },
+        };
+    }
+}

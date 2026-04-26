@@ -2,21 +2,6 @@ const defaultRoomSize = 0.6;
 const defaultLineWidth = 0.025;
 const lineColor = 'rgb(225, 255, 225)';
 
-export type PerfSnapshot = {
-    /** Total updateRoomCulling time in ms */
-    cullingMs: number;
-    /** renderGrid time in ms (subset of culling) */
-    gridMs: number;
-    /** Number of visible rooms after culling */
-    visibleRooms: number;
-    /** Total room count */
-    totalRooms: number;
-    /** Number of visible standalone exits */
-    visibleExits: number;
-    /** Estimated FPS based on time between culling calls */
-    fps: number;
-};
-
 export type LabelRenderMode = "image" | "data" | "none";
 
 export type CullingMode = "none" | "basic" | "indexed";
@@ -162,8 +147,6 @@ export type Settings = {
     gridColor: string;
     /** Width of grid lines in map units. Default: 0.02 */
     gridLineWidth: number;
-    /** Performance monitoring callback, or null to disable. */
-    perfCallback: ((stats: PerfSnapshot) => void) | null;
     /** Whether to draw borders (strokes) on rooms. Default: true */
     borders: boolean;
     /** When true, rooms use frame rendering: fill=backgroundColor, stroke=envColor. Default: false */
@@ -216,7 +199,6 @@ export function createSettings(): Settings {
         gridSize: 1,
         gridColor: 'rgba(200, 200, 200, 0.15)',
         gridLineWidth: 0.03,
-        perfCallback: null,
         borders: true,
         frameMode: false,
         coloredMode: false,

@@ -115,6 +115,47 @@ export class Camera extends TypedEventEmitter<CameraEventMap> {
         };
     }
 
+    /**
+     * Map-space bounds to use for culling. When `cullingBounds` is a
+     * screen-pixel sub-rect it is converted to map space via the current
+     * camera transform; otherwise the full viewport is returned.
+     */
+    getCullingViewport(cullingBounds?: {x: number; y: number; width: number; height: number} | null): ViewportBounds {
+        if (!cullingBounds) return this.getViewportBounds();
+        const scale = this.getScale();
+        const pos = this.position;
+        return {
+            minX: (cullingBounds.x - pos.x) / scale,
+            maxX: (cullingBounds.x + cullingBounds.width - pos.x) / scale,
+            minY: (cullingBounds.y - pos.y) / scale,
+            maxY: (cullingBounds.y + cullingBounds.height - pos.y) / scale,
+        };
+    }
+
+    /**
+     * Create a Camera whose full viewport covers exactly the given world-space bounds.
+     * Used by headless exporters that need a Camera but have no real display.
+     */
+    static forMapBounds(minX: number, maxX: number, minY: number, maxY: number): Camera {
+        const scale = BASE_SCALE;
+        const camera = new Camera((maxX - minX) * scale, (maxY - minY) * scale);
+        camera.zoom = 1;
+        camera.position = {x: -minX * scale, y: -minY * scale};
+        return camera;
+    }
+
+    /**
+     * Create a Camera from an explicit render-camera transform (scale + offset).
+     * Used by {@link CanvasExporter} to derive culling bounds from the already-
+     * computed fitted transform without re-doing the letterbox math.
+     */
+    static forRenderCamera(width: number, height: number, scale: number, offsetX: number, offsetY: number): Camera {
+        const camera = new Camera(width, height);
+        camera.zoom = scale / BASE_SCALE;
+        camera.position = {x: offsetX, y: offsetY};
+        return camera;
+    }
+
     /** Convert client/screen coordinates to map coordinates. */
     clientToMapPoint(clientX: number, clientY: number, containerOffset?: { left: number; top: number }) {
         const stageX = clientX - (containerOffset?.left ?? 0);

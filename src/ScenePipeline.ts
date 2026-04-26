@@ -2,7 +2,7 @@ import type MapReader from "./reader/MapReader";
 import type Area from "./reader/Area";
 import type Plane from "./reader/Plane";
 import type Exit from "./reader/Exit";
-import type {Settings, ViewportBounds} from "./types/Settings";
+import type {Settings} from "./types/Settings";
 import ExitRenderer from "./ExitRenderer";
 import type {ExitDrawData} from "./ExitRenderer";
 import {computeStubs} from "./scene/StubStyle";
@@ -13,7 +13,6 @@ import {layoutLinkExit} from "./scene/elements/ExitLayout";
 import {specialExitToShape} from "./scene/elements/SpecialExitLayout";
 import {stubToShape} from "./scene/elements/StubLayout";
 import {labelToShape} from "./scene/elements/LabelLayout";
-import {layoutGrid} from "./scene/elements/GridLayout";
 import type {GroupShape, Shape} from "./scene/Shape";
 import {colorLightness} from "./utils/color";
 
@@ -115,11 +114,31 @@ export type SceneShapesByLayer = {
     topLabel: Shape[];
 };
 
+/** User-defined label shape paired with its world-space bounds (for culling). */
+export type LabelShapeRef = { shape: GroupShape; bounds: Bounds };
+
+/** Custom-line (special-exit) shape paired with its world-space bounds (for culling). */
+export type SpecialExitShapeRef = { shape: GroupShape; bounds: Bounds };
+
+/** Stub shape paired with its world-space bounds (for culling). */
+export type StubShapeRef = { shape: GroupShape; bounds: Bounds };
+
+/** Area-exit label shape paired with its world-space bounds (for culling). */
+export type AreaExitLabelShapeRef = { shape: GroupShape; bounds: Bounds };
+
 export type SceneBuildResult = {
     /** Room body shapes keyed by roomId — for cull-entry construction. */
     roomShapeRefs: Map<number, RoomShapeRef>;
     /** Link-exit shapes paired with bounds and area-target metadata. */
     standaloneExitShapeRefs: StandaloneExitShapeRef[];
+    /** Non-noScaling label shapes paired with world-space bounds (for culling). */
+    labelShapeRefs: LabelShapeRef[];
+    /** Custom-line special-exit shapes paired with world-space bounds (for culling). */
+    specialExitShapeRefs: SpecialExitShapeRef[];
+    /** Stub shapes paired with world-space bounds (for culling). */
+    stubShapeRefs: StubShapeRef[];
+    /** Area-exit label shapes paired with world-space bounds (for culling). */
+    areaExitLabelShapeRefs: AreaExitLabelShapeRef[];
     areaExitHitZones: AreaExitHitZone[];
     drawnExits: DrawnExitEntry[];
     drawnSpecialExits: DrawnSpecialExitEntry[];
@@ -216,10 +235,13 @@ export class ScenePipeline {
     // mirrors the legacy addNode call order so renderers can replay the scene
     // without re-sorting (e.g. labels → link exits → special exits & stubs on
     // the link layer; rooms → area name → area-exit labels on the room layer).
-    private gridShapes: Shape[] = [];
     private linkShapes: Shape[] = [];
     private roomShapes: Shape[] = [];
     private topLabelShapes: Shape[] = [];
+    private labelShapeRefs: LabelShapeRef[] = [];
+    private specialExitShapeRefs: SpecialExitShapeRef[] = [];
+    private stubShapeRefs: StubShapeRef[] = [];
+    private areaExitLabelShapeRefs: AreaExitLabelShapeRef[] = [];
 
     constructor(mapReader: MapReader, settings: Settings) {
         this.mapReader = mapReader;
@@ -232,16 +254,14 @@ export class ScenePipeline {
      * Clears layers, renders grid → labels → exits → rooms → area name.
      * Returns data for culling and interaction (room nodes, exit data, hit zones).
      */
-    buildScene(area: Area, plane: Plane, zIndex: number, viewportBounds?: ViewportBounds): SceneBuildResult {
-        this.gridShapes = [];
+    buildScene(area: Area, plane: Plane, zIndex: number): SceneBuildResult {
         this.linkShapes = [];
         this.roomShapes = [];
         this.topLabelShapes = [];
-
-        // Grid shapes for the requested viewport.
-        if (viewportBounds) {
-            this.gridShapes.push(...layoutGrid(viewportBounds, this.settings));
-        }
+        this.labelShapeRefs = [];
+        this.specialExitShapeRefs = [];
+        this.stubShapeRefs = [];
+        this.areaExitLabelShapeRefs = [];
 
         // Labels
         this.renderLabels(plane.getLabels(), area.getAreaId());
@@ -280,13 +300,17 @@ export class ScenePipeline {
         return {
             roomShapeRefs: roomResult.roomShapeRefs,
             standaloneExitShapeRefs: exitResult.standaloneExitShapeRefs,
+            labelShapeRefs: this.labelShapeRefs,
+            specialExitShapeRefs: this.specialExitShapeRefs,
+            stubShapeRefs: this.stubShapeRefs,
+            areaExitLabelShapeRefs: this.areaExitLabelShapeRefs,
             areaExitHitZones,
             drawnExits: exitResult.drawnExits,
             drawnSpecialExits: roomResult.drawnSpecialExits,
             drawnStubs: roomResult.drawnStubs,
             hitShapes,
             sceneShapes: {
-                grid: this.gridShapes,
+                grid: [],
                 link: this.linkShapes,
                 room: this.roomShapes,
                 topLabel: this.topLabelShapes,
@@ -333,6 +357,7 @@ export class ScenePipeline {
                     if (pts[i + 1] < minY) minY = pts[i + 1];
                     if (pts[i + 1] > maxY) maxY = pts[i + 1];
                 }
+                const seBounds = {x: minX, y: minY, width: maxX - minX, height: maxY - minY};
                 drawnSpecialExits.push({
                     roomId: room.id,
                     exitName: se.dir,
@@ -342,8 +367,9 @@ export class ScenePipeline {
                     dash: se.line.dash,
                     hasArrow: !!se.arrow,
                     arrowTip: se.arrow ? {x: se.arrow.tipX, y: se.arrow.tipY} : undefined,
-                    bounds: {x: minX, y: minY, width: maxX - minX, height: maxY - minY},
+                    bounds: seBounds,
                 });
+                this.specialExitShapeRefs.push({shape: seShape, bounds: seBounds});
             }
 
             // Area exit hit zones from special exits (custom lines to other areas)
@@ -378,6 +404,15 @@ export class ScenePipeline {
                     x2: stub.x2, y2: stub.y2,
                     stroke: stub.stroke,
                     strokeWidth: stub.strokeWidth,
+                });
+                this.stubShapeRefs.push({
+                    shape: stubShape,
+                    bounds: {
+                        x: Math.min(stub.x1, stub.x2),
+                        y: Math.min(stub.y1, stub.y2),
+                        width: Math.abs(stub.x2 - stub.x1),
+                        height: Math.abs(stub.y2 - stub.y1),
+                    },
                 });
             }
 
@@ -465,6 +500,14 @@ export class ScenePipeline {
                 this.topLabelShapes.push(shape);
             } else {
                 this.linkShapes.push(shape);
+            }
+            // noScaling labels have screen-pixel dimensions — their bounds can't
+            // be compared to world-space viewport bounds, so skip them for culling.
+            if (!label.noScaling) {
+                this.labelShapeRefs.push({
+                    shape,
+                    bounds: {x: label.X, y: -label.Y, width: label.Width, height: label.Height},
+                });
             }
         }
     }
@@ -750,12 +793,14 @@ export class ScenePipeline {
                         },
                     ],
                 };
+                const labelBounds = {x: p.boxX, y: p.boxY, width: p.boxW, height: p.boxH};
                 this.roomShapes.push(labelShape);
+                this.areaExitLabelShapeRefs.push({shape: labelShape as GroupShape, bounds: labelBounds});
 
                 // Label is clickable — navigate to the target area (any room from the
                 // cluster works since they all live there).
                 labelHitZones.push({
-                    bounds: { x: p.boxX, y: p.boxY, width: p.boxW, height: p.boxH },
+                    bounds: labelBounds,
                     targetRoomId: p.cluster[0].targetRoomId,
                 });
             }
