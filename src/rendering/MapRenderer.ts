@@ -347,11 +347,14 @@ export class MapRenderer {
         const plane = this.state.currentAreaInstance.getPlane(this.state.currentZIndex);
         if (!plane) return null;
         const b = this.state.getEffectiveBounds(this.state.currentAreaInstance, plane);
-        const hasAreaName = this.state.settings.areaName && this.state.currentAreaInstance.getAreaName();
+        const areaName = this.state.settings.areaName ? this.state.currentAreaInstance.getAreaName() : null;
+        // Mirror the offsets used by computeExportBounds so that getAreaBounds()
+        // covers the same region the export/preview image will render.
+        const nameRight = areaName ? b.minX - 3.5 + areaName.length * 2.5 * 0.6 : b.maxX;
         const raw: ViewportBounds = {
-            minX: hasAreaName ? b.minX - 4 : b.minX,
-            maxX: b.maxX,
-            minY: hasAreaName ? b.minY - 7 : b.minY,
+            minX: areaName ? b.minX - 3.5 : b.minX,
+            maxX: Math.max(b.maxX, nameRight),
+            minY: areaName ? b.minY - 7 : b.minY,
             maxY: b.maxY,
         };
         const fn = this.backend.coordinateTransform;

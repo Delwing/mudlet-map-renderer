@@ -44,14 +44,21 @@ export class DemoPreview {
             return;
         }
 
-        const aspect = areaW / areaH;
+        // Use the padded export bounds for the aspect ratio so the container
+        // matches what the image actually renders. For small areas the padding
+        // dominates and causes heavy letterboxing if the area-only ratio is used,
+        // which then shifts the viewport indicator way off.
+        const padding = 3;
+        const paddedW = areaW + 2 * padding;
+        const paddedH = areaH + 2 * padding;
+        const aspect = paddedW / paddedH;
         const width = aspect >= 1 ? MAX_SIZE : Math.round(MAX_SIZE * aspect);
         const height = aspect >= 1 ? Math.round(MAX_SIZE / aspect) : MAX_SIZE;
 
-        const canvas = this.renderer.export(new CanvasExporter({width, height, padding: 3}));
+        const canvas = this.renderer.export(new CanvasExporter({width, height, padding}));
         if (!canvas) return;
 
-        // Size the preview box to the area aspect ratio
+        // Size the preview box to the padded aspect ratio
         let boxW: number, boxH: number;
         if (aspect >= 1) {
             boxW = MAX_SIZE;
@@ -68,7 +75,14 @@ export class DemoPreview {
         this.previewBg.style.backgroundSize = "100% 100%";
         this.previewBg.style.opacity = "0.7";
 
-        this.areaBounds = bounds;
+        // Store padded bounds so update() maps viewport coords to the same
+        // coordinate range the image was rendered with.
+        this.areaBounds = {
+            minX: bounds.minX - padding,
+            maxX: bounds.maxX + padding,
+            minY: bounds.minY - padding,
+            maxY: bounds.maxY + padding,
+        };
         this.update();
     }
 
