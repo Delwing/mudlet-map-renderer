@@ -365,6 +365,10 @@ export class KonvaRenderBackend implements InteractiveBackend {
             this.lastHitShapes = [];
             this.gridLayer.destroyChildren();
             this.linkLayer.destroyChildren();
+            this.positionLayer.destroyChildren();
+            this.positionMarker = undefined;
+            this.clearOverlayShapes();
+            this.currentRoomOverlay = [];
             this.stage.batchDraw();
             return;
         }
@@ -627,12 +631,10 @@ export class KonvaRenderBackend implements InteractiveBackend {
     private applyClipping(): void {
         if (!this.sceneManager.lastResult) return;
 
-        const {shapes: clipped} = this.sceneManager.cull(this._coordinateTransform);
-
-        const visibleSet = new Set<Shape>([...clipped.link, ...clipped.room]);
+        const visibilityMap = this.sceneManager.cullInteractive(this._coordinateTransform);
         let changed = false;
         for (const [shape, entry] of this.shapeToDrawEntry) {
-            const vis = visibleSet.has(shape);
+            const vis = visibilityMap.get(shape) ?? true;
             if (entry.visible !== vis) {
                 entry.visible = vis;
                 changed = true;

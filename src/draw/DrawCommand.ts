@@ -68,6 +68,9 @@ export interface TextCommand {
     fontFamily: string;
     fontStyle: string;
     fill: string;
+    stroke?: string;
+    /** Stroke width in render units (0 = no stroke). */
+    sw: number;
     align: "left" | "center" | "right";
     vAlign: "top" | "middle" | "bottom";
     w: number;

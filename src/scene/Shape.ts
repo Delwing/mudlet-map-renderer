@@ -112,6 +112,8 @@ export interface TextShape extends ShapeBase {
     fontFamily?: string;
     fontStyle?: string;
     fill?: string;
+    stroke?: string;
+    strokeWidth?: number;
     align?: "left" | "center" | "right";
     verticalAlign?: "top" | "middle" | "bottom";
     width?: number;

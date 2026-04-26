@@ -23,6 +23,8 @@ import {blueprintShapeStyle} from "./shape/BlueprintStyle";
 import {neonShapeStyle} from "./shape/NeonStyle";
 import {sketchyShapeStyle, type SketchyOptions} from "./shape/SketchyStyle";
 import {isometricShapeStyle, type IsometricOptions, type IsometricRotation} from "./shape/IsometricStyle";
+import {constructionShapeStyle} from "./shape/ConstructionStyle";
+import {scifiShapeStyle} from "./shape/SciFiStyle";
 
 export {compose, identityStyle} from "./Style";
 export type {Style, StyleContext} from "./Style";
@@ -46,5 +48,11 @@ export function Sketchy(options: SketchyOptions): Style {
 export function Isometric(options: IsometricOptions = {}): Style {
     return isometricShapeStyle(options);
 }
+
+/** Construction-site hazard aesthetic — safety yellow on asphalt, orange exits. */
+export const Construction: Style = constructionShapeStyle;
+
+/** Sci-fi / space-exploration aesthetic — holographic cyan glow on void black. */
+export const SciFi: Style = scifiShapeStyle;
 
 export type {SketchyOptions, IsometricOptions, IsometricRotation};
