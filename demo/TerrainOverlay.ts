@@ -1,6 +1,5 @@
-import Konva from "konva";
 import type {ViewportBounds} from "@src/types/Settings";
-import type {CoordinateTransform, LiveEffect} from "@src";
+import type {SceneOverlay, SceneOverlayContext, CanvasDrawState} from "@src";
 
 export type TerrainEffectType = "water" | "forest" | "lava" | "ice";
 
@@ -19,46 +18,53 @@ const EFFECT_COLORS: Record<TerrainEffectType, string> = {
     water: '#4488cc', forest: '#44aa44', lava: '#ff4400', ice: '#aaddff',
 };
 
-export class TerrainOverlay implements LiveEffect {
-    private layer!: Konva.Layer;
-    private shape!: Konva.Shape;
+export class TerrainOverlay implements SceneOverlay {
     private rooms: TerrainRoom[] = [];
     private bounds: ViewportBounds = {minX: 0, maxX: 10, minY: 0, maxY: 10};
     private scale: number = 75;
-    private animation: Konva.Animation | null = null;
     private time: number = 0;
-    private destroyed = false;
-    private coordTransform?: CoordinateTransform;
+    private coordTransform: (x: number, y: number) => {x: number; y: number} = (x, y) => ({x, y});
     private ripples: RippleState[] = [];
     private leaves: LeafParticle[][] = [];
     private sparkles: SparkleState[][] = [];
+    private unsubFrame?: () => void;
 
-    attach(layer: Konva.Layer) {
-        this.layer = layer;
-        this.shape = new Konva.Shape({
-            listening: false, perfectDrawEnabled: false,
-            sceneFunc: (ctx) => { this.draw((ctx as any)._context); },
+    attach(ctx: SceneOverlayContext) {
+        this.unsubFrame = ctx.onFrame((dt) => {
+            if (this.rooms.length === 0) return;
+            this.update(dt);
         });
-        layer.add(this.shape);
+    }
+
+    detach() {
+        this.unsubFrame?.();
+        this.unsubFrame = undefined;
     }
 
     setRooms(rooms: TerrainRoom[]) {
         this.rooms = rooms;
         this.initState();
-        if (rooms.length > 0 && this.layer) this.startAnimation();
-        else this.stopAnimation();
     }
 
-    updateViewport(bounds: ViewportBounds, scale: number, coordinateTransform?: CoordinateTransform) {
-        this.bounds = bounds;
-        this.scale = scale;
-        if (coordinateTransform) this.coordTransform = coordinateTransform;
-    }
-
-    destroy() {
-        this.destroyed = true;
-        this.stopAnimation();
-        if (this.shape) this.shape.destroy();
+    draw(ctx: CanvasRenderingContext2D, state: CanvasDrawState) {
+        this.bounds = state.bounds;
+        this.scale = state.scale;
+        this.coordTransform = state.coordinateTransform;
+        if (this.rooms.length === 0) return;
+        const {minX, maxX, minY, maxY} = this.bounds;
+        ctx.save();
+        for (let i = 0; i < this.rooms.length; i++) {
+            const room = this.rooms[i];
+            const pos = this.coordTransform(room.x, room.y);
+            if (pos.x < minX - 1 || pos.x > maxX + 1 || pos.y < minY - 1 || pos.y > maxY + 1) continue;
+            switch (room.effect) {
+                case "water": this.drawWater(ctx, room, this.ripples[i]); break;
+                case "forest": this.drawForest(ctx, room, this.leaves[i]); break;
+                case "lava": this.drawLava(ctx, room, this.ripples[i]); break;
+                case "ice": this.drawIce(ctx, room, this.sparkles[i]); break;
+            }
+        }
+        ctx.restore();
     }
 
     private initState() {
@@ -109,54 +115,21 @@ export class TerrainOverlay implements LiveEffect {
         }
     }
 
-    /**
-     * Derive the affine basis vectors from the coordinate transform by sampling.
-     * Returns the transformed center and the basis vectors for local-to-transformed mapping.
-     */
     private getAffineBasis(cx: number, cy: number): { pos: {x: number; y: number}; ax: number; ay: number; bx: number; by: number } {
-        if (!this.coordTransform) {
-            return { pos: {x: cx, y: cy}, ax: 1, ay: 0, bx: 0, by: 1 };
-        }
         const o = this.coordTransform(cx, cy);
         const px = this.coordTransform(cx + 1, cy);
         const py = this.coordTransform(cx, cy + 1);
         return {
             pos: o,
-            ax: px.x - o.x, ay: px.y - o.y,  // how local +X maps
-            bx: py.x - o.x, by: py.y - o.y,  // how local +Y maps
+            ax: px.x - o.x, ay: px.y - o.y,
+            bx: py.x - o.x, by: py.y - o.y,
         };
     }
 
-    /**
-     * Set up a canvas affine transform so that drawing at local (0,0) maps to
-     * the transformed room center, and local offsets are projected onto the
-     * isometric (or other) face.
-     */
-    private applyRoomTransform(ctx: CanvasRenderingContext2D, cx: number, cy: number): { pos: {x: number; y: number} } {
+    private applyRoomTransform(ctx: CanvasRenderingContext2D, cx: number, cy: number) {
         const {pos, ax, ay, bx, by} = this.getAffineBasis(cx, cy);
         ctx.save();
-        // ctx.transform(a, b, c, d, e, f) maps (x,y) → (a*x + c*y + e, b*x + d*y + f)
         ctx.transform(ax, ay, bx, by, pos.x, pos.y);
-        return { pos };
-    }
-
-    private draw(ctx: CanvasRenderingContext2D) {
-        if (this.rooms.length === 0) return;
-        const {minX, maxX, minY, maxY} = this.bounds;
-        ctx.save();
-        for (let i = 0; i < this.rooms.length; i++) {
-            const room = this.rooms[i];
-            // Cull using transformed position
-            const pos = this.coordTransform ? this.coordTransform(room.x, room.y) : {x: room.x, y: room.y};
-            if (pos.x < minX - 1 || pos.x > maxX + 1 || pos.y < minY - 1 || pos.y > maxY + 1) continue;
-            switch (room.effect) {
-                case "water": this.drawWater(ctx, room, this.ripples[i]); break;
-                case "forest": this.drawForest(ctx, room, this.leaves[i]); break;
-                case "lava": this.drawLava(ctx, room, this.ripples[i]); break;
-                case "ice": this.drawIce(ctx, room, this.sparkles[i]); break;
-            }
-        }
-        ctx.restore();
     }
 
     private drawWater(ctx: CanvasRenderingContext2D, room: TerrainRoom, state: RippleState) {
@@ -209,12 +182,10 @@ export class TerrainOverlay implements LiveEffect {
         const rs = room.size ?? 0.6, half = rs / 2;
         const color = EFFECT_COLORS.ice;
         this.applyRoomTransform(ctx, room.x, room.y);
-        // Frost glow base
         ctx.globalAlpha = 0.15;
         const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, half * 0.8);
         grad.addColorStop(0, '#cceeff'); grad.addColorStop(0.6, '#aaddff'); grad.addColorStop(1, 'transparent');
         ctx.fillStyle = grad; ctx.beginPath(); ctx.arc(0, 0, half * 0.8, 0, Math.PI * 2); ctx.fill();
-        // Sparkles
         for (const spark of sparkles) {
             const alpha = Math.max(0, Math.sin(spark.phase));
             if (alpha < 0.05) continue;
@@ -224,21 +195,5 @@ export class TerrainOverlay implements LiveEffect {
             ctx.beginPath(); ctx.moveTo(sx, sy - r); ctx.lineTo(sx + r * 0.3, sy); ctx.lineTo(sx, sy + r); ctx.lineTo(sx - r * 0.3, sy); ctx.closePath(); ctx.fill();
         }
         ctx.restore();
-    }
-
-    private startAnimation() {
-        if (this.animation) return;
-        let lastTime = performance.now();
-        this.animation = new Konva.Animation((frame) => {
-            if (this.destroyed || this.rooms.length === 0) { this.stopAnimation(); return; }
-            const now = frame?.time ?? performance.now();
-            const dt = Math.min((now - lastTime) / 1000, 0.1);
-            lastTime = now; this.update(dt);
-        }, this.layer);
-        this.animation.start();
-    }
-
-    private stopAnimation() {
-        if (this.animation) { this.animation.stop(); this.animation = null; }
     }
 }

@@ -68,8 +68,7 @@ export type { CanvasExportOptions, PngBytesExportOptions } from './export/Canvas
 export { canvasToBytes } from './export/canvasToBytes';
 
 // --- Overlays ---
-export type { SceneOverlay, SceneOverlayContext } from './overlay/SceneOverlay';
-export type { LiveEffect, CoordinateTransform } from './overlay/LiveEffect';
+export type { SceneOverlay, SceneOverlayContext, CanvasDrawState } from './overlay/SceneOverlay';
 export { AmbientLightOverlay } from './overlay/AmbientLightOverlay';
 export type { AmbientLightOptions } from './overlay/AmbientLightOverlay';
 

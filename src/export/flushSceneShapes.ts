@@ -35,6 +35,7 @@ export function flushSceneShapes(
     flush(sceneShapes.room);
     flush(buildBuiltInOverlayShapes(context.state, context.overlays));
     for (const overlay of context.sceneOverlays) {
+        if (!overlay.render) continue;
         const out = overlay.render(context.state, context.viewportBounds);
         if (!out) continue;
         flush(Array.isArray(out) ? out : [out]);
