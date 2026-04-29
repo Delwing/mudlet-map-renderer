@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "license": "MIT",
   "repository": {
-    "url": "https://github.com/mudlet/map-renderer"
+    "url": "git+https://github.com/mudlet/map-renderer.git"
   },
   "type": "module",
   "main": "./dist/index.mjs",
