@@ -2,7 +2,9 @@
   "name": "mudlet-map-renderer",
   "version": "1.0.0",
   "license": "MIT",
-  "repository": "https://github.com/mudlet/map-renderer",
+  "repository": {
+    "url": "https://github.com/mudlet/map-renderer"
+  },
   "type": "module",
   "main": "./dist/index.mjs",
   "module": "./dist/index.mjs",
