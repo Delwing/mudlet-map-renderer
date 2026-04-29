@@ -410,7 +410,7 @@ export function initControls(settings: Settings, renderer: MapRenderer, getCurre
     // --- Weather (overlay plugin) ---
 
     const weather = new WeatherOverlay();
-    renderer.addSceneOverlay('weather', weather);
+    renderer.konvaBackend?.addLiveEffect('weather', weather);
 
     const weatherType = document.getElementById("weather-type") as HTMLSelectElement | null;
     const weatherIntensity = document.getElementById("weather-intensity") as HTMLInputElement | null;
@@ -496,10 +496,10 @@ export function initControls(settings: Settings, renderer: MapRenderer, getCurre
     terrainToggle?.addEventListener("change", () => {
         if (terrainToggle.checked) {
             terrain = new TerrainOverlay();
-            renderer.addSceneOverlay('terrain', terrain);
+            renderer.konvaBackend?.addLiveEffect('terrain', terrain);
             updateTerrainRooms();
         } else {
-            renderer.removeSceneOverlay('terrain');
+            renderer.konvaBackend?.removeLiveEffect('terrain');
         }
     });
 
@@ -553,10 +553,10 @@ export function initControls(settings: Settings, renderer: MapRenderer, getCurre
     fogToggle?.addEventListener("change", () => {
         if (fogToggle.checked) {
             fogOfWar = new FogOfWarOverlay();
-            renderer.addSceneOverlay('fog-of-war', fogOfWar);
+            renderer.konvaBackend?.addLiveEffect('fog-of-war', fogOfWar);
             updateFogOfWar();
         } else {
-            renderer.removeSceneOverlay('fog-of-war');
+            renderer.konvaBackend?.removeLiveEffect('fog-of-war');
         }
     });
 

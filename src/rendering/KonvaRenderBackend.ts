@@ -2,7 +2,7 @@ import Konva from "konva";
 import type Area from "../reader/Area";
 import type Plane from "../reader/Plane";
 import type {RendererEventMap, ViewportBounds} from "../types/Settings";
-import type {DrawnExitEntry, DrawnSpecialExitEntry, DrawnStubEntry} from "../ScenePipeline";
+import type {AreaExitHitZone, DrawnExitEntry, DrawnSpecialExitEntry, DrawnStubEntry} from "../ScenePipeline";
 import type {MapState} from "../MapState";
 import {Camera} from "../camera/Camera";
 import {CullingManager} from "../CullingManager";
@@ -32,13 +32,14 @@ import {
     highlightToShape, positionMarkerToShape, pathToShapes,
 } from "../scene/elements/OverlayLayout";
 import ExplorationArea from "../reader/ExplorationArea";
-import type {SceneOverlay, SceneOverlayContext, CanvasDrawState} from "../overlay/SceneOverlay";
+import type {LiveEffect} from "../overlay/LiveEffect";
+import type {SceneOverlay, SceneOverlayContext} from "../overlay/SceneOverlay";
 import type {ExportCanvas} from "../export/Exporter";
 import {HitTester} from "../hit/HitTester";
 import type {GroupShape, Shape} from "../scene/Shape";
-import type {Style, StyleContext} from "../style";
-import {identityStyle} from "../style";
-import {applyStyleToShapes} from "../style";
+import type {Style, StyleContext} from "../style/Style";
+import {identityStyle} from "../style/Style";
+import {applyStyleToShapes} from "../style/applyStyle";
 
 const currentRoomColor = 'rgb(120, 72, 0)';
 
@@ -91,6 +92,7 @@ export class KonvaRenderBackend implements InteractiveBackend {
     private highlightShapes: Map<number, RecordingGroupNode> = new Map();
     private pathShapes: RecordingGroupNode[] = [];
     private currentRoomOverlay: RecordingGroupNode[] = [];
+    private areaExitHitZones: AreaExitHitZone[] = [];
     private interactionHandler?: InteractionHandler;
     private origSetSize?: (w: number, h: number) => void;
     private cameraChangeHandler?: () => void;
@@ -101,14 +103,10 @@ export class KonvaRenderBackend implements InteractiveBackend {
     get coordinateTransform(): CoordFn {
         return this._coordinateTransform;
     }
+    private liveEffects: Map<string, LiveEffect> = new Map();
     private sceneOverlays: Map<string, SceneOverlay> = new Map();
     private sceneOverlayNodes: Map<string, RecordingGroupNode[]> = new Map();
-    private drawOverlayShapes: Map<string, Konva.Shape> = new Map();
     private viewportSubscribers: Set<() => void> = new Set();
-    private frameCallbacks: Map<string, (dt: number) => void> = new Map();
-    private rafHandle: number | null = null;
-    private lastFrameTime = 0;
-    private frameSeq = 0;
 
     constructor(state: MapState, container?: HTMLDivElement) {
         this.state = state;
@@ -192,6 +190,7 @@ export class KonvaRenderBackend implements InteractiveBackend {
         // Drop scene state pinned to the now-destroyed sceneNode/layers.
         this.shapeToDrawEntry = new Map();
         this.shapeToGroup.clear();
+        this.areaExitHitZones = [];
         this.lastHitShapes = [];
         this.hitTester.clear();
 
@@ -277,16 +276,18 @@ export class KonvaRenderBackend implements InteractiveBackend {
         // Destroy interaction handler (removes DOM listeners)
         this.interactionHandler?.destroy();
 
-        // Detach scene overlays (removes frame callbacks and event subscriptions)
+        // Stop overlay plugins
+        for (const plugin of this.liveEffects.values()) plugin.destroy();
+        this.liveEffects.clear();
+
+        // Detach scene overlays so they can unsubscribe from events
         for (const overlay of this.sceneOverlays.values()) overlay.detach?.();
         this.sceneOverlays.clear();
         for (const nodes of this.sceneOverlayNodes.values()) {
             for (const node of nodes) node.destroy();
         }
         this.sceneOverlayNodes.clear();
-        this.drawOverlayShapes.clear();
         this.viewportSubscribers.clear();
-        this.stopFrameLoop();
 
         // Cancel any running camera animation
         this.camera.cancelAnimation();
@@ -346,6 +347,9 @@ export class KonvaRenderBackend implements InteractiveBackend {
         this.culling.scheduleCulling();
         this.events.emit('pan', vpBounds);
         for (const cb of this.viewportSubscribers) cb();
+        for (const plugin of this.liveEffects.values()) {
+            plugin.updateViewport(vpBounds, scale, this.coordinateTransform);
+        }
     }
 
     // --- State event handlers ---
@@ -381,31 +385,30 @@ export class KonvaRenderBackend implements InteractiveBackend {
         }
     }
 
+    addLiveEffect(id: string, effect: LiveEffect) {
+        this.removeLiveEffect(id);
+        effect.attach(this.overlayLayer);
+        this.liveEffects.set(id, effect);
+        effect.updateViewport(this.camera.getViewportBounds(), this.camera.getScale(), this.coordinateTransform);
+    }
+
+    removeLiveEffect(id: string) {
+        const existing = this.liveEffects.get(id);
+        if (existing) {
+            existing.destroy();
+            this.liveEffects.delete(id);
+        }
+    }
+
     addSceneOverlay(id: string, overlay: SceneOverlay) {
         const existing = this.sceneOverlays.get(id);
         if (existing) {
             existing.detach?.();
             this.clearSceneOverlayNodes(id);
-            this.drawOverlayShapes.get(id)?.destroy();
-            this.drawOverlayShapes.delete(id);
         }
         this.sceneOverlays.set(id, overlay);
         overlay.attach?.(this.createOverlayContext(id, overlay));
-        if (overlay.render) this.renderSceneOverlay(id, overlay);
-        if (overlay.draw) {
-            const self = this;
-            const shape = new Konva.Shape({
-                listening: false,
-                perfectDrawEnabled: false,
-                sceneFunc(context) {
-                    const ctx = (context as any)._context as CanvasRenderingContext2D;
-                    overlay.draw!(ctx, self.getCanvasDrawState());
-                },
-            });
-            this.overlayLayer.add(shape);
-            this.drawOverlayShapes.set(id, shape);
-        }
-        this.overlayLayer.batchDraw();
+        this.renderSceneOverlay(id, overlay);
     }
 
     removeSceneOverlay(id: string) {
@@ -414,8 +417,6 @@ export class KonvaRenderBackend implements InteractiveBackend {
         overlay.detach?.();
         this.sceneOverlays.delete(id);
         this.clearSceneOverlayNodes(id);
-        this.drawOverlayShapes.get(id)?.destroy();
-        this.drawOverlayShapes.delete(id);
         this.overlayLayer.batchDraw();
     }
 
@@ -432,56 +433,14 @@ export class KonvaRenderBackend implements InteractiveBackend {
                 return () => this.viewportSubscribers.delete(cb);
             },
             invalidate: () => {
+                // Skip if the overlay was removed/replaced since attach.
                 if (this.sceneOverlays.get(id) !== overlay) return;
-                if (overlay.render) this.renderSceneOverlay(id, overlay);
-                this.overlayLayer.batchDraw();
+                this.renderSceneOverlay(id, overlay);
             },
-            onFrame: (cb) => {
-                const key = `${id}:${++this.frameSeq}`;
-                this.frameCallbacks.set(key, cb);
-                this.startFrameLoop();
-                return () => {
-                    this.frameCallbacks.delete(key);
-                    if (this.frameCallbacks.size === 0) this.stopFrameLoop();
-                };
-            },
-        };
-    }
-
-    private startFrameLoop() {
-        if (this.rafHandle !== null) return;
-        this.lastFrameTime = performance.now();
-        const tick = (now: number) => {
-            if (this.destroyed) return;
-            const dt = Math.min((now - this.lastFrameTime) / 1000, 0.1);
-            this.lastFrameTime = now;
-            for (const cb of this.frameCallbacks.values()) cb(dt);
-            this.overlayLayer.batchDraw();
-            this.rafHandle = this.frameCallbacks.size > 0 ? requestAnimationFrame(tick) : null;
-        };
-        this.rafHandle = requestAnimationFrame(tick);
-    }
-
-    private stopFrameLoop() {
-        if (this.rafHandle !== null) {
-            cancelAnimationFrame(this.rafHandle);
-            this.rafHandle = null;
-        }
-    }
-
-    private getCanvasDrawState(): CanvasDrawState {
-        return {
-            bounds: this.camera.getViewportBounds(),
-            scale: this.camera.getScale(),
-            coordinateTransform: this._coordinateTransform,
-            canvasWidth: this.stage.width(),
-            canvasHeight: this.stage.height(),
-            canvasOffset: this.stage.position(),
         };
     }
 
     private renderSceneOverlay(id: string, overlay: SceneOverlay) {
-        if (!overlay.render) return;
         this.clearSceneOverlayNodes(id);
         const bounds = this.camera.getViewportBounds();
         const out = overlay.render(this.state, bounds);
@@ -494,6 +453,7 @@ export class KonvaRenderBackend implements InteractiveBackend {
             }
             this.sceneOverlayNodes.set(id, stored);
         }
+        this.overlayLayer.batchDraw();
     }
 
     private clearSceneOverlayNodes(id: string) {
@@ -650,6 +610,7 @@ export class KonvaRenderBackend implements InteractiveBackend {
     }
 
     private onSceneBuilt() {
+        this.areaExitHitZones = this.sceneManager.areaExitHitZones as AreaExitHitZone[];
         this.lastHitShapes = this.sceneManager.hitShapes as Shape[];
         this.hitTester.build(this.lastHitShapes, this.state.settings.roomSize, this._coordinateTransform);
 

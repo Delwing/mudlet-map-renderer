@@ -1,5 +1,6 @@
+import Konva from "konva";
 import type {ViewportBounds} from "@src/types/Settings";
-import type {SceneOverlay, SceneOverlayContext, CanvasDrawState} from "@src";
+import type {LiveEffect, CoordinateTransform} from "@src";
 
 export type WeatherType = "rain" | "snow" | "fog" | "dust" | "none";
 
@@ -39,29 +40,33 @@ const DEFAULT_OPACITY: Record<WeatherType, number> = {
     none: 0,
 };
 
-export class WeatherOverlay implements SceneOverlay {
+export class WeatherOverlay implements LiveEffect {
+    private layer!: Konva.Layer;
+    private shape!: Konva.Shape;
     private particles: Particle[] = [];
     private style: WeatherStyle;
     private bounds: ViewportBounds = {minX: 0, maxX: 10, minY: 0, maxY: 10};
     private scale: number = 75;
-    private canvasWidth: number = 800;
-    private canvasHeight: number = 600;
-    private unsubFrame?: () => void;
+    private animation: Konva.Animation | null = null;
+    private lastTime: number = 0;
+    private destroyed = false;
 
     constructor() {
         this.style = {type: "none", intensity: 0.5, windAngle: 10, windStrength: 1.0};
     }
 
-    attach(ctx: SceneOverlayContext) {
-        this.unsubFrame = ctx.onFrame((dt) => {
-            if (this.style.type === "none") return;
-            this.updateParticles(dt);
+    attach(layer: Konva.Layer) {
+        this.layer = layer;
+        this.shape = new Konva.Shape({
+            listening: false,
+            perfectDrawEnabled: false,
+            sceneFunc: (ctx) => {
+                // @ts-ignore
+                const c2d: CanvasRenderingContext2D = ctx._context;
+                this.drawParticles(c2d);
+            },
         });
-    }
-
-    detach() {
-        this.unsubFrame?.();
-        this.unsubFrame = undefined;
+        layer.add(this.shape);
     }
 
     setStyle(style: WeatherStyle) {
@@ -69,29 +74,25 @@ export class WeatherOverlay implements SceneOverlay {
         this.style = style;
         if (style.type === "none") {
             this.particles = [];
+            this.stopAnimation();
+            if (this.layer) this.layer.batchDraw();
             return;
         }
         if (typeChanged || this.particles.length === 0) {
             this.initParticles();
         }
+        if (this.layer) this.startAnimation();
     }
 
-    draw(ctx: CanvasRenderingContext2D, state: CanvasDrawState) {
-        this.bounds = state.bounds;
-        this.scale = state.scale;
-        this.canvasWidth = state.canvasWidth;
-        this.canvasHeight = state.canvasHeight;
-        if (this.style.type === "none" || this.particles.length === 0) return;
-        const color = this.style.color ?? DEFAULT_COLORS[this.style.type];
-        const baseOpacity = this.style.opacity ?? DEFAULT_OPACITY[this.style.type];
-        ctx.save();
-        switch (this.style.type) {
-            case "rain": this.drawRain(ctx, color, baseOpacity); break;
-            case "snow": this.drawSnow(ctx, color, baseOpacity); break;
-            case "dust": this.drawDust(ctx, color, baseOpacity); break;
-            case "fog": this.drawFog(ctx, color, baseOpacity, state); break;
-        }
-        ctx.restore();
+    updateViewport(bounds: ViewportBounds, scale: number, _coordinateTransform?: CoordinateTransform) {
+        this.bounds = bounds;
+        this.scale = scale;
+    }
+
+    destroy() {
+        this.destroyed = true;
+        this.stopAnimation();
+        if (this.shape) this.shape.destroy();
     }
 
     private viewW(): number { return this.bounds.maxX - this.bounds.minX; }
@@ -163,6 +164,20 @@ export class WeatherOverlay implements SceneOverlay {
         }
     }
 
+    private drawParticles(ctx: CanvasRenderingContext2D) {
+        if (this.style.type === "none" || this.particles.length === 0) return;
+        const color = this.style.color ?? DEFAULT_COLORS[this.style.type];
+        const baseOpacity = this.style.opacity ?? DEFAULT_OPACITY[this.style.type];
+        ctx.save();
+        switch (this.style.type) {
+            case "rain": this.drawRain(ctx, color, baseOpacity); break;
+            case "snow": this.drawSnow(ctx, color, baseOpacity); break;
+            case "dust": this.drawDust(ctx, color, baseOpacity); break;
+            case "fog": this.drawFog(ctx, color, baseOpacity); break;
+        }
+        ctx.restore();
+    }
+
     private drawRain(ctx: CanvasRenderingContext2D, color: string, baseOpacity: number) {
         const minWidth = 0.8 / this.scale, minLen = 4 / this.scale;
         ctx.lineCap = 'round';
@@ -191,8 +206,10 @@ export class WeatherOverlay implements SceneOverlay {
         }
     }
 
-    private drawFog(ctx: CanvasRenderingContext2D, color: string, baseOpacity: number, state: CanvasDrawState) {
-        const sw = state.canvasWidth, sh = state.canvasHeight;
+    private drawFog(ctx: CanvasRenderingContext2D, color: string, baseOpacity: number) {
+        const stage = this.layer.getStage();
+        if (!stage) return;
+        const sw = stage.width(), sh = stage.height();
         ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
         for (const p of this.particles) {
             const sx = p.x * sw, sy = p.y * sh, r = 120 * p.scale;
@@ -202,5 +219,22 @@ export class WeatherOverlay implements SceneOverlay {
             ctx.fillStyle = grad; ctx.beginPath(); ctx.arc(sx, sy, r, 0, Math.PI * 2); ctx.fill();
         }
         ctx.restore();
+    }
+
+    private startAnimation() {
+        if (this.animation) return;
+        this.lastTime = performance.now();
+        this.animation = new Konva.Animation((frame) => {
+            if (this.destroyed || this.style.type === "none") { this.stopAnimation(); return; }
+            const now = frame?.time ?? performance.now();
+            const dt = Math.min((now - this.lastTime) / 1000, 0.1);
+            this.lastTime = now;
+            this.updateParticles(dt);
+        }, this.layer);
+        this.animation.start();
+    }
+
+    private stopAnimation() {
+        if (this.animation) { this.animation.stop(); this.animation = null; }
     }
 }
