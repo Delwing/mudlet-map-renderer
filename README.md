@@ -307,25 +307,23 @@ Two kinds, picked by what you need:
 
 - **`SceneOverlay`** — target-agnostic, appears in every output (interactive
   canvas + every exporter). Use for static scene content (badges, annotations).
-- **`LiveEffect`** — interactive canvas only, receives a Konva layer and
-  viewport updates for animation. Skipped by exporters.
+- **`LiveEffect`** — interactive canvas only; receives a Konva layer and
+  viewport updates so it can run its own animation loop. Skipped by exporters.
 
 ```ts
 import type { SceneOverlay, LiveEffect } from 'mudlet-map-renderer';
 
-// Scene overlay — uses target-agnostic draw primitives
+// Scene overlay — emits target-agnostic Shapes; appears in every output
 class BadgeOverlay implements SceneOverlay {
-  render(target, state, bounds) {
-    const g = target.createGroup(0, 0);
-    target.addCircle(g, { cx: 5, cy: 5, radius: 0.4, fill: '#ff0' });
-    return g;
+  render(state, bounds) {
+    return { type: 'circle', cx: 5, cy: 5, radius: 0.4, paint: { fill: '#ff0' } };
   }
 }
 
 renderer.addSceneOverlay('badge', new BadgeOverlay());
 renderer.removeSceneOverlay('badge');
 
-// Live effect — gets a Konva layer, interactive only
+// Live effect — gets a Konva layer for animation; interactive canvas only
 class Pulse implements LiveEffect {
   attach(layer) { /* add Konva shapes */ }
   updateViewport(bounds, scale) { /* react to pan/zoom */ }

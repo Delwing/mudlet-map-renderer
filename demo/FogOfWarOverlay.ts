@@ -24,7 +24,7 @@ type RevealedConnection = { x1: number; y1: number; x2: number; y2: number };
  *
  * ```ts
  * const fog = new FogOfWarOverlay();
- * renderer.konvaBackend?.addLiveEffect('fog-of-war', fog);
+ * renderer.addLiveEffect('fog-of-war', fog);
  * fog.setStyle({ intensity: 0.85, radius: 1.5 });
  * fog.setRevealedRooms([{ x: 5, y: 10 }, { x: 6, y: 10 }]);
  * ```
@@ -50,7 +50,6 @@ export class FogOfWarOverlay implements LiveEffect {
             listening: false,
             perfectDrawEnabled: false,
             sceneFunc: (ctx) => {
-                // @ts-ignore
                 const c2d: CanvasRenderingContext2D = ctx._context;
                 this.draw(c2d);
             },

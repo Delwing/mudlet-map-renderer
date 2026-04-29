@@ -6,12 +6,13 @@ import type {Settings} from "../types/Settings";
 import {MapState} from "../MapState";
 import {KonvaRenderBackend} from "./KonvaRenderBackend";
 import type {CoordFn} from "../coord/CoordFn";
-import type {Style} from "../style/Style";
-import {identityStyle} from "../style/Style";
+import type {Style} from "../style";
+import {identityStyle} from "../style";
 import type {Camera} from "../camera/Camera";
 import type {CullingManager} from "../CullingManager";
 import type {TypedEventEmitter} from "../TypedEventEmitter";
 import type {SceneOverlay} from "../overlay/SceneOverlay";
+import type {LiveEffect} from "../overlay/LiveEffect";
 import type {Exporter, ExportContext, ExportCanvas} from "../export/Exporter";
 import type {DrawnExitEntry, DrawnSpecialExitEntry, DrawnStubEntry} from "../ScenePipeline";
 import type {HitTester, HitResult} from "../hit/HitTester";
@@ -21,9 +22,7 @@ import type {HitTester, HitResult} from "../hit/HitTester";
  *
  * Engine-neutral surface — anything that requires a specific render engine
  * (Konva layers for live effects, Konva.Stage for `toCanvas`) is intentionally
- * not on this interface and lives only on the concrete backend. Users who
- * need engine-specific APIs hold a reference to the concrete renderer (e.g.
- * via {@link MapRenderer.konvaBackend}).
+ * not on this interface and lives only on the concrete backend.
  */
 export interface InteractiveBackend {
     readonly camera: Camera;
@@ -72,8 +71,8 @@ export interface InteractiveBackend {
  *   (SVG string, PNG data URL, canvas, PDF bytes, …). New formats are added by
  *   shipping new `Exporter<T>` implementations — no new methods on this class.
  * - **{@link addSceneOverlay}** is target-agnostic and appears in every output.
- *   Animated effects live on the Konva renderer (`konvaBackend.addLiveEffect`)
- *   because they need a `Konva.Layer`, which only exists there.
+ * - **{@link addLiveEffect}** registers interactive-only animated effects (Konva
+ *   canvas only; skipped by exporters).
  */
 export class MapRenderer {
     readonly state: MapState;
@@ -102,22 +101,6 @@ export class MapRenderer {
     /** Renderer event emitter (room click, area exit click, zoom change, …). */
     get events(): TypedEventEmitter<RendererEventMap> {
         return this.backend.events;
-    }
-
-    /**
-     * Concrete Konva renderer when the active backend is one. Returns
-     * `undefined` for custom backend factories that produce something else.
-     *
-     * Use this to reach Konva-specific APIs that don't belong on the
-     * engine-neutral facade — most importantly {@link KonvaRenderBackend.addLiveEffect}
-     * and {@link KonvaRenderBackend.removeLiveEffect}.
-     *
-     * ```ts
-     * renderer.konvaBackend?.addLiveEffect('weather', new RainEffect());
-     * ```
-     */
-    get konvaBackend(): KonvaRenderBackend | undefined {
-        return this.backend instanceof KonvaRenderBackend ? this.backend : undefined;
     }
 
     /**
@@ -245,6 +228,27 @@ export class MapRenderer {
 
     removeSceneOverlay(id: string) {
         this.backend.removeSceneOverlay(id);
+    }
+
+    /**
+     * Register an interactive-only animated effect. No-ops when running with a
+     * non-Konva backend. Does not appear in SVG/PNG exports — use
+     * {@link addSceneOverlay} for overlays that must appear in exports.
+     *
+     * ```ts
+     * renderer.addLiveEffect('rain', new RainEffect());
+     * ```
+     */
+    addLiveEffect(id: string, effect: LiveEffect) {
+        if (this.backend instanceof KonvaRenderBackend) {
+            this.backend.addLiveEffect(id, effect);
+        }
+    }
+
+    removeLiveEffect(id: string) {
+        if (this.backend instanceof KonvaRenderBackend) {
+            this.backend.removeLiveEffect(id);
+        }
     }
 
     // --- Hit testing ---
