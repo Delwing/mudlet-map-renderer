@@ -1,7 +1,7 @@
-import type MapReader from "./reader/MapReader";
-import type Area from "./reader/Area";
-import type Plane from "./reader/Plane";
-import type Exit from "./reader/Exit";
+import type {IMapReader} from "./reader/MapReader";
+import type {IArea} from "./reader/Area";
+import type {IPlane} from "./reader/Plane";
+import type IExit from "./reader/Exit";
 import type {Settings} from "./types/Settings";
 import ExitRenderer from "./ExitRenderer";
 import type {ExitDrawData} from "./ExitRenderer";
@@ -227,7 +227,7 @@ function clusterByProximity<T extends { tip: { x: number; y: number } }>(
  * {@link SceneBuildResult} this pipeline produces.
  */
 export class ScenePipeline {
-    private readonly mapReader: MapReader;
+    private readonly mapReader: IMapReader;
     private readonly settings: Settings;
     readonly exitRenderer: ExitRenderer;
 
@@ -243,7 +243,7 @@ export class ScenePipeline {
     private stubShapeRefs: StubShapeRef[] = [];
     private areaExitLabelShapeRefs: AreaExitLabelShapeRef[] = [];
 
-    constructor(mapReader: MapReader, settings: Settings) {
+    constructor(mapReader: IMapReader, settings: Settings) {
         this.mapReader = mapReader;
         this.settings = settings;
         this.exitRenderer = new ExitRenderer(mapReader, settings);
@@ -254,7 +254,7 @@ export class ScenePipeline {
      * Clears layers, renders grid → labels → exits → rooms → area name.
      * Returns data for culling and interaction (room nodes, exit data, hit zones).
      */
-    buildScene(area: Area, plane: Plane, zIndex: number): SceneBuildResult {
+    buildScene(area: IArea, plane: IPlane, zIndex: number): SceneBuildResult {
         this.linkShapes = [];
         this.roomShapes = [];
         this.topLabelShapes = [];
@@ -318,7 +318,7 @@ export class ScenePipeline {
         };
     }
 
-    getEffectiveBounds(area: Area, plane: Plane) {
+    getEffectiveBounds(area: IArea, plane: IPlane) {
         return this.settings.uniformLevelSize ? area.getFullBounds() : plane.getBounds();
     }
 
@@ -429,7 +429,7 @@ export class ScenePipeline {
 
     // --- Link Exits ---
 
-    private renderLinkExits(exits: Exit[], zIndex: number) {
+    private renderLinkExits(exits: IExit[], zIndex: number) {
         const standaloneExitShapeRefs: StandaloneExitShapeRef[] = [];
         const areaExitHitZones: AreaExitHitZone[] = [];
         const drawnExits: DrawnExitEntry[] = [];
@@ -811,7 +811,7 @@ export class ScenePipeline {
 
     // --- Area Name ---
 
-    private renderAreaName(area: Area, plane: Plane) {
+    private renderAreaName(area: IArea, plane: IPlane) {
         if (!this.settings.areaName) return;
         const name = area.getAreaName();
         if (!name) return;

@@ -1,5 +1,5 @@
 import type {Settings} from "../types/Settings";
-import MapReader from "../reader/MapReader";
+import type {IMapReader} from "../reader/MapReader";
 import {movePoint} from "../directions";
 
 const innerExits: MapData.direction[] = ["up", "down", "in", "out"];
@@ -33,7 +33,7 @@ function computeTriangleVertices(cx: number, cy: number, radius: number, rotatio
     return vertices;
 }
 
-function getSymbolColors(room: MapData.Room, mapReader: MapReader, settings: Settings): { symbolColor: string; symbolFill: string } {
+function getSymbolColors(room: MapData.Room, mapReader: IMapReader, settings: Settings): { symbolColor: string; symbolFill: string } {
     const fallback = room.userData?.["system.fallback_symbol_color"];
     const symbolColor = fallback
         ?? ((settings.frameMode || settings.coloredMode)
@@ -56,7 +56,7 @@ const DoorColors: Record<number, string> = {
  * Compute inner exit triangle data for a room.
  * Returns pre-computed vertex positions so each backend just draws polygons.
  */
-export function computeInnerExits(room: MapData.Room, mapReader: MapReader, settings: Settings): InnerExitData {
+export function computeInnerExits(room: MapData.Room, mapReader: IMapReader, settings: Settings): InnerExitData {
     const triangles: TriangleData[] = [];
     const rs = settings.roomSize;
     const triRadius = rs / 5;

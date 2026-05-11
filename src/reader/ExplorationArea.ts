@@ -1,6 +1,22 @@
-import Area from "./Area";
+import Area, {IArea} from "./Area";
 import Plane from "./Plane";
-import Exit from "./Exit";
+import IExit from "./Exit";
+
+/**
+ * Public, renderer-facing surface for an area decorated with fog-of-war
+ * (i.e. exploration) state. `IExplorationArea` is what the renderer sees when
+ * exploration is enabled — it is structurally an {@link IArea} plus the
+ * visited-room read/write operations needed for the renderer to filter
+ * unvisited rooms and exits.
+ */
+export interface IExplorationArea extends IArea {
+    getVisitedRoomCount(): number;
+    getTotalRoomCount(): number;
+    hasVisitedRoom(roomId: number): boolean;
+    getVisitedRoomIds(): number[];
+    addVisitedRoom(roomId: number): boolean;
+    addVisitedRooms(roomIds: Iterable<number>): number;
+}
 
 class ExplorationPlane extends Plane {
 
@@ -27,7 +43,7 @@ class ExplorationPlane extends Plane {
 
 }
 
-export default class ExplorationArea extends Area {
+export default class ExplorationArea extends Area implements IExplorationArea {
 
     private readonly visitedRooms: Set<number>;
     private readonly areaRoomIds: Set<number>;
@@ -66,7 +82,7 @@ export default class ExplorationArea extends Area {
     override getLinkExits(zIndex: number) {
         return super
             .getLinkExits(zIndex)
-            .filter((exit: Exit) => this.visitedRooms.has(exit.a) || this.visitedRooms.has(exit.b));
+            .filter((exit: IExit) => this.visitedRooms.has(exit.a) || this.visitedRooms.has(exit.b));
     }
 
     getVisitedRoomCount() {

@@ -1,12 +1,44 @@
-import Plane from "./Plane";
+import Plane, {IPlane} from "./Plane";
 
-import Exit from "./Exit";
+import IExit from "./Exit";
 
-export default class Area {
+/**
+ * Public, renderer-facing surface of an area. The renderer never inspects
+ * private state of {@link Area}; it talks to this interface only. Custom data
+ * models (e.g. an app that owns its own room store) can satisfy `IArea` and
+ * hand the result to {@link MapRenderer} without subclassing.
+ *
+ * Mutability lives on the concrete implementation: {@link Area.markDirty} is
+ * `protected`, kept off the public interface. Consumers signal "redraw me" by
+ * bumping {@link getVersion}; the renderer reads the version to decide
+ * whether to rebuild.
+ */
+export interface IArea {
+    getAreaName(): string;
+    getAreaId(): number;
+    /**
+     * Monotonically increasing version. The renderer compares the value it
+     * cached on the last build against the current value to decide whether
+     * the area needs a rebuild.
+     */
+    getVersion(): number;
+    getPlane(zIndex: number): IPlane;
+    getPlanes(): IPlane[];
+    getZLevels(): number[];
+    getRooms(): MapData.Room[];
+    getFullBounds(): { minX: number; maxX: number; minY: number; maxY: number };
+    /**
+     * Inter-room exits drawn on the given z-level. Each exit is bidirectional
+     * with optional one-way fallback; see {@link IExit}.
+     */
+    getLinkExits(zIndex: number): IExit[];
+}
+
+export default class Area implements IArea {
 
     private readonly planes: Record<number, Plane> = {};
     private readonly area: MapData.Area;
-    private readonly exits: Map<string, Exit> = new Map();
+    private readonly exits: Map<string, IExit> = new Map();
     private version = 0;
 
     constructor(area: MapData.Area) {

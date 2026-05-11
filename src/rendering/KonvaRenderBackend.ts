@@ -1,6 +1,6 @@
 import Konva from "konva";
-import type Area from "../reader/Area";
-import type Plane from "../reader/Plane";
+import type {IArea} from "../reader/Area";
+import type {IPlane} from "../reader/Plane";
 import type {RendererEventMap, ViewportBounds} from "../types/Settings";
 import type {AreaExitHitZone, DrawnExitEntry, DrawnSpecialExitEntry, DrawnStubEntry} from "../ScenePipeline";
 import type {MapState} from "../MapState";
@@ -31,7 +31,6 @@ import {stubToShape} from "../scene/elements/StubLayout";
 import {
     highlightToShape, positionMarkerToShape, pathToShapes,
 } from "../scene/elements/OverlayLayout";
-import ExplorationArea from "../reader/ExplorationArea";
 import type {LiveEffect} from "../overlay/LiveEffect";
 import type {SceneOverlay, SceneOverlayContext} from "../overlay/SceneOverlay";
 import type {ExportCanvas} from "../export/Exporter";
@@ -496,7 +495,7 @@ export class KonvaRenderBackend implements InteractiveBackend {
 
     // --- Scene lifecycle ---
 
-    private buildScene(area: Area, plane: Plane, zIndex: number): void {
+    private buildScene(area: IArea, plane: IPlane, zIndex: number): void {
         this.positionLayer.destroyChildren();
         this.positionMarker = undefined;
         this.clearOverlayShapes();
@@ -706,8 +705,12 @@ export class KonvaRenderBackend implements InteractiveBackend {
         const preRoomShapes: Shape[] = [];
         const exitRenderer = this.sceneManager.exitRenderer;
 
-        const explorationArea =
-            this.state.currentAreaInstance instanceof ExplorationArea ? this.state.currentAreaInstance : undefined;
+        // Route exploration through the reader rather than `instanceof`, so
+        // custom IMapReader implementations (e.g. binary-backed readers) can
+        // surface their own exploration-area shape.
+        const explorationArea = this.state.currentArea !== undefined
+            ? this.state.mapReader.getExplorationArea(this.state.currentArea)
+            : undefined;
 
         // Link exits for this room → rendered as ExitDrawData through DrawingBackend
         if (this.state.currentAreaInstance && this.state.currentZIndex !== undefined) {

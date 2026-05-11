@@ -1,6 +1,6 @@
 export type Kind = "exit" | "specialExit";
 
-export default interface Exit {
+export default interface IExit {
     a: number;
     b: number;
     aDir?: MapData.direction;
@@ -8,6 +8,11 @@ export default interface Exit {
     kind?: Kind;
     zIndex: number[];
 }
+
+export type { IExit };
+
+/** @deprecated Use {@link IExit}. Retained as a structural alias for backwards compatibility. */
+export type Exit = IExit;
 
 export const regularExits: MapData.direction[] = ["north", "south", "east", "west", "northeast", "northwest", "southeast", "southwest"];
 export const shortTolong: Record<string, MapData.direction> = {

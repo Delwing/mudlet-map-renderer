@@ -1,5 +1,34 @@
-import Area from "./Area";
-import ExplorationArea from "./ExplorationArea";
+import Area, {IArea} from "./Area";
+import ExplorationArea, {IExplorationArea} from "./ExplorationArea";
+
+/**
+ * Public, renderer-facing surface for map data. Everything the renderer
+ * (and other library consumers) call on `MapReader` is on this interface —
+ * private state and internal helpers are not.
+ *
+ * Downstream apps with their own room/area store can implement `IMapReader`
+ * directly (no need to subclass {@link MapReader}) and hand the result to
+ * {@link MapRenderer}.
+ */
+export interface IMapReader {
+    getArea(areaId: number): IArea;
+    getExplorationArea(areaId: number): IExplorationArea | undefined;
+    getAreas(): IArea[];
+    getRooms(): MapData.Room[];
+    getRoom(roomId: number): MapData.Room;
+    decorateWithExploration(visitedRooms?: Iterable<number> | Set<number>): Set<number> | undefined;
+    getVisitedRooms(): Set<number> | undefined;
+    clearExplorationDecoration(): void;
+    isExplorationEnabled(): boolean;
+    setVisitedRooms(visitedRooms: Iterable<number> | Set<number>): Set<number>;
+    addVisitedRoom(roomId: number): boolean;
+    addVisitedRooms(roomIds: Iterable<number>): number;
+    hasVisitedRoom(roomId: number): boolean;
+    /** Returns the env's `rgb(r,g,b)` string, or a default colour if the env id is unknown. */
+    getColorValue(envId: number): string;
+    /** Returns a contrasting symbol colour for the env, optionally with the given alpha. */
+    getSymbolColor(envId: number, opacity?: number): string;
+}
 
 interface Color {
     rgb: number[];
@@ -26,7 +55,7 @@ function calculateLuminance(rgb: number[]) {
     return (max + min) / 2;
 }
 
-export default class MapReader {
+export default class MapReader implements IMapReader {
 
     private rooms: Record<number, MapData.Room> = {};
     private areas: Record<number, Area> = {};

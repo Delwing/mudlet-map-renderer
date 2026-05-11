@@ -1,5 +1,5 @@
-import MapReader from "../reader/MapReader";
-import type Area from "../reader/Area";
+import type {IMapReader} from "../reader/MapReader";
+import type {IArea} from "../reader/Area";
 import type {ViewportBounds, RendererEventMap, CullingMode} from "../types/Settings";
 import {createSettings} from "../types/Settings";
 import type {Settings} from "../types/Settings";
@@ -111,7 +111,7 @@ export class MapRenderer {
      *   a custom `InteractiveBackend`. When omitted, a `KonvaRenderBackend` is created.
      */
     constructor(
-        mapReader: MapReader,
+        mapReader: IMapReader,
         settings?: Settings,
         container?: HTMLDivElement,
         backendFactory?: (state: MapState) => InteractiveBackend,
@@ -133,7 +133,7 @@ export class MapRenderer {
         this.state.setArea(id, zIndex);
     }
 
-    getCurrentArea(): Area | undefined {
+    getCurrentArea(): IArea | undefined {
         return this.state.currentAreaInstance;
     }
 

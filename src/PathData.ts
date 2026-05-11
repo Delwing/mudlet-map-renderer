@@ -1,4 +1,4 @@
-import MapReader from "./reader/MapReader";
+import type {IMapReader} from "./reader/MapReader";
 import type {Settings} from "./types/Settings";
 import {movePoint, movePointCircle, movePointRoundedRect, PlanarDirection, planarDirections, oppositeDirections} from "./directions";
 import {longToShort, regularExits} from "./reader/Exit";
@@ -44,7 +44,7 @@ function getRoomEdgePoint(settings: Settings, x: number, y: number, direction: M
     return movePoint(x, y, direction, distance);
 }
 
-function findConnection(mapReader: MapReader, fromRoom: MapData.Room, toRoom: MapData.Room): Connection {
+function findConnection(mapReader: IMapReader, fromRoom: MapData.Room, toRoom: MapData.Room): Connection {
     // Check regular exits from fromRoom
     for (const [dir, targetId] of Object.entries(fromRoom.exits)) {
         if (targetId === toRoom.id) {
@@ -203,7 +203,7 @@ function addSpecialConnectionPoints(connection: Connection, points: number[]) {
 }
 
 export function computePathData(
-    mapReader: MapReader,
+    mapReader: IMapReader,
     settings: Settings,
     locations: number[],
     currentArea: number,

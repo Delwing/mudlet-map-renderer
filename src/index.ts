@@ -74,11 +74,18 @@ export type { AmbientLightOptions } from './overlay/AmbientLightOverlay';
 
 // --- Map data & pathfinding ---
 export { default as MapReader } from './reader/MapReader';
+export type { IMapReader } from './reader/MapReader';
 export { default as PathFinder } from './PathFinder';
 export type { PathFindingAlgorithm } from './PathFinder';
 export { MapGraph } from './MapGraph';
 export type { Edge, GraphData } from './MapGraph';
 export { default as ExplorationArea } from './reader/ExplorationArea';
+export type { IExplorationArea } from './reader/ExplorationArea';
+export { default as Area } from './reader/Area';
+export type { IArea } from './reader/Area';
+export { default as Plane } from './reader/Plane';
+export type { IPlane } from './reader/Plane';
+export type { IExit, Kind as ExitKind } from './reader/Exit';
 
 // --- Area map ---
 export { AreaMapRenderer, createAreaMapSettings } from './AreaMapRenderer';

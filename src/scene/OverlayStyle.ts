@@ -1,5 +1,5 @@
 import type {Settings} from "../types/Settings";
-import MapReader from "../reader/MapReader";
+import type {IMapReader} from "../reader/MapReader";
 import {computePathData} from "../PathData";
 import {computeTriangleVertices} from "./InnerExitStyle";
 
@@ -86,7 +86,7 @@ export type PathOverlayData = {
 };
 
 export function computePathOverlay(
-    mapReader: MapReader,
+    mapReader: IMapReader,
     settings: Settings,
     locations: number[],
     color: string,
