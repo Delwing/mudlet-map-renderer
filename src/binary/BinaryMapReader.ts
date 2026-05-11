@@ -5,7 +5,6 @@ import {
 } from "mudlet-map-binary-reader";
 import MapReader, {type IMapReader} from "../reader/MapReader";
 import type {IArea} from "../reader/Area";
-import type {IExplorationArea} from "../reader/ExplorationArea";
 
 /**
  * {@link IMapReader} implementation backed by a parsed Mudlet binary map.
@@ -51,10 +50,6 @@ export default class BinaryMapReader implements IMapReader {
         return this.reader.getArea(areaId);
     }
 
-    getExplorationArea(areaId: number): IExplorationArea | undefined {
-        return this.reader.getExplorationArea(areaId);
-    }
-
     getAreas(): IArea[] {
         return this.reader.getAreas();
     }
@@ -65,38 +60,6 @@ export default class BinaryMapReader implements IMapReader {
 
     getRoom(roomId: number): MapData.Room {
         return this.reader.getRoom(roomId);
-    }
-
-    decorateWithExploration(visitedRooms?: Iterable<number> | Set<number>): Set<number> | undefined {
-        return this.reader.decorateWithExploration(visitedRooms);
-    }
-
-    getVisitedRooms(): Set<number> | undefined {
-        return this.reader.getVisitedRooms();
-    }
-
-    clearExplorationDecoration(): void {
-        this.reader.clearExplorationDecoration();
-    }
-
-    isExplorationEnabled(): boolean {
-        return this.reader.isExplorationEnabled();
-    }
-
-    setVisitedRooms(visitedRooms: Iterable<number> | Set<number>): Set<number> {
-        return this.reader.setVisitedRooms(visitedRooms);
-    }
-
-    addVisitedRoom(roomId: number): boolean {
-        return this.reader.addVisitedRoom(roomId);
-    }
-
-    addVisitedRooms(roomIds: Iterable<number>): number {
-        return this.reader.addVisitedRooms(roomIds);
-    }
-
-    hasVisitedRoom(roomId: number): boolean {
-        return this.reader.hasVisitedRoom(roomId);
     }
 
     getColorValue(envId: number): string {

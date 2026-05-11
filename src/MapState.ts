@@ -4,6 +4,8 @@ import type {IPlane} from "./reader/Plane";
 import type {Settings} from "./types/Settings";
 import type {SvgOverlays} from "./SvgTypes";
 import {TypedEventEmitter} from "./TypedEventEmitter";
+import type {RoomLens} from "./lens/RoomLens";
+import {ALL_VISIBLE} from "./lens/RoomLens";
 
 export type HighlightEntry = { color: string; area: number; z: number };
 export type PathEntry = { locations: number[]; color: string };
@@ -15,6 +17,7 @@ export type MapStateEventMap = {
     highlight: { roomId: number; color: string | undefined };
     path: undefined;
     clear: undefined;
+    lens: { lens: RoomLens };
 };
 
 /**
@@ -37,10 +40,16 @@ export class MapState {
     centerRoomId?: number;
     highlights: Map<number, HighlightEntry> = new Map();
     paths: PathEntry[] = [];
+    lens: RoomLens = ALL_VISIBLE;
 
     constructor(mapReader: IMapReader, settings: Settings) {
         this.mapReader = mapReader;
         this.settings = settings;
+    }
+
+    setLens(lens: RoomLens) {
+        this.lens = lens;
+        this.events.emit('lens', {lens});
     }
 
     /**

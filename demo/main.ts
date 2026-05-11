@@ -4,6 +4,7 @@ import {
     PathFinder,
     compose, identityStyle,
     Parchment, Blueprint, Neon, Sketchy, Isometric, Construction, SciFi,
+    ExplorationLens, ALL_VISIBLE,
     type Style,
 } from "@src";
 import type {Settings} from "@src";
@@ -44,6 +45,8 @@ let mapReader!: MapReader;
 let renderer!: MapRenderer;
 let pathFinder!: PathFinder;
 const settings: Settings = createSettings();
+const explorationLens = new ExplorationLens();
+let explorationEnabled = false;
 let currentRoomId!: number;
 let destinationRoomId: number | undefined;
 let currentDestinationPath: number[] | undefined;
@@ -94,7 +97,9 @@ function updateStatus(el: HTMLElement | null, message: string) {
 function moveToRoom(room: MapData.Room) {
     if (roomInput) roomInput.value = room.id.toString();
     updateStatus(roomStatusElement, "");
-    mapReader.addVisitedRoom(room.id);
+    if (explorationLens.addVisited(room.id) && explorationEnabled) {
+        renderer.refresh();
+    }
     currentRoomId = room.id;
     renderer.setPosition(room.id);
     updateAreaStatus(room.area);
@@ -106,17 +111,21 @@ function moveToRoom(room: MapData.Room) {
 }
 
 function updateAreaStatus(areaId: number) {
-    if (!mapReader.isExplorationEnabled()) {
+    if (!explorationEnabled) {
         statusElement.textContent = `Area ${areaId}`;
         return;
     }
-    const area = mapReader.getExplorationArea(areaId);
+    const area = mapReader.getArea(areaId);
     if (!area) {
         statusElement.textContent = `Area ${areaId}`;
         return;
     }
-    const visited = area.getVisitedRoomCount();
-    const total = area.getTotalRoomCount();
+    const rooms = area.getRooms();
+    const total = rooms.length;
+    let visited = 0;
+    for (const r of rooms) {
+        if (explorationLens.hasVisited(r.id)) visited++;
+    }
     statusElement.innerHTML = `<strong>Area ${areaId}</strong><br/>Visited ${visited} of ${total} rooms`;
 }
 
@@ -309,14 +318,14 @@ async function initialize() {
             renderer.clearPaths();
             renderer.renderPath(currentDestinationPath, pathColor);
         }
-    }, applyRenderMode, mapReader);
+    }, applyRenderMode, mapReader, explorationLens);
     const explorationToggle = controlsResult.explorationToggle;
     updateTerrainRooms = controlsResult.updateTerrainRooms;
     updateFogOfWar = controlsResult.updateFogOfWar;
     initContextMenu(stageElement, renderer, mapReader, moveToRoom, (msg) => updateStatus(roomStatusElement, msg));
 
     // Walker
-    walker = new Walker(mapReader, pathFinder, walkerStatusElement, walkerToggleButton, {
+    walker = new Walker(mapReader, pathFinder, walkerStatusElement, walkerToggleButton, explorationLens, {
         getCurrentRoomId: () => currentRoomId,
         moveToRoom,
         getDestinationRoomId: () => destinationRoomId,
@@ -358,7 +367,7 @@ async function initialize() {
     if (initialStatus) updateStatus(roomStatusElement, initialStatus);
 
     if (explorationToggle) {
-        explorationToggle.checked = mapReader.isExplorationEnabled();
+        explorationToggle.checked = explorationEnabled;
     }
 
     populateAreaSelector();
@@ -397,16 +406,8 @@ async function initialize() {
     });
 
     explorationToggle?.addEventListener("change", () => {
-        if (explorationToggle.checked) {
-            mapReader.decorateWithExploration();
-        } else {
-            mapReader.clearExplorationDecoration();
-        }
-        const viewedArea = renderer.state.currentArea;
-        const viewedZ = renderer.state.currentZIndex;
-        if (viewedArea !== undefined && viewedZ !== undefined) {
-            renderer.drawArea(viewedArea, viewedZ);
-        }
+        explorationEnabled = explorationToggle.checked;
+        renderer.setLens(explorationEnabled ? explorationLens : ALL_VISIBLE);
         renderer.updatePositionMarker(currentRoomId);
         const currentRoom = mapReader.getRoom(currentRoomId);
         if (currentRoom) updateAreaStatus(currentRoom.area);

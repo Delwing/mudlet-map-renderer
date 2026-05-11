@@ -5,7 +5,6 @@ import { createSettings } from '../src/types/Settings';
 import type { IMapReader } from '../src/reader/MapReader';
 import type { IArea } from '../src/reader/Area';
 import type { IPlane } from '../src/reader/Plane';
-import type { IExplorationArea } from '../src/reader/ExplorationArea';
 import type IExit from '../src/reader/Exit';
 
 /**
@@ -47,18 +46,9 @@ function buildSyntheticReader(): { reader: IMapReader; bumpVersion: () => void }
 
     const reader: IMapReader = {
         getArea: () => area,
-        getExplorationArea: (_: number): IExplorationArea | undefined => undefined,
         getAreas: () => [area],
         getRooms: () => rooms,
         getRoom: (id) => rooms.find(r => r.id === id) as MapData.Room,
-        decorateWithExploration: () => undefined,
-        getVisitedRooms: () => undefined,
-        clearExplorationDecoration: () => undefined,
-        isExplorationEnabled: () => false,
-        setVisitedRooms: () => new Set<number>(),
-        addVisitedRoom: () => false,
-        addVisitedRooms: () => 0,
-        hasVisitedRoom: () => false,
         getColorValue: (envId) => envId === 1 ? 'rgb(80,80,80)' : 'rgb(114,1,0)',
         getSymbolColor: () => 'rgb(225,225,225)',
     };

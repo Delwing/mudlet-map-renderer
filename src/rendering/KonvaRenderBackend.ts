@@ -491,6 +491,10 @@ export class KonvaRenderBackend implements InteractiveBackend {
         state.events.on('clear', () => {
             this.syncHighlights();
         });
+
+        state.events.on('lens', () => {
+            this.refresh();
+        });
     }
 
     // --- Scene lifecycle ---
@@ -509,7 +513,7 @@ export class KonvaRenderBackend implements InteractiveBackend {
         this.gridCachedBounds = null;
         this.topLabelLayerNode.destroyChildren();
 
-        const result = this.sceneManager.rebuild(area, plane, zIndex);
+        const result = this.sceneManager.rebuild(area, plane, zIndex, this.state.lens);
 
         // Track ORIGINAL shape (pre-style) → recording node so onSceneBuilt
         // can find each room/exit's DrawEntry inside `sceneNode` for culling.
@@ -704,13 +708,7 @@ export class KonvaRenderBackend implements InteractiveBackend {
 
         const preRoomShapes: Shape[] = [];
         const exitRenderer = this.sceneManager.exitRenderer;
-
-        // Route exploration through the reader rather than `instanceof`, so
-        // custom IMapReader implementations (e.g. binary-backed readers) can
-        // surface their own exploration-area shape.
-        const explorationArea = this.state.currentArea !== undefined
-            ? this.state.mapReader.getExplorationArea(this.state.currentArea)
-            : undefined;
+        const lens = this.state.lens;
 
         // Link exits for this room → rendered as ExitDrawData through DrawingBackend
         if (this.state.currentAreaInstance && this.state.currentZIndex !== undefined) {
@@ -737,14 +735,11 @@ export class KonvaRenderBackend implements InteractiveBackend {
 
         [...Object.values(room.exits), ...Object.values(room.specialExits)].forEach(id => {
             const otherRoom = this.state.mapReader.getRoom(id);
-            const canRenderOtherRoom =
-                !explorationArea || explorationArea.hasVisitedRoom(id);
-
             if (
                 otherRoom &&
                 otherRoom.area === this.state.currentArea &&
                 otherRoom.z === this.state.currentZIndex &&
-                canRenderOtherRoom
+                lens.isVisible(otherRoom)
             ) {
                 roomsToRedraw.set(id, otherRoom);
             }

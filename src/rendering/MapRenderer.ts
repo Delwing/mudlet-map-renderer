@@ -1,5 +1,6 @@
 import type {IMapReader} from "../reader/MapReader";
 import type {IArea} from "../reader/Area";
+import type {RoomLens} from "../lens/RoomLens";
 import type {ViewportBounds, RendererEventMap, CullingMode} from "../types/Settings";
 import {createSettings} from "../types/Settings";
 import type {Settings} from "../types/Settings";
@@ -179,6 +180,25 @@ export class MapRenderer {
 
     refreshCurrentRoomOverlay() {
         this.state.refreshPosition();
+    }
+
+    // --- Visibility lens ---
+
+    /**
+     * Replace the active visibility lens. Lenses filter which rooms (and how
+     * partially-visible exits) the renderer draws — exploration / fog-of-war
+     * is one example, guild/quest scope overlays are others. Compose multiple
+     * concerns with `composeLenses(...)`.
+     *
+     * Triggers an immediate rebuild. For mutations on a stateful lens (e.g.
+     * `ExplorationLens.addVisited`), call {@link refresh} explicitly.
+     */
+    setLens(lens: RoomLens) {
+        this.state.setLens(lens);
+    }
+
+    getLens(): RoomLens {
+        return this.state.lens;
     }
 
     // --- Style ---

@@ -79,13 +79,18 @@ export { default as PathFinder } from './PathFinder';
 export type { PathFindingAlgorithm } from './PathFinder';
 export { MapGraph } from './MapGraph';
 export type { Edge, GraphData } from './MapGraph';
-export { default as ExplorationArea } from './reader/ExplorationArea';
-export type { IExplorationArea } from './reader/ExplorationArea';
 export { default as Area } from './reader/Area';
 export type { IArea } from './reader/Area';
 export { default as Plane } from './reader/Plane';
 export type { IPlane } from './reader/Plane';
 export type { IExit, Kind as ExitKind } from './reader/Exit';
+
+// --- Visibility lenses (filter what the renderer paints) ---
+export type { RoomLens, ExitTreatment } from './lens/RoomLens';
+export { ALL_VISIBLE, defaultExitTreatment } from './lens/RoomLens';
+export { composeLenses } from './lens/composeLenses';
+export type { ComposeOptions, ExitConflictStrategy } from './lens/composeLenses';
+export { ExplorationLens } from './lens/ExplorationLens';
 
 // --- Area map ---
 export { AreaMapRenderer, createAreaMapSettings } from './AreaMapRenderer';

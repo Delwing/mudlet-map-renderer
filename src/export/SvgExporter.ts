@@ -49,7 +49,7 @@ export class SvgExporter implements Exporter<string | undefined> {
         const viewportBounds = exportCamera.getViewportBounds();
 
         const pipeline = new ScenePipeline(state.mapReader, settings);
-        const result = pipeline.buildScene(area, plane, currentZIndex);
+        const result = pipeline.buildScene(area, plane, currentZIndex, state.lens);
         const transforms = {
             forward: style.worldToScene ? (x: number, y: number) => style.worldToScene!(x, y) : undefined,
             inverse: style.sceneToWorld ? (x: number, y: number) => style.sceneToWorld!(x, y) : undefined,

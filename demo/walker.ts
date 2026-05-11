@@ -1,5 +1,6 @@
 import MapReader from "@src/reader/MapReader";
 import PathFinder from "@src/PathFinder";
+import {ExplorationLens} from "@src";
 import {getRoomExits} from "./navigation";
 
 const PREFERRED_PATH_PROBABILITY = 0.7;
@@ -15,6 +16,7 @@ export type WalkerCallbacks = {
 export class Walker {
     private readonly mapReader: MapReader;
     private readonly pathFinder: PathFinder;
+    private readonly explorationLens: ExplorationLens;
     private readonly walkerStatusElement: HTMLDivElement;
     private readonly walkerToggleButton: HTMLButtonElement | null;
     private readonly callbacks: WalkerCallbacks;
@@ -26,10 +28,12 @@ export class Walker {
         pathFinder: PathFinder,
         walkerStatusElement: HTMLDivElement,
         walkerToggleButton: HTMLButtonElement | null,
+        explorationLens: ExplorationLens,
         callbacks: WalkerCallbacks,
     ) {
         this.mapReader = mapReader;
         this.pathFinder = pathFinder;
+        this.explorationLens = explorationLens;
         this.walkerStatusElement = walkerStatusElement;
         this.walkerToggleButton = walkerToggleButton;
         this.callbacks = callbacks;
@@ -107,11 +111,7 @@ export class Walker {
             }
         }
 
-        const unvisited = exits.filter(candidate => {
-            const area = this.mapReader.getExplorationArea(candidate.area);
-            if (area) return !area.hasVisitedRoom(candidate.id);
-            return !this.mapReader.hasVisitedRoom(candidate.id);
-        });
+        const unvisited = exits.filter(candidate => !this.explorationLens.hasVisited(candidate.id));
 
         const preferredDestinationRoomId = this.getNextStepTowardsDestination(room.id);
         const preferredRoom = preferredDestinationRoomId !== undefined
@@ -136,8 +136,7 @@ export class Walker {
             const currentRoom = this.mapReader.getRoom(currentId);
             if (!currentRoom) continue;
 
-            const area = this.mapReader.getExplorationArea(currentRoom.area);
-            const isVisited = area?.hasVisitedRoom(currentId) ?? this.mapReader.hasVisitedRoom(currentId);
+            const isVisited = this.explorationLens.hasVisited(currentId);
             const isStartRoom = currentId === room.id;
             if (!isVisited && !isStartRoom) {
                 let stepId = currentId;

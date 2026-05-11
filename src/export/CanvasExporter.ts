@@ -83,7 +83,7 @@ export class CanvasExporter implements Exporter<ExportCanvas | undefined> {
         };
 
         const pipeline = new ScenePipeline(state.mapReader, settings);
-        const result = pipeline.buildScene(area, plane, currentZIndex);
+        const result = pipeline.buildScene(area, plane, currentZIndex, state.lens);
         const clipped = clipSceneToViewport(result, cullingCamera.getViewportBounds(), settings, transforms);
 
         const canvas = Konva.Util.createCanvasElement() as unknown as HTMLCanvasElement;

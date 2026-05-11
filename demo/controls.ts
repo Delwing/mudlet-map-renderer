@@ -1,5 +1,5 @@
 import {MapRenderer, CullingMode, RoomShape, PathFinder, SvgExporter, PngBlobExporter, AmbientLightOverlay} from "@src";
-import type {Settings, LabelRenderMode, PathFindingAlgorithm} from "@src";
+import type {Settings, LabelRenderMode, PathFindingAlgorithm, ExplorationLens} from "@src";
 import type MapReader from "@src/reader/MapReader";
 import {WeatherOverlay} from "./WeatherOverlay";
 import type {WeatherType} from "./WeatherOverlay";
@@ -36,7 +36,7 @@ function describeCullingMode(mode: CullingMode) {
     }
 }
 
-export function initControls(settings: Settings, renderer: MapRenderer, getCurrentRoomId: () => number, pathFinder?: PathFinder, onAlgorithmChange?: () => void, onPathColorChange?: (color: string) => void, onRenderModeChange?: (mode: string) => void, mapReader?: MapReader) {
+export function initControls(settings: Settings, renderer: MapRenderer, getCurrentRoomId: () => number, pathFinder?: PathFinder, onAlgorithmChange?: () => void, onPathColorChange?: (color: string) => void, onRenderModeChange?: (mode: string) => void, mapReader?: MapReader, explorationLens?: ExplorationLens) {
     const explorationToggle = document.getElementById("exploration-toggle") as HTMLInputElement | null;
     const instantMoveToggle = document.getElementById("instant-move-toggle") as HTMLInputElement | null;
     const highlightToggle = document.getElementById("highlight-toggle") as HTMLInputElement | null;
@@ -526,7 +526,9 @@ export function initControls(settings: Settings, renderer: MapRenderer, getCurre
         const planeRooms = plane?.getRooms() ?? [];
 
         // Reveal rooms the player has visited + connections between them
-        const visited = mapReader.getVisitedRooms?.() as Set<number> | undefined;
+        const visited = explorationLens
+            ? new Set(explorationLens.getVisitedRoomIds())
+            : undefined;
         const visitedSet = new Set<number>();
         const revealed: { x: number; y: number }[] = [];
         for (const room of planeRooms) {
