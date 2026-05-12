@@ -11,23 +11,33 @@ export type HighlightData = {
     /** For circle: radius. For rect: half-size. */
     size: number;
     cornerRadius: number;
-    stroke: string;
+    strokeColor: string;
+    strokeAlpha: number;
     strokeWidth: number;
-    dash: number[];
+    fillColor: string;
+    fillAlpha: number;
+    dash?: number[];
+    dashEnabled: boolean;
 };
 
 export function computeHighlight(room: MapData.Room, color: string, settings: Settings): HighlightData {
-    const factor = 1.425;
+    const hl = settings.highlight;
     const rs = settings.roomSize;
+    const factor = hl.sizeFactor;
+    const useRoomShape = hl.matchRoomShape && settings.roomShape !== "circle";
     return {
-        shape: settings.roomShape === "circle" ? 'circle' : 'rect',
+        shape: useRoomShape ? 'rect' : 'circle',
         cx: room.x,
         cy: room.y,
         size: rs / 2 * factor,
-        cornerRadius: settings.roomShape === "roundedRectangle" ? rs * factor * 0.2 : 0,
-        stroke: color,
-        strokeWidth: 0.1,
-        dash: [0.05, 0.05],
+        cornerRadius: useRoomShape && settings.roomShape === "roundedRectangle" ? rs * factor * 0.2 : 0,
+        strokeColor: color,
+        strokeAlpha: hl.strokeAlpha,
+        strokeWidth: hl.strokeWidth,
+        fillColor: color,
+        fillAlpha: hl.fillAlpha,
+        dash: hl.dash,
+        dashEnabled: hl.dashEnabled,
     };
 }
 

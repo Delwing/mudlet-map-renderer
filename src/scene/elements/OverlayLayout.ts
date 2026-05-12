@@ -24,21 +24,28 @@ import {hexToRgba} from "../../utils/color";
  * perimeter (same approach as the backend renderer).
  */
 export function highlightToShape(data: HighlightData): Shape {
+    const stroke = hexToRgba(data.strokeColor, data.strokeAlpha);
+    const fill = data.fillAlpha > 0 ? hexToRgba(data.fillColor, data.fillAlpha) : undefined;
+
     if (data.shape === "circle") {
         return {
             type: "circle",
             cx: data.cx, cy: data.cy,
             radius: data.size,
             paint: {
-                stroke: data.stroke,
+                fill,
+                stroke,
                 strokeWidth: data.strokeWidth,
                 dash: data.dash,
-                dashEnabled: true,
+                dashEnabled: data.dashEnabled,
             },
             layer: "overlay",
         };
     }
 
+    // For rectangular highlights we draw four independent line segments so the
+    // corner dashes line up cleanly. If the highlight has a fill, render an
+    // underlying filled rect (with no stroke) so the dashed sides still sit on top.
     const x1 = data.cx - data.size;
     const y1 = data.cy - data.size;
     const x2 = data.cx + data.size;
@@ -49,20 +56,36 @@ export function highlightToShape(data: HighlightData): Shape {
         [x2, y2, x1, y2],
         [x1, y2, x1, y1],
     ];
-    return {
-        type: "group",
-        x: 0, y: 0,
-        children: sides.map((points): Shape => ({
+    const children: Shape[] = [];
+    if (fill) {
+        children.push({
+            type: "rect",
+            x: x1, y: y1,
+            width: data.size * 2,
+            height: data.size * 2,
+            cornerRadius: data.cornerRadius,
+            paint: { fill },
+            layer: "overlay",
+        });
+    }
+    for (const points of sides) {
+        children.push({
             type: "line",
             points,
             paint: {
-                stroke: data.stroke,
+                stroke,
                 strokeWidth: data.strokeWidth,
                 dash: data.dash,
+                dashEnabled: data.dashEnabled,
             },
             lineCap: "butt",
             layer: "overlay",
-        })),
+        });
+    }
+    return {
+        type: "group",
+        x: 0, y: 0,
+        children,
         layer: "overlay",
     };
 }

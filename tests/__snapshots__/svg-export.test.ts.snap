@@ -236,14 +236,14 @@ exports[`SvgRenderBackend > overlays > snapshot - highlights 1`] = `
 <rect x="7.7" y="1.7" width="0.6" height="0.6" fill="rgb(80,60,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 <rect x="-2.3" y="-2.3" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
 <text x="-7.5" y="-8.5" font-size="2.5" font-family="sans-serif" fill="rgb(225, 255, 225)" text-anchor="start" dominant-baseline="auto">Test Village</text>
-<polyline points="-0.4275,-0.4275 0.4275,-0.4275" stroke="#ff0000" stroke-width="0.1" stroke-dasharray="0.05 0.05" stroke-linecap="butt" fill="none"/>
-<polyline points="0.4275,-0.4275 0.4275,0.4275" stroke="#ff0000" stroke-width="0.1" stroke-dasharray="0.05 0.05" stroke-linecap="butt" fill="none"/>
-<polyline points="0.4275,0.4275 -0.4275,0.4275" stroke="#ff0000" stroke-width="0.1" stroke-dasharray="0.05 0.05" stroke-linecap="butt" fill="none"/>
-<polyline points="-0.4275,0.4275 -0.4275,-0.4275" stroke="#ff0000" stroke-width="0.1" stroke-dasharray="0.05 0.05" stroke-linecap="butt" fill="none"/>
-<polyline points="1.5725,-0.4275 2.4275,-0.4275" stroke="#00ff00" stroke-width="0.1" stroke-dasharray="0.05 0.05" stroke-linecap="butt" fill="none"/>
-<polyline points="2.4275,-0.4275 2.4275,0.4275" stroke="#00ff00" stroke-width="0.1" stroke-dasharray="0.05 0.05" stroke-linecap="butt" fill="none"/>
-<polyline points="2.4275,0.4275 1.5725,0.4275" stroke="#00ff00" stroke-width="0.1" stroke-dasharray="0.05 0.05" stroke-linecap="butt" fill="none"/>
-<polyline points="1.5725,0.4275 1.5725,-0.4275" stroke="#00ff00" stroke-width="0.1" stroke-dasharray="0.05 0.05" stroke-linecap="butt" fill="none"/>
+<polyline points="-0.4275,-0.4275 0.4275,-0.4275" stroke="rgba(255, 0, 0, 1)" stroke-width="0.1" stroke-dasharray="0.05 0.05" stroke-linecap="butt" fill="none"/>
+<polyline points="0.4275,-0.4275 0.4275,0.4275" stroke="rgba(255, 0, 0, 1)" stroke-width="0.1" stroke-dasharray="0.05 0.05" stroke-linecap="butt" fill="none"/>
+<polyline points="0.4275,0.4275 -0.4275,0.4275" stroke="rgba(255, 0, 0, 1)" stroke-width="0.1" stroke-dasharray="0.05 0.05" stroke-linecap="butt" fill="none"/>
+<polyline points="-0.4275,0.4275 -0.4275,-0.4275" stroke="rgba(255, 0, 0, 1)" stroke-width="0.1" stroke-dasharray="0.05 0.05" stroke-linecap="butt" fill="none"/>
+<polyline points="1.5725,-0.4275 2.4275,-0.4275" stroke="rgba(0, 255, 0, 1)" stroke-width="0.1" stroke-dasharray="0.05 0.05" stroke-linecap="butt" fill="none"/>
+<polyline points="2.4275,-0.4275 2.4275,0.4275" stroke="rgba(0, 255, 0, 1)" stroke-width="0.1" stroke-dasharray="0.05 0.05" stroke-linecap="butt" fill="none"/>
+<polyline points="2.4275,0.4275 1.5725,0.4275" stroke="rgba(0, 255, 0, 1)" stroke-width="0.1" stroke-dasharray="0.05 0.05" stroke-linecap="butt" fill="none"/>
+<polyline points="1.5725,0.4275 1.5725,-0.4275" stroke="rgba(0, 255, 0, 1)" stroke-width="0.1" stroke-dasharray="0.05 0.05" stroke-linecap="butt" fill="none"/>
 </svg>"
 `;
 
