@@ -39,6 +39,9 @@ export class Camera extends TypedEventEmitter<CameraEventMap> {
 
     private animationId?: number;
 
+    private batchDepth = 0;
+    private batchDirty = false;
+
     constructor(width: number, height: number) {
         super();
         this.width = width;
@@ -329,7 +332,33 @@ export class Camera extends TypedEventEmitter<CameraEventMap> {
         return this.animationId !== undefined;
     }
 
+    /**
+     * Run a function that performs multiple camera mutations and emit only one
+     * `change` event at the end (if anything actually mutated). Use this when a
+     * single logical operation needs to touch more than one camera field —
+     * resize-then-recenter, for example — so subscribers never observe a
+     * transient inconsistent state (new size with stale position).
+     *
+     * Nested batches are supported: only the outermost batch emits.
+     */
+    batch<T>(fn: () => T): T {
+        this.batchDepth++;
+        try {
+            return fn();
+        } finally {
+            this.batchDepth--;
+            if (this.batchDepth === 0 && this.batchDirty) {
+                this.batchDirty = false;
+                this.emit('change', undefined);
+            }
+        }
+    }
+
     private notify() {
+        if (this.batchDepth > 0) {
+            this.batchDirty = true;
+            return;
+        }
         this.emit('change', undefined);
     }
 }

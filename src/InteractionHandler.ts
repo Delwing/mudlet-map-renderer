@@ -96,11 +96,17 @@ export class InteractionHandler {
 
         // --- Resize ---
         const handleResize = () => {
-            camera.setSize(container.clientWidth, container.clientHeight);
-            if (camera.centerOnResize && this.state.positionRoomId) {
-                const room = this.state.mapReader.getRoom(this.state.positionRoomId);
-                if (room) camera.panToMapPoint(room.x, room.y);
-            }
+            // Batch so subscribers only see the final (resized + recentred)
+            // state. Without this, they'd first observe the new size with the
+            // pre-resize position, which can briefly drop the player room out
+            // of the reported viewport bounds.
+            camera.batch(() => {
+                camera.setSize(container.clientWidth, container.clientHeight);
+                if (camera.centerOnResize && this.state.positionRoomId) {
+                    const room = this.state.mapReader.getRoom(this.state.positionRoomId);
+                    if (room) camera.panToMapPoint(room.x, room.y);
+                }
+            });
         };
 
         if (typeof window !== 'undefined') {
