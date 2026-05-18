@@ -1,20 +1,23 @@
-import MapReader from "./reader/MapReader";
-import Area from "./reader/Area";
-import type Plane from "./reader/Plane";
+import type {IMapReader} from "./reader/MapReader";
+import type {IArea} from "./reader/Area";
+import type {IPlane} from "./reader/Plane";
 import type {Settings} from "./types/Settings";
 import type {SvgOverlays} from "./SvgTypes";
 import {TypedEventEmitter} from "./TypedEventEmitter";
+import type {RoomLens} from "./lens/RoomLens";
+import {ALL_VISIBLE} from "./lens/RoomLens";
 
 export type HighlightEntry = { color: string; area: number; z: number };
 export type PathEntry = { locations: number[]; color: string };
 
 export type MapStateEventMap = {
-    area: { area: Area; zIndex: number };
+    area: { area: IArea; zIndex: number };
     position: { roomId: number | undefined; center: boolean; areaChanged: boolean };
     center: { roomId: number; instant: boolean };
     highlight: { roomId: number; color: string | undefined };
     path: undefined;
     clear: undefined;
+    lens: { lens: RoomLens };
 };
 
 /**
@@ -25,22 +28,28 @@ export type MapStateEventMap = {
  * Rendering backends subscribe to events and sync their visual state.
  */
 export class MapState {
-    readonly mapReader: MapReader;
+    readonly mapReader: IMapReader;
     readonly settings: Settings;
     readonly events = new TypedEventEmitter<MapStateEventMap>();
 
     currentArea?: number;
-    currentAreaInstance?: Area;
+    currentAreaInstance?: IArea;
     currentZIndex?: number;
     currentAreaVersion?: number;
     positionRoomId?: number;
     centerRoomId?: number;
     highlights: Map<number, HighlightEntry> = new Map();
     paths: PathEntry[] = [];
+    lens: RoomLens = ALL_VISIBLE;
 
-    constructor(mapReader: MapReader, settings: Settings) {
+    constructor(mapReader: IMapReader, settings: Settings) {
         this.mapReader = mapReader;
         this.settings = settings;
+    }
+
+    setLens(lens: RoomLens) {
+        this.lens = lens;
+        this.events.emit('lens', {lens});
     }
 
     /**
@@ -199,14 +208,14 @@ export class MapState {
     /**
      * Get the effective plane bounds (respects uniformLevelSize setting).
      */
-    getEffectiveBounds(area: Area, plane: Plane) {
+    getEffectiveBounds(area: IArea, plane: IPlane) {
         return this.settings.uniformLevelSize ? area.getFullBounds() : plane.getBounds();
     }
 
     /**
      * Compute export bounds for a given area/plane, optionally centered on a room.
      */
-    computeExportBounds(area: Area, plane: Plane, roomId: number | undefined, padding: number) {
+    computeExportBounds(area: IArea, plane: IPlane, roomId: number | undefined, padding: number) {
         if (roomId !== undefined) {
             const room = this.mapReader.getRoom(roomId);
             if (!room) throw new Error(`Room ${roomId} not found`);

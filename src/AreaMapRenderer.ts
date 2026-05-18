@@ -1,5 +1,5 @@
 import Konva from "konva";
-import MapReader from "./reader/MapReader";
+import type {IMapReader} from "./reader/MapReader";
 import {PlanarDirection, planarDirections, oppositeDirections} from "./directions";
 
 const directionNumberToName: Record<number, MapData.direction> = {
@@ -89,7 +89,7 @@ export class AreaMapRenderer {
     private readonly backgroundLayer: Konva.Layer;
     private readonly areaLayer: Konva.Layer;
     private readonly connectionLayer: Konva.Layer;
-    private readonly mapReader: MapReader;
+    private readonly mapReader: IMapReader;
     private readonly settings: AreaMapSettings;
     private areaNodes: Map<number, AreaNode> = new Map();
     private connectionGroups: ConnectionGroup[] = [];
@@ -101,7 +101,7 @@ export class AreaMapRenderer {
     private backgroundConfig?: {url: string; x: number; y: number; width: number; height: number; opacity: number};
     private dotsMode = false;
 
-    constructor(container: HTMLDivElement, mapReader: MapReader, settings?: AreaMapSettings) {
+    constructor(container: HTMLDivElement, mapReader: IMapReader, settings?: AreaMapSettings) {
         this.settings = settings ?? createAreaMapSettings();
         this.stage = new Konva.Stage({
             container: container,

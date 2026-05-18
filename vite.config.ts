@@ -17,13 +17,17 @@ export default defineConfig(({ command }) => ({
     ],
     build: {
         lib: {
-            entry: 'src/index.ts',
+            entry: {
+                index: 'src/index.ts',
+                binary: 'src/binary/index.ts',
+            },
             name: 'mudlet-map-renderer',
-            fileName: () => 'index.mjs',
+            // index → dist/index.mjs, binary → dist/binary.mjs
+            fileName: (_format, entryName) => `${entryName}.mjs`,
             formats: ['es']
         },
         rollupOptions: {
-            external: ['konva', 'canvas']
+            external: ['konva', 'canvas', 'mudlet-map-binary-reader']
         },
         sourcemap: true,
         emptyOutDir: true

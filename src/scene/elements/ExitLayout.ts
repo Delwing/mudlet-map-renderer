@@ -1,4 +1,4 @@
-import type MapReader from "../../reader/MapReader";
+import type {IMapReader} from "../../reader/MapReader";
 import type {Settings} from "../../types/Settings";
 import type {ExitDrawArrow, ExitDrawData} from "../../ExitRenderer";
 import {computeInnerExits} from "../InnerExitStyle";
@@ -11,7 +11,7 @@ import type {GroupShape, HitInfo, PolygonShape, Shape} from "../Shape";
  */
 export function layoutInnerExits(
     room: MapData.Room,
-    mapReader: MapReader,
+    mapReader: IMapReader,
     settings: Settings,
 ): PolygonShape[] {
     const rs = settings.roomSize;

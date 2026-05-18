@@ -1,5 +1,5 @@
-import type Area from "../reader/Area";
-import type Plane from "../reader/Plane";
+import type {IArea} from "../reader/Area";
+import type {IPlane} from "../reader/Plane";
 import type {Settings} from "../types/Settings";
 import {ScenePipeline} from "../ScenePipeline";
 import type {
@@ -16,7 +16,8 @@ import type {CoordFn} from "../coord/CoordFn";
 import {IDENTITY_TRANSFORM} from "../coord/CoordFn";
 import type {SceneTransforms} from "../export/clipSceneToViewport";
 import type {GroupShape, Shape} from "../scene/Shape";
-import type MapReader from "../reader/MapReader";
+import type {IMapReader} from "../reader/MapReader";
+import type {RoomLens} from "../lens/RoomLens";
 import type {ExitDrawData} from "../ExitRenderer";
 
 export interface CullStats {
@@ -48,7 +49,7 @@ export class SceneManager {
     constructor(
         private readonly camera: Camera,
         private readonly settings: Settings,
-        mapReader: MapReader,
+        mapReader: IMapReader,
     ) {
         this.pipeline = new ScenePipeline(mapReader, settings);
     }
@@ -81,8 +82,8 @@ export class SceneManager {
         return this.lastBuildResult?.hitShapes ?? [];
     }
 
-    rebuild(area: Area, plane: Plane, zIndex: number): SceneBuildResult {
-        this.lastBuildResult = this.pipeline.buildScene(area, plane, zIndex);
+    rebuild(area: IArea, plane: IPlane, zIndex: number, lens?: RoomLens): SceneBuildResult {
+        this.lastBuildResult = this.pipeline.buildScene(area, plane, zIndex, lens);
         this.standaloneExitShapeSet = new Set(
             this.lastBuildResult.standaloneExitShapeRefs.map(r => r.shape),
         );
@@ -98,7 +99,7 @@ export class SceneManager {
         this.standaloneExitShapeSet = new Set();
     }
 
-    resetPipeline(mapReader: MapReader): void {
+    resetPipeline(mapReader: IMapReader): void {
         this.pipeline = new ScenePipeline(mapReader, this.settings);
         this.reset();
     }

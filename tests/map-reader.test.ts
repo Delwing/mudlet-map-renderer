@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { createTestMapReader } from './helpers';
+import { ExplorationLens } from '../src/lens/ExplorationLens';
 
 describe('MapReader', () => {
     describe('loading', () => {
@@ -103,49 +104,44 @@ describe('MapReader', () => {
         });
     });
 
-    describe('exploration', () => {
-        it('decorateWithExploration creates exploration areas', () => {
+    describe('exploration lens', () => {
+        it('reader returns all rooms (lens does the filtering)', () => {
             const reader = createTestMapReader();
-            reader.decorateWithExploration(new Set([1, 2, 3]));
-            expect(reader.isExplorationEnabled()).toBe(true);
-        });
-
-        it('exploration filters rooms in planes', () => {
-            const reader = createTestMapReader();
-            reader.decorateWithExploration(new Set([1, 2]));
             const area = reader.getArea(1);
             const plane = area.getPlane(0);
-            const rooms = plane!.getRooms();
-            const roomIds = rooms.map(r => r.id);
-            expect(roomIds).toContain(1);
-            expect(roomIds).toContain(2);
-            expect(roomIds).not.toContain(3);
-        });
-
-        it('addVisitedRoom works', () => {
-            const reader = createTestMapReader();
-            reader.decorateWithExploration(new Set([1]));
-            expect(reader.hasVisitedRoom(1)).toBe(true);
-            expect(reader.hasVisitedRoom(2)).toBe(false);
-
-            const isNew = reader.addVisitedRoom(2);
-            expect(isNew).toBe(true);
-            expect(reader.hasVisitedRoom(2)).toBe(true);
-
-            const isNewAgain = reader.addVisitedRoom(2);
-            expect(isNewAgain).toBe(false);
-        });
-
-        it('clearExplorationDecoration restores all rooms', () => {
-            const reader = createTestMapReader();
-            reader.decorateWithExploration(new Set([1]));
-            reader.clearExplorationDecoration();
-            expect(reader.isExplorationEnabled()).toBe(false);
-
-            const area = reader.getArea(1);
-            const plane = area.getPlane(0);
-            // Should have all z=0 rooms back
             expect(plane!.getRooms().length).toBeGreaterThan(1);
+        });
+
+        it('isVisible reflects the visited set', () => {
+            const reader = createTestMapReader();
+            const lens = new ExplorationLens([1, 2]);
+            const rooms = reader.getArea(1).getPlane(0)!.getRooms();
+            const visible = rooms.filter(r => lens.isVisible(r)).map(r => r.id);
+            expect(visible).toContain(1);
+            expect(visible).toContain(2);
+            expect(visible).not.toContain(3);
+        });
+
+        it('addVisited returns true only on first add and bumps version', () => {
+            const lens = new ExplorationLens([1]);
+            const before = lens.getVersion();
+            expect(lens.hasVisited(1)).toBe(true);
+            expect(lens.hasVisited(2)).toBe(false);
+
+            expect(lens.addVisited(2)).toBe(true);
+            expect(lens.hasVisited(2)).toBe(true);
+            expect(lens.getVersion()).toBeGreaterThan(before);
+
+            const afterFirst = lens.getVersion();
+            expect(lens.addVisited(2)).toBe(false);
+            expect(lens.getVersion()).toBe(afterFirst);
+        });
+
+        it('clear empties the visited set', () => {
+            const lens = new ExplorationLens([1, 2]);
+            lens.clear();
+            expect(lens.getVisitedCount()).toBe(0);
+            expect(lens.hasVisited(1)).toBe(false);
         });
     });
 

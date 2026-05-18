@@ -1,4 +1,18 @@
-export default class Plane {
+/**
+ * Public, renderer-facing surface of a z-level slice of an area.
+ *
+ * The renderer (and other library consumers) only depend on this interface;
+ * the concrete {@link Plane} class is one implementation of it. Downstream
+ * apps that want to drive the renderer from their own data model can hand it
+ * any `IPlane`-shaped object (typically returned from an {@link IArea}).
+ */
+export interface IPlane {
+    getRooms(): MapData.Room[];
+    getLabels(): MapData.Label[];
+    getBounds(): { minX: number; maxX: number; minY: number; maxY: number };
+}
+
+export default class Plane implements IPlane {
 
     private readonly bounds: { minX: number, maxX: number, minY: number, maxY: number }
     private readonly rooms: MapData.Room[] = [];

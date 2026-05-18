@@ -1,5 +1,26 @@
-import Area from "./Area";
-import ExplorationArea from "./ExplorationArea";
+import Area, {IArea} from "./Area";
+
+/**
+ * Public, renderer-facing surface for map data. Everything the renderer
+ * (and other library consumers) call on `MapReader` is on this interface —
+ * private state and internal helpers are not.
+ *
+ * Downstream apps with their own room/area store can implement `IMapReader`
+ * directly (no need to subclass {@link MapReader}) and hand the result to
+ * {@link MapRenderer}. Visibility filtering (exploration, scope overlays,
+ * etc.) lives on the renderer's lens — it is intentionally not on this
+ * interface.
+ */
+export interface IMapReader {
+    getArea(areaId: number): IArea;
+    getAreas(): IArea[];
+    getRooms(): MapData.Room[];
+    getRoom(roomId: number): MapData.Room;
+    /** Returns the env's `rgb(r,g,b)` string, or a default colour if the env id is unknown. */
+    getColorValue(envId: number): string;
+    /** Returns a contrasting symbol colour for the env, optionally with the given alpha. */
+    getSymbolColor(envId: number, opacity?: number): string;
+}
 
 interface Color {
     rgb: number[];
@@ -26,13 +47,10 @@ function calculateLuminance(rgb: number[]) {
     return (max + min) / 2;
 }
 
-export default class MapReader {
+export default class MapReader implements IMapReader {
 
     private rooms: Record<number, MapData.Room> = {};
     private areas: Record<number, Area> = {};
-    private areaSources: Record<number, MapData.Area> = {};
-    private visitedRooms?: Set<number>;
-    private explorationEnabled = false;
     private colors: Record<number, Color> = {};
 
     constructor(map: MapData.Map, envs: MapData.Env[]) {
@@ -46,7 +64,6 @@ export default class MapReader {
             });
             const areaId = parseInt(area.areaId);
             this.areas[areaId] = new Area(clonedArea);
-            this.areaSources[areaId] = clonedArea;
         })
         this.colors = envs.reduce((acc, c) => ({
             ...acc,
@@ -63,14 +80,6 @@ export default class MapReader {
         return this.areas[areaId];
     }
 
-    getExplorationArea(areaId: number) {
-        const area = this.areas[areaId];
-        if (area instanceof ExplorationArea) {
-            return area;
-        }
-        return undefined;
-    }
-
     getAreas() {
         return Object.values(this.areas);
     }
@@ -81,103 +90,6 @@ export default class MapReader {
 
     getRoom(roomId: number) {
         return this.rooms[roomId];
-    }
-
-    private ensureVisitedRooms() {
-        if (!this.visitedRooms) {
-            this.visitedRooms = new Set();
-        }
-        return this.visitedRooms;
-    }
-
-    private applyExplorationDecoration() {
-        if (!this.visitedRooms) {
-            return;
-        }
-        Object.entries(this.areaSources).forEach(([id, area]) => {
-            const numericId = parseInt(id, 10);
-            this.areas[numericId] = new ExplorationArea(area, this.visitedRooms);
-        });
-    }
-
-    decorateWithExploration(visitedRooms?: Iterable<number> | Set<number>) {
-        if (visitedRooms !== undefined) {
-            this.setVisitedRooms(visitedRooms);
-        } else {
-            this.ensureVisitedRooms();
-        }
-        this.applyExplorationDecoration();
-        this.explorationEnabled = true;
-        return this.visitedRooms;
-    }
-
-    getVisitedRooms() {
-        return this.visitedRooms;
-    }
-
-    clearExplorationDecoration() {
-        Object.entries(this.areaSources).forEach(([id, area]) => {
-            const numericId = parseInt(id, 10);
-            this.areas[numericId] = new Area(area);
-        });
-        this.explorationEnabled = false;
-    }
-
-    isExplorationEnabled() {
-        return this.explorationEnabled;
-    }
-
-    setVisitedRooms(visitedRooms: Iterable<number> | Set<number>) {
-        this.visitedRooms = visitedRooms instanceof Set ? visitedRooms : new Set(visitedRooms);
-        if (this.explorationEnabled) {
-            this.applyExplorationDecoration();
-        }
-        return this.visitedRooms;
-    }
-
-    addVisitedRoom(roomId: number) {
-        if (this.explorationEnabled) {
-            const room = this.getRoom(roomId);
-            if (room) {
-                const area = this.getExplorationArea(room.area);
-                if (area) {
-                    return area.addVisitedRoom(roomId);
-                }
-            }
-        }
-        const visitedRooms = this.ensureVisitedRooms();
-        const wasVisited = visitedRooms.has(roomId);
-        visitedRooms.add(roomId);
-        return !wasVisited;
-    }
-
-    addVisitedRooms(roomIds: Iterable<number>) {
-        const visitedRooms = this.ensureVisitedRooms();
-        let newlyVisited = 0;
-        for (const roomId of roomIds) {
-            if (this.explorationEnabled) {
-                const room = this.getRoom(roomId);
-                if (room) {
-                    const area = this.getExplorationArea(room.area);
-                    if (area) {
-                        if (area.addVisitedRoom(roomId)) {
-                            newlyVisited++;
-                        }
-                        continue;
-                    }
-                }
-            }
-            const wasVisited = visitedRooms.has(roomId);
-            visitedRooms.add(roomId);
-            if (!wasVisited) {
-                newlyVisited++;
-            }
-        }
-        return newlyVisited;
-    }
-
-    hasVisitedRoom(roomId: number) {
-        return this.visitedRooms?.has(roomId) ?? false;
     }
 
     getColorValue(envId: number): string {

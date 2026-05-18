@@ -1,4 +1,4 @@
-import MapReader from "./reader/MapReader";
+import type {IMapReader} from "./reader/MapReader";
 
 const exitNumberToDirection: Record<number, MapData.direction> = {
     1: "north", 2: "northeast", 3: "northwest", 4: "east", 5: "west",
@@ -32,10 +32,10 @@ export interface GraphData {
  */
 export class MapGraph {
 
-    private readonly mapReader: MapReader;
+    private readonly mapReader: IMapReader;
     private readonly data: GraphData;
 
-    constructor(mapReader: MapReader) {
+    constructor(mapReader: IMapReader) {
         this.mapReader = mapReader;
         this.data = this.buildGraph();
     }

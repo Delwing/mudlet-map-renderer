@@ -1,5 +1,5 @@
 import {MapRenderer, CullingMode, RoomShape, PathFinder, SvgExporter, PngBlobExporter, AmbientLightOverlay} from "@src";
-import type {Settings, LabelRenderMode, PathFindingAlgorithm} from "@src";
+import type {Settings, LabelRenderMode, PathFindingAlgorithm, ExplorationLens} from "@src";
 import type MapReader from "@src/reader/MapReader";
 import {WeatherOverlay} from "./WeatherOverlay";
 import type {WeatherType} from "./WeatherOverlay";
@@ -36,7 +36,7 @@ function describeCullingMode(mode: CullingMode) {
     }
 }
 
-export function initControls(settings: Settings, renderer: MapRenderer, getCurrentRoomId: () => number, pathFinder?: PathFinder, onAlgorithmChange?: () => void, onPathColorChange?: (color: string) => void, onRenderModeChange?: (mode: string) => void, mapReader?: MapReader) {
+export function initControls(settings: Settings, renderer: MapRenderer, getCurrentRoomId: () => number, pathFinder?: PathFinder, onAlgorithmChange?: () => void, onPathColorChange?: (color: string) => void, onRenderModeChange?: (mode: string) => void, mapReader?: MapReader, explorationLens?: ExplorationLens) {
     const explorationToggle = document.getElementById("exploration-toggle") as HTMLInputElement | null;
     const instantMoveToggle = document.getElementById("instant-move-toggle") as HTMLInputElement | null;
     const highlightToggle = document.getElementById("highlight-toggle") as HTMLInputElement | null;
@@ -70,6 +70,16 @@ export function initControls(settings: Settings, renderer: MapRenderer, getCurre
     const renderModeSelect = document.getElementById("render-mode") as HTMLSelectElement | null;
     const locationStyleSelect = document.getElementById("location-style") as HTMLSelectElement | null;
     const playerMarkerMatchShape = document.getElementById("player-marker-match-shape") as HTMLInputElement | null;
+    const highlightStrokeAlpha = document.getElementById("highlight-stroke-alpha") as HTMLInputElement | null;
+    const highlightStrokeAlphaValue = document.getElementById("highlight-stroke-alpha-value") as HTMLSpanElement | null;
+    const highlightFillAlpha = document.getElementById("highlight-fill-alpha") as HTMLInputElement | null;
+    const highlightFillAlphaValue = document.getElementById("highlight-fill-alpha-value") as HTMLSpanElement | null;
+    const highlightStrokeWidth = document.getElementById("highlight-stroke-width") as HTMLInputElement | null;
+    const highlightStrokeWidthValue = document.getElementById("highlight-stroke-width-value") as HTMLSpanElement | null;
+    const highlightSize = document.getElementById("highlight-size") as HTMLInputElement | null;
+    const highlightSizeValue = document.getElementById("highlight-size-value") as HTMLSpanElement | null;
+    const highlightDashEnabled = document.getElementById("highlight-dash-enabled") as HTMLInputElement | null;
+    const highlightMatchShape = document.getElementById("highlight-match-shape") as HTMLInputElement | null;
     const embossToggle = document.getElementById("emboss-toggle") as HTMLInputElement | null;
     const areaNameToggle = document.getElementById("area-name-toggle") as HTMLInputElement | null;
     const areaExitLabelsToggle = document.getElementById("area-exit-labels-toggle") as HTMLInputElement | null;
@@ -142,6 +152,24 @@ export function initControls(settings: Settings, renderer: MapRenderer, getCurre
     }
     if (playerMarkerDashEnabled) playerMarkerDashEnabled.checked = settings.playerMarker.dashEnabled;
     if (playerMarkerMatchShape) playerMarkerMatchShape.checked = settings.playerMarker.matchRoomShape;
+    if (highlightStrokeAlpha && highlightStrokeAlphaValue) {
+        highlightStrokeAlpha.value = settings.highlight.strokeAlpha.toString();
+        highlightStrokeAlphaValue.textContent = settings.highlight.strokeAlpha.toFixed(2);
+    }
+    if (highlightFillAlpha && highlightFillAlphaValue) {
+        highlightFillAlpha.value = settings.highlight.fillAlpha.toString();
+        highlightFillAlphaValue.textContent = settings.highlight.fillAlpha.toFixed(2);
+    }
+    if (highlightStrokeWidth && highlightStrokeWidthValue) {
+        highlightStrokeWidth.value = settings.highlight.strokeWidth.toString();
+        highlightStrokeWidthValue.textContent = settings.highlight.strokeWidth.toFixed(2);
+    }
+    if (highlightSize && highlightSizeValue) {
+        highlightSize.value = settings.highlight.sizeFactor.toString();
+        highlightSizeValue.textContent = settings.highlight.sizeFactor.toFixed(2);
+    }
+    if (highlightDashEnabled) highlightDashEnabled.checked = settings.highlight.dashEnabled;
+    if (highlightMatchShape) highlightMatchShape.checked = settings.highlight.matchRoomShape;
     if (pathfindingAlgorithmSelect && pathFinder) pathfindingAlgorithmSelect.value = pathFinder.algorithm;
     const sketchColorLabel = document.getElementById("sketch-color-label") as HTMLElement | null;
     const sketchColorInput = document.getElementById("sketch-color") as HTMLInputElement | null;
@@ -308,6 +336,44 @@ export function initControls(settings: Settings, renderer: MapRenderer, getCurre
     playerMarkerMatchShape?.addEventListener("change", () => {
         settings.playerMarker.matchRoomShape = playerMarkerMatchShape.checked;
         renderer.updatePositionMarker(getCurrentRoomId());
+    });
+
+    highlightStrokeAlpha?.addEventListener("input", () => {
+        const value = parseFloat(highlightStrokeAlpha.value);
+        settings.highlight.strokeAlpha = value;
+        if (highlightStrokeAlphaValue) highlightStrokeAlphaValue.textContent = value.toFixed(2);
+        renderer.refresh();
+    });
+
+    highlightFillAlpha?.addEventListener("input", () => {
+        const value = parseFloat(highlightFillAlpha.value);
+        settings.highlight.fillAlpha = value;
+        if (highlightFillAlphaValue) highlightFillAlphaValue.textContent = value.toFixed(2);
+        renderer.refresh();
+    });
+
+    highlightStrokeWidth?.addEventListener("input", () => {
+        const value = parseFloat(highlightStrokeWidth.value);
+        settings.highlight.strokeWidth = value;
+        if (highlightStrokeWidthValue) highlightStrokeWidthValue.textContent = value.toFixed(2);
+        renderer.refresh();
+    });
+
+    highlightSize?.addEventListener("input", () => {
+        const value = parseFloat(highlightSize.value);
+        settings.highlight.sizeFactor = value;
+        if (highlightSizeValue) highlightSizeValue.textContent = value.toFixed(2);
+        renderer.refresh();
+    });
+
+    highlightDashEnabled?.addEventListener("change", () => {
+        settings.highlight.dashEnabled = highlightDashEnabled.checked;
+        renderer.refresh();
+    });
+
+    highlightMatchShape?.addEventListener("change", () => {
+        settings.highlight.matchRoomShape = highlightMatchShape.checked;
+        renderer.refresh();
     });
 
     pathColorInput?.addEventListener("input", () => {
@@ -526,7 +592,9 @@ export function initControls(settings: Settings, renderer: MapRenderer, getCurre
         const planeRooms = plane?.getRooms() ?? [];
 
         // Reveal rooms the player has visited + connections between them
-        const visited = mapReader.getVisitedRooms?.() as Set<number> | undefined;
+        const visited = explorationLens
+            ? new Set(explorationLens.getVisitedRoomIds())
+            : undefined;
         const visitedSet = new Set<number>();
         const revealed: { x: number; y: number }[] = [];
         for (const room of planeRooms) {

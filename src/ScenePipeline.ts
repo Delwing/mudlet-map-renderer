@@ -1,11 +1,12 @@
-import type MapReader from "./reader/MapReader";
-import type Area from "./reader/Area";
-import type Plane from "./reader/Plane";
-import type Exit from "./reader/Exit";
+import type {IMapReader} from "./reader/MapReader";
+import type {IArea} from "./reader/Area";
+import type {IPlane} from "./reader/Plane";
+import type IExit from "./reader/Exit";
 import type {Settings} from "./types/Settings";
 import ExitRenderer from "./ExitRenderer";
 import type {ExitDrawData} from "./ExitRenderer";
 import {computeStubs} from "./scene/StubStyle";
+import type {StubData} from "./scene/StubStyle";
 import {computeSpecialExits} from "./scene/SpecialExitStyle";
 import {layoutRoom} from "./scene/elements/RoomLayout";
 import {layoutInnerExits} from "./scene/elements/ExitLayout";
@@ -15,6 +16,10 @@ import {stubToShape} from "./scene/elements/StubLayout";
 import {labelToShape} from "./scene/elements/LabelLayout";
 import type {GroupShape, Shape} from "./scene/Shape";
 import {colorLightness} from "./utils/color";
+import type {RoomLens, ExitTreatment} from "./lens/RoomLens";
+import {ALL_VISIBLE, defaultExitTreatment} from "./lens/RoomLens";
+import {movePoint, movePointCircle, movePointRoundedRect} from "./directions";
+import {longToShort, regularExits} from "./reader/Exit";
 
 type Bounds = { x: number; y: number; width: number; height: number };
 
@@ -227,7 +232,7 @@ function clusterByProximity<T extends { tip: { x: number; y: number } }>(
  * {@link SceneBuildResult} this pipeline produces.
  */
 export class ScenePipeline {
-    private readonly mapReader: MapReader;
+    private readonly mapReader: IMapReader;
     private readonly settings: Settings;
     readonly exitRenderer: ExitRenderer;
 
@@ -243,7 +248,7 @@ export class ScenePipeline {
     private stubShapeRefs: StubShapeRef[] = [];
     private areaExitLabelShapeRefs: AreaExitLabelShapeRef[] = [];
 
-    constructor(mapReader: MapReader, settings: Settings) {
+    constructor(mapReader: IMapReader, settings: Settings) {
         this.mapReader = mapReader;
         this.settings = settings;
         this.exitRenderer = new ExitRenderer(mapReader, settings);
@@ -253,8 +258,11 @@ export class ScenePipeline {
      * Build the full scene for an area/plane.
      * Clears layers, renders grid → labels → exits → rooms → area name.
      * Returns data for culling and interaction (room nodes, exit data, hit zones).
+     *
+     * The `lens` filters which rooms paint and how partially-visible exits are
+     * treated. Pass {@link ALL_VISIBLE} (or omit) for an unfiltered build.
      */
-    buildScene(area: Area, plane: Plane, zIndex: number): SceneBuildResult {
+    buildScene(area: IArea, plane: IPlane, zIndex: number, lens: RoomLens = ALL_VISIBLE): SceneBuildResult {
         this.linkShapes = [];
         this.roomShapes = [];
         this.topLabelShapes = [];
@@ -267,10 +275,13 @@ export class ScenePipeline {
         this.renderLabels(plane.getLabels(), area.getAreaId());
 
         // Link exits (two-way connections)
-        const exitResult = this.renderLinkExits(area.getLinkExits(zIndex), zIndex);
+        const exitResult = this.renderLinkExits(area.getLinkExits(zIndex), zIndex, lens);
+
+        // Visible rooms only — the lens (e.g. exploration) drops the rest.
+        const visibleRooms = (plane.getRooms() ?? []).filter(r => lens.isVisible(r));
 
         // Rooms (with stubs, special exits, inner exits)
-        const roomResult = this.renderRooms(plane.getRooms() ?? [], zIndex);
+        const roomResult = this.renderRooms(visibleRooms, zIndex);
 
         // Area name
         this.renderAreaName(area, plane);
@@ -282,7 +293,7 @@ export class ScenePipeline {
         const labelHitZones = this.renderAreaExitLabels(
             areaExitHitZones,
             area.getAreaId(),
-            plane.getRooms() ?? [],
+            visibleRooms,
             exitResult.standaloneExitShapeRefs.map(n => n.bounds),
         );
         areaExitHitZones.push(...labelHitZones);
@@ -318,7 +329,7 @@ export class ScenePipeline {
         };
     }
 
-    getEffectiveBounds(area: Area, plane: Plane) {
+    getEffectiveBounds(area: IArea, plane: IPlane) {
         return this.settings.uniformLevelSize ? area.getFullBounds() : plane.getBounds();
     }
 
@@ -429,12 +440,28 @@ export class ScenePipeline {
 
     // --- Link Exits ---
 
-    private renderLinkExits(exits: Exit[], zIndex: number) {
+    private renderLinkExits(exits: IExit[], zIndex: number, lens: RoomLens) {
         const standaloneExitShapeRefs: StandaloneExitShapeRef[] = [];
         const areaExitHitZones: AreaExitHitZone[] = [];
         const drawnExits: DrawnExitEntry[] = [];
 
         exits.forEach(exit => {
+            const roomA = this.mapReader.getRoom(exit.a);
+            const roomB = this.mapReader.getRoom(exit.b);
+            if (!roomA || !roomB) return;
+
+            const treatment: ExitTreatment = lens.getExitTreatment
+                ? lens.getExitTreatment(exit, roomA, roomB)
+                : defaultExitTreatment(lens, exit, roomA, roomB);
+
+            if (treatment === "hidden") return;
+
+            if (treatment === "stub") {
+                const stub = this.buildLensStub(exit, roomA, roomB, lens);
+                if (stub) this.emitLensStub(stub);
+                return;
+            }
+
             const data = this.exitRenderer.renderData(exit, zIndex);
             if (!data) return;
             const exitShape = layoutLinkExit(data, {
@@ -471,6 +498,60 @@ export class ScenePipeline {
         });
 
         return {standaloneExitShapeRefs, areaExitHitZones, drawnExits};
+    }
+
+    /**
+     * Build a stub anchored at the visible endpoint of an exit, pointing
+     * toward the hidden one. Returns undefined when the exit can't be drawn
+     * as a stub (no planar direction on the visible side, both sides hidden,
+     * or both sides visible — the last is a caller bug).
+     */
+    private buildLensStub(
+        exit: IExit,
+        roomA: MapData.Room,
+        roomB: MapData.Room,
+        lens: RoomLens,
+    ): StubData | undefined {
+        const aVis = lens.isVisible(roomA);
+        const bVis = lens.isVisible(roomB);
+        if (aVis === bVis) return undefined;
+
+        const sourceRoom = aVis ? roomA : roomB;
+        const dir = aVis ? exit.aDir : exit.bDir;
+        if (!dir || !regularExits.includes(dir)) return undefined;
+        if (sourceRoom.customLines[longToShort[dir]]) return undefined;
+
+        const rs = this.settings.roomSize;
+        const start = this.getRoomEdgePoint(sourceRoom.x, sourceRoom.y, dir, rs / 2);
+        const end = movePoint(sourceRoom.x, sourceRoom.y, dir, rs / 2 + 0.5);
+        return {
+            roomId: sourceRoom.id,
+            direction: dir,
+            x1: start.x, y1: start.y,
+            x2: end.x, y2: end.y,
+            stroke: this.settings.lineColor,
+            strokeWidth: this.settings.lineWidth,
+        };
+    }
+
+    private emitLensStub(stub: StubData) {
+        const stubShape = stubToShape(stub);
+        this.linkShapes.push(stubShape);
+        this.stubShapeRefs.push({
+            shape: stubShape,
+            bounds: {
+                x: Math.min(stub.x1, stub.x2),
+                y: Math.min(stub.y1, stub.y2),
+                width: Math.abs(stub.x2 - stub.x1),
+                height: Math.abs(stub.y2 - stub.y1),
+            },
+        });
+    }
+
+    private getRoomEdgePoint(x: number, y: number, direction: MapData.direction, distance: number) {
+        if (this.settings.roomShape === "circle") return movePointCircle(x, y, direction, distance);
+        if (this.settings.roomShape === "roundedRectangle") return movePointRoundedRect(x, y, direction, distance, this.settings.roomSize * 0.2);
+        return movePoint(x, y, direction, distance);
     }
 
     /**
@@ -811,7 +892,7 @@ export class ScenePipeline {
 
     // --- Area Name ---
 
-    private renderAreaName(area: Area, plane: Plane) {
+    private renderAreaName(area: IArea, plane: IPlane) {
         if (!this.settings.areaName) return;
         const name = area.getAreaName();
         if (!name) return;

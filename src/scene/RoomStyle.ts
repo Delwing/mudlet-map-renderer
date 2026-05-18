@@ -1,6 +1,6 @@
 import type {Settings} from "../types/Settings";
 import {darkenColor, lightenColor} from "../utils/color";
-import MapReader from "../reader/MapReader";
+import type {IMapReader} from "../reader/MapReader";
 
 export type RoomColors = {
     fillColor: string;
@@ -29,7 +29,7 @@ export type EmbossStyle = {
  */
 export function computeRoomColors(
     room: MapData.Room,
-    mapReader: MapReader,
+    mapReader: IMapReader,
     settings: Settings,
     strokeOverride?: string,
 ): RoomColors {

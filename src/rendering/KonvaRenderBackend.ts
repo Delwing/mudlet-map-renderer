@@ -1,6 +1,6 @@
 import Konva from "konva";
-import type Area from "../reader/Area";
-import type Plane from "../reader/Plane";
+import type {IArea} from "../reader/Area";
+import type {IPlane} from "../reader/Plane";
 import type {RendererEventMap, ViewportBounds} from "../types/Settings";
 import type {AreaExitHitZone, DrawnExitEntry, DrawnSpecialExitEntry, DrawnStubEntry} from "../ScenePipeline";
 import type {MapState} from "../MapState";
@@ -31,7 +31,6 @@ import {stubToShape} from "../scene/elements/StubLayout";
 import {
     highlightToShape, positionMarkerToShape, pathToShapes,
 } from "../scene/elements/OverlayLayout";
-import ExplorationArea from "../reader/ExplorationArea";
 import type {LiveEffect} from "../overlay/LiveEffect";
 import type {SceneOverlay, SceneOverlayContext} from "../overlay/SceneOverlay";
 import type {ExportCanvas} from "../export/Exporter";
@@ -492,11 +491,15 @@ export class KonvaRenderBackend implements InteractiveBackend {
         state.events.on('clear', () => {
             this.syncHighlights();
         });
+
+        state.events.on('lens', () => {
+            this.refresh();
+        });
     }
 
     // --- Scene lifecycle ---
 
-    private buildScene(area: Area, plane: Plane, zIndex: number): void {
+    private buildScene(area: IArea, plane: IPlane, zIndex: number): void {
         this.positionLayer.destroyChildren();
         this.positionMarker = undefined;
         this.clearOverlayShapes();
@@ -510,7 +513,7 @@ export class KonvaRenderBackend implements InteractiveBackend {
         this.gridCachedBounds = null;
         this.topLabelLayerNode.destroyChildren();
 
-        const result = this.sceneManager.rebuild(area, plane, zIndex);
+        const result = this.sceneManager.rebuild(area, plane, zIndex, this.state.lens);
 
         // Track ORIGINAL shape (pre-style) → recording node so onSceneBuilt
         // can find each room/exit's DrawEntry inside `sceneNode` for culling.
@@ -705,9 +708,7 @@ export class KonvaRenderBackend implements InteractiveBackend {
 
         const preRoomShapes: Shape[] = [];
         const exitRenderer = this.sceneManager.exitRenderer;
-
-        const explorationArea =
-            this.state.currentAreaInstance instanceof ExplorationArea ? this.state.currentAreaInstance : undefined;
+        const lens = this.state.lens;
 
         // Link exits for this room → rendered as ExitDrawData through DrawingBackend
         if (this.state.currentAreaInstance && this.state.currentZIndex !== undefined) {
@@ -734,14 +735,11 @@ export class KonvaRenderBackend implements InteractiveBackend {
 
         [...Object.values(room.exits), ...Object.values(room.specialExits)].forEach(id => {
             const otherRoom = this.state.mapReader.getRoom(id);
-            const canRenderOtherRoom =
-                !explorationArea || explorationArea.hasVisitedRoom(id);
-
             if (
                 otherRoom &&
                 otherRoom.area === this.state.currentArea &&
                 otherRoom.z === this.state.currentZIndex &&
-                canRenderOtherRoom
+                lens.isVisible(otherRoom)
             ) {
                 roomsToRedraw.set(id, otherRoom);
             }

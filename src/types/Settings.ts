@@ -106,6 +106,55 @@ export type PlayerMarkerStyle = {
     matchRoomShape: boolean;
 };
 
+/**
+ * Style configuration for room highlights.
+ * Highlights are rings drawn around rooms registered via {@link MapRenderer.renderHighlight}.
+ * The highlight's color is supplied per-call; this style controls everything else.
+ */
+export type HighlightStyle = {
+    /**
+     * Opacity for the highlight's stroke/ring (0.0 = fully transparent, 1.0 = fully opaque).
+     */
+    strokeAlpha: number;
+
+    /**
+     * Opacity for the fill (0.0 = fully transparent / hollow, 1.0 = fully opaque).
+     * The fill uses the per-highlight color. Defaults to 0 to preserve the hollow ring look.
+     */
+    fillAlpha: number;
+
+    /**
+     * Width of the highlight stroke in map units (typically 0.01-0.3).
+     */
+    strokeWidth: number;
+
+    /**
+     * Size multiplier relative to the room size.
+     * - 1.0 = highlight matches room size
+     * - Values > 1.0 produce a ring outside the room
+     * - Values < 1.0 produce a smaller marker inside the room
+     */
+    sizeFactor: number;
+
+    /**
+     * Dash pattern for the stroke as an array of [dash length, gap length].
+     * Only applied when dashEnabled is true.
+     */
+    dash?: number[];
+
+    /**
+     * Whether to apply the dash pattern to the stroke.
+     * When false, the stroke is solid regardless of the dash property.
+     */
+    dashEnabled: boolean;
+
+    /**
+     * When true, the highlight shape matches the current roomShape setting
+     * (rectangle, circle, or roundedRectangle). When false, the highlight is always a circle.
+     */
+    matchRoomShape: boolean;
+};
+
 
 /**
  * Settings for map rendering.
@@ -139,6 +188,8 @@ export type Settings = {
     roomShape: RoomShape;
     /** Style configuration for the player position marker. */
     playerMarker: PlayerMarkerStyle;
+    /** Style configuration for room highlights (added via {@link MapRenderer.renderHighlight}). */
+    highlight: HighlightStyle;
     /** Whether to render a background grid. Default: false */
     gridEnabled: boolean;
     /** Grid line spacing in map units. Default: 1 */
@@ -194,6 +245,15 @@ export function createSettings(): Settings {
             dash: [0.05, 0.05],
             dashEnabled: true,
             matchRoomShape: false,
+        },
+        highlight: {
+            strokeAlpha: 1.0,
+            fillAlpha: 0.0,
+            strokeWidth: 0.1,
+            sizeFactor: 1.425,
+            dash: [0.05, 0.05],
+            dashEnabled: true,
+            matchRoomShape: true,
         },
         gridEnabled: false,
         gridSize: 1,

@@ -1,5 +1,5 @@
 import Graph from "node-dijkstra";
-import MapReader from "./reader/MapReader";
+import type {IMapReader} from "./reader/MapReader";
 import {MapGraph} from "./MapGraph";
 import type {Edge} from "./MapGraph";
 
@@ -123,7 +123,7 @@ export default class PathFinder {
     private _algorithm: PathFindingAlgorithm;
     private readonly cache = new Map<string, number[] | null>();
 
-    constructor(mapReader: MapReader, algorithm: PathFindingAlgorithm = 'dijkstra') {
+    constructor(mapReader: IMapReader, algorithm: PathFindingAlgorithm = 'dijkstra') {
         this._algorithm = algorithm;
         this.mapGraph = new MapGraph(mapReader);
         this.dijkstraGraph = new Graph(this.mapGraph.getGraphDefinition());

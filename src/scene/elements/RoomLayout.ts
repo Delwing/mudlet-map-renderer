@@ -1,4 +1,4 @@
-import MapReader from "../../reader/MapReader";
+import type {IMapReader} from "../../reader/MapReader";
 import type {Settings} from "../../types/Settings";
 import {measureTextBaselineOffset} from "../../utils/textMeasure";
 import {computeRoomColors, computeEmboss} from "../RoomStyle";
@@ -23,7 +23,7 @@ export interface RoomLayoutOptions {
  */
 export function layoutRoom(
     room: MapData.Room,
-    mapReader: MapReader,
+    mapReader: IMapReader,
     settings: Settings,
     options: RoomLayoutOptions,
 ): GroupShape {

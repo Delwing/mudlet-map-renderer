@@ -1,5 +1,5 @@
-import Exit, {longToShort, shortTolong, regularExits} from "./reader/Exit";
-import MapReader from "./reader/MapReader";
+import IExit, {longToShort, shortTolong, regularExits} from "./reader/Exit";
+import type {IMapReader} from "./reader/MapReader";
 import type {Settings} from "./types/Settings";
 import {movePoint, movePointCircle, movePointRoundedRect} from "./directions";
 
@@ -64,10 +64,10 @@ function getDoorColor(doorType: 1 | 2 | 3) {
 
 export default class ExitRenderer {
 
-    private mapReader: MapReader;
+    private mapReader: IMapReader;
     private readonly settings: Settings;
 
-    constructor(mapReader: MapReader, settings: Settings) {
+    constructor(mapReader: IMapReader, settings: Settings) {
         this.mapReader = mapReader;
         this.settings = settings;
     }
@@ -88,11 +88,11 @@ export default class ExitRenderer {
         }
     }
 
-    renderData(exit: Exit, zIndex: number): ExitDrawData | undefined {
+    renderData(exit: IExit, zIndex: number): ExitDrawData | undefined {
         return this.renderDataWithColor(exit, this.settings.lineColor, zIndex);
     }
 
-    renderDataWithColor(exit: Exit, color: string, zIndex: number): ExitDrawData | undefined {
+    renderDataWithColor(exit: IExit, color: string, zIndex: number): ExitDrawData | undefined {
         const aIsRegular = exit.aDir && regularExits.includes(exit.aDir);
         const bIsRegular = exit.bDir && regularExits.includes(exit.bDir);
 
@@ -105,7 +105,7 @@ export default class ExitRenderer {
         return;
     }
 
-    private renderTwoWayExitData(exit: Exit, color: string, zIndex: number): ExitDrawData | undefined {
+    private renderTwoWayExitData(exit: IExit, color: string, zIndex: number): ExitDrawData | undefined {
         const sourceRoom = this.mapReader.getRoom(exit.a);
         const targetRoom = this.mapReader.getRoom(exit.b);
         if (!sourceRoom || !targetRoom || !exit.aDir || !exit.bDir) return;
@@ -160,7 +160,7 @@ export default class ExitRenderer {
         };
     }
 
-    private renderOneWayExitData(exit: Exit, color: string, fromSide?: 'a' | 'b'): ExitDrawData | undefined {
+    private renderOneWayExitData(exit: IExit, color: string, fromSide?: 'a' | 'b'): ExitDrawData | undefined {
         const useA = fromSide === 'a' || (!fromSide && exit.aDir);
         const sourceRoom = useA ? this.mapReader.getRoom(exit.a) : this.mapReader.getRoom(exit.b);
         const targetRoom = useA ? this.mapReader.getRoom(exit.b) : this.mapReader.getRoom(exit.a);
