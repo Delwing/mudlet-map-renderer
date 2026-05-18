@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-05-19
+
+### Added
+
+- `Camera.batch(fn)` groups multiple camera mutations into a single `change` event, preventing subscribers from observing transient intermediate state. Nested batches are supported; only the outermost batch emits.
+
+### Changed
+
+- `InteractionHandler` resize logic now wraps its size update and re-centering in `Camera.batch`, so resizes produce one consolidated change notification instead of two.
+
 ## [1.1.0] - 2026-05-12
 
 ### Added
@@ -49,5 +59,6 @@ Initial public release.
 - Support for stub exits, special exits, and link exits with custom rendering.
 - Published as dual-format ESM + CJS npm package with TypeScript declarations.
 
+[1.2.0]: https://github.com/Delwing/mudlet-map-renderer/releases/tag/1.2.0
 [1.1.0]: https://github.com/Delwing/mudlet-map-renderer/releases/tag/1.1.0
 [1.0.0]: https://github.com/Delwing/mudlet-map-renderer/releases/tag/1.0.0
