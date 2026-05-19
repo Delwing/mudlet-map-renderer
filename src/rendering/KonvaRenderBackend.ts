@@ -761,16 +761,9 @@ export class KonvaRenderBackend implements InteractiveBackend {
                     flatPipeline: true,
                 },
             );
+            overlayShape.children.push(...layoutInnerExits(roomToRedraw, this.state.mapReader, settings));
             const node = this.addStyledShape(overlayShape, this.positionLayerNode);
             if (node) this.currentRoomOverlay.push(node);
-        });
-
-        roomsToRedraw.forEach((roomToRedraw) => {
-            const triangles = layoutInnerExits(roomToRedraw, this.state.mapReader, settings);
-            for (const triangle of triangles) {
-                const node = this.addStyledShape(triangle, this.positionLayerNode);
-                if (node) this.currentRoomOverlay.push(node);
-            }
         });
 
         if (this.positionMarker) {

@@ -53,13 +53,53 @@ const DoorColors: Record<number, string> = {
 };
 
 /**
+ * Pre-computed triangle positions (centre + rotation) for one inner-exit
+ * direction. `in`/`out` produce two triangles, `up`/`down` one.
+ *
+ * Shared between {@link computeInnerExits} (room rendering) and the path
+ * overlay so a "go up" path marker lands exactly on top of the room's
+ * regular up-arrow triangle.
+ */
+export function computeInnerExitTrianglesForDirection(
+    room: MapData.Room,
+    direction: MapData.direction,
+    settings: Settings,
+): Array<{ cx: number; cy: number; vertices: number[] }> {
+    const rs = settings.roomSize;
+    const triRadius = rs / 5;
+    const make = (cx: number, cy: number, rot: number) => ({
+        cx, cy, vertices: computeTriangleVertices(cx, cy, triRadius, rot),
+    });
+    switch (direction) {
+        case "up": {
+            const p = movePoint(room.x, room.y, "south", rs / 4);
+            return [make(p.x, p.y, 0)];
+        }
+        case "down": {
+            const p = movePoint(room.x, room.y, "north", rs / 4);
+            return [make(p.x, p.y, 180)];
+        }
+        case "in": {
+            const w = movePoint(room.x, room.y, "west", rs / 4);
+            const e = movePoint(room.x, room.y, "east", rs / 4);
+            return [make(w.x, w.y, 90), make(e.x, e.y, -90)];
+        }
+        case "out": {
+            const w = movePoint(room.x, room.y, "west", rs / 4);
+            const e = movePoint(room.x, room.y, "east", rs / 4);
+            return [make(w.x, w.y, -90), make(e.x, e.y, 90)];
+        }
+        default:
+            return [];
+    }
+}
+
+/**
  * Compute inner exit triangle data for a room.
  * Returns pre-computed vertex positions so each backend just draws polygons.
  */
 export function computeInnerExits(room: MapData.Room, mapReader: IMapReader, settings: Settings): InnerExitData {
     const triangles: TriangleData[] = [];
-    const rs = settings.roomSize;
-    const triRadius = rs / 5;
     const {symbolColor, symbolFill} = getSymbolColors(room, mapReader, settings);
 
     for (const exit of innerExits) {
@@ -68,55 +108,12 @@ export function computeInnerExits(room: MapData.Room, mapReader: IMapReader, set
         const doorType = room.doors[exit];
         const stroke = doorType !== undefined ? (DoorColors[doorType] ?? DoorColors[3]) : symbolColor;
 
-        switch (exit) {
-            case "up": {
-                const pos = movePoint(room.x, room.y, "south", rs / 4);
-                triangles.push({
-                    cx: pos.x, cy: pos.y,
-                    vertices: computeTriangleVertices(pos.x, pos.y, triRadius, 0),
-                    fill: symbolFill, stroke, strokeWidth: settings.lineWidth,
-                });
-                break;
-            }
-            case "down": {
-                const pos = movePoint(room.x, room.y, "north", rs / 4);
-                triangles.push({
-                    cx: pos.x, cy: pos.y,
-                    vertices: computeTriangleVertices(pos.x, pos.y, triRadius, 180),
-                    fill: symbolFill, stroke, strokeWidth: settings.lineWidth,
-                });
-                break;
-            }
-            case "in": {
-                const posW = movePoint(room.x, room.y, "west", rs / 4);
-                const posE = movePoint(room.x, room.y, "east", rs / 4);
-                triangles.push({
-                    cx: posW.x, cy: posW.y,
-                    vertices: computeTriangleVertices(posW.x, posW.y, triRadius, 90),
-                    fill: symbolFill, stroke, strokeWidth: settings.lineWidth,
-                });
-                triangles.push({
-                    cx: posE.x, cy: posE.y,
-                    vertices: computeTriangleVertices(posE.x, posE.y, triRadius, -90),
-                    fill: symbolFill, stroke, strokeWidth: settings.lineWidth,
-                });
-                break;
-            }
-            case "out": {
-                const posW = movePoint(room.x, room.y, "west", rs / 4);
-                const posE = movePoint(room.x, room.y, "east", rs / 4);
-                triangles.push({
-                    cx: posW.x, cy: posW.y,
-                    vertices: computeTriangleVertices(posW.x, posW.y, triRadius, -90),
-                    fill: symbolFill, stroke, strokeWidth: settings.lineWidth,
-                });
-                triangles.push({
-                    cx: posE.x, cy: posE.y,
-                    vertices: computeTriangleVertices(posE.x, posE.y, triRadius, 90),
-                    fill: symbolFill, stroke, strokeWidth: settings.lineWidth,
-                });
-                break;
-            }
+        for (const tri of computeInnerExitTrianglesForDirection(room, exit, settings)) {
+            triangles.push({
+                cx: tri.cx, cy: tri.cy,
+                vertices: tri.vertices,
+                fill: symbolFill, stroke, strokeWidth: settings.lineWidth,
+            });
         }
     }
 

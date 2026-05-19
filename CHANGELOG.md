@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.1] - 2026-05-19
+
+### Fixed
+
+- Surrounding rooms in the current-room overlay no longer drop their inner-exit triangles (up/down/in/out). They were being added to the position layer as standalone shapes, but their vertices are room-local, so they rendered far off-position; they are now appended as children of the overlay room group.
+- Path-overlay inner-exit markers now align with the regular inner-exit triangles. Both call sites share `computeInnerExitTrianglesForDirection`, so a "go up" path marker draws on top of the room's regular up-arrow triangle (and `in`/`out` markers emit both west+east triangles).
+
 ## [1.2.0] - 2026-05-19
 
 ### Added
@@ -59,6 +66,7 @@ Initial public release.
 - Support for stub exits, special exits, and link exits with custom rendering.
 - Published as dual-format ESM + CJS npm package with TypeScript declarations.
 
+[1.2.1]: https://github.com/Delwing/mudlet-map-renderer/releases/tag/1.2.1
 [1.2.0]: https://github.com/Delwing/mudlet-map-renderer/releases/tag/1.2.0
 [1.1.0]: https://github.com/Delwing/mudlet-map-renderer/releases/tag/1.1.0
 [1.0.0]: https://github.com/Delwing/mudlet-map-renderer/releases/tag/1.0.0

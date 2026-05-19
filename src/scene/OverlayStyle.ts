@@ -1,7 +1,7 @@
 import type {Settings} from "../types/Settings";
 import type {IMapReader} from "../reader/MapReader";
 import {computePathData} from "../PathData";
-import {computeTriangleVertices} from "./InnerExitStyle";
+import {computeInnerExitTrianglesForDirection} from "./InnerExitStyle";
 
 // --- Highlight ---
 
@@ -105,7 +105,6 @@ export function computePathOverlay(
 ): PathOverlayData {
     const result = computePathData(mapReader, settings, locations, areaId, zIndex);
     const lw = settings.lineWidth;
-    const triRadius = settings.roomSize / 5;
 
     const segments: PathOverlaySegment[] = [];
     for (const seg of result.segments) {
@@ -117,8 +116,9 @@ export function computePathOverlay(
 
     const triangles: PathOverlayTriangle[] = [];
     for (const marker of result.innerMarkers) {
-        const rot = marker.direction === "up" ? 0 : marker.direction === "down" ? 180 : marker.direction === "in" ? 90 : -90;
-        triangles.push({vertices: computeTriangleVertices(marker.room.x, marker.room.y, triRadius, rot)});
+        for (const tri of computeInnerExitTrianglesForDirection(marker.room, marker.direction, settings)) {
+            triangles.push({vertices: tri.vertices});
+        }
     }
 
     return {segments, triangles, color, outlineWidth: lw * 8, lineWidth: lw * 4};
