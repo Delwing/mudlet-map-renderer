@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.2] - 2026-05-23
+
+### Fixed
+
+- Position marker no longer renders on the wrong area's canvas after `drawArea` switches to an area or z-level that does not contain the player room. `KonvaRenderBackend.applyPositionMarker` now applies the same area/z guard that `MapState.getOverlaysForArea` uses for the export path; `MapState.positionRoomId` is preserved, so switching back to the player's area/z re-draws the marker automatically.
+
 ## [1.2.1] - 2026-05-19
 
 ### Fixed
@@ -66,6 +72,7 @@ Initial public release.
 - Support for stub exits, special exits, and link exits with custom rendering.
 - Published as dual-format ESM + CJS npm package with TypeScript declarations.
 
+[1.2.2]: https://github.com/Delwing/mudlet-map-renderer/releases/tag/1.2.2
 [1.2.1]: https://github.com/Delwing/mudlet-map-renderer/releases/tag/1.2.1
 [1.2.0]: https://github.com/Delwing/mudlet-map-renderer/releases/tag/1.2.0
 [1.1.0]: https://github.com/Delwing/mudlet-map-renderer/releases/tag/1.1.0

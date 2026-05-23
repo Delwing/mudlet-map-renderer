@@ -676,6 +676,13 @@ export class KonvaRenderBackend implements InteractiveBackend {
     private applyPositionMarker(room: MapData.Room) {
         if (this.positionMarker) {
             this.positionMarker.destroy();
+            this.positionMarker = undefined;
+        }
+        // Mirrors the contract in MapState.getOverlaysForArea: the position
+        // marker is only visible when the player room is on the displayed area/z.
+        if (room.area !== this.state.currentArea || room.z !== this.state.currentZIndex) {
+            this.positionLayerNode.batchDraw();
+            return;
         }
         const data = computePositionMarker(room, this.state.settings);
         this.positionMarker = this.addStyledShape(positionMarkerToShape(data), this.positionLayerNode);
