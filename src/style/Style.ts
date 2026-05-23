@@ -3,7 +3,7 @@
  *
  * A {@link Style} takes a {@link Shape} from the scene pipeline and returns
  * zero or more transformed Shapes. Transforms run **before** the shapes hit
- * culling, hit-testing, and the {@link DrawCommandBuilder}, so styles never
+ * culling, hit-testing, and the {@link buildDrawCommands}, so styles never
  * need a backend handle and never know about Konva or SVG.
  *
  * Most styles return one shape (recoloured / re-projected). Some split:

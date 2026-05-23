@@ -8,7 +8,7 @@
  * `ctx.restore()` pairs and apply the transform/clip on the way in.
  *
  * Used by {@link CanvasExporter} (and {@link PngBytesExporter}) so headless
- * exports rasterize through the shared {@link DrawCommandBuilder} pipeline
+ * exports rasterize through the shared {@link buildDrawCommands} pipeline
  * instead of grabbing the live Konva stage.
  */
 
@@ -17,6 +17,7 @@ import type {
     DrawCommandBatch,
     PrimitiveDrawCommand,
 } from "../draw/DrawCommand";
+import {resolveFill} from "./canvasGradient";
 
 /**
  * Image loader hook. Canvas2D's `drawImage` needs an `HTMLImageElement` (or
@@ -112,7 +113,7 @@ function replayPrimitive(
                 ctx.rect(cmd.x, cmd.y, cmd.w, cmd.h);
             }
             if (cmd.fill) {
-                ctx.fillStyle = cmd.fill;
+                ctx.fillStyle = resolveFill(ctx, cmd.fill);
                 ctx.fill();
             }
             if (cmd.stroke && cmd.sw > 0) {
@@ -127,7 +128,7 @@ function replayPrimitive(
             ctx.beginPath();
             ctx.arc(cmd.cx, cmd.cy, cmd.r, 0, Math.PI * 2);
             if (cmd.fill) {
-                ctx.fillStyle = cmd.fill;
+                ctx.fillStyle = resolveFill(ctx, cmd.fill);
                 ctx.fill();
             }
             if (cmd.stroke && cmd.sw > 0) {
@@ -165,7 +166,7 @@ function replayPrimitive(
             }
             ctx.closePath();
             if (cmd.fill) {
-                ctx.fillStyle = cmd.fill;
+                ctx.fillStyle = resolveFill(ctx, cmd.fill);
                 ctx.fill();
             }
             if (cmd.stroke && cmd.sw > 0) {

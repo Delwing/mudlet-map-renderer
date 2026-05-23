@@ -16,6 +16,8 @@
 
 import Konva from "konva";
 import {BASE_SCALE} from "../camera/Camera";
+import type {FillStyle} from "../scene/Shape";
+import {resolveFill} from "./canvasGradient";
 
 // --- Internal draw command types ---
 // These are the low-level Canvas2D-shaped commands captured per
@@ -24,10 +26,10 @@ import {BASE_SCALE} from "../camera/Camera";
 // here stay in group-local coordinates and are replayed under whatever
 // transform Konva has already applied to the layer.
 
-type RectCommand = { type: 'rect'; x: number; y: number; w: number; h: number; fill?: string; stroke?: string; sw: number; cr: number; dash?: number[] };
-type CircleCommand = { type: 'circle'; cx: number; cy: number; r: number; fill?: string; stroke?: string; sw: number; dash?: number[] };
+type RectCommand = { type: 'rect'; x: number; y: number; w: number; h: number; fill?: FillStyle; stroke?: string; sw: number; cr: number; dash?: number[] };
+type CircleCommand = { type: 'circle'; cx: number; cy: number; r: number; fill?: FillStyle; stroke?: string; sw: number; dash?: number[] };
 type LineCommand = { type: 'line'; points: number[]; stroke?: string; sw: number; dash?: number[]; lineCap?: string; lineJoin?: string; alpha?: number };
-type PolygonCommand = { type: 'polygon'; vertices: number[]; fill?: string; stroke?: string; sw: number };
+type PolygonCommand = { type: 'polygon'; vertices: number[]; fill?: FillStyle; stroke?: string; sw: number };
 type TextCommand = { type: 'text'; x: number; y: number; text: string; fontSize: number; fontFamily: string; fontStyle: string; fill: string; stroke?: string; sw: number; align: string; vAlign: string; w: number; h: number; baselineRatio?: number; transform?: [number, number, number, number, number, number] };
 type ImageCommand = { type: 'image'; x: number; y: number; w: number; h: number; image: HTMLImageElement | any; transform?: [number, number, number, number, number, number] };
 
@@ -51,7 +53,7 @@ function replayCommand(ctx: CanvasRenderingContext2D, cmd: RecordingDrawCommand)
                 ctx.rect(cmd.x, cmd.y, cmd.w, cmd.h);
             }
             if (cmd.fill) {
-                ctx.fillStyle = cmd.fill;
+                ctx.fillStyle = resolveFill(ctx, cmd.fill);
                 ctx.fill();
             }
             if (cmd.stroke && cmd.sw > 0) {
@@ -66,7 +68,7 @@ function replayCommand(ctx: CanvasRenderingContext2D, cmd: RecordingDrawCommand)
             ctx.beginPath();
             ctx.arc(cmd.cx, cmd.cy, cmd.r, 0, Math.PI * 2);
             if (cmd.fill) {
-                ctx.fillStyle = cmd.fill;
+                ctx.fillStyle = resolveFill(ctx, cmd.fill);
                 ctx.fill();
             }
             if (cmd.stroke && cmd.sw > 0) {
@@ -104,7 +106,7 @@ function replayCommand(ctx: CanvasRenderingContext2D, cmd: RecordingDrawCommand)
             }
             ctx.closePath();
             if (cmd.fill) {
-                ctx.fillStyle = cmd.fill;
+                ctx.fillStyle = resolveFill(ctx, cmd.fill);
                 ctx.fill();
             }
             if (cmd.stroke && cmd.sw > 0) {

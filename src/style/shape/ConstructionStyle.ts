@@ -1,6 +1,6 @@
 import type {Shape, Paint, RectShape, PolygonShape} from "../../scene/Shape";
 import type {Style, StyleContext} from "../Style";
-import {formatRgb, luminance, parseRgb} from "./paintMap";
+import {formatRgb, luminance, mapFill, parseRgb} from "./paintMap";
 
 /** Near-black asphalt used for dark room fills and strokes. */
 const ASPHALT = "#1a1a1a";
@@ -28,7 +28,7 @@ function toConstruction(color: string): string {
 function rewriteFillStroke(paint: Paint): Paint {
     return {
         ...paint,
-        fill: paint.fill ? toConstruction(paint.fill) : paint.fill,
+        fill: mapFill(paint.fill, toConstruction),
         stroke: paint.stroke ? ASPHALT : paint.stroke,
     };
 }

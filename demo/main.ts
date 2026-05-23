@@ -3,7 +3,7 @@ import {
     createSettings,
     PathFinder,
     compose, identityStyle,
-    Parchment, Blueprint, Neon, Sketchy, Isometric, Construction, SciFi,
+    Parchment, Blueprint, Neon, Sketchy, Isometric, Construction, SciFi, GradientRooms,
     ExplorationLens, ALL_VISIBLE,
     type Style,
 } from "@src";
@@ -278,6 +278,23 @@ function applyRenderMode(mode: string) {
             style = SciFi;
             settings.backgroundColor = '#030810';
             settings.lineColor = '#0a2a3d';
+            break;
+        case "gradient":
+            // Pure shaded-room demo using the new linear-gradient fill.
+            style = GradientRooms();
+            break;
+        case "gradient-parchment":
+            // Stops get recoloured through the parchment palette — gradient survives.
+            style = compose(Parchment, GradientRooms());
+            settings.backgroundColor = '#f4e4c1';
+            settings.lineColor = '#5c4033';
+            settings.fontFamily = 'Georgia, serif';
+            break;
+        case "gradient-blueprint":
+            style = compose(Blueprint, GradientRooms());
+            settings.backgroundColor = '#0a1628';
+            settings.lineColor = '#4a7ab5';
+            settings.fontFamily = '"Courier New", monospace';
             break;
     }
 

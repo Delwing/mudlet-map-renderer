@@ -1,5 +1,5 @@
 /**
- * {@link DrawCommandBuilder} — single source of truth for camera transform math.
+ * {@link buildDrawCommands} — single source of truth for camera transform math.
  *
  * Walks a {@link SceneIR}-shaped tree (already passed through styles) and
  * produces a flat {@link DrawCommand} list per logical layer. Coordinates
@@ -20,10 +20,11 @@ import type {
     RectCommand,
     TextCommand,
 } from "./DrawCommand";
-import type {
-    GroupShape,
-    LayerId,
-    Shape,
+import {
+    transformFill,
+    type GroupShape,
+    type LayerId,
+    type Shape,
 } from "../scene/Shape";
 
 /** Camera state needed to project world coordinates into render space. */
@@ -80,7 +81,7 @@ export function buildDrawCommands(
                 const cmd: RectCommand = {
                     type: "rect",
                     x, y, w, h,
-                    fill: shape.paint.fill,
+                    fill: transformFill(shape.paint.fill, worldX, worldY, scale, offsetX, offsetY),
                     stroke: shape.paint.stroke,
                     sw: (shape.paint.strokeWidth ?? 0) * scale,
                     cr: (shape.cornerRadius ?? 0) * scale,
@@ -95,7 +96,7 @@ export function buildDrawCommands(
                     cx: (worldX + shape.cx) * scale + offsetX,
                     cy: (worldY + shape.cy) * scale + offsetY,
                     r: shape.radius * scale,
-                    fill: shape.paint.fill,
+                    fill: transformFill(shape.paint.fill, worldX, worldY, scale, offsetX, offsetY),
                     stroke: shape.paint.stroke,
                     sw: (shape.paint.strokeWidth ?? 0) * scale,
                     dash: scaleDash(shape.paint.dash, scale, shape.paint.dashEnabled),
@@ -120,7 +121,7 @@ export function buildDrawCommands(
                 const cmd: PolygonCommand = {
                     type: "polygon",
                     vertices: scalePoints(shape.vertices, worldX, worldY, scale, offsetX, offsetY),
-                    fill: shape.paint.fill,
+                    fill: transformFill(shape.paint.fill, worldX, worldY, scale, offsetX, offsetY),
                     stroke: shape.paint.stroke,
                     sw: (shape.paint.strokeWidth ?? 0) * scale,
                 };

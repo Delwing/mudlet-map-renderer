@@ -1,6 +1,6 @@
 import type {Shape, Paint, RectShape, CircleShape, LineShape} from "../../scene/Shape";
 import type {Style} from "../Style";
-import {parseRgb} from "./paintMap";
+import {mapFill, parseRgb} from "./paintMap";
 
 /** Bright cyan-green used for text. */
 const TEXT_COLOR = "#00ffd0";
@@ -71,7 +71,7 @@ function toGlowStroke(color: string): string {
 function neonPaint(paint: Paint): Paint {
     return {
         ...paint,
-        fill: paint.fill ? toNeonFill(paint.fill) : paint.fill,
+        fill: mapFill(paint.fill, toNeonFill),
         stroke: paint.stroke ? toNeonStroke(paint.stroke) : paint.stroke,
     };
 }

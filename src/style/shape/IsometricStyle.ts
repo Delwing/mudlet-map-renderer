@@ -1,6 +1,41 @@
-import type {Shape, LineShape, PolygonShape} from "../../scene/Shape";
+import type {Shape, FillStyle, LineShape, PolygonShape} from "../../scene/Shape";
 import type {Style} from "../Style";
 import {darkenColor} from "../../utils/color";
+import {mapFill} from "./paintMap";
+
+/** Darken a {@link FillStyle} by recolouring each gradient stop (or the flat colour). */
+function darkenFill(fill: FillStyle, factor: number): FillStyle {
+    return mapFill(fill, c => darkenColor(c, factor))!;
+}
+
+/**
+ * Project gradient geometry through the iso transform. The fill's endpoints /
+ * focal points are in world coords; after iso has warped the shape's vertices
+ * the gradient line has to follow or the diamond samples colours from a
+ * region that doesn't overlap its pixels (the user sees a flat border instead
+ * of the gradient).
+ *
+ * Radial gradients become ellipses under the non-uniform iso transform, but
+ * Canvas2D / SVG radial gradients are circles. We project the centres and
+ * leave the radius alone — that is the best faithful representation
+ * available without ellipse support.
+ */
+function projectFill(iso: IsoFn, fill: FillStyle | undefined): FillStyle | undefined {
+    if (!fill || typeof fill === "string") return fill;
+    if (fill.type === "linear") {
+        const [x0, y0] = iso(fill.x0, fill.y0);
+        const [x1, y1] = iso(fill.x1, fill.y1);
+        return {...fill, x0, y0, x1, y1};
+    }
+    const [cx, cy] = iso(fill.cx, fill.cy);
+    const out = {...fill, cx, cy};
+    if (fill.fx !== undefined && fill.fy !== undefined) {
+        const [fx, fy] = iso(fill.fx, fill.fy);
+        out.fx = fx;
+        out.fy = fy;
+    }
+    return out;
+}
 
 export type IsometricRotation = number;
 
@@ -132,23 +167,25 @@ export function isometricShapeStyle(options: IsometricOptions = {}): Style {
             const tIdx = (bottomIdx + 2) % 4;
             const tX = diamond[tIdx * 2], tY = diamond[tIdx * 2 + 1];
 
+            const projectedFill = projectFill(iso, paint.fill);
+
             // Right face, left face (no strokes), then top diamond.
             out.push({
                 type: "polygon",
                 vertices: [rX, rY, bX, bY, bX, bY + depth, rX, rY + depth],
-                paint: {fill: darkenColor(paint.fill, 0.2)},
+                paint: {fill: darkenFill(projectedFill!, 0.2)},
                 layer: shape.layer,
             });
             out.push({
                 type: "polygon",
                 vertices: [bX, bY, lX, lY, lX, lY + depth, bX, bY + depth],
-                paint: {fill: darkenColor(paint.fill, 0.4)},
+                paint: {fill: darkenFill(projectedFill!, 0.4)},
                 layer: shape.layer,
             });
             out.push({
                 type: "polygon",
                 vertices: diamond,
-                paint: {fill: paint.fill},
+                paint: {fill: projectedFill},
                 layer: shape.layer,
                 hit: shape.hit,
             });
@@ -178,7 +215,7 @@ export function isometricShapeStyle(options: IsometricOptions = {}): Style {
         return {
             type: "polygon",
             vertices: diamond,
-            paint: {fill: paint.fill, stroke: paint.stroke, strokeWidth: paint.strokeWidth},
+            paint: {fill: projectFill(iso, paint.fill), stroke: paint.stroke, strokeWidth: paint.strokeWidth},
             layer: shape.layer,
             hit: shape.hit,
             noScale: shape.noScale,
@@ -214,6 +251,7 @@ export function isometricShapeStyle(options: IsometricOptions = {}): Style {
         }
 
         const out: Shape[] = [];
+        const projectedFill = projectFill(iso, paint.fill);
         if (depth > 0 && paint.fill) {
             // Find extreme vertices.
             let rightIdx = 0, leftIdx = 0, bottomIdx = 0;
@@ -238,7 +276,7 @@ export function isometricShapeStyle(options: IsometricOptions = {}): Style {
                 type: "polygon",
                 vertices: rightFace,
                 paint: {
-                    fill: darkenColor(paint.fill, 0.2),
+                    fill: darkenFill(projectedFill!, 0.2),
                     stroke: paint.stroke,
                     strokeWidth: paint.strokeWidth ? paint.strokeWidth * 0.5 : undefined,
                 },
@@ -259,7 +297,7 @@ export function isometricShapeStyle(options: IsometricOptions = {}): Style {
                 type: "polygon",
                 vertices: leftFace,
                 paint: {
-                    fill: darkenColor(paint.fill, 0.4),
+                    fill: darkenFill(projectedFill!, 0.4),
                     stroke: paint.stroke,
                     strokeWidth: paint.strokeWidth ? paint.strokeWidth * 0.5 : undefined,
                 },
@@ -270,7 +308,7 @@ export function isometricShapeStyle(options: IsometricOptions = {}): Style {
         const top: PolygonShape = {
             type: "polygon",
             vertices: verts,
-            paint: {fill: paint.fill, stroke: paint.stroke, strokeWidth: paint.strokeWidth},
+            paint: {fill: projectedFill, stroke: paint.stroke, strokeWidth: paint.strokeWidth},
             layer: shape.layer,
             hit: shape.hit,
             noScale: shape.noScale,
@@ -289,7 +327,11 @@ export function isometricShapeStyle(options: IsometricOptions = {}): Style {
                 case "line":
                     return {...shape, points: projectPoints(iso, shape.points)};
                 case "polygon":
-                    return {...shape, vertices: projectPoints(iso, shape.vertices)};
+                    return {
+                        ...shape,
+                        vertices: projectPoints(iso, shape.vertices),
+                        paint: {...shape.paint, fill: projectFill(iso, shape.paint.fill)},
+                    };
                 case "text": {
                     const w = shape.width ?? 0;
                     const h = shape.height ?? 0;

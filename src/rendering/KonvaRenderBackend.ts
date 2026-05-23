@@ -2,7 +2,7 @@ import Konva from "konva";
 import type {IArea} from "../reader/Area";
 import type {IPlane} from "../reader/Plane";
 import type {RendererEventMap, ViewportBounds} from "../types/Settings";
-import type {AreaExitHitZone, DrawnExitEntry, DrawnSpecialExitEntry, DrawnStubEntry} from "../ScenePipeline";
+import type {DrawnExitEntry, DrawnSpecialExitEntry, DrawnStubEntry} from "../ScenePipeline";
 import type {MapState} from "../MapState";
 import {Camera} from "../camera/Camera";
 import {CullingManager} from "../CullingManager";
@@ -91,7 +91,6 @@ export class KonvaRenderBackend implements InteractiveBackend {
     private highlightShapes: Map<number, RecordingGroupNode> = new Map();
     private pathShapes: RecordingGroupNode[] = [];
     private currentRoomOverlay: RecordingGroupNode[] = [];
-    private areaExitHitZones: AreaExitHitZone[] = [];
     private interactionHandler?: InteractionHandler;
     private origSetSize?: (w: number, h: number) => void;
     private cameraChangeHandler?: () => void;
@@ -189,7 +188,6 @@ export class KonvaRenderBackend implements InteractiveBackend {
         // Drop scene state pinned to the now-destroyed sceneNode/layers.
         this.shapeToDrawEntry = new Map();
         this.shapeToGroup.clear();
-        this.areaExitHitZones = [];
         this.lastHitShapes = [];
         this.hitTester.clear();
 
@@ -538,18 +536,15 @@ export class KonvaRenderBackend implements InteractiveBackend {
         }
     }
 
-    /** Wrap a non-group shape and walk to a recording node. */
-    private shapeToRecordingNode(shape: Shape): RecordingGroupNode {
-        const groupShape: GroupShape = shape.type === "group"
-            ? shape
-            : {type: "group", x: 0, y: 0, children: [shape], layer: shape.layer};
-        return shapeToRecording(groupShape);
-    }
-
     /**
-     * Run the active {@link Style} over `shape`, walk every result through
-     * {@link shapeToRecording}, and add it to `layerNode`. Returns the first
-     * emitted node (used as the cull-tracking / destroy handle).
+     * Run the active {@link Style} over `shape`, walk the (possibly multi-shape)
+     * result into a single {@link RecordingGroupNode}, and add it to `layerNode`.
+     *
+     * Styles like Isometric expand one input shape into several (cube top + side
+     * faces + edges); wrapping the whole expansion into one node keeps a 1:1
+     * relationship between input shape and tracked handle, so callers that cache
+     * the return value (position marker, scene overlays, highlights, current-room
+     * overlay, paths) can destroy the entire expansion through that one handle.
      */
     private addStyledShape(
         shape: Shape,
@@ -558,13 +553,23 @@ export class KonvaRenderBackend implements InteractiveBackend {
         const styled = this.currentStyle === identityStyle
             ? [shape]
             : applyStyleToShapes([shape], this.currentStyle, this.styleContext());
-        let first: RecordingGroupNode | undefined;
-        for (const s of styled) {
-            const node = this.shapeToRecordingNode(s);
-            layerNode.addNode(node);
-            if (!first) first = node;
+        if (styled.length === 0) return undefined;
+
+        let groupShape: GroupShape;
+        if (styled.length === 1 && styled[0].type === "group") {
+            groupShape = styled[0];
+        } else {
+            groupShape = {
+                type: "group",
+                x: 0, y: 0,
+                children: styled,
+                layer: shape.layer,
+                noScale: shape.noScale,
+            };
         }
-        return first;
+        const node = shapeToRecording(groupShape);
+        layerNode.addNode(node);
+        return node;
     }
 
     /**
@@ -613,7 +618,6 @@ export class KonvaRenderBackend implements InteractiveBackend {
     }
 
     private onSceneBuilt() {
-        this.areaExitHitZones = this.sceneManager.areaExitHitZones as AreaExitHitZone[];
         this.lastHitShapes = this.sceneManager.hitShapes as Shape[];
         this.hitTester.build(this.lastHitShapes, this.state.settings.roomSize, this._coordinateTransform);
 

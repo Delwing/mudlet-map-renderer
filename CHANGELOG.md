@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2026-05-23
+
+### Added
+
+- Gradient fills for shapes: `Paint.fill` accepts `LinearGradient` or `RadialGradient` in addition to a colour string. New types `FillStyle`, `LinearGradient`, `RadialGradient`, `GradientStop` and helpers `isGradientFill`, `transformFill` exported from the package root.
+- `GradientRooms(options)` shape style — replaces flat room fills with a vertical linear gradient (lighter top, darker bottom). Composes with palette styles; downstream styles recolour the gradient stops, preserving the gradient through palette swaps.
+- Gradient rendering across all output targets: interactive Konva canvas, SVG export, and PNG/Canvas export.
+
+### Changed
+
+- **Breaking:** `Paint.fill` is now `FillStyle | undefined` (`= string | LinearGradient | RadialGradient | undefined`). Producers that only assign colour strings are unaffected. Custom `Style.transform` / `SceneOverlay.render` / backend code that *reads* `paint.fill` must narrow with `isGradientFill(paint.fill)` before treating it as a string.
+- `IsometricStyle` now projects gradient endpoints (linear) and centres (radial) through the iso transform, so gradient fills follow the projected polygon geometry instead of sampling from world-space coords. Shapes with flat colour fills render byte-identically.
+
+### Fixed
+
+- Multi-shape style outputs (Isometric with `depth > 0` fans one rect into top + side faces + edges) no longer leak Konva nodes on re-render. `KonvaRenderBackend.addStyledShape` now wraps the whole expansion into one `RecordingGroupNode`, so the cached handle used by the position marker, scene overlays, highlights, current-room overlay, and paths covers every emitted node. Also fixes a latent culling bug where iso side faces stayed visible after culling toggled the top face.
+
 ## [1.2.2] - 2026-05-23
 
 ### Fixed
@@ -72,6 +89,7 @@ Initial public release.
 - Support for stub exits, special exits, and link exits with custom rendering.
 - Published as dual-format ESM + CJS npm package with TypeScript declarations.
 
+[2.0.0]: https://github.com/Delwing/mudlet-map-renderer/releases/tag/2.0.0
 [1.2.2]: https://github.com/Delwing/mudlet-map-renderer/releases/tag/1.2.2
 [1.2.1]: https://github.com/Delwing/mudlet-map-renderer/releases/tag/1.2.1
 [1.2.0]: https://github.com/Delwing/mudlet-map-renderer/releases/tag/1.2.0

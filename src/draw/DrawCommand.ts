@@ -1,8 +1,8 @@
 /**
  * Engine IR — flat, replayable draw commands consumed by per-engine renderers
- * ({@link KonvaRenderer}, {@link SvgRenderer}, {@link CanvasRenderer}).
+ * ({@link KonvaRenderBackend}, {@link svgFromBatches}, {@link renderToCanvas}).
  *
- * A {@link DrawCommandBuilder} translates {@link Shape}s plus a {@link Camera}
+ * {@link buildDrawCommands} translates {@link Shape}s plus a {@link Camera}
  * transform into {@link DrawCommand}s. Commands carry final paint values; all
  * style transforms are baked in by the time the IR is produced.
  *
@@ -10,7 +10,7 @@
  * applied) unless wrapped between push/pop transform pairs.
  */
 
-import type {LayerId} from "../scene/Shape";
+import type {FillStyle, LayerId} from "../scene/Shape";
 
 export interface RectCommand {
     type: "rect";
@@ -18,7 +18,7 @@ export interface RectCommand {
     y: number;
     w: number;
     h: number;
-    fill?: string;
+    fill?: FillStyle;
     stroke?: string;
     /** Stroke width in render units. */
     sw: number;
@@ -32,7 +32,7 @@ export interface CircleCommand {
     cx: number;
     cy: number;
     r: number;
-    fill?: string;
+    fill?: FillStyle;
     stroke?: string;
     sw: number;
     dash?: number[];
@@ -54,7 +54,7 @@ export interface LineCommand {
 export interface PolygonCommand {
     type: "polygon";
     vertices: number[];
-    fill?: string;
+    fill?: FillStyle;
     stroke?: string;
     sw: number;
 }

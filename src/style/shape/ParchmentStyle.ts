@@ -1,6 +1,6 @@
 import type {Shape, Paint} from "../../scene/Shape";
 import type {Style} from "../Style";
-import {formatRgb, luminance, parseRgb} from "./paintMap";
+import {formatRgb, luminance, mapFill, parseRgb} from "./paintMap";
 
 /** Dark brown ink used for strokes and outlines. */
 const INK = "#4a3728";
@@ -39,7 +39,7 @@ function toInk(color: string): string {
 function rewriteFillStroke(paint: Paint): Paint {
     return {
         ...paint,
-        fill: paint.fill ? toParchment(paint.fill) : paint.fill,
+        fill: mapFill(paint.fill, toParchment),
         stroke: paint.stroke ? toInk(paint.stroke) : paint.stroke,
     };
 }

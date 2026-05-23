@@ -36,7 +36,9 @@ export { shapeToRecording } from './render/shapeToRecording';
 export type {
     Shape, ShapeBase, RectShape, CircleShape, LineShape, PolygonShape,
     TextShape, ImageShape, GroupShape, Paint, HitInfo, LayerId, Bbox, SceneIR,
+    FillStyle, LinearGradient, RadialGradient, GradientStop,
 } from './scene/Shape';
+export { isGradientFill, transformFill } from './scene/Shape';
 export type {
     DrawCommand, DrawCommandBatch, RectCommand, CircleCommand, LineCommand,
     PolygonCommand, TextCommand, ImageCommand, PrimitiveDrawCommand, StackDrawCommand,
@@ -50,11 +52,12 @@ export type { ImageFactory, CanvasRenderOptions } from './render/CanvasRenderer'
 
 // --- Styles (target-agnostic; engine-neutral shape transformers) ---
 export {
-    Parchment, Blueprint, Neon, Sketchy, Isometric, Construction, SciFi,
+    Parchment, Blueprint, Neon, Sketchy, Isometric, Construction, SciFi, GradientRooms,
     compose, identityStyle, applyStyleToShapes,
 } from './style';
 export type {
     Style, StyleContext, SketchyOptions, IsometricOptions, IsometricRotation,
+    GradientRoomsOptions,
 } from './style';
 
 // --- Exporters (pluggable output formats) ---

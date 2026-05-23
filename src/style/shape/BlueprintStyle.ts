@@ -1,6 +1,6 @@
 import type {Shape, Paint} from "../../scene/Shape";
 import type {Style} from "../Style";
-import {formatRgb, luminance, parseRgb} from "./paintMap";
+import {formatRgb, luminance, mapFill, parseRgb} from "./paintMap";
 
 /** Light cyan used for strokes and lines. */
 const LINE_COLOR = "#c0deff";
@@ -38,7 +38,7 @@ function toLine(color: string): string {
 function rewriteFillStroke(paint: Paint): Paint {
     return {
         ...paint,
-        fill: paint.fill ? toBlueprint(paint.fill) : paint.fill,
+        fill: mapFill(paint.fill, toBlueprint),
         stroke: paint.stroke ? toLine(paint.stroke) : paint.stroke,
     };
 }

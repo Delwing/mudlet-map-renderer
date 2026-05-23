@@ -226,7 +226,7 @@ function clusterByProximity<T extends { tip: { x: number; y: number } }>(
  * consumers need (cull entries, hit zones, drawn-geometry snapshots).
  *
  * The pipeline knows nothing about Konva, SVG, Canvas, or the
- * {@link DrawCommandBuilder}: callers run the shape lists through whatever
+ * {@link buildDrawCommands}: callers run the shape lists through whatever
  * renderer fits their target. Both the interactive
  * {@link KonvaRenderBackend} and the exporters consume the same
  * {@link SceneBuildResult} this pipeline produces.

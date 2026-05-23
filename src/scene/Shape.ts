@@ -5,7 +5,7 @@
  * They are consumed by:
  *   - {@link CullingManager} (visibility queries against a camera viewport)
  *   - {@link HitTester} (point→shape lookup)
- *   - {@link DrawCommandBuilder} (translation to engine {@link DrawCommand}s)
+ *   - {@link buildDrawCommands} (translation to engine {@link DrawCommand}s)
  *
  * Shapes know nothing about Konva, SVG, or Canvas2D.
  */
@@ -19,15 +19,99 @@ export type LayerId =
     | "overlay"
     | "top";
 
+/** One gradient stop. `offset` is in 0..1; `color` is any CSS colour string. */
+export interface GradientStop {
+    offset: number;
+    color: string;
+}
+
+/**
+ * Linear gradient between two points in the shape's LOCAL coordinate space
+ * (same frame as shape.x/y). Stop colours are sampled along the line
+ * (x0,y0) → (x1,y1).
+ */
+export interface LinearGradient {
+    type: "linear";
+    x0: number;
+    y0: number;
+    x1: number;
+    y1: number;
+    stops: GradientStop[];
+}
+
+/**
+ * Radial gradient in the shape's LOCAL coordinate space. The end circle is
+ * (cx, cy, r); the optional start circle is (fx, fy, fr) — defaults to a
+ * zero-radius circle at (cx, cy) when omitted.
+ */
+export interface RadialGradient {
+    type: "radial";
+    cx: number;
+    cy: number;
+    r: number;
+    fx?: number;
+    fy?: number;
+    fr?: number;
+    stops: GradientStop[];
+}
+
+/** A fill is either a flat colour string or a gradient. */
+export type FillStyle = string | LinearGradient | RadialGradient;
+
 /** Engine-agnostic paint description. */
 export interface Paint {
-    fill?: string;
+    /**
+     * Colour string (`#rrggbb`, `rgb(...)`, named colour) or a gradient.
+     * Gradient coords are in the same local frame as the shape's geometry.
+     */
+    fill?: FillStyle;
     stroke?: string;
     strokeWidth?: number;
     dash?: number[];
     dashEnabled?: boolean;
     /** 0..1 multiplier on fill+stroke. */
     alpha?: number;
+}
+
+/** True when `fill` is a gradient object rather than a colour string. */
+export function isGradientFill(fill: FillStyle | undefined): fill is LinearGradient | RadialGradient {
+    return typeof fill === "object" && fill !== null;
+}
+
+/**
+ * Apply a camera-style affine (translate by world origin, scale uniformly,
+ * translate by render offset) to a fill. Strings pass through unchanged.
+ * Gradient stops are colour-only and never transformed.
+ */
+export function transformFill(
+    fill: FillStyle | undefined,
+    worldX: number,
+    worldY: number,
+    scale: number,
+    offsetX: number,
+    offsetY: number,
+): FillStyle | undefined {
+    if (!isGradientFill(fill)) return fill;
+    if (fill.type === "linear") {
+        return {
+            type: "linear",
+            x0: (worldX + fill.x0) * scale + offsetX,
+            y0: (worldY + fill.y0) * scale + offsetY,
+            x1: (worldX + fill.x1) * scale + offsetX,
+            y1: (worldY + fill.y1) * scale + offsetY,
+            stops: fill.stops,
+        };
+    }
+    return {
+        type: "radial",
+        cx: (worldX + fill.cx) * scale + offsetX,
+        cy: (worldY + fill.cy) * scale + offsetY,
+        r: fill.r * scale,
+        fx: fill.fx !== undefined ? (worldX + fill.fx) * scale + offsetX : undefined,
+        fy: fill.fy !== undefined ? (worldY + fill.fy) * scale + offsetY : undefined,
+        fr: fill.fr !== undefined ? fill.fr * scale : undefined,
+        stops: fill.stops,
+    };
 }
 
 /** Hit-test annotation. Set on shapes that should be pickable. */

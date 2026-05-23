@@ -1,6 +1,6 @@
 import type {Shape, Paint, RectShape, CircleShape, LineShape} from "../../scene/Shape";
 import type {Style} from "../Style";
-import {parseRgb} from "./paintMap";
+import {mapFill, parseRgb} from "./paintMap";
 
 /** Near-white blue for labels. */
 const TEXT_COLOR = "#c8eeff";
@@ -63,7 +63,7 @@ function toSciFiFill(color: string): string {
 function rewriteFillStroke(paint: Paint): Paint {
     return {
         ...paint,
-        fill: paint.fill ? toSciFiFill(paint.fill) : paint.fill,
+        fill: mapFill(paint.fill, toSciFiFill),
         stroke: paint.stroke ? STROKE_COLOR : paint.stroke,
     };
 }

@@ -12,7 +12,7 @@
 
 import Konva from "konva";
 import {RecordingGroupNode} from "./RecordingLayer";
-import type {GroupShape, Shape} from "../scene/Shape";
+import {transformFill, type GroupShape, type Shape} from "../scene/Shape";
 
 export function shapeToRecording(group: GroupShape): RecordingGroupNode {
     const node = new RecordingGroupNode(group.x, group.y);
@@ -46,7 +46,7 @@ function addShape(
                 y: shape.y + oy,
                 w: shape.width,
                 h: shape.height,
-                fill: shape.paint.fill,
+                fill: transformFill(shape.paint.fill, ox, oy, 1, 0, 0),
                 stroke: shape.paint.stroke,
                 sw: shape.paint.strokeWidth ?? 0,
                 cr: shape.cornerRadius ?? 0,
@@ -59,7 +59,7 @@ function addShape(
                 cx: shape.cx + ox,
                 cy: shape.cy + oy,
                 r: shape.radius,
-                fill: shape.paint.fill,
+                fill: transformFill(shape.paint.fill, ox, oy, 1, 0, 0),
                 stroke: shape.paint.stroke,
                 sw: shape.paint.strokeWidth ?? 0,
                 dash: (shape.paint.dashEnabled !== false && shape.paint.dash) ? shape.paint.dash : undefined,
@@ -87,7 +87,7 @@ function addShape(
                 vertices: (ox === 0 && oy === 0)
                     ? shape.vertices
                     : translatePoints(shape.vertices, ox, oy),
-                fill: shape.paint.fill,
+                fill: transformFill(shape.paint.fill, ox, oy, 1, 0, 0),
                 stroke: shape.paint.stroke,
                 sw: shape.paint.strokeWidth ?? 0,
             });

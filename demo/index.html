@@ -4,7 +4,7 @@
     <meta charset="UTF-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title>Map Renderer — Demo</title>
-    <link rel="stylesheet" href="/demo.css">
+    <link rel="stylesheet" href="./demo.css">
     <link href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,300..800;1,300..800&family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet">
 </head>
 <body>
@@ -182,6 +182,9 @@
                         <option value="neon">Neon</option>
                         <option value="construction">Construction</option>
                         <option value="scifi">Sci-Fi</option>
+                        <option value="gradient">Gradient rooms</option>
+                        <option value="gradient-parchment">Gradient + Parchment</option>
+                        <option value="gradient-blueprint">Gradient + Blueprint</option>
                     </select>
                 </label>
                 <label class="color-label" id="sketch-color-label" style="display:none">
@@ -221,6 +224,10 @@
                     <span>Ambient lighting</span>
                 </label>
                 <label class="check-label">
+                    <input type="checkbox" id="spotlight-toggle">
+                    <span>Spotlight (gradient)</span>
+                </label>
+                <label class="check-label">
                     <input type="checkbox" id="terrain-effects-toggle">
                     <span>Terrain effects</span>
                 </label>
@@ -250,6 +257,25 @@
                 <label class="select-label">
                     <span>Intensity: <span id="ambient-light-intensity-value">0.70</span></span>
                     <input type="range" id="ambient-light-intensity" min="0.1" max="1.0" step="0.05" value="0.7">
+                </label>
+            </div>
+        </details>
+
+        <!-- Spotlight (gradient demo) -->
+        <details class="panel-section collapsible">
+            <summary class="section-title">Spotlight (gradient)</summary>
+            <div class="details-body">
+                <label class="color-label">
+                    <input type="color" id="spotlight-color" value="#ffd166">
+                    <span>Halo color</span>
+                </label>
+                <label class="select-label">
+                    <span>Radius: <span id="spotlight-radius-value">8</span></span>
+                    <input type="range" id="spotlight-radius" min="2" max="30" step="1" value="8">
+                </label>
+                <label class="select-label">
+                    <span>Intensity: <span id="spotlight-intensity-value">0.55</span></span>
+                    <input type="range" id="spotlight-intensity" min="0.05" max="1.0" step="0.05" value="0.55">
                 </label>
             </div>
         </details>
@@ -365,6 +391,6 @@
         </div>
     </div>
 </div>
-<script type="module" src="/main.ts"></script>
+<script type="module" src="./main.ts"></script>
 </body>
 </html>

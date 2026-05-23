@@ -24,3 +24,5 @@ export {isometricShapeStyle} from "./IsometricStyle";
 export type {IsometricOptions, IsometricRotation} from "./IsometricStyle";
 export {constructionShapeStyle} from "./ConstructionStyle";
 export {scifiShapeStyle} from "./SciFiStyle";
+export {gradientRoomsStyle} from "./GradientRoomsStyle";
+export type {GradientRoomsOptions} from "./GradientRoomsStyle";

@@ -17,7 +17,7 @@ export type CameraEventMap = {
 /**
  * Engine-agnostic camera — owns transform state, drag, and animation.
  *
- * Subscribers ({@link KonvaRenderer}, {@link CullingManager}, {@link HitTester},
+ * Subscribers ({@link KonvaRenderBackend}, {@link CullingManager}, {@link HitTester},
  * scene overlays) listen to the `change` event to react to view updates.
  *
  * No Konva, no DOM. Only dependency is requestAnimationFrame (with a

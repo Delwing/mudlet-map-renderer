@@ -7,6 +7,26 @@
  * now; they're deleted in step 11.
  */
 
+import type {FillStyle} from "../../scene/Shape";
+
+/**
+ * Apply a colour-mapping function to a {@link FillStyle}. Strings pass
+ * through the mapper directly; gradients recolour every stop, leaving
+ * geometry untouched. Lets styles tint gradient-filled rooms (ambient
+ * lighting, palette swaps) without losing the gradient.
+ */
+export function mapFill(
+    fill: FillStyle | undefined,
+    mapper: (color: string) => string,
+): FillStyle | undefined {
+    if (fill === undefined) return undefined;
+    if (typeof fill === "string") return mapper(fill);
+    return {
+        ...fill,
+        stops: fill.stops.map(s => ({offset: s.offset, color: mapper(s.color)})),
+    };
+}
+
 export interface ParsedRgb {
     r: number;
     g: number;

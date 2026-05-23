@@ -7,6 +7,7 @@ import {TerrainOverlay} from "./TerrainOverlay";
 import type {TerrainEffectType, TerrainRoom} from "./TerrainOverlay";
 import {FogOfWarOverlay} from "./FogOfWarOverlay";
 import {HitAreaOverlay} from "./HitAreaOverlay";
+import {SpotlightOverlay} from "./SpotlightOverlay";
 
 function rgbToHex(rgb: string): string {
     const match = rgb.match(/(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
@@ -93,6 +94,12 @@ export function initControls(settings: Settings, renderer: MapRenderer, getCurre
     const ambientLightRadiusValue = document.getElementById("ambient-light-radius-value") as HTMLSpanElement | null;
     const ambientLightIntensity = document.getElementById("ambient-light-intensity") as HTMLInputElement | null;
     const ambientLightIntensityValue = document.getElementById("ambient-light-intensity-value") as HTMLSpanElement | null;
+    const spotlightToggle = document.getElementById("spotlight-toggle") as HTMLInputElement | null;
+    const spotlightColor = document.getElementById("spotlight-color") as HTMLInputElement | null;
+    const spotlightRadius = document.getElementById("spotlight-radius") as HTMLInputElement | null;
+    const spotlightRadiusValue = document.getElementById("spotlight-radius-value") as HTMLSpanElement | null;
+    const spotlightIntensity = document.getElementById("spotlight-intensity") as HTMLInputElement | null;
+    const spotlightIntensityValue = document.getElementById("spotlight-intensity-value") as HTMLSpanElement | null;
     const savePngBtn = document.getElementById("save-png-btn") as HTMLButtonElement | null;
     const saveSvgBtn = document.getElementById("save-svg-btn") as HTMLButtonElement | null;
 
@@ -201,6 +208,21 @@ export function initControls(settings: Settings, renderer: MapRenderer, getCurre
     if (ambientLightIntensity && ambientLightIntensityValue) {
         ambientLightIntensity.value = ambientParams.intensity.toString();
         ambientLightIntensityValue.textContent = ambientParams.intensity.toFixed(2);
+    }
+
+    // --- Spotlight (gradient demo) ---
+    const spotlight = new SpotlightOverlay();
+    let spotlightEnabled = false;
+    const spotlightParams = spotlight.getOptions();
+    if (spotlightToggle) spotlightToggle.checked = spotlightEnabled;
+    if (spotlightColor) spotlightColor.value = spotlightParams.color;
+    if (spotlightRadius && spotlightRadiusValue) {
+        spotlightRadius.value = spotlightParams.radius.toString();
+        spotlightRadiusValue.textContent = spotlightParams.radius.toString();
+    }
+    if (spotlightIntensity && spotlightIntensityValue) {
+        spotlightIntensity.value = spotlightParams.intensity.toString();
+        spotlightIntensityValue.textContent = spotlightParams.intensity.toFixed(2);
     }
     updateCullingStatus();
 
@@ -471,6 +493,33 @@ export function initControls(settings: Settings, renderer: MapRenderer, getCurre
         const value = parseFloat(ambientLightIntensity.value);
         ambientLight.setOptions({intensity: value});
         if (ambientLightIntensityValue) ambientLightIntensityValue.textContent = value.toFixed(2);
+    });
+
+    // --- Spotlight (radial gradient overlay) ---
+    spotlightToggle?.addEventListener("change", () => {
+        if (spotlightToggle.checked && !spotlightEnabled) {
+            renderer.addSceneOverlay("spotlight", spotlight);
+            spotlightEnabled = true;
+        } else if (!spotlightToggle.checked && spotlightEnabled) {
+            renderer.removeSceneOverlay("spotlight");
+            spotlightEnabled = false;
+        }
+    });
+
+    spotlightColor?.addEventListener("input", () => {
+        spotlight.setOptions({color: spotlightColor.value});
+    });
+
+    spotlightRadius?.addEventListener("input", () => {
+        const value = parseFloat(spotlightRadius.value);
+        spotlight.setOptions({radius: value});
+        if (spotlightRadiusValue) spotlightRadiusValue.textContent = value.toString();
+    });
+
+    spotlightIntensity?.addEventListener("input", () => {
+        const value = parseFloat(spotlightIntensity.value);
+        spotlight.setOptions({intensity: value});
+        if (spotlightIntensityValue) spotlightIntensityValue.textContent = value.toFixed(2);
     });
 
     // --- Weather (overlay plugin) ---

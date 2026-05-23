@@ -13,6 +13,7 @@ import type {
     DrawCommandBatch,
     PrimitiveDrawCommand,
 } from "../draw/DrawCommand";
+import type {FillStyle, LinearGradient, RadialGradient} from "../scene/Shape";
 
 function escapeXml(s: string): string {
     return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
@@ -27,6 +28,49 @@ function attr(name: string, value: string | number | undefined): string {
 function dashAttr(dash: number[] | undefined): string {
     if (!dash || dash.length === 0) return "";
     return ` stroke-dasharray="${dash.join(" ")}"`;
+}
+
+/**
+ * Monotonically increasing id source for gradient `<linearGradient>` /
+ * `<radialGradient>` elements emitted by {@link svgFromBatches}. The
+ * exporter can call `svgFromBatches` many times per document; using a
+ * module-level counter keeps ids unique across calls without forcing
+ * callers to manage state.
+ */
+let _gradId = 0;
+function nextGradientId(): string {
+    return `mmr-grad-${++_gradId}`;
+}
+
+function emitLinearGradient(id: string, g: LinearGradient): string {
+    const stops = g.stops
+        .map(s => `<stop offset="${s.offset}" stop-color="${escapeXml(s.color)}"/>`)
+        .join("");
+    return `<defs><linearGradient id="${id}" gradientUnits="userSpaceOnUse" x1="${g.x0}" y1="${g.y0}" x2="${g.x1}" y2="${g.y1}">${stops}</linearGradient></defs>`;
+}
+
+function emitRadialGradient(id: string, g: RadialGradient): string {
+    const stops = g.stops
+        .map(s => `<stop offset="${s.offset}" stop-color="${escapeXml(s.color)}"/>`)
+        .join("");
+    const focalAttrs =
+        (g.fx !== undefined ? ` fx="${g.fx}"` : "") +
+        (g.fy !== undefined ? ` fy="${g.fy}"` : "") +
+        (g.fr !== undefined ? ` fr="${g.fr}"` : "");
+    return `<defs><radialGradient id="${id}" gradientUnits="userSpaceOnUse" cx="${g.cx}" cy="${g.cy}" r="${g.r}"${focalAttrs}>${stops}</radialGradient></defs>`;
+}
+
+/**
+ * Resolve a {@link FillStyle} for an SVG `fill=` attribute. Strings pass
+ * through. Gradients allocate an id, emit a `<defs>` block into `out`, and
+ * return the `url(#id)` reference for the caller to plug into the attribute.
+ */
+function resolveSvgFill(fill: FillStyle | undefined, out: string[]): string | undefined {
+    if (fill === undefined) return undefined;
+    if (typeof fill === "string") return fill;
+    const id = nextGradientId();
+    out.push(fill.type === "linear" ? emitLinearGradient(id, fill) : emitRadialGradient(id, fill));
+    return `url(#${id})`;
 }
 
 /**
@@ -71,8 +115,7 @@ function emitCommands(commands: DrawCommand[], out: string[]): void {
                 break;
             }
             default: {
-                const el = svgElement(cmd);
-                if (el) out.push(el);
+                emitPrimitive(cmd, out);
                 break;
             }
         }
@@ -83,34 +126,39 @@ function emitCommands(commands: DrawCommand[], out: string[]): void {
     }
 }
 
-function svgElement(cmd: PrimitiveDrawCommand): string | undefined {
+function emitPrimitive(cmd: PrimitiveDrawCommand, out: string[]): void {
     switch (cmd.type) {
         case "rect": {
-            const fill = cmd.fill ?? "none";
+            const fill = resolveSvgFill(cmd.fill, out) ?? "none";
             const corner = cmd.cr > 0 ? `${attr("rx", cmd.cr)}${attr("ry", cmd.cr)}` : "";
-            return `<rect${attr("x", cmd.x)}${attr("y", cmd.y)}${attr("width", cmd.w)}${attr("height", cmd.h)}${attr("fill", fill)}${attr("stroke", cmd.stroke)}${cmd.sw ? attr("stroke-width", cmd.sw) : ""}${corner}${dashAttr(cmd.dash)}/>`;
+            out.push(`<rect${attr("x", cmd.x)}${attr("y", cmd.y)}${attr("width", cmd.w)}${attr("height", cmd.h)}${attr("fill", fill)}${attr("stroke", cmd.stroke)}${cmd.sw ? attr("stroke-width", cmd.sw) : ""}${corner}${dashAttr(cmd.dash)}/>`);
+            return;
         }
         case "circle": {
-            const fill = cmd.fill ?? "none";
-            return `<circle${attr("cx", cmd.cx)}${attr("cy", cmd.cy)}${attr("r", cmd.r)}${attr("fill", fill)}${attr("stroke", cmd.stroke)}${cmd.sw ? attr("stroke-width", cmd.sw) : ""}${dashAttr(cmd.dash)}/>`;
+            const fill = resolveSvgFill(cmd.fill, out) ?? "none";
+            out.push(`<circle${attr("cx", cmd.cx)}${attr("cy", cmd.cy)}${attr("r", cmd.r)}${attr("fill", fill)}${attr("stroke", cmd.stroke)}${cmd.sw ? attr("stroke-width", cmd.sw) : ""}${dashAttr(cmd.dash)}/>`);
+            return;
         }
         case "line": {
             const points = cmd.points;
-            if (points.length < 2) return undefined;
+            if (points.length < 2) return;
             const svgPoints: string[] = [];
             for (let i = 0; i < points.length; i += 2) {
                 svgPoints.push(`${points[i]},${points[i + 1]}`);
             }
-            return `<polyline points="${svgPoints.join(" ")}"${attr("stroke", cmd.stroke)}${cmd.sw ? attr("stroke-width", cmd.sw) : ""}${dashAttr(cmd.dash)}${attr("stroke-linecap", cmd.lineCap)}${attr("stroke-linejoin", cmd.lineJoin)}${attr("opacity", cmd.alpha)} fill="none"/>`;
+            out.push(`<polyline points="${svgPoints.join(" ")}"${attr("stroke", cmd.stroke)}${cmd.sw ? attr("stroke-width", cmd.sw) : ""}${dashAttr(cmd.dash)}${attr("stroke-linecap", cmd.lineCap)}${attr("stroke-linejoin", cmd.lineJoin)}${attr("opacity", cmd.alpha)} fill="none"/>`);
+            return;
         }
         case "polygon": {
             const verts = cmd.vertices;
-            if (verts.length < 4) return undefined;
+            if (verts.length < 4) return;
             const svgPoints: string[] = [];
             for (let i = 0; i < verts.length; i += 2) {
                 svgPoints.push(`${verts[i]},${verts[i + 1]}`);
             }
-            return `<polygon points="${svgPoints.join(" ")}"${attr("fill", cmd.fill)}${attr("stroke", cmd.stroke)}${cmd.sw ? attr("stroke-width", cmd.sw) : ""}/>`;
+            const fill = resolveSvgFill(cmd.fill, out);
+            out.push(`<polygon points="${svgPoints.join(" ")}"${attr("fill", fill)}${attr("stroke", cmd.stroke)}${cmd.sw ? attr("stroke-width", cmd.sw) : ""}/>`);
+            return;
         }
         case "text": {
             // SVG text positioning matches the legacy SvgBackend: alignment
@@ -147,14 +195,17 @@ function svgElement(cmd: PrimitiveDrawCommand): string | undefined {
             const strokeAttr = cmd.stroke && cmd.sw > 0
                 ? ` stroke="${cmd.stroke}" stroke-width="${cmd.sw}" paint-order="stroke fill"`
                 : "";
-            return `<text${attr("x", x)}${attr("y", y)}${attr("font-size", cmd.fontSize)}${cmd.fontFamily ? attr("font-family", cmd.fontFamily) : ""}${weight}${attr("fill", cmd.fill)}${strokeAttr} text-anchor="${anchor}" dominant-baseline="${baseline}"${transformAttr}>${escapeXml(cmd.text)}</text>`;
+            out.push(`<text${attr("x", x)}${attr("y", y)}${attr("font-size", cmd.fontSize)}${cmd.fontFamily ? attr("font-family", cmd.fontFamily) : ""}${weight}${attr("fill", cmd.fill)}${strokeAttr} text-anchor="${anchor}" dominant-baseline="${baseline}"${transformAttr}>${escapeXml(cmd.text)}</text>`);
+            return;
         }
         case "image": {
             if (cmd.transform) {
                 const [a, b, c, d, e, f] = cmd.transform;
-                return `<image${attr("width", cmd.w)}${attr("height", cmd.h)} href="${escapeXml(cmd.src)}" transform="matrix(${a},${b},${c},${d},${e},${f})"/>`;
+                out.push(`<image${attr("width", cmd.w)}${attr("height", cmd.h)} href="${escapeXml(cmd.src)}" transform="matrix(${a},${b},${c},${d},${e},${f})"/>`);
+                return;
             }
-            return `<image${attr("x", cmd.x)}${attr("y", cmd.y)}${attr("width", cmd.w)}${attr("height", cmd.h)} href="${escapeXml(cmd.src)}"/>`;
+            out.push(`<image${attr("x", cmd.x)}${attr("y", cmd.y)}${attr("width", cmd.w)}${attr("height", cmd.h)} href="${escapeXml(cmd.src)}"/>`);
+            return;
         }
     }
 }

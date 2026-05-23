@@ -4,7 +4,7 @@
  *
  * Mirrors the geometry the {@link OverlayRenderer} produces against a
  * {@link DrawingBackend} — output as engine-agnostic {@link Shape}s so the
- * exporter pipeline can drive {@link DrawCommandBuilder} + per-engine
+ * exporter pipeline can drive {@link buildDrawCommands} + per-engine
  * renderers without touching a backend.
  */
 

@@ -25,6 +25,7 @@ import {sketchyShapeStyle, type SketchyOptions} from "./shape/SketchyStyle";
 import {isometricShapeStyle, type IsometricOptions, type IsometricRotation} from "./shape/IsometricStyle";
 import {constructionShapeStyle} from "./shape/ConstructionStyle";
 import {scifiShapeStyle} from "./shape/SciFiStyle";
+import {gradientRoomsStyle, type GradientRoomsOptions} from "./shape/GradientRoomsStyle";
 
 export {compose, identityStyle} from "./Style";
 export type {Style, StyleContext} from "./Style";
@@ -55,4 +56,13 @@ export const Construction: Style = constructionShapeStyle;
 /** Sci-fi / space-exploration aesthetic — holographic cyan glow on void black. */
 export const SciFi: Style = scifiShapeStyle;
 
-export type {SketchyOptions, IsometricOptions, IsometricRotation};
+/**
+ * Replace flat room fills with a vertical linear gradient (lighter top,
+ * darker bottom). Compose with palette styles to keep their tones — the
+ * gradient stops are recoloured per stop.
+ */
+export function GradientRooms(options: GradientRoomsOptions = {}): Style {
+    return gradientRoomsStyle(options);
+}
+
+export type {SketchyOptions, IsometricOptions, IsometricRotation, GradientRoomsOptions};
