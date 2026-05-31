@@ -11,30 +11,53 @@ export type HighlightData = {
     /** For circle: radius. For rect: half-size. */
     size: number;
     cornerRadius: number;
-    strokeColor: string;
+    /**
+     * One or more colours. A single colour draws the classic ring/marker; two
+     * or more split the highlight into that many equal pie wedges (one colour
+     * each).
+     */
+    colors: string[];
     strokeAlpha: number;
     strokeWidth: number;
-    fillColor: string;
     fillAlpha: number;
     dash?: number[];
     dashEnabled: boolean;
 };
 
-export function computeHighlight(room: MapData.Room, color: string, settings: Settings): HighlightData {
+/**
+ * Resolve the concrete highlight outline shape. `'match'` follows the
+ * highlight's {@link HighlightStyle.matchRoomShape} flag against the current
+ * roomShape (circle rooms fall back to a circle highlight); any other value
+ * forces that shape explicitly.
+ */
+function resolveHighlightShapeKind(
+    hl: Settings['highlight'],
+    roomShape: Settings['roomShape'],
+): 'rectangle' | 'roundedRectangle' | 'circle' {
+    const sel = hl.shape ?? 'match';
+    if (sel !== 'match') return sel;
+    const matchRoom = hl.matchRoomShape ?? true;
+    if (matchRoom && roomShape !== "circle") {
+        return roomShape === "roundedRectangle" ? 'roundedRectangle' : 'rectangle';
+    }
+    return 'circle';
+}
+
+export function computeHighlight(room: MapData.Room, color: string | string[], settings: Settings): HighlightData {
     const hl = settings.highlight;
     const rs = settings.roomSize;
     const factor = hl.sizeFactor;
-    const useRoomShape = hl.matchRoomShape && settings.roomShape !== "circle";
+    const kind = resolveHighlightShapeKind(hl, settings.roomShape);
+    const colors = Array.isArray(color) ? (color.length > 0 ? [...color] : ['#ffffff']) : [color];
     return {
-        shape: useRoomShape ? 'rect' : 'circle',
+        shape: kind === 'circle' ? 'circle' : 'rect',
         cx: room.x,
         cy: room.y,
         size: rs / 2 * factor,
-        cornerRadius: useRoomShape && settings.roomShape === "roundedRectangle" ? rs * factor * 0.2 : 0,
-        strokeColor: color,
+        cornerRadius: kind === 'roundedRectangle' ? rs * factor * 0.2 : 0,
+        colors,
         strokeAlpha: hl.strokeAlpha,
         strokeWidth: hl.strokeWidth,
-        fillColor: color,
         fillAlpha: hl.fillAlpha,
         dash: hl.dash,
         dashEnabled: hl.dashEnabled,

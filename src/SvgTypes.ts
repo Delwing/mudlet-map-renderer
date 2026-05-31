@@ -1,6 +1,6 @@
 export type SvgOverlays = {
     position?: { roomId: number };
-    highlights?: Array<{ roomId: number; color: string }>;
+    highlights?: Array<{ roomId: number; color: string | string[] }>;
     paths?: Array<{ locations: number[]; color: string }>;
 };
 

@@ -154,7 +154,12 @@ export class MapRenderer {
         this.state.setCenterRoom(roomId, instant);
     }
 
-    renderHighlight(roomId: number, color: string) {
+    /**
+     * Highlight a room. Pass a single colour for the classic ring/marker, or an
+     * array of colours to split the highlight into that many equal pie wedges
+     * (one colour each).
+     */
+    renderHighlight(roomId: number, color: string | string[]) {
         this.state.addHighlight(roomId, color);
     }
 

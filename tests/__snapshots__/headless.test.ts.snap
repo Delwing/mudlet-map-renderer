@@ -121,6 +121,64 @@ exports[`HeadlessRenderer > drawArea + exportSvg > snapshot - basic area export 
 </svg>"
 `;
 
+exports[`HeadlessRenderer > highlights > snapshot - multi-color highlight (pie wedges) 1`] = `
+"<svg xmlns="http://www.w3.org/2000/svg" viewBox="-10.5 -14 24 19.5">
+<rect x="-10.5" y="-14" width="24" height="19.5" fill="#000000"/>
+<rect x="-2" y="2" width="5" height="0.5" fill="rgba(0, 0, 0, 0.39215686274509803)"/>
+<text x="0.5" y="2.25" font-size="0.45" font-family="sans-serif" fill="rgba(255, 255, 255, 1)" text-anchor="middle" dominant-baseline="central">Welcome to the Village</text>
+<polyline points="0,-0.2875 0,-1.7125" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
+<rect x="-0.15" y="-1.15" width="0.3" height="0.3" fill="none" stroke="rgb(10, 155, 10)" stroke-width="0.025"/>
+<polyline points="0.2875,0 1.7125,0" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
+<rect x="0.8499999999999999" y="-0.15" width="0.3" height="0.3" fill="none" stroke="rgb(226, 205, 59)" stroke-width="0.025"/>
+<polyline points="0,0.2875 0,1.7125" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
+<polyline points="-0.2875,0 -1.7125,0" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
+<polyline points="0,-2.2875 0,-3.7125" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
+<rect x="-0.15" y="-3.15" width="0.3" height="0.3" fill="none" stroke="rgb(155, 10, 10)" stroke-width="0.025"/>
+<polyline points="2.2875,-0.2875 3.7125,-1.7125" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
+<polyline points="2.2875,0 3.7125,0" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
+<polyline points="-2.2875,0.2875 -3.7125,1.7125" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
+<polyline points="0,2.2875 0,2.9" stroke="rgb(30,120,30)" stroke-width="0.034999999999999996" fill="none"/>
+<polygon points="0,2.9 -0.13416407864998742,2.631671842700025 0.13416407864998736,2.631671842700025" fill="rgb(30,120,30)" stroke="rgb(30,120,30)" stroke-width="0.034999999999999996"/>
+<polyline points="7.7125,2 6,0" stroke="rgb(225, 255, 225)" stroke-width="0.025" stroke-dasharray="0.1 0.05" fill="none"/>
+<polyline points="7.7125,2 6.85,1" stroke="rgb(225, 255, 225)" stroke-width="0.034999999999999996" stroke-dasharray="0.1 0.05" fill="none"/>
+<polygon points="6.85,1 7.283308301689269,1.2494873056633573 7.033150931641855,1.4652480373292511" fill="rgb(155, 10, 10)" stroke="rgb(225, 255, 225)" stroke-width="0.034999999999999996"/>
+<polyline points="-2,-1.7125 -2,0" stroke="rgb(225, 255, 225)" stroke-width="0.025" stroke-dasharray="0.1 0.05" fill="none"/>
+<polyline points="-2,-1.7125 -2,-0.85" stroke="rgb(225, 255, 225)" stroke-width="0.034999999999999996" stroke-dasharray="0.1 0.05" fill="none"/>
+<polygon points="-2,-0.85 -2.165175212364053,-1.3219291781830087 -1.834824787635947,-1.3219291781830087" fill="rgb(155, 10, 10)" stroke="rgb(225, 255, 225)" stroke-width="0.034999999999999996"/>
+<polyline points="0.3,-2.3 0.8,-2.8" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
+<polyline points="2,1.7 2,1.2" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
+<polyline points="2.3,2 2.8,2" stroke="rgb(225, 255, 225)" stroke-width="0.025" fill="none"/>
+<polyline points="6,0 7,-0.5 7.5,1" stroke="rgb(200, 50, 50)" stroke-width="0.025" stroke-dasharray="0.4 0.2" fill="none"/>
+<polygon points="7.5,1 7.32,0.76 7.5,0.7" fill="rgb(200, 50, 50)" stroke="rgb(200, 50, 50)" stroke-width="0.025"/>
+<polyline points="8,2 7,1.5 6.5,0.5" stroke="rgb(150, 150, 255)" stroke-width="0.025" stroke-dasharray="0.05 0.05" fill="none"/>
+<rect x="-0.3" y="-0.3" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<polygon points="0,0.05399999999999999 0.14549226783578567,0.198 -0.14549226783578564,0.198" fill="rgba(25,25,25, 0.6)" stroke="rgba(25,25,25)" stroke-width="0.025"/>
+<rect x="-0.3" y="-2.3" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<rect x="1.7" y="-0.3" width="0.6" height="0.6" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<text x="2" y="0.15749999999999997" font-size="0.44999999999999996" font-family="sans-serif" font-weight="bold" fill="rgba(25,25,25)" text-anchor="middle" dominant-baseline="auto">S</text>
+<rect x="-2.3" y="-0.3" width="0.6" height="0.6" fill="rgb(30,120,30)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<rect x="-0.3" y="1.7" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<rect x="-0.3" y="-4.3" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<rect x="3.7" y="-2.3" width="0.6" height="0.6" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<polygon points="4,-2.054 3.8545077321642145,-2.198 4.1454922678357855,-2.198" fill="rgba(25,25,25, 0.6)" stroke="rgba(25,25,25)" stroke-width="0.025"/>
+<rect x="-4.3" y="1.7" width="0.6" height="0.6" fill="rgb(30,120,30)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<rect x="1.7" y="1.7" width="0.6" height="0.6" fill="rgb(200,160,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<rect x="3.7" y="-0.3" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<polygon points="3.946,0 3.802,0.14549226783578567 3.802,-0.14549226783578564" fill="rgba(25,25,25, 0.6)" stroke="rgb(226, 205, 59)" stroke-width="0.025"/>
+<polygon points="4.054,0 4.198,-0.14549226783578567 4.198,0.14549226783578567" fill="rgba(25,25,25, 0.6)" stroke="rgb(226, 205, 59)" stroke-width="0.025"/>
+<rect x="5.7" y="-0.3" width="0.6" height="0.6" fill="rgb(80,60,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<text x="6" y="0.15749999999999997" font-size="0.44999999999999996" font-family="sans-serif" font-weight="bold" fill="rgba(225,255,255)" text-anchor="middle" dominant-baseline="auto">X</text>
+<polygon points="5.754,0 5.898,-0.14549226783578567 5.898,0.14549226783578567" fill="rgba(225,255,255, 0.6)" stroke="rgb(10, 155, 10)" stroke-width="0.025"/>
+<polygon points="6.246,0 6.102,0.14549226783578567 6.102,-0.14549226783578564" fill="rgba(225,255,255, 0.6)" stroke="rgb(10, 155, 10)" stroke-width="0.025"/>
+<rect x="7.7" y="1.7" width="0.6" height="0.6" fill="rgb(80,60,40)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<rect x="-2.3" y="-2.3" width="0.6" height="0.6" fill="rgb(128,128,128)" stroke="rgb(225, 255, 225)" stroke-width="0.025"/>
+<text x="-7.5" y="-8.5" font-size="2.5" font-family="sans-serif" fill="rgb(225, 255, 225)" text-anchor="start" dominant-baseline="auto">Test Village</text>
+<polyline points="2.6176825331774675e-17,-0.4275 0.4275,-0.42749999999999994 0.4275,0.2468172400785649" stroke="rgba(255, 0, 0, 1)" stroke-width="0.1" stroke-dasharray="0.05 0.05" stroke-linecap="butt" fill="none"/>
+<polyline points="0.4275,0.2468172400785649 0.4275,0.42749999999999994 -0.42749999999999994,0.4275 -0.4275,0.24681724007856523" stroke="rgba(0, 255, 0, 1)" stroke-width="0.1" stroke-dasharray="0.05 0.05" stroke-linecap="butt" fill="none"/>
+<polyline points="-0.4275,0.24681724007856523 -0.4275,-0.4274999999999998 -7.853047599532401e-17,-0.4275" stroke="rgba(0, 0, 255, 1)" stroke-width="0.1" stroke-dasharray="0.05 0.05" stroke-linecap="butt" fill="none"/>
+</svg>"
+`;
+
 exports[`HeadlessRenderer > highlights > snapshot - multiple highlights 1`] = `
 "<svg xmlns="http://www.w3.org/2000/svg" viewBox="-10.5 -14 24 19.5">
 <rect x="-10.5" y="-14" width="24" height="19.5" fill="#000000"/>

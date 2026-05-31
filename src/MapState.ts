@@ -7,14 +7,26 @@ import {TypedEventEmitter} from "./TypedEventEmitter";
 import type {RoomLens} from "./lens/RoomLens";
 import {ALL_VISIBLE} from "./lens/RoomLens";
 
-export type HighlightEntry = { color: string; area: number; z: number };
+export type HighlightEntry = {
+    /** Highlight colours; one draws a ring, two or more split it into pie wedges. */
+    colors: string[];
+    /** @deprecated Use {@link colors}. Kept for back-compat; equals `colors[0]`. */
+    color: string;
+    area: number;
+    z: number;
+};
 export type PathEntry = { locations: number[]; color: string };
 
 export type MapStateEventMap = {
     area: { area: IArea; zIndex: number };
     position: { roomId: number | undefined; center: boolean; areaChanged: boolean };
     center: { roomId: number; instant: boolean };
-    highlight: { roomId: number; color: string | undefined };
+    highlight: {
+        roomId: number;
+        colors: string[] | undefined;
+        /** @deprecated Use {@link colors}. Equals `colors?.[0]`. */
+        color: string | undefined;
+    };
     path: undefined;
     clear: undefined;
     lens: { lens: RoomLens };
@@ -140,18 +152,19 @@ export class MapState {
         );
     }
 
-    addHighlight(roomId: number, color: string): boolean {
+    addHighlight(roomId: number, color: string | string[]): boolean {
         const room = this.mapReader.getRoom(roomId);
         if (!room) return false;
-        this.highlights.set(roomId, {color, area: room.area, z: room.z});
-        this.events.emit('highlight', {roomId, color});
+        const colors = Array.isArray(color) ? (color.length > 0 ? [...color] : ['#ffffff']) : [color];
+        this.highlights.set(roomId, {colors, color: colors[0], area: room.area, z: room.z});
+        this.events.emit('highlight', {roomId, colors, color: colors[0]});
         return true;
     }
 
     removeHighlight(roomId: number) {
         if (!this.highlights.has(roomId)) return;
         this.highlights.delete(roomId);
-        this.events.emit('highlight', {roomId, color: undefined});
+        this.events.emit('highlight', {roomId, colors: undefined, color: undefined});
     }
 
     hasHighlight(roomId: number): boolean {
@@ -189,10 +202,10 @@ export class MapState {
         }
 
         // Highlights (only for current area/z)
-        const highlights: Array<{ roomId: number; color: string }> = [...(extra?.highlights ?? [])];
+        const highlights: Array<{ roomId: number; color: string | string[] }> = [...(extra?.highlights ?? [])];
         for (const [roomId, entry] of this.highlights) {
             if (entry.area === this.currentArea && entry.z === this.currentZIndex) {
-                highlights.push({roomId, color: entry.color});
+                highlights.push({roomId, color: entry.colors});
             }
         }
         if (highlights.length > 0) overlays.highlights = highlights;

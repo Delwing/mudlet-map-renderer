@@ -149,10 +149,19 @@ export type HighlightStyle = {
     dashEnabled: boolean;
 
     /**
-     * When true, the highlight shape matches the current roomShape setting
-     * (rectangle, circle, or roundedRectangle). When false, the highlight is always a circle.
+     * @deprecated Use {@link shape} instead. Only consulted when `shape` is
+     * `'match'` (or omitted): when true (the default) the highlight follows the
+     * current roomShape (rectangle / roundedRectangle / circle); when false it
+     * is always a circle.
      */
-    matchRoomShape: boolean;
+    matchRoomShape?: boolean;
+
+    /**
+     * Outline shape of the highlight. `'match'` (the default when omitted)
+     * follows the current roomShape; the other values force that specific shape
+     * regardless of the room's shape.
+     */
+    shape?: 'match' | 'rectangle' | 'roundedRectangle' | 'circle';
 };
 
 
@@ -254,6 +263,7 @@ export function createSettings(): Settings {
             dash: [0.05, 0.05],
             dashEnabled: true,
             matchRoomShape: true,
+            shape: 'match',
         },
         gridEnabled: false,
         gridSize: 1,

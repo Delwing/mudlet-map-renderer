@@ -80,7 +80,7 @@ export function initControls(settings: Settings, renderer: MapRenderer, getCurre
     const highlightSize = document.getElementById("highlight-size") as HTMLInputElement | null;
     const highlightSizeValue = document.getElementById("highlight-size-value") as HTMLSpanElement | null;
     const highlightDashEnabled = document.getElementById("highlight-dash-enabled") as HTMLInputElement | null;
-    const highlightMatchShape = document.getElementById("highlight-match-shape") as HTMLInputElement | null;
+    const highlightShape = document.getElementById("highlight-shape") as HTMLSelectElement | null;
     const embossToggle = document.getElementById("emboss-toggle") as HTMLInputElement | null;
     const areaNameToggle = document.getElementById("area-name-toggle") as HTMLInputElement | null;
     const areaExitLabelsToggle = document.getElementById("area-exit-labels-toggle") as HTMLInputElement | null;
@@ -176,7 +176,7 @@ export function initControls(settings: Settings, renderer: MapRenderer, getCurre
         highlightSizeValue.textContent = settings.highlight.sizeFactor.toFixed(2);
     }
     if (highlightDashEnabled) highlightDashEnabled.checked = settings.highlight.dashEnabled;
-    if (highlightMatchShape) highlightMatchShape.checked = settings.highlight.matchRoomShape;
+    if (highlightShape) highlightShape.value = settings.highlight.shape ?? 'match';
     if (pathfindingAlgorithmSelect && pathFinder) pathfindingAlgorithmSelect.value = pathFinder.algorithm;
     const sketchColorLabel = document.getElementById("sketch-color-label") as HTMLElement | null;
     const sketchColorInput = document.getElementById("sketch-color") as HTMLInputElement | null;
@@ -393,8 +393,8 @@ export function initControls(settings: Settings, renderer: MapRenderer, getCurre
         renderer.refresh();
     });
 
-    highlightMatchShape?.addEventListener("change", () => {
-        settings.highlight.matchRoomShape = highlightMatchShape.checked;
+    highlightShape?.addEventListener("change", () => {
+        settings.highlight.shape = highlightShape.value as typeof settings.highlight.shape;
         renderer.refresh();
     });
 

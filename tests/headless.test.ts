@@ -113,6 +113,35 @@ describe('HeadlessRenderer', () => {
             expect(renderer.export(new SvgExporter())).toMatchSnapshot();
         });
 
+        it('snapshot - multi-color highlight (pie wedges)', () => {
+            const renderer = createRenderer();
+            renderer.drawArea(1, 0);
+            renderer.renderHighlight(1, ['#ff0000', '#00ff00', '#0000ff']);
+            expect(renderer.export(new SvgExporter())).toMatchSnapshot();
+        });
+
+        it('multi-color highlight renders one stroke per colour', () => {
+            const renderer = createRenderer();
+            renderer.drawArea(1, 0);
+            renderer.renderHighlight(1, ['#ff0000', '#00ff00', '#0000ff']);
+            const svg = renderer.export(new SvgExporter());
+            expect(svg).toContain('rgba(255, 0, 0, 1)');
+            expect(svg).toContain('rgba(0, 255, 0, 1)');
+            expect(svg).toContain('rgba(0, 0, 255, 1)');
+        });
+
+        it('single-element color array behaves like a single colour', () => {
+            const renderer = createRenderer();
+            renderer.drawArea(1, 0);
+            renderer.renderHighlight(1, ['#ff0000']);
+
+            const single = createRenderer();
+            single.drawArea(1, 0);
+            single.renderHighlight(1, '#ff0000');
+
+            expect(renderer.export(new SvgExporter())).toBe(single.export(new SvgExporter()));
+        });
+
         it('removeHighlight works', () => {
             const renderer = createRenderer();
             renderer.drawArea(1, 0);

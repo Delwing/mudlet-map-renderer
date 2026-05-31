@@ -25,7 +25,7 @@ export interface CanvasExportOptions {
     /** Overlays to render over the scene (position marker, highlights, paths). */
     overlays?: {
         position?: { roomId: number };
-        highlights?: Array<{ roomId: number; color: string }>;
+        highlights?: Array<{ roomId: number; color: string | string[] }>;
         paths?: Array<{ locations: number[]; color: string }>;
     };
 }

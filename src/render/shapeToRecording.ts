@@ -12,7 +12,7 @@
 
 import Konva from "konva";
 import {RecordingGroupNode} from "./RecordingLayer";
-import {transformFill, type GroupShape, type Shape} from "../scene/Shape";
+import {transformFill, resolveDash, type GroupShape, type Shape} from "../scene/Shape";
 
 export function shapeToRecording(group: GroupShape): RecordingGroupNode {
     const node = new RecordingGroupNode(group.x, group.y);
@@ -50,7 +50,7 @@ function addShape(
                 stroke: shape.paint.stroke,
                 sw: shape.paint.strokeWidth ?? 0,
                 cr: shape.cornerRadius ?? 0,
-                dash: (shape.paint.dashEnabled !== false && shape.paint.dash) ? shape.paint.dash : undefined,
+                dash: resolveDash(shape.paint.dash, shape.paint.dashEnabled),
             });
             return;
         case "circle":
@@ -62,7 +62,7 @@ function addShape(
                 fill: transformFill(shape.paint.fill, ox, oy, 1, 0, 0),
                 stroke: shape.paint.stroke,
                 sw: shape.paint.strokeWidth ?? 0,
-                dash: (shape.paint.dashEnabled !== false && shape.paint.dash) ? shape.paint.dash : undefined,
+                dash: resolveDash(shape.paint.dash, shape.paint.dashEnabled),
             });
             return;
         case "line": {
@@ -74,7 +74,7 @@ function addShape(
                 points,
                 stroke: shape.paint.stroke,
                 sw: shape.paint.strokeWidth ?? 0,
-                dash: shape.paint.dash,
+                dash: resolveDash(shape.paint.dash, shape.paint.dashEnabled),
                 lineCap: shape.lineCap,
                 lineJoin: shape.lineJoin,
                 alpha: shape.paint.alpha,

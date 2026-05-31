@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.0] - 2026-05-31
+
+### Added
+
+- Multi-colour room highlights. `MapRenderer.renderHighlight(roomId, color)` now accepts either a single colour (unchanged) or an array of colours; with two or more, the highlight is split into that many equal pie wedges, one colour each. Works for circle and rectangular highlights and across the interactive, SVG, and canvas/PNG render paths. `HighlightEntry` gains `colors: string[]` (its `color` field is retained, see Deprecated), and the export overlay `highlights[].color` accepts `string | string[]`.
+- `HighlightStyle.shape` selects the highlight outline shape independently of the room: `'match'` (default when omitted — follows `roomShape`), `'rectangle'`, `'roundedRectangle'`, or `'circle'`. Exposed as a "Shape" dropdown in the demo's Highlight panel (replacing the match-room-shape checkbox).
+
+### Deprecated
+
+- `HighlightEntry.color` and the `'highlight'` event's `color` field — use `colors` instead. Both are still populated (`color === colors[0]`) so existing readers keep working.
+- `HighlightStyle.matchRoomShape` — use `HighlightStyle.shape` instead. Still honoured when `shape` is `'match'` or omitted (defaults to `true`).
+
+### Fixed
+
+- Dashed highlights drawn as line segments — rectangular / "match room shape" highlights and the new multi-colour pie wedges — ignored the `dashEnabled` toggle on the interactive Konva canvas (circle highlights honoured it). All shape kinds now route their dash through a shared `resolveDash` helper, so toggling the dash off applies to every highlight shape.
+- `'roundedRectangle'` highlights rendered as sharp rectangles: the stroked ring was built from four straight corner-aligned line segments, so the corner radius (applied only to the optional fill) was invisible on the usual hollow highlight. Rounded highlights now emit a single rounded rect for the stroke, so the radius shows. Multi-colour rounded highlights trace their pie wedges along the rounded-rect perimeter too (flat edges with quarter-circle corners).
+
 ## [2.0.0] - 2026-05-23
 
 ### Added

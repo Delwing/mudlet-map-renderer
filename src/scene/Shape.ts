@@ -79,6 +79,19 @@ export function isGradientFill(fill: FillStyle | undefined): fill is LinearGradi
 }
 
 /**
+ * Resolve a paint's effective dash pattern. Returns the dash only when it is
+ * present AND not explicitly disabled (`dashEnabled === false` blanks it).
+ * Renderers call this so every shape kind — rect, circle, line — honours
+ * `dashEnabled` identically.
+ */
+export function resolveDash(
+    dash: number[] | undefined,
+    dashEnabled: boolean | undefined,
+): number[] | undefined {
+    return (dashEnabled !== false && dash) ? dash : undefined;
+}
+
+/**
  * Apply a camera-style affine (translate by world origin, scale uniformly,
  * translate by render offset) to a fill. Strings pass through unchanged.
  * Gradient stops are colour-only and never transformed.

@@ -478,8 +478,8 @@ export class KonvaRenderBackend implements InteractiveBackend {
             }
         });
 
-        state.events.on('highlight', ({roomId, color}) => {
-            this.syncHighlight(roomId, color);
+        state.events.on('highlight', ({roomId, colors}) => {
+            this.syncHighlight(roomId, colors);
         });
 
         state.events.on('path', () => {
@@ -786,16 +786,16 @@ export class KonvaRenderBackend implements InteractiveBackend {
 
     // --- Highlight & path sync ---
 
-    syncHighlight(roomId: number, color: string | undefined) {
+    syncHighlight(roomId: number, colors: string[] | undefined) {
         const existing = this.highlightShapes.get(roomId);
         if (existing) {
             existing.destroy();
             this.highlightShapes.delete(roomId);
         }
-        if (color !== undefined) {
+        if (colors !== undefined) {
             const room = this.state.mapReader.getRoom(roomId);
             if (room && room.area === this.state.currentArea && room.z === this.state.currentZIndex) {
-                const data = computeHighlight(room, color, this.state.settings);
+                const data = computeHighlight(room, colors, this.state.settings);
                 const node = this.addStyledShape(highlightToShape(data), this.overlayLayerNode);
                 if (node) this.highlightShapes.set(roomId, node);
             }
@@ -811,7 +811,7 @@ export class KonvaRenderBackend implements InteractiveBackend {
             if (entry.area !== this.state.currentArea || entry.z !== this.state.currentZIndex) continue;
             const room = this.state.mapReader.getRoom(roomId);
             if (!room) continue;
-            const data = computeHighlight(room, entry.color, this.state.settings);
+            const data = computeHighlight(room, entry.colors, this.state.settings);
             const node = this.addStyledShape(highlightToShape(data), this.overlayLayerNode);
             if (node) this.highlightShapes.set(roomId, node);
         }

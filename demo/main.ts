@@ -367,6 +367,16 @@ async function initialize() {
 
     const startingRoom = mapReader.getRoom(startingRoomId);
     renderer.renderHighlight(startingRoomId, 'yellow');
+    // Showcase multi-colour highlights: passing an array of colours splits a
+    // room's highlight into that many equal pie wedges (one colour each). Apply
+    // a 2- and 3-colour split to a couple of other rooms in the starting area so
+    // the new array form of renderHighlight is visible on load.
+    if (startingRoom) {
+        const others = (mapReader.getArea(startingRoom.area)?.getRooms() ?? [])
+            .filter(r => r.z === startingRoom.z && r.id !== startingRoomId);
+        if (others[0]) renderer.renderHighlight(others[0].id, ['#ff3b30', '#0a84ff']);
+        if (others[1]) renderer.renderHighlight(others[1].id, ['#ff3b30', '#34c759', '#0a84ff']);
+    }
     currentRoomId = startingRoomId;
 
     if (startingRoom) {
