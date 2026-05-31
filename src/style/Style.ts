@@ -42,6 +42,16 @@ export interface Style {
 
     /** Inverse of {@link worldToScene}. */
     sceneToWorld?(x: number, y: number): {x: number; y: number};
+
+    /**
+     * Optional extra scene-space offset that {@link transform} applies to a
+     * given layer's groups but {@link worldToScene} does not capture. Isometric
+     * lowers the `link` layer by the cube depth so connectors meet the cube
+     * base; without mirroring that here, {@link HitTester} would place exit hit
+     * zones a cube-height above the drawn connectors. Returns `{x:0, y:0}` for
+     * layers it does not shift.
+     */
+    sceneLayerOffset?(layer: Shape["layer"]): {x: number; y: number};
 }
 
 /** Identity style — passes shapes through unchanged. */
@@ -109,6 +119,17 @@ export function compose(...styles: Style[]): Style {
                 if (style.sceneToWorld) p = style.sceneToWorld(p.x, p.y);
             }
             return p;
+        },
+
+        sceneLayerOffset(layer) {
+            let x = 0, y = 0;
+            for (const style of styles) {
+                if (!style.sceneLayerOffset) continue;
+                const o = style.sceneLayerOffset(layer);
+                x += o.x;
+                y += o.y;
+            }
+            return {x, y};
         },
     };
 }

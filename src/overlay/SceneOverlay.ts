@@ -46,6 +46,19 @@ export interface SceneOverlayContext {
  */
 export interface SceneOverlay {
     /**
+     * Optional. When `true`, {@link render} returns shapes already in
+     * **rendered/scene space** (i.e. post-Style projection), so the active
+     * {@link Style} transform is skipped for this overlay. Use this for
+     * overlays that visualise data the renderer has already projected — e.g.
+     * a hit-area debug overlay built from {@link HitTester} geometry, which is
+     * stored in rendered space. Without it, coordinate-warping styles
+     * (Isometric) would project the geometry a second time, offsetting it.
+     *
+     * Defaults to `false`: shapes are world-space and pass through the Style.
+     */
+    readonly sceneSpace?: boolean;
+
+    /**
      * Optional. Called once when the overlay is registered with an interactive
      * renderer. Subscribe to events here and call `ctx.invalidate()` when the
      * overlay needs to re-render.
@@ -64,9 +77,10 @@ export interface SceneOverlay {
      * Contribute geometry to the scene. Called on register, on invalidate, and
      * by every exporter.
      *
-     * @returns one or more world-space {@link Shape}s, or `void` to emit
-     *   nothing this frame. Shapes carry their own {@link Shape.layer} hint;
-     *   leaving it unset routes them to the overlay layer.
+     * @returns one or more world-space {@link Shape}s (or rendered-space when
+     *   {@link sceneSpace} is `true`), or `void` to emit nothing this frame.
+     *   Shapes carry their own {@link Shape.layer} hint; leaving it unset
+     *   routes them to the overlay layer.
      */
     render(
         state: MapState,

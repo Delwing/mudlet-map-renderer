@@ -375,5 +375,12 @@ export function isometricShapeStyle(options: IsometricOptions = {}): Style {
             const [ox, oy] = isoInv(x, y);
             return {x: ox, y: oy};
         },
+
+        // Link-layer groups are lowered by the cube depth in render space (see
+        // the group case in `transform`). Report that here so HitTester places
+        // exit/stub hit zones on the drawn connectors, not a cube-height above.
+        sceneLayerOffset(layer) {
+            return depth > 0 && layer === "link" ? {x: 0, y: depth} : {x: 0, y: 0};
+        },
     };
 }

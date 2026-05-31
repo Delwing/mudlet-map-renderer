@@ -69,9 +69,9 @@ export class SvgExporter implements Exporter<string | undefined> {
         lines.push(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="${sceneBounds.x} ${sceneBounds.y} ${sceneBounds.w} ${sceneBounds.h}">`);
         lines.push(`<rect x="${sceneBounds.x}" y="${sceneBounds.y}" width="${sceneBounds.w}" height="${sceneBounds.h}" fill="${escapeXml(settings.backgroundColor)}"/>`);
 
-        const flush = (shapes: Shape[]) => {
+        const flush = (shapes: Shape[], sceneSpace?: boolean) => {
             if (shapes.length === 0) return;
-            lines.push(...svgFromBatches(buildDrawCommands(styled(shapes), IDENTITY_CAMERA)));
+            lines.push(...svgFromBatches(buildDrawCommands(sceneSpace ? shapes : styled(shapes), IDENTITY_CAMERA)));
         };
 
         flushSceneShapes(

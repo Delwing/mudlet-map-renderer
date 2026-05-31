@@ -11,6 +11,10 @@
  *   - `coordTransform` maps world → rendered space (identity for flat styles;
  *     iso projection for IsometricStyle). Each vertex is transformed
  *     individually so shears (iso) preserve segment shape.
+ *   - `layerOffset` adds a per-layer scene-space shift the projection omits
+ *     (e.g. Isometric lowers the `link` layer by the cube depth so connectors
+ *     meet the cube base) — applied after `coordTransform` so hit zones land on
+ *     the drawn geometry, not a cube-height above it.
  *   - `pick` / `pickAll` / `pickInRect` / `findRoomAtPoint` expect points in
  *     **rendered space** — the same space that `Camera.clientToMapPoint`
  *     returns.
@@ -25,6 +29,13 @@
 import type {HitInfo, Shape, Bbox} from "../scene/Shape";
 
 export type CoordTransform = (x: number, y: number) => {x: number; y: number};
+
+/**
+ * Extra scene-space offset applied to a layer's geometry, mirroring a
+ * render-time per-layer shift the {@link CoordTransform} does not capture
+ * (e.g. Isometric lowers the `link` layer by the cube depth).
+ */
+export type LayerOffset = (layer: Shape["layer"]) => {x: number; y: number};
 
 /** Result returned by {@link HitTester.pick} et al. */
 export interface HitResult {
@@ -98,6 +109,7 @@ export class HitTester {
     private roomSize = 1;
     private spatialIndex = new Map<number, HitEntry[]>();
     private transform: CoordTransform = identity;
+    private layerOffset: LayerOffset | undefined;
 
     /**
      * Rebuild from a fresh set of world-space shapes.
@@ -105,12 +117,20 @@ export class HitTester {
      * @param shapes         Top-level shape list from {@link ScenePipeline}.
      * @param roomSize       Current room size (world units) — used as base pick margin.
      * @param coordTransform World→rendered projection; omit for flat (identity).
+     * @param layerOffset    Per-layer scene-space shift the projection omits
+     *                       (e.g. Isometric link-layer depth); omit for none.
      */
-    build(shapes: Shape[], roomSize: number, coordTransform?: CoordTransform): void {
+    build(
+        shapes: Shape[],
+        roomSize: number,
+        coordTransform?: CoordTransform,
+        layerOffset?: LayerOffset,
+    ): void {
         this.clear();
         this.roomSize = roomSize;
         this.bucketSize = Math.max(roomSize * 10, 5);
         this.transform = coordTransform ?? identity;
+        this.layerOffset = layerOffset;
         this.collectHitShapes(shapes, 0, 0);
     }
 
@@ -262,7 +282,7 @@ export class HitTester {
             if (shape.hit) {
                 const geoms: HitGeom[] = [];
                 const bbox = makeEmptyBbox();
-                collectGeometryForEntry(shape, offsetX, offsetY, this.transform, geoms, bbox);
+                collectGeometryForEntry(shape, offsetX, offsetY, this.entryTransform(shape.layer), geoms, bbox);
                 if (geoms.length > 0 && bbox.minX <= bbox.maxX) {
                     this.indexEntry(bbox, geoms, shape.hit);
                 }
@@ -271,6 +291,21 @@ export class HitTester {
                 this.collectHitShapes(shape.children, offsetX + shape.x, offsetY + shape.y);
             }
         }
+    }
+
+    /**
+     * Transform for one entry: the base projection plus any per-layer scene
+     * offset the projection omits (e.g. Isometric link-layer depth), so hit
+     * geometry lands where the shape is actually drawn.
+     */
+    private entryTransform(layer: Shape["layer"]): CoordTransform {
+        const off = this.layerOffset?.(layer);
+        if (!off || (off.x === 0 && off.y === 0)) return this.transform;
+        const base = this.transform;
+        return (x, y) => {
+            const p = base(x, y);
+            return {x: p.x + off.x, y: p.y + off.y};
+        };
     }
 
     private indexEntry(bbox: Bbox, geoms: HitGeom[], info: HitInfo): void {

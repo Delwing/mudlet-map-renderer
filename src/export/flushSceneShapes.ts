@@ -28,7 +28,7 @@ export interface SceneFlushContext {
 export function flushSceneShapes(
     sceneShapes: SceneShapesByLayer,
     context: SceneFlushContext,
-    flush: (shapes: Shape[]) => void,
+    flush: (shapes: Shape[], sceneSpace?: boolean) => void,
 ): void {
     flush(sceneShapes.grid);
     flush(sceneShapes.link);
@@ -37,7 +37,10 @@ export function flushSceneShapes(
     for (const overlay of context.sceneOverlays) {
         const out = overlay.render(context.state, context.viewportBounds);
         if (!out) continue;
-        flush(Array.isArray(out) ? out : [out]);
+        // Scene-space overlays return geometry already in rendered space;
+        // signal the exporter to skip the Style transform so warping styles
+        // (Isometric) don't project it twice.
+        flush(Array.isArray(out) ? out : [out], overlay.sceneSpace);
     }
     flush(sceneShapes.topLabel);
 }

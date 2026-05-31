@@ -198,6 +198,36 @@ describe("HitTester — coordinate transform (iso-like)", () => {
         // In un-shifted space the room is gone
         expect(tester.pick(0, 0)).toBeNull();
     });
+
+    it("applies the per-layer offset on top of the coord transform", () => {
+        const tester = new HitTester();
+        // link-layer geometry is lowered by 2 in scene space (iso cube depth),
+        // matching the render-time shift; other layers are untouched.
+        const layerOffset = (layer: string | undefined) =>
+            layer === "link" ? {x: 0, y: 2} : {x: 0, y: 0};
+
+        const exit: GroupShape = {
+            type: "group",
+            x: 0, y: 0,
+            layer: "link",
+            hit: {kind: "exit", id: 3, margin: 0.1},
+            children: [{type: "line", points: [0, 0, 4, 0], paint: {}}],
+        };
+        const room: GroupShape = {
+            type: "group",
+            x: -0.5, y: -0.5,
+            layer: "room",
+            hit: {kind: "room", id: 8, payload: {id: 8}},
+            children: [{type: "rect", x: 0, y: 0, width: 1, height: 1, paint: {}}],
+        };
+        tester.build([exit, room], 1, undefined, layerOffset);
+
+        // The exit line is shifted down by 2: hit at y=2, not y=0.
+        expect(tester.pick(2, 2)!.id).toBe(3);
+        expect(tester.pick(2, 0)).toBeNull();
+        // The room (non-link layer) is unaffected by the offset.
+        expect(tester.pick(0, 0)!.id).toBe(8);
+    });
 });
 
 describe("HitTester — nested group hit annotation", () => {

@@ -35,6 +35,7 @@ import type {LiveEffect} from "../overlay/LiveEffect";
 import type {SceneOverlay, SceneOverlayContext} from "../overlay/SceneOverlay";
 import type {ExportCanvas} from "../export/Exporter";
 import {HitTester} from "../hit/HitTester";
+import type {LayerOffset} from "../hit/HitTester";
 import type {GroupShape, Shape} from "../scene/Shape";
 import type {Style, StyleContext} from "../style/Style";
 import {identityStyle} from "../style/Style";
@@ -97,6 +98,7 @@ export class KonvaRenderBackend implements InteractiveBackend {
     private destroyed = false;
     private _coordinateTransform: CoordFn = IDENTITY_TRANSFORM;
     private coordinateInverse: CoordFn = IDENTITY_TRANSFORM;
+    private coordinateLayerOffset: LayerOffset | undefined;
 
     get coordinateTransform(): CoordFn {
         return this._coordinateTransform;
@@ -210,13 +212,17 @@ export class KonvaRenderBackend implements InteractiveBackend {
             ? (x, y) => style.sceneToWorld!(x, y)
             : IDENTITY_TRANSFORM;
         const oldInverse = this.coordinateInverse;
+        const layerOffset: LayerOffset | undefined = style.sceneLayerOffset
+            ? (layer) => style.sceneLayerOffset!(layer)
+            : undefined;
 
         this._coordinateTransform = forward;
         this.coordinateInverse = newInverse;
+        this.coordinateLayerOffset = layerOffset;
         this.culling.setCoordinateTransform(forward);
         this.gridCachedBounds = null;
         if (this.lastHitShapes.length > 0) {
-            this.hitTester.build(this.lastHitShapes, this.state.settings.roomSize, forward);
+            this.hitTester.build(this.lastHitShapes, this.state.settings.roomSize, forward, layerOffset);
         }
 
         // Reposition camera so the same map point stays at screen center
@@ -445,7 +451,7 @@ export class KonvaRenderBackend implements InteractiveBackend {
             const shapes = Array.isArray(out) ? out : [out];
             const stored: RecordingGroupNode[] = [];
             for (const shape of shapes) {
-                const node = this.addStyledShape(shape, this.overlayLayerNode);
+                const node = this.addStyledShape(shape, this.overlayLayerNode, overlay.sceneSpace);
                 if (node) stored.push(node);
             }
             this.sceneOverlayNodes.set(id, stored);
@@ -545,12 +551,16 @@ export class KonvaRenderBackend implements InteractiveBackend {
      * relationship between input shape and tracked handle, so callers that cache
      * the return value (position marker, scene overlays, highlights, current-room
      * overlay, paths) can destroy the entire expansion through that one handle.
+     *
+     * `bypassStyle` skips the Style transform entirely — used for overlays whose
+     * geometry is already in rendered space (e.g. hit-area debug visualisation).
      */
     private addStyledShape(
         shape: Shape,
         layerNode: {addNode(node: RecordingGroupNode): void},
+        bypassStyle = false,
     ): RecordingGroupNode | undefined {
-        const styled = this.currentStyle === identityStyle
+        const styled = bypassStyle || this.currentStyle === identityStyle
             ? [shape]
             : applyStyleToShapes([shape], this.currentStyle, this.styleContext());
         if (styled.length === 0) return undefined;
@@ -619,7 +629,7 @@ export class KonvaRenderBackend implements InteractiveBackend {
 
     private onSceneBuilt() {
         this.lastHitShapes = this.sceneManager.hitShapes as Shape[];
-        this.hitTester.build(this.lastHitShapes, this.state.settings.roomSize, this._coordinateTransform);
+        this.hitTester.build(this.lastHitShapes, this.state.settings.roomSize, this._coordinateTransform, this.coordinateLayerOffset);
 
         const scale = this.camera.getScale();
         this.stage.scale({x: scale, y: scale});

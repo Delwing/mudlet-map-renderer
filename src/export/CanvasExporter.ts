@@ -99,9 +99,9 @@ export class CanvasExporter implements Exporter<ExportCanvas | undefined> {
         const styled = (shapes: Shape[]): Shape[] =>
             style === identityStyle ? shapes : applyStyleToShapes(shapes, style as Style, styleCtx);
 
-        const flush = (shapes: Shape[]) => {
+        const flush = (shapes: Shape[], sceneSpace?: boolean) => {
             if (shapes.length === 0) return;
-            renderToCanvas(ctx, buildDrawCommands(styled(shapes), renderCam));
+            renderToCanvas(ctx, buildDrawCommands(sceneSpace ? shapes : styled(shapes), renderCam));
         };
 
         const viewportBounds = Camera.forMapBounds(bounds.x, bounds.x + bounds.w, bounds.y, bounds.y + bounds.h).getViewportBounds();
