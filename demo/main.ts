@@ -4,6 +4,7 @@ import {
     PathFinder,
     compose, identityStyle,
     Parchment, Blueprint, Neon, Sketchy, Isometric, Construction, SciFi, GradientRooms,
+    StainedGlass, GraphPaper, Topographic, Watercolor,
     ExplorationLens, ALL_VISIBLE,
     type Style,
 } from "@src";
@@ -278,6 +279,31 @@ function applyRenderMode(mode: string) {
             style = SciFi;
             settings.backgroundColor = '#030810';
             settings.lineColor = '#0a2a3d';
+            break;
+        case "stained-glass":
+            style = StainedGlass;
+            // Stone-slate surround, not pure black: the leading is near-black, so a
+            // lighter backdrop lets the came + exit lines read while panes glow.
+            settings.backgroundColor = '#33333b';
+            settings.lineColor = '#1c1c22';
+            break;
+        case "watercolor":
+            style = Watercolor();
+            settings.backgroundColor = '#fbf7ef';
+            settings.lineColor = '#8a8a94';
+            settings.fontFamily = 'Georgia, serif';
+            break;
+        case "graph-paper":
+            style = GraphPaper;
+            settings.backgroundColor = '#eef3fb';
+            settings.lineColor = '#9cc0e8';
+            settings.fontFamily = '"Courier New", monospace';
+            break;
+        case "topographic":
+            style = Topographic;
+            settings.backgroundColor = '#efe7d2';
+            settings.lineColor = '#c9b98f';
+            settings.fontFamily = 'Georgia, serif';
             break;
         case "gradient":
             // Pure shaded-room demo using the new linear-gradient fill.

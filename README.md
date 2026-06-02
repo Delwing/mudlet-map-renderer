@@ -221,8 +221,15 @@ Built-in styles:
 | `Parchment` | Warm sepia / aged-paper palette |
 | `Blueprint` | White lines on deep blue |
 | `Neon` | Glowing neon outlines on dark background |
+| `Construction` | Safety-yellow hazard stripes on asphalt, orange exits |
+| `SciFi` | Holographic cyan glow on void black |
+| `StainedGlass` | Saturated jewel panes framed by fat near-black leading |
+| `GraphPaper` | Pale rooms inked in navy — old-school D&D graph paper |
+| `Topographic` | Earthy elevation palette with concentric contour rings |
 | `Sketchy({ jitter, color })` | Hand-drawn pencil wobble |
+| `Watercolor({ bleed?, layers?, alpha? })` | Translucent edge-bled washes that pool on overlap |
 | `Isometric({ rotation?, depth? })` | 2:1 iso projection with optional cubes |
+| `GradientRooms(opts?)` | Replace flat fills with a vertical gradient |
 
 Custom styles extend `BaseStyle<Inner>` and override only the draw calls they
 transform — see the built-ins for examples.
@@ -493,8 +500,15 @@ MudletMapReader.exportJson(map, 'map.json');
 | `Parchment` | `setStyle(Parchment)` |
 | `Blueprint` | `setStyle(Blueprint)` |
 | `Neon` | `setStyle(Neon)` |
+| `Construction` | `setStyle(Construction)` |
+| `SciFi` | `setStyle(SciFi)` |
+| `StainedGlass` | `setStyle(StainedGlass)` |
+| `GraphPaper` | `setStyle(GraphPaper)` |
+| `Topographic` | `setStyle(Topographic)` |
 | `Sketchy(opts)` | `setStyle(Sketchy({ jitter, color }))` |
+| `Watercolor(opts?)` | `setStyle(Watercolor({ bleed?, layers?, alpha? }))` |
 | `Isometric(opts)` | `setStyle(Isometric({ rotation?, depth? }))` |
+| `GradientRooms(opts?)` | `setStyle(GradientRooms())` |
 | `compose(...)` | Chain multiple styles into one |
 | `identityStyle` | Pass-through; equivalent to `clearStyle()` |
 

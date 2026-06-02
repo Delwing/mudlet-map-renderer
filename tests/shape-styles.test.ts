@@ -6,6 +6,11 @@ import {blueprintShapeStyle} from "../src/style/shape/BlueprintStyle";
 import {neonShapeStyle} from "../src/style/shape/NeonStyle";
 import {sketchyShapeStyle} from "../src/style/shape/SketchyStyle";
 import {isometricShapeStyle} from "../src/style/shape/IsometricStyle";
+import {stainedGlassShapeStyle} from "../src/style/shape/StainedGlassStyle";
+import {graphPaperShapeStyle} from "../src/style/shape/GraphPaperStyle";
+import {topographicShapeStyle} from "../src/style/shape/TopographicStyle";
+import {watercolorShapeStyle} from "../src/style/shape/WatercolorStyle";
+import {parseRgb, rgbToHsl} from "../src/style/shape/paintMap";
 
 const ctx = {scale: 1, roomSize: 1};
 
@@ -239,4 +244,123 @@ it("circle.transform emits non-zero shape output", () => {
     const out = isometricShapeStyle({rotation: 0, depth: 0}).transform(sampleCircle, ctx);
     const shape = Array.isArray(out) ? out[0] : out;
     expect(shape.type).toBe("polygon");
+});
+
+describe("stainedGlassShapeStyle", () => {
+    const colouredRect: RectShape = {
+        type: "rect", x: 0, y: 0, width: 1, height: 1,
+        paint: {fill: "rgb(120, 60, 40)", stroke: "rgb(50, 50, 50)", strokeWidth: 0.05},
+    };
+
+    it("saturates a dull fill into a jewel-toned pane", () => {
+        const out = stainedGlassShapeStyle.transform(colouredRect, ctx) as RectShape;
+        const before = rgbToHsl(120, 60, 40)[1];
+        const c = parseRgb(out.paint.fill as string)!;
+        const after = rgbToHsl(c.r, c.g, c.b)[1];
+        expect(after).toBeGreaterThan(before);
+        // Pushed toward the MIN_SATURATION floor (small slack for rgb rounding).
+        expect(after).toBeGreaterThan(0.55);
+    });
+
+    it("replaces the stroke with fat near-black leading", () => {
+        const out = stainedGlassShapeStyle.transform(colouredRect, ctx) as RectShape;
+        expect(out.paint.stroke).toBe("#0a0a0a");
+        expect(out.paint.strokeWidth ?? 0).toBeGreaterThan(colouredRect.paint.strokeWidth ?? 0);
+    });
+
+    it("leads filled panes even when the source had no stroke", () => {
+        const noStroke: RectShape = {...colouredRect, paint: {fill: "rgb(120, 60, 40)"}};
+        const out = stainedGlassShapeStyle.transform(noStroke, ctx) as RectShape;
+        expect(out.paint.stroke).toBe("#0a0a0a");
+    });
+
+    it("keeps achromatic rooms neutral (frosted, not forced-colour)", () => {
+        const out = stainedGlassShapeStyle.transform(sampleRect, ctx) as RectShape;
+        const c = parseRgb(out.paint.fill as string)!;
+        expect(rgbToHsl(c.r, c.g, c.b)[1]).toBeLessThan(0.1);
+    });
+});
+
+describe("graphPaperShapeStyle", () => {
+    it("maps fills into a pale light range", () => {
+        const out = graphPaperShapeStyle.transform(sampleRect, ctx) as RectShape;
+        const c = parseRgb(out.paint.fill as string)!;
+        // All channels stay light so navy ink + grid read through.
+        expect(Math.min(c.r, c.g, c.b)).toBeGreaterThan(180);
+    });
+
+    it("inks strokes navy and fattens them", () => {
+        const out = graphPaperShapeStyle.transform(sampleRect, ctx) as RectShape;
+        expect(out.paint.stroke).toBe("#1c3f6e");
+        expect(out.paint.strokeWidth ?? 0).toBeGreaterThan(sampleRect.paint.strokeWidth ?? 0);
+    });
+
+    it("leaves grid lines thin", () => {
+        const grid: LineShape = {type: "line", points: [0, 0, 1, 0], grid: true, paint: {stroke: "rgb(200,200,200)", strokeWidth: 0.01}};
+        const out = graphPaperShapeStyle.transform(grid, ctx) as LineShape;
+        expect(out.paint.strokeWidth).toBe(0.01);
+        expect(out.paint.stroke).toBe("#1c3f6e");
+    });
+});
+
+describe("topographicShapeStyle", () => {
+    it("emits a base fill plus inset contour rings for a filled rect", () => {
+        const out = topographicShapeStyle.transform(sampleRect, ctx);
+        expect(Array.isArray(out)).toBe(true);
+        const arr = out as RectShape[];
+        expect(arr.length).toBeGreaterThan(1);
+        const [base, ...rings] = arr;
+        expect(base.paint.fill).toBeDefined();
+        // Rings are stroke-only and strictly inside the base.
+        for (const r of rings) {
+            expect(r.paint.fill).toBeUndefined();
+            expect(r.width).toBeLessThan(base.width);
+        }
+    });
+
+    it("emits just the base shape (no rings) for an unfilled rect", () => {
+        const stroked: RectShape = {...sampleRect, paint: {stroke: "rgb(50,50,50)", strokeWidth: 0.04}};
+        const out = topographicShapeStyle.transform(stroked, ctx);
+        expect(Array.isArray(out)).toBe(false);
+    });
+
+    it("emits concentric circles for a filled circle", () => {
+        const out = topographicShapeStyle.transform(sampleCircle, ctx) as CircleShape[];
+        expect(out.length).toBeGreaterThan(1);
+        expect(out[1].radius).toBeLessThan(out[0].radius);
+    });
+});
+
+describe("watercolorShapeStyle", () => {
+    const wc = watercolorShapeStyle({bleed: 0.05, layers: 3, alpha: 0.4});
+
+    it("emits one translucent wobbly wash per layer for a filled rect", () => {
+        const out = wc.transform(sampleRect, ctx);
+        expect(Array.isArray(out)).toBe(true);
+        const arr = out as PolygonShape[];
+        expect(arr).toHaveLength(3);
+        expect(arr.every(s => s.type === "polygon")).toBe(true);
+        // Fill alpha is reduced into an rgba string.
+        expect(arr[0].paint.fill).toMatch(/^rgba\(/);
+    });
+
+    it("carries hit info on only the first wash", () => {
+        const hitRect: RectShape = {...sampleRect, hit: {kind: "room", id: 7}};
+        const arr = wc.transform(hitRect, ctx) as PolygonShape[];
+        expect(arr[0].hit).toBeDefined();
+        expect(arr.slice(1).every(s => s.hit === undefined)).toBe(true);
+    });
+
+    it("is deterministic across runs", () => {
+        const a = wc.transform(sampleRect, ctx) as PolygonShape[];
+        const b = wc.transform(sampleRect, ctx) as PolygonShape[];
+        expect(b.map(s => s.vertices)).toEqual(a.map(s => s.vertices));
+    });
+
+    it("falls back to a single faint outline for an unfilled stroked rect", () => {
+        const stroked: RectShape = {...sampleRect, paint: {stroke: "rgb(50,50,50)", strokeWidth: 0.04}};
+        const out = wc.transform(stroked, ctx);
+        expect(Array.isArray(out)).toBe(false);
+        expect((out as PolygonShape).paint.alpha).toBe(0.5);
+    });
 });

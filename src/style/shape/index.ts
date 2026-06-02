@@ -26,3 +26,8 @@ export {constructionShapeStyle} from "./ConstructionStyle";
 export {scifiShapeStyle} from "./SciFiStyle";
 export {gradientRoomsStyle} from "./GradientRoomsStyle";
 export type {GradientRoomsOptions} from "./GradientRoomsStyle";
+export {stainedGlassShapeStyle} from "./StainedGlassStyle";
+export {graphPaperShapeStyle} from "./GraphPaperStyle";
+export {topographicShapeStyle} from "./TopographicStyle";
+export {watercolorShapeStyle} from "./WatercolorStyle";
+export type {WatercolorOptions} from "./WatercolorStyle";

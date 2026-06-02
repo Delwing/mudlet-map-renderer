@@ -26,6 +26,10 @@ import {isometricShapeStyle, type IsometricOptions, type IsometricRotation} from
 import {constructionShapeStyle} from "./shape/ConstructionStyle";
 import {scifiShapeStyle} from "./shape/SciFiStyle";
 import {gradientRoomsStyle, type GradientRoomsOptions} from "./shape/GradientRoomsStyle";
+import {stainedGlassShapeStyle} from "./shape/StainedGlassStyle";
+import {graphPaperShapeStyle} from "./shape/GraphPaperStyle";
+import {topographicShapeStyle} from "./shape/TopographicStyle";
+import {watercolorShapeStyle, type WatercolorOptions} from "./shape/WatercolorStyle";
 
 export {compose, identityStyle} from "./Style";
 export type {Style, StyleContext} from "./Style";
@@ -65,4 +69,18 @@ export function GradientRooms(options: GradientRoomsOptions = {}): Style {
     return gradientRoomsStyle(options);
 }
 
-export type {SketchyOptions, IsometricOptions, IsometricRotation, GradientRoomsOptions};
+/** Stained-glass aesthetic — saturated panes framed by fat near-black leading. */
+export const StainedGlass: Style = stainedGlassShapeStyle;
+
+/** Old-school graph-paper dungeon — pale rooms inked in navy over blue grid. */
+export const GraphPaper: Style = graphPaperShapeStyle;
+
+/** Topographic relief — earthy rooms with concentric contour rings. */
+export const Topographic: Style = topographicShapeStyle;
+
+/** Hand-painted watercolour — translucent edge-bled washes that pool on overlap. */
+export function Watercolor(options: WatercolorOptions = {}): Style {
+    return watercolorShapeStyle(options);
+}
+
+export type {SketchyOptions, IsometricOptions, IsometricRotation, GradientRoomsOptions, WatercolorOptions};

@@ -53,11 +53,12 @@ export type { ImageFactory, CanvasRenderOptions } from './render/CanvasRenderer'
 // --- Styles (target-agnostic; engine-neutral shape transformers) ---
 export {
     Parchment, Blueprint, Neon, Sketchy, Isometric, Construction, SciFi, GradientRooms,
+    StainedGlass, GraphPaper, Topographic, Watercolor,
     compose, identityStyle, applyStyleToShapes,
 } from './style';
 export type {
     Style, StyleContext, SketchyOptions, IsometricOptions, IsometricRotation,
-    GradientRoomsOptions,
+    GradientRoomsOptions, WatercolorOptions,
 } from './style';
 
 // --- Exporters (pluggable output formats) ---

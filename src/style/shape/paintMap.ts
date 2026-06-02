@@ -71,3 +71,43 @@ export function formatRgb(r: number, g: number, b: number, a = 1): string {
 export function luminance(c: ParsedRgb): number {
     return (0.299 * c.r + 0.587 * c.g + 0.114 * c.b) / 255;
 }
+
+/**
+ * Convert 0..255 RGB to HSL with hue in degrees and saturation/lightness in
+ * [0, 1]. Achromatic colours report hue 0. Shared by the newer styles
+ * (StainedGlass, …); Neon and SciFi keep their own local copies.
+ */
+export function rgbToHsl(r: number, g: number, b: number): [number, number, number] {
+    r /= 255; g /= 255; b /= 255;
+    const max = Math.max(r, g, b), min = Math.min(r, g, b);
+    const l = (max + min) / 2;
+    if (max === min) return [0, 0, l];
+    const d = max - min;
+    const s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    let h: number;
+    if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) / 6;
+    else if (max === g) h = ((b - r) / d + 2) / 6;
+    else h = ((r - g) / d + 4) / 6;
+    return [h * 360, s, l];
+}
+
+/** Build an `rgb(...)` / `rgba(...)` string from HSL (hue degrees, s/l in [0,1]). */
+export function hslToRgbString(h: number, s: number, l: number, a = 1): string {
+    h = ((h % 360) + 360) % 360;
+    const c = (1 - Math.abs(2 * l - 1)) * s;
+    const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+    const m = l - c / 2;
+    let r: number, g: number, b: number;
+    if (h < 60) { r = c; g = x; b = 0; }
+    else if (h < 120) { r = x; g = c; b = 0; }
+    else if (h < 180) { r = 0; g = c; b = x; }
+    else if (h < 240) { r = 0; g = x; b = c; }
+    else if (h < 300) { r = x; g = 0; b = c; }
+    else { r = c; g = 0; b = x; }
+    return formatRgb(
+        Math.round((r + m) * 255),
+        Math.round((g + m) * 255),
+        Math.round((b + m) * 255),
+        a,
+    );
+}

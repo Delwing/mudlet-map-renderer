@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.0] - 2026-06-02
+
+### Added
+
+- Four new shape styles, each a target-agnostic `Style` that drives the interactive canvas, SVG export, and PNG/Canvas export identically:
+  - `StainedGlass` — jewel-toned panes (fills pushed to high saturation in a mid-lightness window) framed by fat near-black "leading". Filled rooms get leading even when the source had no stroke; grey rooms stay neutral (frosted). Exit lines become slim leading.
+  - `Watercolor(options?)` — each filled room becomes a stack of translucent, edge-wobbled washes (seeded, so re-renders are identical) that bleed and pool where they overlap; no crisp outline. Options: `bleed`, `layers` (1..4), `alpha`. Hit info rides only the first wash to avoid duplicate pick zones.
+  - `GraphPaper` — old-school D&D look: fills mapped to a pale slate-blue → near-white range by luminance, fattened navy ink outlines, navy exits/text. Grid lines stay thin. Pair with a light background and blue grid.
+  - `Topographic` — earthy elevation palette (mossy green → pale tan by luminance) plus concentric inset contour rings inside each room, so rooms read like hills on a relief map.
+- New shared HSL helpers `rgbToHsl` / `hslToRgbString` in the style paint utilities (used by the new styles; Neon and SciFi keep their local copies).
+- Demo render-mode dropdown gains Stained Glass, Watercolor, Graph-Paper Dungeon, and Topographic entries, each with a matching background / grid / font preset.
+
 ## [2.1.0] - 2026-05-31
 
 ### Added
