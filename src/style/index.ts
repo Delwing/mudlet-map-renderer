@@ -30,6 +30,8 @@ import {stainedGlassShapeStyle} from "./shape/StainedGlassStyle";
 import {graphPaperShapeStyle} from "./shape/GraphPaperStyle";
 import {topographicShapeStyle} from "./shape/TopographicStyle";
 import {watercolorShapeStyle, type WatercolorOptions} from "./shape/WatercolorStyle";
+import {darkModernShapeStyle} from "./shape/DarkModernStyle";
+import {treasureMapShapeStyle, treasureMapDecorations} from "./shape/TreasureMapStyle";
 
 export {compose, identityStyle} from "./Style";
 export type {Style, StyleContext} from "./Style";
@@ -82,5 +84,21 @@ export const Topographic: Style = topographicShapeStyle;
 export function Watercolor(options: WatercolorOptions = {}): Style {
     return watercolorShapeStyle(options);
 }
+
+/** Flat dark "modern UI" theme — muted dark rooms with subtle elevation shadows. */
+export const DarkModern: Style = darkModernShapeStyle;
+
+/**
+ * Aged treasure-map palette — weathered-paper rooms inked in faded brown.
+ * Pair with {@link treasureMapDecorations} (a scene overlay) for the compass
+ * rose and double border frame:
+ * ```ts
+ * renderer.setStyle(TreasureMap);
+ * renderer.addSceneOverlay('treasure-decor', treasureMapDecorations());
+ * ```
+ */
+export const TreasureMap: Style = treasureMapShapeStyle;
+
+export {treasureMapDecorations};
 
 export type {SketchyOptions, IsometricOptions, IsometricRotation, GradientRoomsOptions, WatercolorOptions};

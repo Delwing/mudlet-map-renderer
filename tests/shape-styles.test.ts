@@ -1,6 +1,6 @@
 import {describe, expect, it} from "vitest";
 import {compose} from "../src/style/Style";
-import type {RectShape, CircleShape, LineShape, PolygonShape, GroupShape, TextShape} from "../src/scene/Shape";
+import type {Shape, RectShape, CircleShape, LineShape, PolygonShape, GroupShape, TextShape} from "../src/scene/Shape";
 import {parchmentShapeStyle} from "../src/style/shape/ParchmentStyle";
 import {blueprintShapeStyle} from "../src/style/shape/BlueprintStyle";
 import {neonShapeStyle} from "../src/style/shape/NeonStyle";
@@ -10,6 +10,8 @@ import {stainedGlassShapeStyle} from "../src/style/shape/StainedGlassStyle";
 import {graphPaperShapeStyle} from "../src/style/shape/GraphPaperStyle";
 import {topographicShapeStyle} from "../src/style/shape/TopographicStyle";
 import {watercolorShapeStyle} from "../src/style/shape/WatercolorStyle";
+import {darkModernShapeStyle} from "../src/style/shape/DarkModernStyle";
+import {treasureMapShapeStyle, treasureMapDecorations} from "../src/style/shape/TreasureMapStyle";
 import {parseRgb, rgbToHsl} from "../src/style/shape/paintMap";
 
 const ctx = {scale: 1, roomSize: 1};
@@ -362,5 +364,86 @@ describe("watercolorShapeStyle", () => {
         const out = wc.transform(stroked, ctx);
         expect(Array.isArray(out)).toBe(false);
         expect((out as PolygonShape).paint.alpha).toBe(0.5);
+    });
+});
+
+describe("darkModernShapeStyle", () => {
+    const roomRect: RectShape = {...sampleRect, hit: {kind: "room", id: 1}};
+
+    it("emits a shadow + body pair for a room body rect", () => {
+        const out = darkModernShapeStyle.transform(roomRect, ctx);
+        expect(Array.isArray(out)).toBe(true);
+        const [shadow, body] = out as RectShape[];
+        // Shadow is offset down-right, fill-only, no stroke.
+        expect(shadow.x).toBeGreaterThan(body.x);
+        expect(shadow.y).toBeGreaterThan(body.y);
+        expect(shadow.paint.stroke).toBeUndefined();
+        expect(shadow.paint.fill).toMatch(/^rgba\(0, 0, 0/);
+    });
+
+    it("flattens the body fill and uses a subtle border", () => {
+        const out = darkModernShapeStyle.transform(roomRect, ctx) as RectShape[];
+        const body = out[1];
+        expect(body.paint.fill).not.toBe(roomRect.paint.fill);
+        expect(body.paint.stroke).toMatch(/^rgba\(255, 255, 255/);
+    });
+
+    it("does not cast a shadow for a non-room rect", () => {
+        const out = darkModernShapeStyle.transform(sampleRect, ctx);
+        expect(Array.isArray(out)).toBe(false);
+    });
+
+    it("recolours exit lines to the muted ink", () => {
+        const out = darkModernShapeStyle.transform(sampleLine, ctx) as LineShape;
+        expect(out.paint.stroke).toBe("#5b6573");
+    });
+
+    it("preserves positional data and passes groups through", () => {
+        const out = darkModernShapeStyle.transform(roomRect, ctx) as RectShape[];
+        expect(out[1].width).toBe(roomRect.width);
+        const grp: GroupShape = {type: "group", x: 0, y: 0, children: []};
+        expect(darkModernShapeStyle.transform(grp, ctx)).toBe(grp);
+    });
+});
+
+describe("treasureMapShapeStyle", () => {
+    it("rewrites rect fill onto the aged ramp and strokes in faded ink", () => {
+        const out = treasureMapShapeStyle.transform(sampleRect, ctx) as RectShape;
+        expect(out.paint.fill).not.toBe(sampleRect.paint.fill);
+        expect(out.paint.fill).toMatch(/^rgb\(/);
+        expect(out.paint.stroke).toBe("#5a3a22");
+    });
+
+    it("rewrites text fill to dark ink", () => {
+        const out = treasureMapShapeStyle.transform(sampleText, ctx) as TextShape;
+        expect(out.fill).toBe("#43301c");
+    });
+
+    it("passes groups through unchanged", () => {
+        const grp: GroupShape = {type: "group", x: 0, y: 0, children: []};
+        expect(treasureMapShapeStyle.transform(grp, ctx)).toBe(grp);
+    });
+});
+
+describe("treasureMapDecorations", () => {
+    const bounds = {minX: 0, maxX: 10, minY: 0, maxY: 8};
+
+    it("renders a double border frame plus a compass rose", () => {
+        const overlay = treasureMapDecorations();
+        const shapes = overlay.render({} as never, bounds) as Shape[];
+        const rects = shapes.filter(s => s.type === "rect");
+        const circles = shapes.filter(s => s.type === "circle");
+        const text = shapes.filter(s => s.type === "text");
+        // Two nested border rects, a compass ring + hub, and the "N" label.
+        expect(rects).toHaveLength(2);
+        expect(circles.length).toBeGreaterThanOrEqual(2);
+        expect(text).toHaveLength(1);
+        expect((text[0] as TextShape).text).toBe("N");
+        expect(shapes.every(s => s.layer === "top")).toBe(true);
+    });
+
+    it("emits nothing for an empty viewport", () => {
+        const overlay = treasureMapDecorations();
+        expect(overlay.render({} as never, {minX: 0, maxX: 0, minY: 0, maxY: 0})).toEqual([]);
     });
 });

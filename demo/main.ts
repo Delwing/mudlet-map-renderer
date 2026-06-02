@@ -5,6 +5,8 @@ import {
     compose, identityStyle,
     Parchment, Blueprint, Neon, Sketchy, Isometric, Construction, SciFi, GradientRooms,
     StainedGlass, GraphPaper, Topographic, Watercolor,
+    DarkModern, TreasureMap, treasureMapDecorations,
+    RippleEffect,
     ExplorationLens, ALL_VISIBLE,
     type Style,
 } from "@src";
@@ -38,6 +40,7 @@ const destinationForm = document.getElementById("destination-form") as HTMLFormE
 const destinationInput = document.getElementById("destination-input") as HTMLInputElement | null;
 const destinationClearButton = document.getElementById("destination-clear") as HTMLButtonElement | null;
 const destinationStatusElement = document.getElementById("destination-status") as HTMLDivElement | null;
+const pulseMarkerToggle = document.getElementById("pulse-marker-toggle") as HTMLInputElement | null;
 
 const DEFAULT_STARTING_ROOM_ID = 1;
 const mapDataUrl = new URL("./mapExport.json", import.meta.url).href;
@@ -96,6 +99,22 @@ function updateStatus(el: HTMLElement | null, message: string) {
     if (el) el.textContent = message;
 }
 
+// Play a RippleEffect at the marker on each move via the public addLiveEffect API.
+let pulseSeq = 0;
+function pulseMarker(room: MapData.Room) {
+    if (!pulseMarkerToggle?.checked) return;
+    const marker = settings.playerMarker;
+    const baseRadius = (settings.roomSize / 2) * marker.sizeFactor;
+    const id = `ripple-${pulseSeq++}`;
+    renderer.addLiveEffect(id, new RippleEffect(room.x, room.y, {
+        color: marker.strokeColor,
+        startRadius: baseRadius,
+        endRadius: baseRadius * 3,
+        strokeWidth: marker.strokeWidth,
+        onComplete: () => renderer.removeLiveEffect(id),
+    }));
+}
+
 function moveToRoom(room: MapData.Room) {
     if (roomInput) roomInput.value = room.id.toString();
     updateStatus(roomStatusElement, "");
@@ -104,6 +123,7 @@ function moveToRoom(room: MapData.Room) {
     }
     currentRoomId = room.id;
     renderer.setPosition(room.id);
+    pulseMarker(room);
     updateAreaStatus(room.area);
     updateAreaSelector();
     populateLevelSelector(room.area, room.z);
@@ -222,6 +242,12 @@ function applyRenderMode(mode: string) {
     settings.lineColor = savedLineColor;
     settings.fontFamily = savedFontFamily;
 
+    // The treasure-map decorations (compass rose + border frame) are a scene
+    // overlay, not part of the Style. Clear it on every mode change; re-add below
+    // only for the treasure-map mode.
+    renderer.removeSceneOverlay("treasure-decor");
+    let addTreasureDecor = false;
+
     // A Style is target-agnostic: the same `style` drives the interactive canvas,
     // SVG export, and PNG export. Adding new render modes is just `compose(...)`.
     let style: Style = identityStyle;
@@ -306,6 +332,19 @@ function applyRenderMode(mode: string) {
             settings.lineColor = '#c9b98f';
             settings.fontFamily = 'Georgia, serif';
             break;
+        case "dark-modern":
+            style = DarkModern;
+            settings.backgroundColor = '#16181d';
+            settings.lineColor = '#5b6573';
+            settings.fontFamily = 'system-ui, sans-serif';
+            break;
+        case "treasure-map":
+            style = TreasureMap;
+            settings.backgroundColor = '#e8cf9e';
+            settings.lineColor = '#5a3a22';
+            settings.fontFamily = 'Georgia, serif';
+            addTreasureDecor = true;
+            break;
         case "gradient":
             // Pure shaded-room demo using the new linear-gradient fill.
             style = GradientRooms();
@@ -328,6 +367,7 @@ function applyRenderMode(mode: string) {
     renderer.setStyle(style);
     renderer.updateBackground();
     renderer.refresh();
+    if (addTreasureDecor) renderer.addSceneOverlay("treasure-decor", treasureMapDecorations());
     preview?.refresh();
 }
 

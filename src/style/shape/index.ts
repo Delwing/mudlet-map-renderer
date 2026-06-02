@@ -31,3 +31,5 @@ export {graphPaperShapeStyle} from "./GraphPaperStyle";
 export {topographicShapeStyle} from "./TopographicStyle";
 export {watercolorShapeStyle} from "./WatercolorStyle";
 export type {WatercolorOptions} from "./WatercolorStyle";
+export {darkModernShapeStyle} from "./DarkModernStyle";
+export {treasureMapShapeStyle, treasureMapDecorations} from "./TreasureMapStyle";

@@ -439,6 +439,7 @@ export function initControls(settings: Settings, renderer: MapRenderer, getCurre
         renderer.refresh();
     });
 
+
     areaNameToggle?.addEventListener("change", () => {
         settings.areaName = areaNameToggle.checked;
         renderer.refresh();

@@ -186,6 +186,34 @@ For large maps, spatial culling hides off-screen rooms for better performance:
 renderer.setCullingMode('indexed');
 ```
 
+### OffscreenCanvas rendering (Web Worker)
+
+For large maps, an opt-in backend moves per-frame rasterisation into a Web
+Worker via `OffscreenCanvas`, keeping the main thread responsive during
+pan/zoom. The default Konva backend is unchanged — pass the worker backend to
+`MapRenderer`'s `backendFactory` parameter:
+
+```ts
+import { MapRenderer, createSettings } from 'mudlet-map-renderer';
+import { createOffscreenBackend } from 'mudlet-map-renderer/offscreen';
+
+const renderer = new MapRenderer(
+  mapReader,
+  createSettings(),
+  container,
+  createOffscreenBackend(container), // ← opt in
+);
+```
+
+Everything else (drawing, navigation, styles, highlights, paths, hit-testing,
+events) works as usual. Hit-testing and `getDrawnExits()` stay synchronous; the
+one caveat is that `exportCanvas()` returns `undefined` (use the headless
+exporters instead). Image labels, the ambient-light overlay, and live effects
+are all supported.
+
+See **[docs/offscreen-rendering.md](docs/offscreen-rendering.md)** for the full
+guide — architecture, feature support, limitations, benchmarks, and the API.
+
 ### Styles
 
 A `Style` is a target-agnostic visual transformer. One style drives the

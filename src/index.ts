@@ -54,6 +54,7 @@ export type { ImageFactory, CanvasRenderOptions } from './render/CanvasRenderer'
 export {
     Parchment, Blueprint, Neon, Sketchy, Isometric, Construction, SciFi, GradientRooms,
     StainedGlass, GraphPaper, Topographic, Watercolor,
+    DarkModern, TreasureMap, treasureMapDecorations,
     compose, identityStyle, applyStyleToShapes,
 } from './style';
 export type {
@@ -75,6 +76,8 @@ export type { SceneOverlay, SceneOverlayContext } from './overlay/SceneOverlay';
 export type { LiveEffect, CoordinateTransform } from './overlay/LiveEffect';
 export { AmbientLightOverlay } from './overlay/AmbientLightOverlay';
 export type { AmbientLightOptions } from './overlay/AmbientLightOverlay';
+export { RippleEffect } from './overlay/RippleEffect';
+export type { RippleOptions } from './overlay/RippleEffect';
 
 // --- Map data & pathfinding ---
 export { default as MapReader } from './reader/MapReader';
