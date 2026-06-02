@@ -1,4 +1,5 @@
 import { MapRenderer, createSettings } from '../../../src';
+import { createOffscreenBackend } from '../../../src/rendering/offscreen';
 import MapReader from '../../../src/reader/MapReader';
 import testMap from '../../fixtures/test-map.json';
 import testEnvs from '../../fixtures/test-envs.json';
@@ -40,9 +41,11 @@ const zoom = param('zoom') ? parseFloat(param('zoom')!) : undefined;
 const fitAreaMode = boolParam('fitArea');
 const centerOnId = param('centerOn') ? parseInt(param('centerOn')!) : undefined;
 
-// Create renderer
+// Create renderer — optionally on the OffscreenCanvas (worker) backend.
 const container = document.getElementById('stage') as HTMLDivElement;
-const renderer = new MapRenderer(mapReader, settings, container);
+const renderer = param('backend') === 'offscreen'
+    ? new MapRenderer(mapReader, settings, container, createOffscreenBackend(container))
+    : new MapRenderer(mapReader, settings, container);
 
 // Draw area
 renderer.drawArea(areaId, zIndex);

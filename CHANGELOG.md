@@ -16,6 +16,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `Topographic` — earthy elevation palette (mossy green → pale tan by luminance) plus concentric inset contour rings inside each room, so rooms read like hills on a relief map.
 - New shared HSL helpers `rgbToHsl` / `hslToRgbString` in the style paint utilities (used by the new styles; Neon and SciFi keep their local copies).
 - Demo render-mode dropdown gains Stained Glass, Watercolor, Graph-Paper Dungeon, and Topographic entries, each with a matching background / grid / font preset.
+- Opt-in **OffscreenCanvas (Web Worker) rendering backend**, exposed from a new `mudlet-map-renderer/offscreen` entry point via `createOffscreenBackend(container)`. Pass it to `MapRenderer`'s existing `backendFactory` parameter to move the per-frame hot path (cull → draw-command build → rasterise) into a Web Worker, keeping the main thread responsive during pan/zoom on large maps. The default Konva backend is unchanged. The scene build, hit-testing (`hitTest`/`pick`), `getDrawnExits`/`getDrawnSpecialExits`/`getDrawnStubs`, and `coordinateTransform` stay on the main thread and remain synchronous. The worker is bundled inline (self-contained Blob URL), so no extra asset or bundler configuration is needed by consumers.
+  - Renders the full scene, all visual styles, culling, the position marker, highlights, paths, the current-room overlay, scene overlays, image labels (`labelRenderMode: "image"`), and the ambient-light overlay — image `src`s are decoded in the worker via `createImageBitmap`.
+  - Live effects (`addLiveEffect`) are supported on this backend too: they run on a main-thread Konva overlay stage composited above the worker canvas (Konva animations can't run in a worker), while the map itself still rasterises off-thread.
+  - The single limitation: `MapRenderer.exportCanvas()` returns `undefined` with this backend (the live canvas is owned by the worker). Use the headless `CanvasExporter` / `PngBytesExporter` exporters (they rebuild from state), or the backend's async `captureViewport()`.
+- `InteractiveBackend` gains optional `addLiveEffect?` / `removeLiveEffect?` methods; `MapRenderer` now routes these by capability instead of an `instanceof KonvaRenderBackend` check, so any backend that implements them participates. Backward compatible — the methods are optional and the default Konva path is unchanged.
+- Benchmark harness (`yarn bench`) that renders a generated single-area grid map and measures main-thread stall under continuous panning, with a Konva-vs-Offscreen A/B toggle, plus a headless runner (`node bench/measure.mjs`).
 
 ## [2.1.0] - 2026-05-31
 
@@ -118,6 +124,8 @@ Initial public release.
 - Support for stub exits, special exits, and link exits with custom rendering.
 - Published as dual-format ESM + CJS npm package with TypeScript declarations.
 
+[2.2.0]: https://github.com/Delwing/mudlet-map-renderer/releases/tag/2.2.0
+[2.1.0]: https://github.com/Delwing/mudlet-map-renderer/releases/tag/2.1.0
 [2.0.0]: https://github.com/Delwing/mudlet-map-renderer/releases/tag/2.0.0
 [1.2.2]: https://github.com/Delwing/mudlet-map-renderer/releases/tag/1.2.2
 [1.2.1]: https://github.com/Delwing/mudlet-map-renderer/releases/tag/1.2.1

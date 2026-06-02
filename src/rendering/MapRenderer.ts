@@ -57,6 +57,14 @@ export interface InteractiveBackend {
     getDrawnSpecialExits(): readonly DrawnSpecialExitEntry[];
     /** Companion to {@link getDrawnExits} for one-way stub indicators. */
     getDrawnStubs(): readonly DrawnStubEntry[];
+    /**
+     * Register an interactive-only animated effect. Optional: backends that
+     * cannot host animated effects omit it (the facade then no-ops). Both the
+     * Konva and OffscreenCanvas backends implement it.
+     */
+    addLiveEffect?(id: string, effect: LiveEffect): void;
+    /** Companion to {@link addLiveEffect}. */
+    removeLiveEffect?(id: string): void;
     destroy(): void;
 }
 
@@ -256,24 +264,21 @@ export class MapRenderer {
     }
 
     /**
-     * Register an interactive-only animated effect. No-ops when running with a
-     * non-Konva backend. Does not appear in SVG/PNG exports — use
-     * {@link addSceneOverlay} for overlays that must appear in exports.
+     * Register an interactive-only animated effect. Supported by the Konva and
+     * OffscreenCanvas backends; no-ops on backends that don't host effects.
+     * Does not appear in SVG/PNG exports — use {@link addSceneOverlay} for
+     * overlays that must appear in exports.
      *
      * ```ts
      * renderer.addLiveEffect('rain', new RainEffect());
      * ```
      */
     addLiveEffect(id: string, effect: LiveEffect) {
-        if (this.backend instanceof KonvaRenderBackend) {
-            this.backend.addLiveEffect(id, effect);
-        }
+        this.backend.addLiveEffect?.(id, effect);
     }
 
     removeLiveEffect(id: string) {
-        if (this.backend instanceof KonvaRenderBackend) {
-            this.backend.removeLiveEffect(id);
-        }
+        this.backend.removeLiveEffect?.(id);
     }
 
     // --- Hit testing ---

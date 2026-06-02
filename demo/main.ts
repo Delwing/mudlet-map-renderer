@@ -9,6 +9,7 @@ import {
     type Style,
 } from "@src";
 import type {Settings} from "@src";
+import {createOffscreenBackend} from "@src/rendering/offscreen";
 import MapReader from "@src/reader/MapReader";
 import {initControls} from "./controls";
 import {initContextMenu} from "./context-menu";
@@ -351,7 +352,27 @@ async function initialize() {
     savedBackgroundColor = settings.backgroundColor;
     savedLineColor = settings.lineColor;
     savedFontFamily = settings.fontFamily;
-    renderer = new MapRenderer(mapReader, settings, stageElement);
+    // OffscreenCanvas (worker) demo mode — opt-in via ?backend=offscreen.
+    // Switching backends means recreating the renderer, so the toggle reloads
+    // the page with the param flipped.
+    const useOffscreen = new URLSearchParams(location.search).get("backend") === "offscreen";
+    const offscreenToggle = document.getElementById("offscreen-toggle") as HTMLInputElement | null;
+    if (offscreenToggle) {
+        offscreenToggle.checked = useOffscreen;
+        offscreenToggle.addEventListener("change", () => {
+            const url = new URL(location.href);
+            if (offscreenToggle.checked) url.searchParams.set("backend", "offscreen");
+            else url.searchParams.delete("backend");
+            location.href = url.href;
+        });
+    }
+
+    renderer = useOffscreen
+        ? new MapRenderer(mapReader, settings, stageElement, createOffscreenBackend(stageElement))
+        : new MapRenderer(mapReader, settings, stageElement);
+    if (useOffscreen) {
+        statusElement.textContent = "Rendering in Web Worker (OffscreenCanvas)";
+    }
     preview = new DemoPreview(stageElement, renderer);
 
     // Controls
