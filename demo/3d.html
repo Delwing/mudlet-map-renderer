@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Map Renderer — 3D (WebGL)</title>
+    <style>
+        * { box-sizing: border-box; }
+        html, body { margin: 0; height: 100%; overflow: hidden; background: #0b0f17; }
+        #stage { position: fixed; inset: 0; }
+        #panel {
+            position: fixed; top: 12px; left: 12px; z-index: 10;
+            width: 260px; padding: 14px 16px;
+            font: 13px/1.4 "Space Mono", ui-monospace, monospace;
+            color: #d7e2f2; background: rgba(16, 22, 34, 0.86);
+            border: 1px solid #26324a; border-radius: 10px;
+            backdrop-filter: blur(6px);
+        }
+        #panel h1 { margin: 0 0 10px; font-size: 14px; letter-spacing: 0.04em; color: #7fd4ff; }
+        #panel label { display: block; margin: 10px 0 4px; color: #9fb0c8; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; }
+        #panel select, #panel input[type=range] { width: 100%; }
+        #panel select {
+            background: #0e1422; color: #d7e2f2; border: 1px solid #2a3956;
+            border-radius: 6px; padding: 5px 7px; font: inherit;
+        }
+        .row { display: flex; align-items: center; gap: 8px; }
+        .row .val { color: #7fd4ff; min-width: 36px; text-align: right; }
+        .check { display: flex; align-items: center; gap: 8px; margin-top: 10px; text-transform: none; letter-spacing: 0; font-size: 13px; color: #d7e2f2; }
+        .check input { margin: 0; }
+        #legend { margin-top: 12px; padding-top: 10px; border-top: 1px solid #26324a; font-size: 11px; color: #8295b0; }
+        #legend b { color: #b9c8de; }
+        #room-info { margin-top: 12px; padding-top: 10px; border-top: 1px solid #26324a; font-size: 12px; color: #c4d2e6; }
+        #room-info[hidden] { display: none; }
+        #room-info .ri-id { color: #00e5ff; font-weight: 700; }
+        #room-info .ri-row { margin-top: 4px; display: flex; align-items: center; gap: 6px; }
+        #room-info .ri-key { color: #7e8fab; }
+        #room-info .swatch { width: 11px; height: 11px; border-radius: 2px; border: 1px solid #3a496a; display: inline-block; }
+        #room-info .ri-exits { margin-top: 6px; font-size: 11px; color: #9fb0c8; word-break: break-word; }
+        #stats { position: fixed; bottom: 10px; left: 12px; z-index: 10; font: 11px "Space Mono", monospace; color: #5e7392; }
+        #hint { position: fixed; bottom: 10px; right: 14px; z-index: 10; font: 11px "Space Mono", monospace; color: #5e7392; text-align: right; }
+    </style>
+</head>
+<body>
+<div id="stage"></div>
+<div id="panel">
+    <h1>3D Map — WebGL</h1>
+
+    <label for="area-select">Area</label>
+    <select id="area-select"></select>
+
+    <label class="row"><span>Floor gap</span></label>
+    <div class="row">
+        <input type="range" id="gap" min="0" max="8" step="0.25" value="3">
+        <span class="val" id="gap-val">3</span>
+    </div>
+
+    <label class="row"><span>Room height</span></label>
+    <div class="row">
+        <input type="range" id="height" min="0.05" max="2" step="0.05" value="0.4">
+        <span class="val" id="height-val">0.4</span>
+    </div>
+
+    <label class="check"><input type="checkbox" id="single-floor"><span>Isolate one floor</span></label>
+    <select id="floor-select" style="display:none; margin-top:6px;"></select>
+
+    <label class="check"><input type="checkbox" id="outline"><span>Room outlines</span></label>
+    <label class="check"><input type="checkbox" id="spin" checked><span>Auto-rotate</span></label>
+
+    <div id="legend">
+        <div><b>Drag</b> orbit · <b>Scroll</b> zoom · <b>Right-drag</b> pan</div>
+        <div style="margin-top:8px;">
+            <div><b style="color:#7f9fd0;">Blue</b> two-way exit</div>
+            <div><b style="color:#ff6a44;">Red dashed →</b> one-way exit</div>
+            <div><b style="color:#ffd166;">Gold</b> up/down stairs</div>
+            <div><b style="color:#8aa0bd;">Grey nub</b> stub (no link)</div>
+            <div>Coloured polylines = custom exits</div>
+        </div>
+    </div>
+    <div id="room-info" hidden></div>
+</div>
+<div id="stats"></div>
+<div id="hint">three.js · WebGL</div>
+<script type="module" src="./three3d.ts"></script>
+</body>
+</html>
