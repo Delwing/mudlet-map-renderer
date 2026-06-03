@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.0] - 2026-06-03
+
+### Added
+
+- Clickable waypoints in the demo's `WaypointOverlay` example. The `Waypoint` interface gains an optional `onClick?: (waypoint) => void` callback, and the overlay exposes `hitTest(worldX, worldY)` to resolve a world-space point to the topmost bubble (waypoint bubbles are overlay-layer shapes, so they aren't part of the renderer's `HitTester` — the overlay records the rects it places and tests them itself). The demo wires pointer clicks to it by converting the cursor to world space via `renderer.camera.clientToMapPoint(...)`, and shows a pointer cursor on hover over a clickable bubble.
+
+### Removed
+
+- Waypoint placement-debug visualisation (candidate-slot boxes, per-slot clearance scores, and the console log) from the demo's `WaypointOverlay`, along with its "Waypoint debug (slot scores)" toggle.
+
 ## [2.2.0] - 2026-06-02
 
 ### Added

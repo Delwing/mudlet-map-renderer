@@ -227,15 +227,6 @@ export type Settings = {
     /** Font size (in map units) for area-exit labels. Padding, corner radius, and stroke
      *  scale proportionally. Default: 0.3 */
     areaExitLabelFontSize: number;
-    /** When true, drop fine detail (labels, emboss, dashes, arrowheads; rooms become
-     *  flat fills) once zoom drops below {@link lodZoomThreshold}, for faster low-zoom
-     *  overviews. Interactive zoom only — exports always render full detail. Default: false */
-    lodEnabled: boolean;
-    /** Zoom level below which level-of-detail simplification kicks in. Default: 0.4 */
-    lodZoomThreshold: number;
-    /** When true, drawArea() schedules a background prefetch of adjacent areas (reachable
-     *  via cross-area exits) so a later switch to them is instant. Default: false */
-    prefetchAdjacentAreas: boolean;
 };
 
 /** Creates a new Settings object with default values. */
@@ -287,8 +278,5 @@ export function createSettings(): Settings {
         uniformLevelSize: false,
         areaExitLabels: false,
         areaExitLabelFontSize: 0.3,
-        lodEnabled: false,
-        lodZoomThreshold: 0.4,
-        prefetchAdjacentAreas: false,
     };
 }

@@ -2,12 +2,19 @@ import {MapRenderer} from "@src";
 import type {RoomContextMenuEventDetail, RoomClickEventDetail} from "@src";
 import MapReader from "@src/reader/MapReader";
 
+export interface WaypointMenuControls {
+    has(roomId: number): boolean;
+    add(roomId: number, label: string): void;
+    remove(roomId: number): void;
+}
+
 export function initContextMenu(
     stageElement: HTMLDivElement,
     renderer: MapRenderer,
     mapReader: MapReader,
     moveToRoom: (room: MapData.Room) => void,
     updateRoomStatus: (msg: string) => void,
+    waypoints?: WaypointMenuControls,
 ) {
     const contextMenuElement = document.getElementById("context-menu") as HTMLDivElement | null;
     const contextMenuContent = document.getElementById("context-menu-content") as HTMLDivElement | null;
@@ -59,6 +66,31 @@ export function initContextMenu(
             hideContextMenu();
         });
         contextMenuContent.appendChild(lookBtn);
+
+        if (waypoints) {
+            if (waypoints.has(roomId)) {
+                const removeWpBtn = document.createElement("button");
+                removeWpBtn.textContent = "Remove waypoint";
+                removeWpBtn.addEventListener("click", () => {
+                    waypoints.remove(roomId);
+                    updateRoomStatus(`Removed waypoint on room ${roomId}.`);
+                    hideContextMenu();
+                });
+                contextMenuContent.appendChild(removeWpBtn);
+            } else {
+                const addWpBtn = document.createElement("button");
+                addWpBtn.textContent = "Add waypoint…";
+                addWpBtn.addEventListener("click", () => {
+                    const label = window.prompt("Waypoint label:", `Room ${roomId}`);
+                    if (label !== null) {
+                        waypoints.add(roomId, label.trim() || `Room ${roomId}`);
+                        updateRoomStatus(`Added waypoint on room ${roomId}.`);
+                    }
+                    hideContextMenu();
+                });
+                contextMenuContent.appendChild(addWpBtn);
+            }
+        }
 
         contextMenuElement.style.left = `${position.x}px`;
         contextMenuElement.style.top = `${position.y}px`;

@@ -15,6 +15,7 @@ import {createOffscreenBackend} from "@src/rendering/offscreen";
 import MapReader from "@src/reader/MapReader";
 import {initControls} from "./controls";
 import {initContextMenu} from "./context-menu";
+import {WaypointOverlay} from "./WaypointOverlay";
 import {Walker} from "./walker";
 import {DemoPreview} from "./Preview";
 import {
@@ -415,6 +416,68 @@ async function initialize() {
     }
     preview = new DemoPreview(stageElement, renderer);
 
+    // Waypoints — auto-placed labels that avoid rooms, exit lines, and each
+    // other (obstacles derived from room adjacency inside the overlay).
+    const waypointOverlay = new WaypointOverlay();
+    const waypointsToggle = document.getElementById("waypoints-toggle") as HTMLInputElement | null;
+    let waypointsEnabled = false;
+    const setWaypointsEnabled = (on: boolean) => {
+        if (on === waypointsEnabled) return;
+        waypointsEnabled = on;
+        if (on) renderer.addSceneOverlay("waypoints", waypointOverlay);
+        else renderer.removeSceneOverlay("waypoints");
+        if (waypointsToggle) waypointsToggle.checked = on;
+    };
+    waypointsToggle?.addEventListener("change", () => setWaypointsEnabled(waypointsToggle.checked));
+
+    const wpPalette =["#ffcc33", "#4fc3f7", "#81c784", "#e57373", "#ba68c8", "#ffb74d", "#f06292", "#4dd0e1"];
+    let wpColorSeq = 0;
+    const waypointControls = {
+        has: (roomId: number) => waypointOverlay.has(roomId),
+        add: (roomId: number, label: string) => {
+            waypointOverlay.add({
+                roomId, label, color: wpPalette[wpColorSeq++ % wpPalette.length],
+                // Demo: clicking a waypoint bubble centres the map on its room.
+                onClick: (wp) => {
+                    renderer.centerOn(wp.roomId);
+                    updateStatus(roomStatusElement, `Clicked waypoint on room ${wp.roomId}.`);
+                },
+            });
+            setWaypointsEnabled(true); // make sure they're visible after adding
+        },
+        remove: (roomId: number) => waypointOverlay.remove(roomId),
+    };
+
+    // Waypoint bubbles aren't part of the renderer's hit-tester (they're overlay
+    // shapes), so resolve clicks against the overlay ourselves: convert the
+    // pointer to world space and ask the overlay which bubble (if any) was hit.
+    let wpClickStart: {x: number; y: number} | null = null;
+    stageElement.addEventListener("mousedown", (e) => {
+        if (e.button === 0) wpClickStart = {x: e.clientX, y: e.clientY};
+    });
+    stageElement.addEventListener("mouseup", (e) => {
+        const start = wpClickStart;
+        wpClickStart = null;
+        if (e.button !== 0 || !start || !waypointsEnabled) return;
+        const dx = e.clientX - start.x, dy = e.clientY - start.y;
+        if (dx * dx + dy * dy > 25) return; // a drag, not a click
+        const rect = stageElement.getBoundingClientRect();
+        const p = renderer.camera.clientToMapPoint(e.clientX, e.clientY, rect);
+        if (!p) return;
+        const wp = waypointOverlay.hitTest(p.x, p.y);
+        wp?.onClick?.(wp);
+    });
+    // Pointer cursor when hovering a clickable bubble. Runs after the renderer's
+    // own cursor handler (registered earlier), so it only upgrades to "pointer"
+    // over a clickable bubble and otherwise leaves the renderer's choice intact.
+    stageElement.addEventListener("mousemove", (e) => {
+        if (!waypointsEnabled) return;
+        const rect = stageElement.getBoundingClientRect();
+        const p = renderer.camera.clientToMapPoint(e.clientX, e.clientY, rect);
+        if (!p) return;
+        if (waypointOverlay.hitTest(p.x, p.y)?.onClick) stageElement.style.cursor = "pointer";
+    });
+
     // Controls
     const controlsResult = initControls(settings, renderer, () => currentRoomId, pathFinder, updateDestinationGuidance, (color) => {
         pathColor = color;
@@ -426,7 +489,7 @@ async function initialize() {
     const explorationToggle = controlsResult.explorationToggle;
     updateTerrainRooms = controlsResult.updateTerrainRooms;
     updateFogOfWar = controlsResult.updateFogOfWar;
-    initContextMenu(stageElement, renderer, mapReader, moveToRoom, (msg) => updateStatus(roomStatusElement, msg));
+    initContextMenu(stageElement, renderer, mapReader, moveToRoom, (msg) => updateStatus(roomStatusElement, msg), waypointControls);
 
     // Walker
     walker = new Walker(mapReader, pathFinder, walkerStatusElement, walkerToggleButton, explorationLens, {
@@ -463,6 +526,25 @@ async function initialize() {
             .filter(r => r.z === startingRoom.z && r.id !== startingRoomId);
         if (others[0]) renderer.renderHighlight(others[0].id, ['#ff3b30', '#0a84ff']);
         if (others[1]) renderer.renderHighlight(others[1].id, ['#ff3b30', '#34c759', '#0a84ff']);
+
+        // Seed a few spread-out waypoints (min separation) so each label has
+        // space to auto-place cleanly against its local rooms/exits, rather
+        // than a cluster of labels fighting over the same spot.
+        const candidates = (mapReader.getArea(startingRoom.area)?.getRooms() ?? [])
+            .filter(r => r.z === startingRoom.z)
+            .sort((a, b) => Math.hypot(a.x - startingRoom.x, a.y - startingRoom.y)
+                - Math.hypot(b.x - startingRoom.x, b.y - startingRoom.y));
+        const minSep = Math.max(4, settings.roomSize * 6);
+        const picks: typeof candidates = [];
+        for (const r of candidates) {
+            if (picks.every(p => Math.hypot(p.x - r.x, p.y - r.y) >= minSep)) picks.push(r);
+            if (picks.length >= 5) break;
+        }
+        const wpLabels = ["Shop", "Bank", "Inn", "Smithy", "Temple"];
+        const wpColors = ["#ffcc33", "#4fc3f7", "#81c784", "#e57373", "#ba68c8"];
+        waypointOverlay.set(picks.map((r, i) => ({
+            roomId: r.id, label: wpLabels[i % wpLabels.length], color: wpColors[i % wpColors.length],
+        })));
     }
     currentRoomId = startingRoomId;
 
