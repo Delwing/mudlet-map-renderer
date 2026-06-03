@@ -78,6 +78,8 @@ export { AmbientLightOverlay } from './overlay/AmbientLightOverlay';
 export type { AmbientLightOptions } from './overlay/AmbientLightOverlay';
 export { RippleEffect } from './overlay/RippleEffect';
 export type { RippleOptions } from './overlay/RippleEffect';
+export { WaypointOverlay } from './overlay/WaypointOverlay';
+export type { Waypoint } from './overlay/WaypointOverlay';
 export { placeLabels } from './labelPlacement';
 export type {
     Direction8, Rect, Obstacle, LabelPlacementItem, PlacedLabel, PlaceLabelsOptions, SlotScore,

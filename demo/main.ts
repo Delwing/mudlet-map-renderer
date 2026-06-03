@@ -7,6 +7,7 @@ import {
     StainedGlass, GraphPaper, Topographic, Watercolor,
     DarkModern, TreasureMap, treasureMapDecorations,
     RippleEffect,
+    WaypointOverlay,
     ExplorationLens, ALL_VISIBLE,
     type Style,
 } from "@src";
@@ -15,7 +16,6 @@ import {createOffscreenBackend} from "@src/rendering/offscreen";
 import MapReader from "@src/reader/MapReader";
 import {initControls} from "./controls";
 import {initContextMenu} from "./context-menu";
-import {WaypointOverlay} from "./WaypointOverlay";
 import {Walker} from "./walker";
 import {DemoPreview} from "./Preview";
 import {

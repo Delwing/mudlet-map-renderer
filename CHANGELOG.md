@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.1] - 2026-06-03
+
+### Fixed
+
+- `WaypointOverlay` and its `Waypoint` type are now actually exported from the package (`import { WaypointOverlay } from "mudlet-map-renderer"`). In 2.3.0 the overlay lived only in the demo, so the feature was unreachable by consumers; it has been moved into `src/overlay/` and re-exported from the public entry point, with declarations emitted to `dist/index.d.ts`.
+
 ## [2.3.0] - 2026-06-03
 
 ### Added
@@ -134,6 +140,8 @@ Initial public release.
 - Support for stub exits, special exits, and link exits with custom rendering.
 - Published as dual-format ESM + CJS npm package with TypeScript declarations.
 
+[2.3.1]: https://github.com/Delwing/mudlet-map-renderer/releases/tag/2.3.1
+[2.3.0]: https://github.com/Delwing/mudlet-map-renderer/releases/tag/2.3.0
 [2.2.0]: https://github.com/Delwing/mudlet-map-renderer/releases/tag/2.2.0
 [2.1.0]: https://github.com/Delwing/mudlet-map-renderer/releases/tag/2.1.0
 [2.0.0]: https://github.com/Delwing/mudlet-map-renderer/releases/tag/2.0.0

@@ -1,8 +1,8 @@
-import {
-    placeLabels,
-    type Direction8, type LabelPlacementItem, type MapState, type Obstacle,
-    type SceneOverlay, type SceneOverlayContext, type Shape, type ViewportBounds,
-} from "@src";
+import type {MapState} from "../MapState";
+import type {ViewportBounds} from "../types/Settings";
+import type {Shape} from "../scene/Shape";
+import {placeLabels, type Direction8, type LabelPlacementItem, type Obstacle} from "../labelPlacement";
+import type {SceneOverlay, SceneOverlayContext} from "./SceneOverlay";
 
 export interface Waypoint {
     roomId: number;
@@ -14,8 +14,8 @@ export interface Waypoint {
     preferred?: Direction8;
     /**
      * Optional click handler. Fired when the waypoint's bubble is clicked.
-     * Wire pointer hits to it via {@link WaypointOverlay.hitTest} (see the demo
-     * for an example). Waypoints without a handler are inert.
+     * Wire pointer hits to it via {@link WaypointOverlay.hitTest} (see below).
+     * Waypoints without a handler are inert.
      */
     onClick?: (waypoint: Waypoint) => void;
 }
@@ -32,17 +32,31 @@ interface PlacedBubble {
 /**
  * Persistent named markers anchored to rooms (shops, banks, quest givers …),
  * with auto-placed labels that dodge neighbouring rooms, exits, and each other
- * via the library's {@link placeLabels}. A {@link SceneOverlay}, so it renders
- * on the interactive canvas and in every export.
- *
- * Pure consumer code — it only uses public APIs. `getExitObstacles` lets the
- * app feed in drawn-exit rects (from `renderer.getDrawnExits()`) as soft
- * obstacles so labels avoid sitting on top of connectors when possible.
+ * via {@link placeLabels}. A {@link SceneOverlay}, so it renders on the
+ * interactive canvas and in every export.
  *
  * A room may carry more than one waypoint (e.g. a transport stop served by two
  * routes): the list is flat, so push several entries with the same `roomId` and
  * each gets its own auto-placed bubble. Alternatively give one waypoint a
  * multi-line `label` to list them in a single bubble.
+ *
+ * Waypoints can be clickable. Bubbles are overlay-layer shapes, so they are not
+ * part of the renderer's {@link HitTester}; the overlay instead records the
+ * rects it places and resolves them via {@link hitTest}. Wire pointer clicks to
+ * it by converting the cursor to world space:
+ *
+ * ```ts
+ * const waypoints = new WaypointOverlay();
+ * waypoints.add({ roomId: 42, label: 'Bank', onClick: wp => console.log(wp.roomId) });
+ * renderer.addSceneOverlay('waypoints', waypoints);
+ *
+ * container.addEventListener('click', e => {
+ *     const p = renderer.camera.clientToMapPoint(e.clientX, e.clientY, container.getBoundingClientRect());
+ *     if (!p) return;
+ *     const wp = waypoints.hitTest(p.x, p.y);
+ *     wp?.onClick?.(wp);
+ * });
+ * ```
  */
 export class WaypointOverlay implements SceneOverlay {
     private waypoints: Waypoint[] = [];
