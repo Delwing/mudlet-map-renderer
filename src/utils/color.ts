@@ -15,44 +15,57 @@ export function colorLightness(color: string): number {
     return (Math.max(r, g, b) + Math.min(r, g, b)) / 2;
 }
 
-export function darkenColor(color: string, factor: number): string {
-    let r: number, g: number, b: number;
-    const rgbMatch = color.match(/(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
+/**
+ * Parse the RGB channels (and optional alpha) of a colour string. Accepts
+ * `rgb(...)`, `rgba(...)`, and `#rrggbb`. Returns `undefined` for formats we
+ * can't shade (named colours, `#rgb` shorthand) so callers pass them through.
+ */
+function parseRgb(color: string): {r: number; g: number; b: number; a?: number} | undefined {
+    const rgbMatch = color.match(/(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*([\d.]+)\s*)?/);
     if (rgbMatch) {
-        r = parseInt(rgbMatch[1]);
-        g = parseInt(rgbMatch[2]);
-        b = parseInt(rgbMatch[3]);
-    } else if (color.startsWith('#') && color.length >= 7) {
-        r = parseInt(color.slice(1, 3), 16);
-        g = parseInt(color.slice(3, 5), 16);
-        b = parseInt(color.slice(5, 7), 16);
-    } else {
-        return color;
+        return {
+            r: parseInt(rgbMatch[1]),
+            g: parseInt(rgbMatch[2]),
+            b: parseInt(rgbMatch[3]),
+            a: rgbMatch[4] !== undefined ? parseFloat(rgbMatch[4]) : undefined,
+        };
     }
-    r = Math.round(r * (1 - factor));
-    g = Math.round(g * (1 - factor));
-    b = Math.round(b * (1 - factor));
-    return `rgb(${r}, ${g}, ${b})`;
+    if (color.startsWith('#') && color.length >= 7) {
+        return {
+            r: parseInt(color.slice(1, 3), 16),
+            g: parseInt(color.slice(3, 5), 16),
+            b: parseInt(color.slice(5, 7), 16),
+        };
+    }
+    return undefined;
+}
+
+/** Emit `rgb(...)`, or `rgba(...)` when an alpha channel was present, so that
+ * shading a translucent colour preserves its transparency. */
+function formatRgb(r: number, g: number, b: number, a?: number): string {
+    return a !== undefined ? `rgba(${r}, ${g}, ${b}, ${a})` : `rgb(${r}, ${g}, ${b})`;
+}
+
+export function darkenColor(color: string, factor: number): string {
+    const rgb = parseRgb(color);
+    if (!rgb) return color;
+    return formatRgb(
+        Math.round(rgb.r * (1 - factor)),
+        Math.round(rgb.g * (1 - factor)),
+        Math.round(rgb.b * (1 - factor)),
+        rgb.a,
+    );
 }
 
 export function lightenColor(color: string, factor: number): string {
-    let r: number, g: number, b: number;
-    const rgbMatch = color.match(/(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
-    if (rgbMatch) {
-        r = parseInt(rgbMatch[1]);
-        g = parseInt(rgbMatch[2]);
-        b = parseInt(rgbMatch[3]);
-    } else if (color.startsWith('#') && color.length >= 7) {
-        r = parseInt(color.slice(1, 3), 16);
-        g = parseInt(color.slice(3, 5), 16);
-        b = parseInt(color.slice(5, 7), 16);
-    } else {
-        return color;
-    }
-    r = Math.min(255, Math.round(r + (255 - r) * factor));
-    g = Math.min(255, Math.round(g + (255 - g) * factor));
-    b = Math.min(255, Math.round(b + (255 - b) * factor));
-    return `rgb(${r}, ${g}, ${b})`;
+    const rgb = parseRgb(color);
+    if (!rgb) return color;
+    return formatRgb(
+        Math.min(255, Math.round(rgb.r + (255 - rgb.r) * factor)),
+        Math.min(255, Math.round(rgb.g + (255 - rgb.g) * factor)),
+        Math.min(255, Math.round(rgb.b + (255 - rgb.b) * factor)),
+        rgb.a,
+    );
 }
 
 // Most-used CSS named colours. Covers what callers reach for in highlight/marker

@@ -45,10 +45,9 @@ export function gradientRoomsStyle(options: GradientRoomsOptions = {}): Style {
                 {offset: 1, color: darkenColor(fill, darken)},
             ],
         };
-        // Strip alpha here only when it was carried by the paint — leave it as a
-        // future enhancement; lightenColor/darkenColor today emit `rgb(...)` not
-        // `rgba(...)`, so callers that rely on translucency would see a change.
-        // Document the limitation in case a user files a bug.
+        // lightenColor/darkenColor preserve any alpha channel in `fill`, so a
+        // translucent fill (e.g. a player marker with fillAlpha < 1) stays
+        // translucent through the gradient rather than going opaque.
         void w;
         return {...paint, fill: grad};
     }
