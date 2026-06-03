@@ -733,6 +733,18 @@ export function initControls(settings: Settings, renderer: MapRenderer, getCurre
         URL.revokeObjectURL(url);
     });
 
+    // --- Tab switching ---
+
+    const tabButtons = Array.from(document.querySelectorAll<HTMLButtonElement>(".tab-btn"));
+    const tabPanels = Array.from(document.querySelectorAll<HTMLElement>(".tab-panel"));
+    for (const btn of tabButtons) {
+        btn.addEventListener("click", () => {
+            const tab = btn.dataset.tab;
+            for (const b of tabButtons) b.classList.toggle("active", b === btn);
+            for (const p of tabPanels) p.classList.toggle("active", p.dataset.tab === tab);
+        });
+    }
+
     // --- Panel collapse/expand ---
 
     const hud = document.getElementById("hud");

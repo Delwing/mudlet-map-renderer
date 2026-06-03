@@ -26,10 +26,6 @@
         <div id="perf-stats"></div>
         <div id="walker-status"></div>
         <div id="culling-status"></div>
-        <label class="check-label">
-            <input type="checkbox" id="offscreen-toggle">
-            <span>OffscreenCanvas (worker) rendering</span>
-        </label>
         <div class="header-selects">
             <label class="select-label">
                 <span>Area</span>
@@ -43,109 +39,51 @@
     </div>
 
     <div id="controls">
-        <!-- Navigation -->
-        <div class="panel-section">
-            <div class="section-title">Navigation</div>
-            <button type="button" id="walker-toggle" class="btn">Start walker</button>
-            <form id="room-form" class="inline-form">
-                <label for="room-input">Current room</label>
-                <div class="control-inputs">
-                    <input type="number" id="room-input" min="1" placeholder="Room ID" />
-                    <button type="submit" class="btn btn-sm">Go</button>
-                </div>
-                <div class="form-status" id="room-status"></div>
-            </form>
-            <form id="look-form" class="inline-form">
-                <label for="look-input">Look at room</label>
-                <div class="control-inputs">
-                    <input type="number" id="look-input" min="1" placeholder="Room ID" />
-                    <button type="submit" class="btn btn-sm">Look</button>
-                </div>
-                <div class="form-status" id="look-status"></div>
-            </form>
-            <form id="destination-form" class="inline-form">
-                <label for="destination-input">Destination room</label>
-                <div class="control-inputs">
-                    <input type="number" id="destination-input" min="1" placeholder="Room ID" />
-                    <button type="submit" class="btn btn-sm">Set</button>
-                    <button type="button" id="destination-clear" class="btn btn-sm btn-muted">Clear</button>
-                </div>
-                <div class="form-status" id="destination-status"></div>
-            </form>
-            <label class="check-label">
-                <input type="checkbox" id="instant-move-toggle">
-                <span>Instant map movement</span>
-            </label>
+        <!-- Tab bar -->
+        <div class="tabs" role="tablist">
+            <button type="button" class="tab-btn active" data-tab="nav" role="tab">Nav</button>
+            <button type="button" class="tab-btn" data-tab="style" role="tab">Style</button>
+            <button type="button" class="tab-btn" data-tab="fx" role="tab">FX</button>
+            <button type="button" class="tab-btn" data-tab="marker" role="tab">Marker</button>
+            <button type="button" class="tab-btn" data-tab="output" role="tab">Out</button>
         </div>
-
-        <!-- Map Settings -->
-        <div class="panel-section">
-            <div class="section-title">Map Settings</div>
-            <label class="select-label">
-                <span>Culling mode</span>
-                <select id="culling-mode">
-                    <option value="none">No culling</option>
-                    <option value="basic">Classic culling</option>
-                    <option value="indexed">Spatial index culling</option>
-                </select>
-            </label>
-            <label class="select-label">
-                <span>Pathfinding algorithm</span>
-                <select id="pathfinding-algorithm">
-                    <option value="dijkstra">Dijkstra</option>
-                    <option value="astar">A* (spatial)</option>
-                </select>
-            </label>
-        </div>
-
-        <!-- Appearance -->
-        <div class="panel-section">
-            <div class="section-title">Appearance</div>
-            <label class="select-label">
-                <span>Room shape</span>
-                <select id="room-shape">
-                    <option value="rectangle">Rectangle</option>
-                    <option value="roundedRectangle">Rounded Rectangle</option>
-                    <option value="circle">Circle</option>
-                </select>
-            </label>
-            <label class="select-label">
-                <span>Room size: <span id="room-size-value">0.6</span></span>
-                <input type="range" id="room-size-slider" min="0.2" max="1.5" step="0.1" value="0.6">
-            </label>
-            <label class="select-label">
-                <span>Line width: <span id="line-width-value">0.025</span></span>
-                <input type="range" id="line-width-slider" min="0.01" max="0.1" step="0.005" value="0.025">
-            </label>
-            <label class="select-label">
-                <span>Label render mode</span>
-                <select id="label-render-mode">
-                    <option value="image">Image</option>
-                    <option value="data">Data</option>
-                    <option value="data-transparent">Data (transparent)</option>
-                    <option value="none">None (no labels)</option>
-                </select>
-            </label>
-            <div class="color-row">
-                <label class="color-label">
-                    <input type="color" id="background-color" value="#000000">
-                    <span>Background</span>
-                </label>
-                <label class="color-label">
-                    <input type="color" id="line-color" value="#e1ffe1">
-                    <span>Lines</span>
-                </label>
-                <label class="color-label">
-                    <input type="color" id="path-color" value="#66E64D">
-                    <span>Path</span>
+        <!-- ── Navigate ────────────────────────────────── -->
+        <div class="tab-panel active" data-tab="nav">
+            <div class="panel-section">
+                <div class="section-title">Navigation</div>
+                <button type="button" id="walker-toggle" class="btn">Start walker</button>
+                <form id="room-form" class="inline-form">
+                    <label for="room-input">Current room</label>
+                    <div class="control-inputs">
+                        <input type="number" id="room-input" min="1" placeholder="Room ID" />
+                        <button type="submit" class="btn btn-sm">Go</button>
+                    </div>
+                    <div class="form-status" id="room-status"></div>
+                </form>
+                <form id="look-form" class="inline-form">
+                    <label for="look-input">Look at room</label>
+                    <div class="control-inputs">
+                        <input type="number" id="look-input" min="1" placeholder="Room ID" />
+                        <button type="submit" class="btn btn-sm">Look</button>
+                    </div>
+                    <div class="form-status" id="look-status"></div>
+                </form>
+                <form id="destination-form" class="inline-form">
+                    <label for="destination-input">Destination room</label>
+                    <div class="control-inputs">
+                        <input type="number" id="destination-input" min="1" placeholder="Room ID" />
+                        <button type="submit" class="btn btn-sm">Set</button>
+                        <button type="button" id="destination-clear" class="btn btn-sm btn-muted">Clear</button>
+                    </div>
+                    <div class="form-status" id="destination-status"></div>
+                </form>
+                <label class="check-label">
+                    <input type="checkbox" id="instant-move-toggle">
+                    <span>Instant map movement</span>
                 </label>
             </div>
-        </div>
-
-        <!-- Toggles -->
-        <div class="panel-section">
-            <div class="section-title">Effects</div>
-            <div class="toggle-grid">
+            <div class="panel-section">
+                <div class="section-title">Position</div>
                 <label class="check-label">
                     <input type="checkbox" id="exploration-toggle">
                     <span>Exploration overlay</span>
@@ -155,25 +93,16 @@
                     <span>Highlight current room</span>
                 </label>
                 <label class="check-label">
-                    <input type="checkbox" id="grid-toggle">
-                    <span>Background grid</span>
+                    <input type="checkbox" id="pulse-marker-toggle">
+                    <span>Pulse marker on move</span>
                 </label>
-                <label class="color-label" id="grid-color-label">
-                    <input type="color" id="grid-color" value="#c8c8c8">
-                    <span>Grid color</span>
-                </label>
-                <label class="select-label" id="grid-opacity-label">
-                    <span>Grid opacity: <span id="grid-opacity-value">0.15</span></span>
-                    <input type="range" id="grid-opacity" min="0.01" max="1.0" step="0.01" value="0.15">
-                </label>
-                <label class="select-label">
-                    <span>Location style</span>
-                    <select id="location-style">
-                        <option value="normal">Normal</option>
-                        <option value="frame">Frames</option>
-                        <option value="colored">Colored</option>
-                    </select>
-                </label>
+            </div>
+        </div>
+
+        <!-- ── Style ───────────────────────────────────── -->
+        <div class="tab-panel" data-tab="style">
+            <div class="panel-section">
+                <div class="section-title">Render style</div>
                 <label class="select-label">
                     <span>Render mode</span>
                     <select id="render-mode">
@@ -206,17 +135,98 @@
                     <span>Iso rotation: <span id="iso-rotation-value">30</span>°</span>
                     <input type="range" id="iso-rotation" min="0" max="360" step="5" value="30">
                 </label>
-                <label class="check-label">
-                    <input type="checkbox" id="emboss-toggle">
-                    <span>Emboss effect</span>
+                <label class="select-label">
+                    <span>Location style</span>
+                    <select id="location-style">
+                        <option value="normal">Normal</option>
+                        <option value="frame">Frames</option>
+                        <option value="colored">Colored</option>
+                    </select>
                 </label>
+                <div class="toggle-grid-2">
+                    <label class="check-label">
+                        <input type="checkbox" id="emboss-toggle">
+                        <span>Emboss</span>
+                    </label>
+                    <label class="check-label">
+                        <input type="checkbox" id="borders-toggle">
+                        <span>Room borders</span>
+                    </label>
+                    <label class="check-label">
+                        <input type="checkbox" id="uniform-level-size-toggle">
+                        <span>Uniform level size</span>
+                    </label>
+                </div>
+            </div>
+            <div class="panel-section">
+                <div class="section-title">Rooms &amp; lines</div>
+                <label class="select-label">
+                    <span>Room shape</span>
+                    <select id="room-shape">
+                        <option value="rectangle">Rectangle</option>
+                        <option value="roundedRectangle">Rounded Rectangle</option>
+                        <option value="circle">Circle</option>
+                    </select>
+                </label>
+                <label class="select-label">
+                    <span>Room size: <span id="room-size-value">0.6</span></span>
+                    <input type="range" id="room-size-slider" min="0.2" max="1.5" step="0.1" value="0.6">
+                </label>
+                <label class="select-label">
+                    <span>Line width: <span id="line-width-value">0.025</span></span>
+                    <input type="range" id="line-width-slider" min="0.01" max="0.1" step="0.005" value="0.025">
+                </label>
+                <label class="select-label">
+                    <span>Label render mode</span>
+                    <select id="label-render-mode">
+                        <option value="image">Image</option>
+                        <option value="data">Data</option>
+                        <option value="data-transparent">Data (transparent)</option>
+                        <option value="none">None (no labels)</option>
+                    </select>
+                </label>
+            </div>
+            <div class="panel-section">
+                <div class="section-title">Colors</div>
+                <div class="color-row">
+                    <label class="color-label">
+                        <input type="color" id="background-color" value="#000000">
+                        <span>Background</span>
+                    </label>
+                    <label class="color-label">
+                        <input type="color" id="line-color" value="#e1ffe1">
+                        <span>Lines</span>
+                    </label>
+                    <label class="color-label">
+                        <input type="color" id="path-color" value="#66E64D">
+                        <span>Path</span>
+                    </label>
+                </div>
+            </div>
+            <div class="panel-section">
+                <div class="section-title">Grid</div>
+                <label class="check-label">
+                    <input type="checkbox" id="grid-toggle">
+                    <span>Background grid</span>
+                </label>
+                <label class="color-label" id="grid-color-label">
+                    <input type="color" id="grid-color" value="#c8c8c8">
+                    <span>Grid color</span>
+                </label>
+                <label class="select-label" id="grid-opacity-label">
+                    <span>Grid opacity: <span id="grid-opacity-value">0.15</span></span>
+                    <input type="range" id="grid-opacity" min="0.01" max="1.0" step="0.01" value="0.15">
+                </label>
+            </div>
+        </div>
+
+        <!-- ── FX ──────────────────────────────────────── -->
+        <div class="tab-panel" data-tab="fx">
+            <div class="panel-section">
+                <div class="section-title">Labels &amp; areas</div>
                 <label class="check-label">
                     <input type="checkbox" id="waypoints-toggle">
                     <span>Waypoints (auto-placed labels)</span>
-                </label>
-                <label class="check-label">
-                    <input type="checkbox" id="pulse-marker-toggle">
-                    <span>Pulse marker on move</span>
                 </label>
                 <label class="check-label">
                     <input type="checkbox" id="area-name-toggle">
@@ -226,92 +236,76 @@
                     <input type="checkbox" id="area-exit-labels-toggle">
                     <span>Area exit labels</span>
                 </label>
-                <label class="select-label">
-                    <span>Area exit label size: <span id="area-exit-label-size-value">0.30</span></span>
+                <label class="select-label indented">
+                    <span>Exit label size: <span id="area-exit-label-size-value">0.30</span></span>
                     <input type="range" id="area-exit-label-size-slider" min="0.15" max="1.0" step="0.05" value="0.3">
                 </label>
                 <label class="check-label">
                     <input type="checkbox" id="neighbor-spill-toggle">
                     <span>Neighbour area spill</span>
                 </label>
-                <label class="select-label">
+                <label class="select-label indented">
                     <span>Spill distance: <span id="neighbor-spill-distance-value">20</span></span>
                     <input type="range" id="neighbor-spill-distance-slider" min="1" max="40" step="1" value="20">
                 </label>
-                <label class="check-label">
-                    <input type="checkbox" id="uniform-level-size-toggle">
-                    <span>Uniform level size</span>
-                </label>
-                <label class="check-label">
-                    <input type="checkbox" id="borders-toggle">
-                    <span>Room borders</span>
-                </label>
-                <label class="check-label">
-                    <input type="checkbox" id="ambient-light-toggle">
-                    <span>Ambient lighting</span>
-                </label>
-                <label class="check-label">
-                    <input type="checkbox" id="spotlight-toggle">
-                    <span>Spotlight (gradient)</span>
-                </label>
-                <label class="check-label">
-                    <input type="checkbox" id="terrain-effects-toggle">
-                    <span>Terrain effects</span>
-                </label>
-                <label class="check-label">
-                    <input type="checkbox" id="fog-of-war-toggle">
-                    <span>Fog of war</span>
-                </label>
-                <label class="check-label">
-                    <input type="checkbox" id="hit-areas-toggle">
-                    <span>Hit areas (debug)</span>
-                </label>
             </div>
-        </div>
-
-        <!-- Ambient Lighting -->
-        <details class="panel-section collapsible">
-            <summary class="section-title">Ambient Lighting</summary>
-            <div class="details-body">
-                <label class="color-label">
-                    <input type="color" id="ambient-light-color" value="#ffcc44">
-                    <span>Light color</span>
-                </label>
-                <label class="select-label">
-                    <span>Radius: <span id="ambient-light-radius-value">12</span></span>
-                    <input type="range" id="ambient-light-radius" min="3" max="40" step="1" value="12">
-                </label>
-                <label class="select-label">
-                    <span>Intensity: <span id="ambient-light-intensity-value">0.70</span></span>
-                    <input type="range" id="ambient-light-intensity" min="0.1" max="1.0" step="0.05" value="0.7">
-                </label>
+            <div class="panel-section">
+                <div class="section-title">Lighting &amp; atmosphere</div>
+                <div class="toggle-grid-2">
+                    <label class="check-label">
+                        <input type="checkbox" id="ambient-light-toggle">
+                        <span>Ambient light</span>
+                    </label>
+                    <label class="check-label">
+                        <input type="checkbox" id="spotlight-toggle">
+                        <span>Spotlight</span>
+                    </label>
+                    <label class="check-label">
+                        <input type="checkbox" id="terrain-effects-toggle">
+                        <span>Terrain effects</span>
+                    </label>
+                    <label class="check-label">
+                        <input type="checkbox" id="fog-of-war-toggle">
+                        <span>Fog of war</span>
+                    </label>
+                </div>
+                <details class="collapsible sub">
+                    <summary class="section-title">Ambient settings</summary>
+                    <div class="details-body">
+                        <label class="color-label">
+                            <input type="color" id="ambient-light-color" value="#ffcc44">
+                            <span>Light color</span>
+                        </label>
+                        <label class="select-label">
+                            <span>Radius: <span id="ambient-light-radius-value">12</span></span>
+                            <input type="range" id="ambient-light-radius" min="3" max="40" step="1" value="12">
+                        </label>
+                        <label class="select-label">
+                            <span>Intensity: <span id="ambient-light-intensity-value">0.70</span></span>
+                            <input type="range" id="ambient-light-intensity" min="0.1" max="1.0" step="0.05" value="0.7">
+                        </label>
+                    </div>
+                </details>
+                <details class="collapsible sub">
+                    <summary class="section-title">Spotlight settings</summary>
+                    <div class="details-body">
+                        <label class="color-label">
+                            <input type="color" id="spotlight-color" value="#ffd166">
+                            <span>Halo color</span>
+                        </label>
+                        <label class="select-label">
+                            <span>Radius: <span id="spotlight-radius-value">8</span></span>
+                            <input type="range" id="spotlight-radius" min="2" max="30" step="1" value="8">
+                        </label>
+                        <label class="select-label">
+                            <span>Intensity: <span id="spotlight-intensity-value">0.55</span></span>
+                            <input type="range" id="spotlight-intensity" min="0.05" max="1.0" step="0.05" value="0.55">
+                        </label>
+                    </div>
+                </details>
             </div>
-        </details>
-
-        <!-- Spotlight (gradient demo) -->
-        <details class="panel-section collapsible">
-            <summary class="section-title">Spotlight (gradient)</summary>
-            <div class="details-body">
-                <label class="color-label">
-                    <input type="color" id="spotlight-color" value="#ffd166">
-                    <span>Halo color</span>
-                </label>
-                <label class="select-label">
-                    <span>Radius: <span id="spotlight-radius-value">8</span></span>
-                    <input type="range" id="spotlight-radius" min="2" max="30" step="1" value="8">
-                </label>
-                <label class="select-label">
-                    <span>Intensity: <span id="spotlight-intensity-value">0.55</span></span>
-                    <input type="range" id="spotlight-intensity" min="0.05" max="1.0" step="0.05" value="0.55">
-                </label>
-            </div>
-        </details>
-
-
-        <!-- Weather -->
-        <details class="panel-section collapsible">
-            <summary class="section-title">Weather</summary>
-            <div class="details-body">
+            <div class="panel-section">
+                <div class="section-title">Weather</div>
                 <label class="select-label">
                     <span>Effect</span>
                     <select id="weather-type">
@@ -335,12 +329,12 @@
                     <input type="range" id="weather-wind-strength" min="0" max="3.0" step="0.1" value="1.0">
                 </label>
             </div>
-        </details>
+        </div>
 
-        <!-- Player Marker -->
-        <details class="panel-section collapsible">
-            <summary class="section-title">Player Marker</summary>
-            <div class="details-body">
+        <!-- ── Marker ──────────────────────────────────── -->
+        <div class="tab-panel" data-tab="marker">
+            <div class="panel-section">
+                <div class="section-title">Player Marker</div>
                 <div class="color-row">
                     <label class="color-label">
                         <input type="color" id="player-marker-stroke-color" value="#00e5b2">
@@ -376,12 +370,8 @@
                     <span>Match room shape</span>
                 </label>
             </div>
-        </details>
-
-        <!-- Highlight -->
-        <details class="panel-section collapsible">
-            <summary class="section-title">Highlight</summary>
-            <div class="details-body">
+            <div class="panel-section">
+                <div class="section-title">Highlight</div>
                 <label class="select-label">
                     <span>Stroke alpha: <span id="highlight-stroke-alpha-value">1.00</span></span>
                     <input type="range" id="highlight-stroke-alpha" min="0" max="1" step="0.01" value="1">
@@ -412,13 +402,45 @@
                     </select>
                 </label>
             </div>
-        </details>
+        </div>
 
-        <!-- Export -->
-        <div class="panel-section">
-            <div class="btn-row">
-                <button type="button" id="save-png-btn" class="btn">Save PNG</button>
-                <button type="button" id="save-svg-btn" class="btn">Save SVG</button>
+        <!-- ── Output ──────────────────────────────────── -->
+        <div class="tab-panel" data-tab="output">
+            <div class="panel-section">
+                <div class="section-title">Performance</div>
+                <label class="select-label">
+                    <span>Culling mode</span>
+                    <select id="culling-mode">
+                        <option value="none">No culling</option>
+                        <option value="basic">Classic culling</option>
+                        <option value="indexed">Spatial index culling</option>
+                    </select>
+                </label>
+                <label class="check-label">
+                    <input type="checkbox" id="offscreen-toggle">
+                    <span>OffscreenCanvas (worker) rendering</span>
+                </label>
+                <label class="check-label">
+                    <input type="checkbox" id="hit-areas-toggle">
+                    <span>Hit areas (debug)</span>
+                </label>
+            </div>
+            <div class="panel-section">
+                <div class="section-title">Pathfinding</div>
+                <label class="select-label">
+                    <span>Algorithm</span>
+                    <select id="pathfinding-algorithm">
+                        <option value="dijkstra">Dijkstra</option>
+                        <option value="astar">A* (spatial)</option>
+                    </select>
+                </label>
+            </div>
+            <div class="panel-section">
+                <div class="section-title">Export</div>
+                <div class="btn-row">
+                    <button type="button" id="save-png-btn" class="btn">Save PNG</button>
+                    <button type="button" id="save-svg-btn" class="btn">Save SVG</button>
+                </div>
             </div>
         </div>
     </div>

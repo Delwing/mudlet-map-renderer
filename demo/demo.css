@@ -25,7 +25,7 @@ body {
     position: absolute;
     top: 0.75rem;
     left: 0.75rem;
-    width: 260px;
+    width: 290px;
     padding: 0;
     background: rgba(8, 12, 20, 0.85);
     backdrop-filter: blur(12px);
@@ -89,6 +89,54 @@ body {
 
 #hud.collapsed .panel-header {
     border-bottom: none;
+}
+
+/* ── Tabs ────────────────────────────────────────────────────── */
+
+.tabs {
+    display: flex;
+    gap: 0.15rem;
+    padding: 0.4rem 0.5rem 0;
+    border-bottom: 1px solid rgba(99, 187, 255, 0.12);
+}
+
+.tab-btn {
+    flex: 1 1 0;
+    width: 0;
+    min-width: 0;
+    padding: 0.35rem 0.25rem;
+    background: transparent;
+    color: #7da6bd;
+    border: none;
+    border-bottom: 2px solid transparent;
+    border-radius: 0.25rem 0.25rem 0 0;
+    font: inherit;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    text-align: center;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: color 0.15s, background 0.15s, border-color 0.15s;
+}
+
+.tab-btn:hover {
+    color: #c8eeff;
+    background: rgba(99, 187, 255, 0.08);
+}
+
+.tab-btn.active {
+    color: #63bbff;
+    border-bottom-color: #63bbff;
+}
+
+.tab-panel {
+    display: none;
+}
+
+.tab-panel.active {
+    display: block;
 }
 
 /* ── Panel Sections ──────────────────────────────────────────── */
@@ -306,6 +354,19 @@ select option {
     gap: 0.35rem;
 }
 
+/* Two-column checkbox grid for compact related toggles */
+.toggle-grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.35rem 0.5rem;
+}
+
+/* A dependent control sitting under the toggle that enables it */
+.select-label.indented {
+    padding-left: 1.1rem;
+    border-left: 1px solid rgba(99, 187, 255, 0.12);
+}
+
 /* ── Range Sliders ───────────────────────────────────────────── */
 
 input[type="range"] {
@@ -472,6 +533,16 @@ input[type="number"] {
 
 details.collapsible {
     border-bottom: 1px solid rgba(99, 187, 255, 0.08);
+}
+
+/* Inline sub-collapsible nested within a panel section (no full-width border) */
+details.collapsible.sub {
+    border-bottom: none;
+    margin-top: 0.1rem;
+}
+
+details.collapsible.sub > summary {
+    color: rgba(99, 187, 255, 0.5);
 }
 
 details.collapsible > summary {
