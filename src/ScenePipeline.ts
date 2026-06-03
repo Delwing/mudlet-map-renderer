@@ -20,6 +20,8 @@ import type {RoomLens, ExitTreatment} from "./lens/RoomLens";
 import {ALL_VISIBLE, defaultExitTreatment} from "./lens/RoomLens";
 import {movePoint, movePointCircle, movePointRoundedRect} from "./directions";
 import {longToShort, regularExits} from "./reader/Exit";
+import type {NeighborSpill} from "./scene/NeighborProjector";
+import {projectRoom} from "./scene/NeighborProjector";
 
 type Bounds = { x: number; y: number; width: number; height: number };
 
@@ -247,6 +249,11 @@ export class ScenePipeline {
     private specialExitShapeRefs: SpecialExitShapeRef[] = [];
     private stubShapeRefs: StubShapeRef[] = [];
     private areaExitLabelShapeRefs: AreaExitLabelShapeRef[] = [];
+    // Room ids rendered as neighbour spill (other-area rooms projected into this
+    // frame). Used to suppress cross-area arrows/labels for crossings into them
+    // (the spill draws plain connectors instead) and to skip area-exit zones that
+    // would otherwise emanate from the spilled rooms.
+    private spilledRoomIds: Set<number> = new Set();
 
     constructor(mapReader: IMapReader, settings: Settings) {
         this.mapReader = mapReader;
@@ -262,7 +269,7 @@ export class ScenePipeline {
      * The `lens` filters which rooms paint and how partially-visible exits are
      * treated. Pass {@link ALL_VISIBLE} (or omit) for an unfiltered build.
      */
-    buildScene(area: IArea, plane: IPlane, zIndex: number, lens: RoomLens = ALL_VISIBLE): SceneBuildResult {
+    buildScene(area: IArea, plane: IPlane, zIndex: number, lens: RoomLens = ALL_VISIBLE, spill?: NeighborSpill): SceneBuildResult {
         this.linkShapes = [];
         this.roomShapes = [];
         this.topLabelShapes = [];
@@ -270,6 +277,7 @@ export class ScenePipeline {
         this.specialExitShapeRefs = [];
         this.stubShapeRefs = [];
         this.areaExitLabelShapeRefs = [];
+        this.spilledRoomIds = spill ? new Set(spill.rooms.map(r => r.room.id)) : new Set();
 
         // Labels
         this.renderLabels(plane.getLabels(), area.getAreaId());
@@ -280,8 +288,20 @@ export class ScenePipeline {
         // Visible rooms only — the lens (e.g. exploration) drops the rest.
         const visibleRooms = (plane.getRooms() ?? []).filter(r => lens.isVisible(r));
 
+        // Spilled neighbour rooms become first-class rooms: cloned into this
+        // frame (coords + custom lines offset) and rendered through the same room
+        // pass, so their bodies, custom lines, stubs and inner exits all use the
+        // normal logic. Connectors for their plain exits are drawn separately.
+        const spilledRooms = spill
+            ? spill.rooms.map(r => projectRoom(r.room, r.x, r.y, area.getAreaId(), zIndex))
+            : [];
+
         // Rooms (with stubs, special exits, inner exits)
-        const roomResult = this.renderRooms(visibleRooms, zIndex);
+        const roomResult = this.renderRooms([...visibleRooms, ...spilledRooms], zIndex);
+
+        // Plain connectors for the spill's regular/special exits (custom-line
+        // exits are already drawn as polylines by the room pass above).
+        if (spill) this.renderSpillConnectors(spill);
 
         // Area name
         this.renderAreaName(area, plane);
@@ -383,26 +403,32 @@ export class ScenePipeline {
                 this.specialExitShapeRefs.push({shape: seShape, bounds: seBounds});
             }
 
-            // Area exit hit zones from special exits (custom lines to other areas)
-            this.exitRenderer.getSpecialExitAreaTargets(room).forEach(zone => {
-                areaExitHitZones.push({
-                    bounds: zone.bounds,
-                    targetRoomId: zone.targetRoomId,
-                    from: zone.from,
-                    tip: zone.tip,
-                    arrowColor: zone.arrowColor,
+            // Area-exit hit zones (cross-area arrows/labels). Skip them entirely
+            // for spilled rooms — a spilled preview shouldn't sprout its own
+            // area-exit arrows — and for current rooms, skip targets that are
+            // themselves spilled (those crossings are drawn as plain connectors).
+            if (!this.spilledRoomIds.has(room.id)) {
+                this.exitRenderer.getSpecialExitAreaTargets(room).forEach(zone => {
+                    if (this.spilledRoomIds.has(zone.targetRoomId)) return;
+                    areaExitHitZones.push({
+                        bounds: zone.bounds,
+                        targetRoomId: zone.targetRoomId,
+                        from: zone.from,
+                        tip: zone.tip,
+                        arrowColor: zone.arrowColor,
+                    });
                 });
-            });
-            // Area exit hit zones from inner exits (up/down/in/out to other areas)
-            this.exitRenderer.getInnerExitAreaTargets(room).forEach(zone => {
-                areaExitHitZones.push({
-                    bounds: zone.bounds,
-                    targetRoomId: zone.targetRoomId,
-                    from: zone.from,
-                    tip: zone.tip,
-                    arrowColor: zone.arrowColor,
+                this.exitRenderer.getInnerExitAreaTargets(room).forEach(zone => {
+                    if (this.spilledRoomIds.has(zone.targetRoomId)) return;
+                    areaExitHitZones.push({
+                        bounds: zone.bounds,
+                        targetRoomId: zone.targetRoomId,
+                        from: zone.from,
+                        tip: zone.tip,
+                        arrowColor: zone.arrowColor,
+                    });
                 });
-            });
+            }
 
             // Stubs → link layer (so they render under rooms, like exits)
             for (const stub of computeStubs(room, this.settings)) {
@@ -438,6 +464,28 @@ export class ScenePipeline {
         return {roomShapeRefs, areaExitHitZones, drawnSpecialExits, drawnStubs};
     }
 
+    // --- Neighbouring-area spill ---
+
+    /**
+     * Draw plain connector lines for the spill's regular/special exits (the room
+     * bodies, custom lines, stubs and inner exits are rendered through the normal
+     * room pass via {@link projectRoom} clones). Lines go on the link layer so
+     * they sit under the rooms, like ordinary exits.
+     */
+    private renderSpillConnectors(spill: NeighborSpill) {
+        for (const e of spill.edges) {
+            this.linkShapes.push({
+                type: "line",
+                layer: "link",
+                points: [e.ax, e.ay, e.bx, e.by],
+                paint: {
+                    stroke: this.settings.lineColor,
+                    strokeWidth: this.settings.lineWidth,
+                },
+            });
+        }
+    }
+
     // --- Link Exits ---
 
     private renderLinkExits(exits: IExit[], zIndex: number, lens: RoomLens) {
@@ -464,6 +512,9 @@ export class ScenePipeline {
 
             const data = this.exitRenderer.renderData(exit, zIndex);
             if (!data) return;
+            // When the far side is a spilled neighbour room, drop the cross-area
+            // arrow + its label — the spill draws a plain connector to it instead.
+            if (data.targetRoomId !== undefined && this.spilledRoomIds.has(data.targetRoomId)) return;
             const exitShape = layoutLinkExit(data, {
                 kind: "exit",
                 id: `${exit.a}:${exit.b}:${exit.aDir ?? ""}:${exit.bDir ?? ""}`,

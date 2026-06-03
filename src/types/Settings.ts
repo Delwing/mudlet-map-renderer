@@ -227,6 +227,13 @@ export type Settings = {
     /** Font size (in map units) for area-exit labels. Padding, corner radius, and stroke
      *  scale proportionally. Default: 0.3 */
     areaExitLabelFontSize: number;
+    /** When true, rooms from neighbouring areas reachable within {@link neighborSpillDistance}
+     *  steps of the player are drawn (faded) across the boundary, projected into the current
+     *  area's coordinate space. Requires a known player position. Default: false */
+    neighborSpill: boolean;
+    /** Max number of steps from the player's room to spill neighbouring-area rooms across a
+     *  boundary (BFS depth over planar exits). Default: 20 */
+    neighborSpillDistance: number;
 };
 
 /** Creates a new Settings object with default values. */
@@ -278,5 +285,7 @@ export function createSettings(): Settings {
         uniformLevelSize: false,
         areaExitLabels: false,
         areaExitLabelFontSize: 0.3,
+        neighborSpill: false,
+        neighborSpillDistance: 20,
     };
 }

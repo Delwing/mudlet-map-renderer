@@ -24,6 +24,9 @@ import {computeHighlight, computePositionMarker, computePathOverlay} from "../sc
 import {computeStubs} from "../scene/StubStyle";
 import {computeSpecialExits} from "../scene/SpecialExitStyle";
 import {layoutRoom} from "../scene/elements/RoomLayout";
+import {computeNeighborSpill, spillPositionMap, ProjectedMapReader} from "../scene/NeighborProjector";
+import type {NeighborSpill} from "../scene/NeighborProjector";
+import type {IMapReader} from "../reader/MapReader";
 import {layoutInnerExits} from "../scene/elements/ExitLayout";
 import {layoutGrid} from "../scene/elements/GridLayout";
 import {specialExitToShape} from "../scene/elements/SpecialExitLayout";
@@ -91,6 +94,13 @@ export class KonvaRenderBackend implements InteractiveBackend {
     private positionMarker?: RecordingGroupNode;
     private highlightShapes: Map<number, RecordingGroupNode> = new Map();
     private pathShapes: RecordingGroupNode[] = [];
+    /**
+     * Projected positions of the current build's spilled neighbouring-area
+     * rooms (roomId → current-area-frame x/y). Empty when neighbour spill is
+     * off or yields nothing. Drives {@link overlayReader} so highlights/paths
+     * on spilled rooms land at their projected spots.
+     */
+    private spilledRoomPositions: Map<number, {x: number; y: number}> = new Map();
     private currentRoomOverlay: RecordingGroupNode[] = [];
     private interactionHandler?: InteractionHandler;
     private origSetSize?: (w: number, h: number) => void;
@@ -473,6 +483,15 @@ export class KonvaRenderBackend implements InteractiveBackend {
 
         state.events.on('position', ({roomId, center, areaChanged}) => {
             this.onPositionChanged(roomId, center, areaChanged);
+            // Neighbour spill is anchored to the player position, so it must be
+            // rebuilt on every move when enabled. This also covers area changes:
+            // the 'area' event fires (and refreshes) *before* MapState updates
+            // positionRoomId, so that refresh sees the old room — we rebuild here
+            // once the new position is current. (A within-area move gets no
+            // 'area' event, so this is its only rebuild.)
+            if (this.state.settings.neighborSpill && roomId !== undefined) {
+                this.refresh();
+            }
         });
 
         state.events.on('center', ({roomId, instant}) => {
@@ -517,7 +536,9 @@ export class KonvaRenderBackend implements InteractiveBackend {
         this.gridCachedBounds = null;
         this.topLabelLayerNode.destroyChildren();
 
-        const result = this.sceneManager.rebuild(area, plane, zIndex, this.state.lens);
+        const spill = this.computeNeighborSpill(area, zIndex);
+        this.spilledRoomPositions = spill ? spillPositionMap(spill) : new Map();
+        const result = this.sceneManager.rebuild(area, plane, zIndex, this.state.lens, spill);
 
         // Track ORIGINAL shape (pre-style) → recording node so onSceneBuilt
         // can find each room/exit's DrawEntry inside `sceneNode` for culling.
@@ -540,6 +561,49 @@ export class KonvaRenderBackend implements InteractiveBackend {
         for (const shape of result.sceneShapes.topLabel) {
             this.addStyledShape(shape, this.topLabelLayerNode);
         }
+    }
+
+    /**
+     * Compute neighbouring-area spill for the current build, or `undefined` when
+     * the feature is off / the player isn't on this area+plane. Driven by the
+     * live player position so it updates as the player nears a boundary.
+     */
+    private computeNeighborSpill(area: IArea, zIndex: number): NeighborSpill | undefined {
+        const settings = this.state.settings;
+        if (!settings.neighborSpill) return undefined;
+        const playerRoomId = this.state.positionRoomId;
+        if (playerRoomId === undefined) return undefined;
+        const room = this.state.mapReader.getRoom(playerRoomId);
+        if (!room || room.area !== area.getAreaId() || room.z !== zIndex) return undefined;
+        const lens = this.state.lens;
+        return computeNeighborSpill(
+            this.state.mapReader,
+            area.getAreaId(),
+            zIndex,
+            playerRoomId,
+            settings.neighborSpillDistance,
+            (room) => lens.isVisible(room),
+        );
+    }
+
+    /**
+     * The map reader the overlay code (highlights, paths) should use. When
+     * neighbour spill produced rooms, this is a {@link ProjectedMapReader} that
+     * makes those spilled rooms look like current-area rooms at their projected
+     * positions; otherwise it's the plain reader.
+     */
+    private overlayReader(): IMapReader {
+        if (this.spilledRoomPositions.size === 0
+            || this.state.currentArea === undefined
+            || this.state.currentZIndex === undefined) {
+            return this.state.mapReader;
+        }
+        return new ProjectedMapReader(
+            this.state.mapReader,
+            this.state.currentArea,
+            this.state.currentZIndex,
+            this.spilledRoomPositions,
+        );
     }
 
     /**
@@ -739,6 +803,9 @@ export class KonvaRenderBackend implements InteractiveBackend {
             exits.forEach(exit => {
                 const data = exitRenderer.renderDataWithColor(exit, currentRoomColor, this.state.currentZIndex!);
                 if (data) {
+                    // Match the main pass: a crossing into a spilled neighbour room
+                    // is shown as a plain connector, so suppress its cross-area arrow.
+                    if (data.targetRoomId !== undefined && this.spilledRoomPositions.has(data.targetRoomId)) return;
                     preRoomShapes.push(this.sceneManager.buildExitShape(data));
                 }
             });
@@ -803,7 +870,10 @@ export class KonvaRenderBackend implements InteractiveBackend {
             this.highlightShapes.delete(roomId);
         }
         if (colors !== undefined) {
-            const room = this.state.mapReader.getRoom(roomId);
+            // overlayReader makes spilled neighbour rooms report the current
+            // area at their projected coords, so the visibility check below
+            // passes for them and the highlight lands across the boundary.
+            const room = this.overlayReader().getRoom(roomId);
             if (room && room.area === this.state.currentArea && room.z === this.state.currentZIndex) {
                 const data = computeHighlight(room, colors, this.state.settings);
                 const node = this.addStyledShape(highlightToShape(data), this.overlayLayerNode);
@@ -817,10 +887,14 @@ export class KonvaRenderBackend implements InteractiveBackend {
         for (const node of this.highlightShapes.values()) node.destroy();
         this.highlightShapes.clear();
 
-        for (const [roomId, entry] of this.state.highlights) {
-            if (entry.area !== this.state.currentArea || entry.z !== this.state.currentZIndex) continue;
-            const room = this.state.mapReader.getRoom(roomId);
-            if (!room) continue;
+        const reader = this.overlayReader();
+        for (const [roomId] of this.state.highlights) {
+            // Resolve through overlayReader so spilled rooms are placed at their
+            // projected coords; gate on the resolved room's area/z (spilled
+            // rooms report the current area, current-area rooms pass as before).
+            const room = reader.getRoom(roomId);
+            if (!room || room.area !== this.state.currentArea || room.z !== this.state.currentZIndex) continue;
+            const entry = this.state.highlights.get(roomId)!;
             const data = computeHighlight(room, entry.colors, this.state.settings);
             const node = this.addStyledShape(highlightToShape(data), this.overlayLayerNode);
             if (node) this.highlightShapes.set(roomId, node);
@@ -833,9 +907,10 @@ export class KonvaRenderBackend implements InteractiveBackend {
         const {currentArea, currentZIndex} = this.state;
         if (currentArea === undefined || currentZIndex === undefined) return;
 
+        const reader = this.overlayReader();
         for (const path of this.state.paths) {
             const data = computePathOverlay(
-                this.state.mapReader, this.state.settings,
+                reader, this.state.settings,
                 path.locations, path.color,
                 currentArea, currentZIndex,
             );

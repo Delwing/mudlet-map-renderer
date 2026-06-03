@@ -86,6 +86,9 @@ export function initControls(settings: Settings, renderer: MapRenderer, getCurre
     const areaExitLabelsToggle = document.getElementById("area-exit-labels-toggle") as HTMLInputElement | null;
     const areaExitLabelSizeSlider = document.getElementById("area-exit-label-size-slider") as HTMLInputElement | null;
     const areaExitLabelSizeValue = document.getElementById("area-exit-label-size-value") as HTMLSpanElement | null;
+    const neighborSpillToggle = document.getElementById("neighbor-spill-toggle") as HTMLInputElement | null;
+    const neighborSpillDistanceSlider = document.getElementById("neighbor-spill-distance-slider") as HTMLInputElement | null;
+    const neighborSpillDistanceValue = document.getElementById("neighbor-spill-distance-value") as HTMLSpanElement | null;
     const uniformLevelSizeToggle = document.getElementById("uniform-level-size-toggle") as HTMLInputElement | null;
     const bordersToggle = document.getElementById("borders-toggle") as HTMLInputElement | null;
     const ambientLightToggle = document.getElementById("ambient-light-toggle") as HTMLInputElement | null;
@@ -193,6 +196,11 @@ export function initControls(settings: Settings, renderer: MapRenderer, getCurre
     if (areaExitLabelSizeSlider && areaExitLabelSizeValue) {
         areaExitLabelSizeSlider.value = settings.areaExitLabelFontSize.toString();
         areaExitLabelSizeValue.textContent = settings.areaExitLabelFontSize.toFixed(2);
+    }
+    if (neighborSpillToggle) neighborSpillToggle.checked = settings.neighborSpill;
+    if (neighborSpillDistanceSlider && neighborSpillDistanceValue) {
+        neighborSpillDistanceSlider.value = settings.neighborSpillDistance.toString();
+        neighborSpillDistanceValue.textContent = settings.neighborSpillDistance.toString();
     }
     if (uniformLevelSizeToggle) uniformLevelSizeToggle.checked = settings.uniformLevelSize;
     if (bordersToggle) bordersToggle.checked = settings.borders;
@@ -453,6 +461,18 @@ export function initControls(settings: Settings, renderer: MapRenderer, getCurre
         const v = parseFloat(areaExitLabelSizeSlider.value);
         settings.areaExitLabelFontSize = v;
         if (areaExitLabelSizeValue) areaExitLabelSizeValue.textContent = v.toFixed(2);
+        renderer.refresh();
+    });
+
+    neighborSpillToggle?.addEventListener("change", () => {
+        settings.neighborSpill = neighborSpillToggle.checked;
+        renderer.refresh();
+    });
+
+    neighborSpillDistanceSlider?.addEventListener("input", () => {
+        const v = parseInt(neighborSpillDistanceSlider.value, 10);
+        settings.neighborSpillDistance = v;
+        if (neighborSpillDistanceValue) neighborSpillDistanceValue.textContent = v.toString();
         renderer.refresh();
     });
 

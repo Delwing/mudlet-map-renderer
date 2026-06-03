@@ -12,6 +12,8 @@ export { darkenColor, colorLightness, hexToRgba } from './utils/color';
 export { MapRenderer } from './rendering/MapRenderer';
 export type { InteractiveBackend } from './rendering/MapRenderer';
 export type { DrawnExitEntry, DrawnSpecialExitEntry, DrawnStubEntry } from './ScenePipeline';
+export { computeNeighborSpill, projectRoom, spillPositionMap, ProjectedMapReader } from './scene/NeighborProjector';
+export type { NeighborSpill, ProjectedRoom, ProjectedEdge } from './scene/NeighborProjector';
 export type { ExitDrawData, ExitDrawLine, ExitDrawArrow, ExitDrawDoor } from './ExitRenderer';
 export { MapState } from './MapState';
 export type { MapStateEventMap, HighlightEntry, PathEntry } from './MapState';

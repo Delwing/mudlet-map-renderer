@@ -19,6 +19,7 @@ import type {GroupShape, Shape} from "../scene/Shape";
 import type {IMapReader} from "../reader/MapReader";
 import type {RoomLens} from "../lens/RoomLens";
 import type {ExitDrawData} from "../ExitRenderer";
+import type {NeighborSpill} from "../scene/NeighborProjector";
 
 export interface CullStats {
     visibleRooms: number;
@@ -82,8 +83,8 @@ export class SceneManager {
         return this.lastBuildResult?.hitShapes ?? [];
     }
 
-    rebuild(area: IArea, plane: IPlane, zIndex: number, lens?: RoomLens): SceneBuildResult {
-        this.lastBuildResult = this.pipeline.buildScene(area, plane, zIndex, lens);
+    rebuild(area: IArea, plane: IPlane, zIndex: number, lens?: RoomLens, spill?: NeighborSpill): SceneBuildResult {
+        this.lastBuildResult = this.pipeline.buildScene(area, plane, zIndex, lens, spill);
         this.standaloneExitShapeSet = new Set(
             this.lastBuildResult.standaloneExitShapeRefs.map(r => r.shape),
         );

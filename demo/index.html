@@ -123,6 +123,7 @@
                     <option value="image">Image</option>
                     <option value="data">Data</option>
                     <option value="data-transparent">Data (transparent)</option>
+                    <option value="none">None (no labels)</option>
                 </select>
             </label>
             <div class="color-row">
@@ -228,6 +229,14 @@
                 <label class="select-label">
                     <span>Area exit label size: <span id="area-exit-label-size-value">0.30</span></span>
                     <input type="range" id="area-exit-label-size-slider" min="0.15" max="1.0" step="0.05" value="0.3">
+                </label>
+                <label class="check-label">
+                    <input type="checkbox" id="neighbor-spill-toggle">
+                    <span>Neighbour area spill</span>
+                </label>
+                <label class="select-label">
+                    <span>Spill distance: <span id="neighbor-spill-distance-value">20</span></span>
+                    <input type="range" id="neighbor-spill-distance-slider" min="1" max="40" step="1" value="20">
                 </label>
                 <label class="check-label">
                     <input type="checkbox" id="uniform-level-size-toggle">
