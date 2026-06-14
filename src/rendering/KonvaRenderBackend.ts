@@ -155,7 +155,7 @@ export class KonvaRenderBackend implements InteractiveBackend {
         this.positionLayerNode = new MaterializingLayerNode(this.positionLayer);
         this.overlayLayerNode = new MaterializingLayerNode(this.overlayLayer);
 
-        this.sceneNode = new DrawCommandLayerNode(sceneLayer);
+        this.sceneNode = new DrawCommandLayerNode(sceneLayer, () => state.settings.coalesceRooms);
         this.gridLayerNode = new RecordingLayerNode(this.gridLayer);
         this.topLabelLayerNode = new RecordingLayerNode(this.topLabelLayer);
         this.sceneManager = new SceneManager(this.camera, state.settings, state.mapReader);
@@ -191,7 +191,7 @@ export class KonvaRenderBackend implements InteractiveBackend {
 
     setStyle(style: Style) {
         this.currentStyle = style;
-        this.sceneNode = new DrawCommandLayerNode(this.linkLayer);
+        this.sceneNode = new DrawCommandLayerNode(this.linkLayer, () => this.state.settings.coalesceRooms);
         this.gridLayerNode = new RecordingLayerNode(this.gridLayer);
         this.topLabelLayerNode = new RecordingLayerNode(this.topLabelLayer);
         this.gridCachedBounds = null;

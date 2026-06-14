@@ -17,6 +17,7 @@ import {transformFill, resolveDash, type GroupShape, type Shape} from "../scene/
 export function shapeToRecording(group: GroupShape): RecordingGroupNode {
     const node = new RecordingGroupNode(group.x, group.y);
     if (group.noScale) node.noScaling = true;
+    node.layer = group.layer;
     addChildren(node, group.children, 0, 0);
     return node;
 }

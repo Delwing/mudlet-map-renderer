@@ -189,6 +189,17 @@ export type Settings = {
     cullingMode: CullingMode;
     /** Custom culling bounds in map coordinates, or null for viewport bounds. Default: null */
     cullingBounds: { x: number; y: number; width: number; height: number } | null;
+    /**
+     * When true, room bodies that share the same fill/stroke/shape are drawn in
+     * a single batched path (one `fill()` + one `stroke()` per style) instead of
+     * one draw per room. Big win on large areas with few environment colours;
+     * see {@link DrawCommandLayerNode}. Rooms with symbols, emboss, gradient
+     * fills, or coloured multi-rings fall back to per-room replay automatically.
+     *
+     * Off by default: coalescing reorders same-style rooms, which can shift
+     * sub-pixel border overlaps where rooms touch. Default: false
+     */
+    coalesceRooms: boolean;
     /** How to render room labels: "image" | "data". Default: "image" */
     labelRenderMode: LabelRenderMode;
     /** When true, room labels have transparent backgrounds. Default: false */
@@ -247,6 +258,7 @@ export function createSettings(): Settings {
         highlightCurrentRoom: true,
         cullingEnabled: true,
         cullingMode: "indexed",
+        coalesceRooms: false,
         cullingBounds: null,
         labelRenderMode: "image",
         transparentLabels: false,

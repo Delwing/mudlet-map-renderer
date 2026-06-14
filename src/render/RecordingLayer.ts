@@ -16,7 +16,7 @@
 
 import Konva from "konva";
 import {BASE_SCALE} from "../camera/Camera";
-import type {FillStyle} from "../scene/Shape";
+import type {FillStyle, LayerId} from "../scene/Shape";
 import {resolveFill} from "./canvasGradient";
 
 // --- Internal draw command types ---
@@ -202,6 +202,8 @@ export class RecordingGroupNode {
     y: number;
     _visible = true;
     noScaling = false;
+    /** Scene layer this group belongs to; drives coalesced draw ordering. */
+    layer?: LayerId;
     readonly commands: RecordingDrawCommand[] = [];
     /** Lazily created when this group is materialized for a Konva.Layer. */
     _konvaGroup?: Konva.Group;
@@ -279,6 +281,7 @@ export type DrawEntry = {
     x: number;
     y: number;
     noScaling: boolean;
+    layer?: LayerId;
     readonly commands: RecordingDrawCommand[];
     visible: boolean;
 };
@@ -290,13 +293,45 @@ export type DrawEntry = {
  * {@link DrawEntry} objects. Used for the main scene layer where individual
  * shapes need cull toggling.
  */
+/**
+ * Style key for a coalescable entry, or `null` if it must be replayed
+ * individually. Batchable iff the entry is a single primitive drawn under the
+ * normal camera transform with solid (non-gradient) paint and no dash:
+ *   - rect / circle  → the common room body
+ *   - line           → the common two-way exit link
+ * Multi-command entries (symbols, emboss/multi-ring rooms, one-way arrows with
+ * heads, doors, inner-exit triangles), gradient fills, dashed/alpha strokes,
+ * and no-scale entries all return `null` and keep the per-entry replay path.
+ */
+function batchKey(entry: DrawEntry): string | null {
+    if (entry.noScaling || entry.commands.length !== 1) return null;
+    const cmd = entry.commands[0];
+    if (cmd.type === "rect") {
+        if (typeof cmd.fill !== "string" && cmd.fill !== undefined) return null;
+        if (cmd.dash) return null;
+        return `r|${cmd.fill ?? ""}|${cmd.stroke ?? ""}|${cmd.sw}|${cmd.cr}`;
+    }
+    if (cmd.type === "circle") {
+        if (typeof cmd.fill !== "string" && cmd.fill !== undefined) return null;
+        if (cmd.dash) return null;
+        return `c|${cmd.fill ?? ""}|${cmd.stroke ?? ""}|${cmd.sw}|${cmd.r}`;
+    }
+    if (cmd.type === "line") {
+        if (cmd.dash || cmd.alpha !== undefined) return null;
+        return `l|${cmd.stroke ?? ""}|${cmd.sw}|${cmd.lineCap ?? ""}|${cmd.lineJoin ?? ""}`;
+    }
+    return null;
+}
+
 export class DrawCommandLayerNode {
     private readonly entries: DrawEntry[] = [];
     private readonly nodeToEntry = new Map<RecordingGroupNode, DrawEntry>();
     private readonly konvaLayer: Konva.Layer;
     private konvaShape: Konva.Shape;
+    /** Reusable bucket map for coalesced draws — cleared per frame, never reallocated. */
+    private readonly buckets = new Map<string, DrawEntry[]>();
 
-    constructor(konvaLayer: Konva.Layer) {
+    constructor(konvaLayer: Konva.Layer, private readonly coalesce: () => boolean = () => false) {
         this.konvaLayer = konvaLayer;
         konvaLayer.destroyChildren();
         const self = this;
@@ -305,25 +340,123 @@ export class DrawCommandLayerNode {
             perfectDrawEnabled: false,
             sceneFunc: (context) => {
                 const ctx = context._context as CanvasRenderingContext2D;
-                const base = ctx.getTransform();
-                const a = base.a, b = base.b, c = base.c, d = base.d;
-                for (const entry of self.entries) {
-                    if (!entry.visible) continue;
-                    const tx = a * entry.x + c * entry.y + base.e;
-                    const ty = b * entry.x + d * entry.y + base.f;
-                    if (entry.noScaling) {
-                        ctx.setTransform(BASE_SCALE, 0, 0, BASE_SCALE, tx, ty);
-                    } else {
-                        ctx.setTransform(a, b, c, d, tx, ty);
-                    }
-                    for (const cmd of entry.commands) {
-                        replayCommand(ctx, cmd);
-                    }
+                if (self.coalesce()) {
+                    self.drawCoalesced(ctx);
+                } else {
+                    self.drawPerEntry(ctx);
                 }
-                ctx.setTransform(base);
             },
         });
         konvaLayer.add(this.konvaShape);
+    }
+
+    /** Original path: one setTransform + replay per visible entry, in order. */
+    private drawPerEntry(ctx: CanvasRenderingContext2D): void {
+        const base = ctx.getTransform();
+        const a = base.a, b = base.b, c = base.c, d = base.d;
+        for (const entry of this.entries) {
+            if (!entry.visible) continue;
+            const tx = a * entry.x + c * entry.y + base.e;
+            const ty = b * entry.x + d * entry.y + base.f;
+            if (entry.noScaling) {
+                ctx.setTransform(BASE_SCALE, 0, 0, BASE_SCALE, tx, ty);
+            } else {
+                ctx.setTransform(a, b, c, d, tx, ty);
+            }
+            for (const cmd of entry.commands) {
+                replayCommand(ctx, cmd);
+            }
+        }
+        ctx.setTransform(base);
+    }
+
+    /**
+     * Fast path: same-style primitives are accumulated into one path per style
+     * and drawn with a single `fill()`/`stroke()`. Done in two sweeps — link
+     * entries (exit lines) first, then room entries — so rooms stay painted on
+     * top of exits, matching the per-entry insertion order. Within a sweep,
+     * non-batchable entries (one-way arrows, doors, symbols, emboss, inner-exit
+     * triangles…) replay per-entry; batched primitives flush afterwards. Exit
+     * lines and room bodies don't meaningfully overlap same-layer siblings, so
+     * reordering them within a sweep is visually immaterial.
+     */
+    private drawCoalesced(ctx: CanvasRenderingContext2D): void {
+        const base = ctx.getTransform();
+        // Sweep 1: everything that isn't a room (exit links) — drawn underneath.
+        this.sweep(ctx, base, (entry) => entry.layer !== "room");
+        // Sweep 2: rooms — drawn on top.
+        this.sweep(ctx, base, (entry) => entry.layer === "room");
+        ctx.setTransform(base);
+    }
+
+    private sweep(ctx: CanvasRenderingContext2D, base: DOMMatrix, accept: (e: DrawEntry) => boolean): void {
+        const a = base.a, b = base.b, c = base.c, d = base.d, e = base.e, f = base.f;
+        const buckets = this.buckets;
+        buckets.clear();
+
+        for (const entry of this.entries) {
+            if (!entry.visible || !accept(entry)) continue;
+            const key = batchKey(entry);
+            if (key === null) {
+                const tx = a * entry.x + c * entry.y + e;
+                const ty = b * entry.x + d * entry.y + f;
+                if (entry.noScaling) {
+                    ctx.setTransform(BASE_SCALE, 0, 0, BASE_SCALE, tx, ty);
+                } else {
+                    ctx.setTransform(a, b, c, d, tx, ty);
+                }
+                for (const cmd of entry.commands) replayCommand(ctx, cmd);
+            } else {
+                let list = buckets.get(key);
+                if (!list) buckets.set(key, (list = []));
+                list.push(entry);
+            }
+        }
+        if (buckets.size === 0) return;
+
+        // Camera transform applied once; batched primitives are in world coords.
+        ctx.setTransform(a, b, c, d, e, f);
+        for (const list of buckets.values()) {
+            const cmd = list[0].commands[0];
+            ctx.beginPath();
+            if (cmd.type === "rect") {
+                const roundable = cmd.cr > 0 && typeof ctx.roundRect === "function";
+                for (const entry of list) {
+                    if (roundable) ctx.roundRect(entry.x + cmd.x, entry.y + cmd.y, cmd.w, cmd.h, cmd.cr);
+                    else ctx.rect(entry.x + cmd.x, entry.y + cmd.y, cmd.w, cmd.h);
+                }
+                if (cmd.fill) { ctx.fillStyle = cmd.fill as string; ctx.fill(); }
+                if (cmd.stroke && cmd.sw > 0) {
+                    ctx.strokeStyle = cmd.stroke; ctx.lineWidth = cmd.sw;
+                    ctx.setLineDash([]); ctx.stroke();
+                }
+            } else if (cmd.type === "circle") {
+                for (const entry of list) {
+                    const cx = entry.x + cmd.cx, cy = entry.y + cmd.cy;
+                    ctx.moveTo(cx + cmd.r, cy);
+                    ctx.arc(cx, cy, cmd.r, 0, Math.PI * 2);
+                }
+                if (cmd.fill) { ctx.fillStyle = cmd.fill as string; ctx.fill(); }
+                if (cmd.stroke && cmd.sw > 0) {
+                    ctx.strokeStyle = cmd.stroke; ctx.lineWidth = cmd.sw;
+                    ctx.setLineDash([]); ctx.stroke();
+                }
+            } else if (cmd.type === "line") {
+                for (const entry of list) {
+                    const pts = entry.commands[0] as typeof cmd;
+                    const p = pts.points;
+                    if (p.length < 4) continue;
+                    ctx.moveTo(p[0] + entry.x, p[1] + entry.y);
+                    for (let i = 2; i < p.length; i += 2) ctx.lineTo(p[i] + entry.x, p[i + 1] + entry.y);
+                }
+                if (cmd.stroke) ctx.strokeStyle = cmd.stroke;
+                ctx.lineWidth = cmd.sw;
+                ctx.setLineDash([]);
+                if (cmd.lineCap) ctx.lineCap = cmd.lineCap as CanvasLineCap;
+                if (cmd.lineJoin) ctx.lineJoin = cmd.lineJoin as CanvasLineJoin;
+                ctx.stroke();
+            }
+        }
     }
 
     addNode(node: RecordingGroupNode): void {
@@ -331,6 +464,7 @@ export class DrawCommandLayerNode {
             x: node.x,
             y: node.y,
             noScaling: node.noScaling,
+            layer: node.layer,
             commands: node.commands,
             visible: node._visible,
         };

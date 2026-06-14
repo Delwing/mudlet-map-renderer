@@ -697,6 +697,15 @@ export function initControls(settings: Settings, renderer: MapRenderer, getCurre
         }
     });
 
+    // --- Coalesce rooms (batch same-style room bodies + exit lines) ---
+
+    const coalesceToggle = document.getElementById("coalesce-toggle") as HTMLInputElement | null;
+    if (coalesceToggle) coalesceToggle.checked = settings.coalesceRooms;
+    coalesceToggle?.addEventListener("change", () => {
+        settings.coalesceRooms = coalesceToggle.checked;
+        renderer.refresh();
+    });
+
     // --- Hit area debug overlay ---
 
     const hitAreasToggle = document.getElementById("hit-areas-toggle") as HTMLInputElement | null;
