@@ -10,6 +10,12 @@ export default defineConfig({
     },
     build: {
         outDir: 'dist',
-        emptyOutDir: true
+        emptyOutDir: true,
+        rollupOptions: {
+            input: {
+                index: path.resolve(__dirname, 'demo/index.html'),
+                '3d': path.resolve(__dirname, 'demo/3d.html')
+            }
+        }
     }
 });
