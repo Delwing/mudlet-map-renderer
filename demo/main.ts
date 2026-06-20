@@ -15,10 +15,6 @@ import type {Settings, IMapReader} from "@src";
 import {createOffscreenBackend} from "@src/rendering/offscreen";
 import MapReader from "@src/reader/MapReader";
 import {BinaryMapReader} from "@src/binary";
-import {Buffer} from "buffer";
-// qtdatastream / int64-buffer reach for a global `Buffer` when parsing .dat
-// bytes in the browser; the bundler does not provide one, so expose the polyfill.
-(globalThis as unknown as {Buffer: typeof Buffer}).Buffer ??= Buffer;
 import {initControls} from "./controls";
 import {initContextMenu} from "./context-menu";
 import {Walker} from "./walker";
@@ -790,10 +786,10 @@ function setupMapLoader() {
         setName(`Loading ${file.name}…`);
         drop!.classList.remove("error");
         try {
-            // Mudlet's binary parser needs a Node Buffer (qtdatastream uses
-            // Buffer.readInt*); the `buffer` polyfill provides one in-browser.
+            // mudlet-map-binary-reader (>=1.0.0) parses a plain Uint8Array via
+            // qtdatastream-web — no Node Buffer or polyfill needed in-browser.
             const bytes = await file.arrayBuffer();
-            const reader = BinaryMapReader.fromBuffer(Buffer.from(bytes));
+            const reader = BinaryMapReader.fromBuffer(new Uint8Array(bytes));
             await initialize(reader);
             setName(file.name);
             if (resetBtn) resetBtn.hidden = false;

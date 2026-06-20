@@ -5,9 +5,6 @@ export default defineConfig({
     root: 'demo',
     resolve: {
         alias: [
-            // Browser shim for qtdatastream (Node-stream based) so the dropped-.dat
-            // loader parses maps in the browser. Mirrors vite.config.ts's serve shim.
-            {find: /^qtdatastream$/, replacement: path.resolve(__dirname, 'demo/qtdatastream-browser.js')},
             {find: '@src', replacement: path.resolve(__dirname, 'src')},
         ],
     },

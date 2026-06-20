@@ -37,8 +37,10 @@ export default class BinaryMapReader implements IMapReader {
 
     /**
      * Parse the given binary map buffer and construct a reader from it.
-     * In Node, pass `fs.readFileSync(path)`; in the browser, construct a
-     * `Buffer` from an `ArrayBuffer` (e.g. via the `buffer` polyfill).
+     * Accepts any `Uint8Array`: in Node pass `fs.readFileSync(path)`; in the
+     * browser pass `new Uint8Array(await file.arrayBuffer())`. The underlying
+     * `mudlet-map-binary-reader` (>=1.0.0) is browser-safe and needs no
+     * Node `Buffer` polyfill.
      */
     static fromBuffer(buf: Parameters<typeof readMapFromBuffer>[0]): BinaryMapReader {
         return new BinaryMapReader(readMapFromBuffer(buf));

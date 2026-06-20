@@ -6,13 +6,6 @@ export default defineConfig(({ command }) => ({
     root: command === 'serve' ? 'demo' : '.',
     resolve: {
         alias: [
-            // Demo only: redirect qtdatastream's bare entry (which pulls in
-            // Node-stream-based socket/transform) to a browser-safe shim so the
-            // dropped-.dat loader can parse maps in the browser. Exact-match the
-            // bare specifier; `qtdatastream/src/*` subpaths pass through.
-            ...(command === 'serve'
-                ? [{find: /^qtdatastream$/, replacement: path.resolve(__dirname, 'demo/qtdatastream-browser.js')}]
-                : []),
             {find: '@src', replacement: path.resolve(__dirname, 'src')},
         ],
     },

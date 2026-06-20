@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.5.0] - 2026-06-20
+
+### Changed
+
+- Upgraded the optional `mudlet-map-binary-reader` peer dependency to `>=1.0.0` (now `1.0.1`), which migrated its Qt serialization to the browser-safe `qtdatastream-web` package. `BinaryMapReader.fromBuffer()` now accepts any `Uint8Array` and parses **and** exports map data with no dependency on Node's `Buffer`, so it runs unchanged in the browser. This is backward compatible: a Node `Buffer` is a `Uint8Array` subclass and still works, so existing `fromBuffer(fs.readFileSync(path))` callers are unaffected.
+
+### Removed
+
+- The browser shim for `qtdatastream` (`demo/qtdatastream-browser.js`) and the Vite aliases that wired it in (`vite.config.ts`, `vite.demo.config.ts`), plus the `Buffer` polyfill in the demo's dropped-`.dat` loader — all obsolete now that the binary reader is browser-safe.
+
 ## [2.4.0] - 2026-06-20
 
 ### Added
