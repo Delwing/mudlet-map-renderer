@@ -41,7 +41,8 @@ MapRenderer (facade) → InteractiveBackend (KonvaRenderBackend)
 - **KonvaRenderBackend** (`src/rendering/KonvaRenderBackend.ts`) — Interactive canvas renderer. Manages Konva.Stage with layers (grid, link, room, overlay, position). Coordinates Viewport, CullingManager, InteractionHandler.
 - **ScenePipeline** (`src/ScenePipeline.ts`) — Backend-agnostic scene composition. Shared by both Konva and SVG render paths. Renders: grid → labels → link exits → rooms → area name.
 - **Viewport** (`src/Viewport.ts`) — Transform state (zoom, pan, animations). No Konva dependency — works headless.
-- **CullingManager** (`src/CullingManager.ts`) — Spatial indexing for viewport-based visibility culling. Three modes: `none`, `basic`, `indexed`.
+- **CullingManager** (`src/CullingManager.ts`) — RAF-debounced scheduler that batches camera changes into one cull pass per frame; also holds the world→scene transform. The cull predicate lives in `clipSceneToViewport` (shared by SVG/PNG export, one-shot, linear scan).
+- **CullIndex** (`src/render/CullIndex.ts`) — Uniform-grid spatial index over scene-space AABBs (with an oversized-bucket for long exits). Built per scene rebuild by `SceneManager`; powers the interactive cull so panning a 10k-room map is O(visible cells), not O(all rooms). `KonvaRenderBackend.applyClipping` flips only the `DrawEntry.visible` deltas (shapes entering/leaving the viewport). Note: `cullingMode` `basic`/`indexed` are currently identical at runtime — culling is on whenever `cullingEnabled` is true. The SVG/PNG export path and the OffscreenCanvas worker still use the linear scan.
 
 ### DrawingBackend System
 

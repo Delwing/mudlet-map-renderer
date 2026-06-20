@@ -87,6 +87,14 @@ export class KonvaRenderBackend implements InteractiveBackend {
     // Shape → DrawEntry map rebuilt on each buildScene; used by applyClipping
     // to toggle DrawEntry.visible without knowing about CullEntry or Konva internals.
     private shapeToDrawEntry: Map<Shape, DrawEntry> = new Map();
+    /**
+     * Managed shapes visible after the last cull pass. applyClipping diffs the
+     * fresh visible set against this and flips only the entries that changed,
+     * so a pan touches O(shapes entering/leaving the viewport), not O(all).
+     * Seeded with every managed shape on rebuild (all entries start visible) so
+     * the first pass hides the off-screen ones.
+     */
+    private lastVisibleShapes: Set<Shape> = new Set();
     private sceneNode!: DrawCommandLayerNode;
     /** Lookup from a pipeline-emitted shape to its recording node; rebuilt per buildScene. */
     private shapeToGroup: Map<Shape, RecordingGroupNode> = new Map();
@@ -705,6 +713,9 @@ export class KonvaRenderBackend implements InteractiveBackend {
             const drawEntry = this.sceneNode.getEntry(node);
             if (drawEntry) this.shapeToDrawEntry.set(shape, drawEntry);
         }
+        // All freshly-built entries start visible; treat the whole managed set
+        // as "previously visible" so the first cull hides the off-screen ones.
+        this.lastVisibleShapes = this.sceneManager.managedShapes(this._coordinateTransform);
         this.applyClipping();
         this.stage.batchDraw();
     }
@@ -712,15 +723,30 @@ export class KonvaRenderBackend implements InteractiveBackend {
     private applyClipping(): void {
         if (!this.sceneManager.lastResult) return;
 
-        const visibilityMap = this.sceneManager.cullInteractive(this._coordinateTransform);
+        const visible = this.sceneManager.cullInteractive(this._coordinateTransform);
+        const prev = this.lastVisibleShapes;
         let changed = false;
-        for (const [shape, entry] of this.shapeToDrawEntry) {
-            const vis = visibilityMap.get(shape) ?? true;
-            if (entry.visible !== vis) {
-                entry.visible = vis;
+
+        // Hide shapes that left the viewport since last pass.
+        for (const shape of prev) {
+            if (visible.has(shape)) continue;
+            const entry = this.shapeToDrawEntry.get(shape);
+            if (entry && entry.visible) {
+                entry.visible = false;
                 changed = true;
             }
         }
+        // Reveal shapes that entered the viewport since last pass.
+        for (const shape of visible) {
+            if (prev.has(shape)) continue;
+            const entry = this.shapeToDrawEntry.get(shape);
+            if (entry && !entry.visible) {
+                entry.visible = true;
+                changed = true;
+            }
+        }
+
+        this.lastVisibleShapes = visible;
         if (changed) this.sceneNode.batchDraw();
     }
 
