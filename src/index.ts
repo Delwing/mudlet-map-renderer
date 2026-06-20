@@ -2,11 +2,15 @@
 export { createSettings } from './types/Settings';
 export type {
     Settings, ViewportBounds, RendererEventMap,
-    CullingMode, RoomShape, LabelRenderMode, PlayerMarkerStyle,
+    CullingMode, RoomShape, HiddenRoomMode, LabelRenderMode, PlayerMarkerStyle,
     RoomClickEventDetail, RoomContextMenuEventDetail,
     ZoomChangeEventDetail, AreaExitClickEventDetail, PanEventDetail,
 } from './types/Settings';
 export { darkenColor, colorLightness, hexToRgba } from './utils/color';
+export {
+    isRoomHidden, getRoomBorderColor, getRoomBorderThickness,
+    ROOM_UI_HIDDEN, ROOM_UI_BORDER_COLOR, ROOM_UI_BORDER_THICKNESS,
+} from './scene/RoomFlags';
 
 // --- Core renderer ---
 export { MapRenderer } from './rendering/MapRenderer';

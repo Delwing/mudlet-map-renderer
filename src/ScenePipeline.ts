@@ -18,12 +18,15 @@ import type {GroupShape, Shape} from "./scene/Shape";
 import {colorLightness} from "./utils/color";
 import type {RoomLens, ExitTreatment} from "./lens/RoomLens";
 import {ALL_VISIBLE, defaultExitTreatment} from "./lens/RoomLens";
+import {hiddenAwareLens} from "./lens/hiddenAwareLens";
 import {movePoint, movePointCircle, movePointRoundedRect} from "./directions";
 import {longToShort, regularExits} from "./reader/Exit";
 import type {NeighborSpill} from "./scene/NeighborProjector";
 import {projectRoom} from "./scene/NeighborProjector";
+import {isRoomHidden, hiddenRoomLayoutOptions} from "./scene/RoomFlags";
 
 type Bounds = { x: number; y: number; width: number; height: number };
+
 
 /**
  * Reference to one room's body shape inside the scene. Keyed by roomId so
@@ -282,18 +285,26 @@ export class ScenePipeline {
         // Labels
         this.renderLabels(plane.getLabels(), area.getAreaId());
 
-        // Link exits (two-way connections)
-        const exitResult = this.renderLinkExits(area.getLinkExits(zIndex), zIndex, lens);
+        // Fold "hide"-mode hidden rooms into the lens, so both the room filter
+        // (isVisible) and the exit treatment (getExitTreatment → "hidden") drop
+        // them through the normal lens machinery rather than special cases.
+        const hideHidden = this.settings.hiddenRooms === "hide";
+        const effectiveLens = hiddenAwareLens(lens, hideHidden);
 
-        // Visible rooms only — the lens (e.g. exploration) drops the rest.
-        const visibleRooms = (plane.getRooms() ?? []).filter(r => lens.isVisible(r));
+        // Link exits (two-way connections)
+        const exitResult = this.renderLinkExits(area.getLinkExits(zIndex), zIndex, effectiveLens);
+
+        // Visible rooms only — the lens drops the rest (exploration + hidden rooms).
+        const visibleRooms = (plane.getRooms() ?? []).filter(r => effectiveLens.isVisible(r));
 
         // Spilled neighbour rooms become first-class rooms: cloned into this
         // frame (coords + custom lines offset) and rendered through the same room
         // pass, so their bodies, custom lines, stubs and inner exits all use the
         // normal logic. Connectors for their plain exits are drawn separately.
         const spilledRooms = spill
-            ? spill.rooms.map(r => projectRoom(r.room, r.x, r.y, area.getAreaId(), zIndex))
+            ? spill.rooms
+                .filter(r => !(hideHidden && isRoomHidden(r.room)))
+                .map(r => projectRoom(r.room, r.x, r.y, area.getAreaId(), zIndex))
             : [];
 
         // Rooms (with stubs, special exits, inner exits)
@@ -371,7 +382,10 @@ export class ScenePipeline {
             // Room body + inner exits — emitted as a single SceneIR group.
             // flatPipeline is always true now: per-style coordinate warping
             // (e.g. Isometric) is applied downstream by Style.transform.
-            const roomShape = layoutRoom(room, this.mapReader, this.settings, {flatPipeline: true});
+            const roomShape = layoutRoom(room, this.mapReader, this.settings, {
+                flatPipeline: true,
+                ...hiddenRoomLayoutOptions(room, this.settings.hiddenRooms),
+            });
             roomShape.children.push(...layoutInnerExits(room, this.mapReader, this.settings));
 
             // Special exits → link layer. The active Style applies any

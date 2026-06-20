@@ -1,6 +1,5 @@
 import {MapRenderer, CullingMode, RoomShape, PathFinder, SvgExporter, PngBlobExporter, AmbientLightOverlay} from "@src";
-import type {Settings, LabelRenderMode, PathFindingAlgorithm, ExplorationLens} from "@src";
-import type MapReader from "@src/reader/MapReader";
+import type {Settings, LabelRenderMode, PathFindingAlgorithm, ExplorationLens, HiddenRoomMode, IMapReader} from "@src";
 import {WeatherOverlay} from "./WeatherOverlay";
 import type {WeatherType} from "./WeatherOverlay";
 import {TerrainOverlay} from "./TerrainOverlay";
@@ -37,7 +36,7 @@ function describeCullingMode(mode: CullingMode) {
     }
 }
 
-export function initControls(settings: Settings, renderer: MapRenderer, getCurrentRoomId: () => number, pathFinder?: PathFinder, onAlgorithmChange?: () => void, onPathColorChange?: (color: string) => void, onRenderModeChange?: (mode: string) => void, mapReader?: MapReader, explorationLens?: ExplorationLens) {
+export function initControls(settings: Settings, renderer: MapRenderer, getCurrentRoomId: () => number, pathFinder?: PathFinder, onAlgorithmChange?: () => void, onPathColorChange?: (color: string) => void, onRenderModeChange?: (mode: string) => void, mapReader?: IMapReader, explorationLens?: ExplorationLens) {
     const explorationToggle = document.getElementById("exploration-toggle") as HTMLInputElement | null;
     const instantMoveToggle = document.getElementById("instant-move-toggle") as HTMLInputElement | null;
     const highlightToggle = document.getElementById("highlight-toggle") as HTMLInputElement | null;
@@ -46,6 +45,7 @@ export function initControls(settings: Settings, renderer: MapRenderer, getCurre
     const gridOpacity = document.getElementById("grid-opacity") as HTMLInputElement | null;
     const gridOpacityValue = document.getElementById("grid-opacity-value") as HTMLSpanElement | null;
     const roomShapeSelect = document.getElementById("room-shape") as HTMLSelectElement | null;
+    const hiddenRoomsSelect = document.getElementById("hidden-rooms") as HTMLSelectElement | null;
     const cullingModeSelect = document.getElementById("culling-mode") as HTMLSelectElement | null;
     const backgroundColorInput = document.getElementById("background-color") as HTMLInputElement | null;
     const lineColorInput = document.getElementById("line-color") as HTMLInputElement | null;
@@ -114,6 +114,7 @@ export function initControls(settings: Settings, renderer: MapRenderer, getCurre
     // --- Sync UI to current settings ---
 
     if (roomShapeSelect) roomShapeSelect.value = settings.roomShape;
+    if (hiddenRoomsSelect) hiddenRoomsSelect.value = settings.hiddenRooms;
     if (cullingModeSelect) cullingModeSelect.value = renderer.getCullingMode();
     if (instantMoveToggle) instantMoveToggle.checked = settings.instantMapMove;
     if (highlightToggle) highlightToggle.checked = settings.highlightCurrentRoom;
@@ -269,6 +270,11 @@ export function initControls(settings: Settings, renderer: MapRenderer, getCurre
 
     roomShapeSelect?.addEventListener("change", () => {
         settings.roomShape = (roomShapeSelect.value ?? "rectangle") as RoomShape;
+        renderer.refresh();
+    });
+
+    hiddenRoomsSelect?.addEventListener("change", () => {
+        settings.hiddenRooms = (hiddenRoomsSelect.value ?? "hide") as HiddenRoomMode;
         renderer.refresh();
     });
 
@@ -747,7 +753,7 @@ export function initControls(settings: Settings, renderer: MapRenderer, getCurre
     const tabButtons = Array.from(document.querySelectorAll<HTMLButtonElement>(".tab-btn"));
     const tabPanels = Array.from(document.querySelectorAll<HTMLElement>(".tab-panel"));
     for (const btn of tabButtons) {
-        btn.addEventListener("click", () => {
+        btn?.addEventListener("click", () => {
             const tab = btn.dataset.tab;
             for (const b of tabButtons) b.classList.toggle("active", b === btn);
             for (const p of tabPanels) p.classList.toggle("active", p.dataset.tab === tab);

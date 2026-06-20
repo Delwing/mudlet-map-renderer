@@ -1,6 +1,7 @@
 import type {Settings} from "../types/Settings";
 import {darkenColor, lightenColor} from "../utils/color";
 import type {IMapReader} from "../reader/MapReader";
+import {getRoomBorderColor, getRoomBorderThickness} from "./RoomFlags";
 
 export type RoomColors = {
     fillColor: string;
@@ -8,6 +9,8 @@ export type RoomColors = {
     borderWidth: number;
     symbolColor: string;
     envColor: string;
+    /** True when the room carries an explicit per-room border colour (userData). */
+    customBorder: boolean;
 };
 
 export type EmbossEdge = {
@@ -37,16 +40,30 @@ export function computeRoomColors(
     const fillColor = settings.coloredMode ? darkenColor(envColor, 0.5)
         : settings.frameMode ? settings.backgroundColor : envColor;
     const brightEnvColor = settings.coloredMode ? lightenColor(envColor, 0.1) : envColor;
-    const strokeColor = strokeOverride
+    let strokeColor = strokeOverride
         ? ((settings.frameMode || settings.coloredMode) ? brightEnvColor : strokeOverride)
         : ((settings.frameMode || settings.coloredMode) ? brightEnvColor : settings.lineColor);
-    const borderWidth = settings.borders ? settings.lineWidth : 0;
+    let borderWidth = settings.borders ? settings.lineWidth : 0;
+
+    // Per-room border overrides (Mudlet "room.ui.border_color" / "room.ui.border_thickness").
+    // An explicit per-room border wins over the global/env-derived stroke and is
+    // drawn even when global borders are off — matching Mudlet, where a room's
+    // border colour overrides the map border colour for that room.
+    const borderColor = getRoomBorderColor(room);
+    const borderThickness = getRoomBorderThickness(room);
+    if (borderColor) strokeColor = borderColor;
+    if (borderThickness !== undefined) {
+        borderWidth = settings.lineWidth * borderThickness;
+    } else if (borderColor && borderWidth === 0) {
+        borderWidth = settings.lineWidth;
+    }
+
     const symbolColor = room.userData?.["system.fallback_symbol_color"]
         ?? ((settings.frameMode || settings.coloredMode)
             ? brightEnvColor
             : mapReader.getSymbolColor(room.env));
 
-    return {fillColor, strokeColor, borderWidth, symbolColor, envColor};
+    return {fillColor, strokeColor, borderWidth, symbolColor, envColor, customBorder: borderColor !== undefined};
 }
 
 /**

@@ -8,6 +8,16 @@ export type CullingMode = "none" | "basic" | "indexed";
 
 export type RoomShape = "rectangle" | "circle" | "roundedRectangle";
 
+/**
+ * How to render rooms Mudlet has marked hidden (see {@link isRoomHidden}):
+ * - `"hide"` — omit them from the scene entirely (Mudlet's default).
+ * - `"show"` — draw them exactly like any other room.
+ * - `"faded"` — draw them at reduced opacity so they read as de-emphasised.
+ * - `"dashed"` — draw them at full opacity but with a dashed border, a more
+ *   distinct "hidden" marker than a fade (which can read as just another shade).
+ */
+export type HiddenRoomMode = "hide" | "show" | "faded" | "dashed";
+
 export type RoomContextMenuEventDetail = {
     roomId: number;
     position: { x: number; y: number };
@@ -206,6 +216,8 @@ export type Settings = {
     transparentLabels: boolean;
     /** Shape used to render rooms: "rectangle" | "circle" | "roundedRectangle". Default: "rectangle" */
     roomShape: RoomShape;
+    /** How to render rooms Mudlet has marked hidden: "hide" | "show" | "faded". Default: "hide" */
+    hiddenRooms: HiddenRoomMode;
     /** Style configuration for the player position marker. */
     playerMarker: PlayerMarkerStyle;
     /** Style configuration for room highlights (added via {@link MapRenderer.renderHighlight}). */
@@ -263,6 +275,7 @@ export function createSettings(): Settings {
         labelRenderMode: "image",
         transparentLabels: false,
         roomShape: "rectangle",
+        hiddenRooms: "hide",
         playerMarker: {
             strokeColor: "#00e5b2",
             strokeAlpha: 1.0,

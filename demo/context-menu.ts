@@ -1,6 +1,5 @@
 import {MapRenderer} from "@src";
-import type {RoomContextMenuEventDetail, RoomClickEventDetail} from "@src";
-import MapReader from "@src/reader/MapReader";
+import type {RoomContextMenuEventDetail, RoomClickEventDetail, IMapReader} from "@src";
 
 export interface WaypointMenuControls {
     has(roomId: number): boolean;
@@ -11,7 +10,7 @@ export interface WaypointMenuControls {
 export function initContextMenu(
     stageElement: HTMLDivElement,
     renderer: MapRenderer,
-    mapReader: MapReader,
+    mapReader: IMapReader,
     moveToRoom: (room: MapData.Room) => void,
     updateRoomStatus: (msg: string) => void,
     waypoints?: WaypointMenuControls,
@@ -26,7 +25,7 @@ export function initContextMenu(
     };
 
     // Room click — toggle highlight
-    stageElement.addEventListener("roomclick", event => {
+    stageElement?.addEventListener("roomclick", event => {
         const {roomId} = (event as CustomEvent<RoomClickEventDetail>).detail;
         if (renderer.hasHighlight(roomId)) {
             renderer.removeHighlight(roomId);
@@ -38,7 +37,7 @@ export function initContextMenu(
     if (!contextMenuElement || !contextMenuContent) return;
 
     // Room context menu (right-click / long-press)
-    stageElement.addEventListener("roomcontextmenu", event => {
+    stageElement?.addEventListener("roomcontextmenu", event => {
         const {roomId, position} = (event as CustomEvent<RoomContextMenuEventDetail>).detail;
 
         contextMenuContent.innerHTML = "";
@@ -49,7 +48,7 @@ export function initContextMenu(
 
         const setCurrentBtn = document.createElement("button");
         setCurrentBtn.textContent = "Set as current room";
-        setCurrentBtn.addEventListener("click", () => {
+        setCurrentBtn?.addEventListener("click", () => {
             const room = mapReader.getRoom(roomId);
             if (room) {
                 moveToRoom(room);
@@ -61,7 +60,7 @@ export function initContextMenu(
 
         const lookBtn = document.createElement("button");
         lookBtn.textContent = "Center on room";
-        lookBtn.addEventListener("click", () => {
+        lookBtn?.addEventListener("click", () => {
             renderer.centerOn(roomId);
             hideContextMenu();
         });
@@ -71,7 +70,7 @@ export function initContextMenu(
             if (waypoints.has(roomId)) {
                 const removeWpBtn = document.createElement("button");
                 removeWpBtn.textContent = "Remove waypoint";
-                removeWpBtn.addEventListener("click", () => {
+                removeWpBtn?.addEventListener("click", () => {
                     waypoints.remove(roomId);
                     updateRoomStatus(`Removed waypoint on room ${roomId}.`);
                     hideContextMenu();
@@ -80,7 +79,7 @@ export function initContextMenu(
             } else {
                 const addWpBtn = document.createElement("button");
                 addWpBtn.textContent = "Add waypoint…";
-                addWpBtn.addEventListener("click", () => {
+                addWpBtn?.addEventListener("click", () => {
                     const label = window.prompt("Waypoint label:", `Room ${roomId}`);
                     if (label !== null) {
                         waypoints.add(roomId, label.trim() || `Room ${roomId}`);
@@ -99,15 +98,15 @@ export function initContextMenu(
     });
 
     // Dismiss on various interactions
-    stageElement.addEventListener("pointerdown", (e) => {
+    stageElement?.addEventListener("pointerdown", (e) => {
         if (e.button !== 2) hideContextMenu();
     });
-    stageElement.addEventListener("wheel", hideContextMenu, {passive: true});
-    stageElement.addEventListener("scroll", hideContextMenu);
-    window.addEventListener("keydown", e => {
+    stageElement?.addEventListener("wheel", hideContextMenu, {passive: true});
+    stageElement?.addEventListener("scroll", hideContextMenu);
+    window?.addEventListener("keydown", e => {
         if (e.key === "Escape") hideContextMenu();
     });
-    window.addEventListener("pointerdown", event => {
+    window?.addEventListener("pointerdown", event => {
         if (event.button === 2) return;
         if (event.target instanceof Node && contextMenuElement.contains(event.target)) return;
         hideContextMenu();

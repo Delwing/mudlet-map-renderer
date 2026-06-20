@@ -1,4 +1,4 @@
-import MapReader from "@src/reader/MapReader";
+import type {IMapReader} from "@src";
 
 const exitNumberToDirection: Record<number, MapData.direction> = {
     1: "north",
@@ -112,7 +112,7 @@ export function getRoomExits(room: MapData.Room) {
     return exits;
 }
 
-export function getDirectionalExitTarget(room: MapData.Room, direction: MapData.direction, mapReader: MapReader) {
+export function getDirectionalExitTarget(room: MapData.Room, direction: MapData.direction, mapReader: IMapReader) {
     const lockedDirections = new Set(
         (room.exitLocks ?? [])
             .map(lockId => exitNumberToDirection[lockId])

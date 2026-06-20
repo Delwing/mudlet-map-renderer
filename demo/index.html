@@ -50,6 +50,18 @@
         <!-- ── Navigate ────────────────────────────────── -->
         <div class="tab-panel active" data-tab="nav">
             <div class="panel-section">
+                <div class="section-title">Map</div>
+                <div id="map-drop" class="map-drop">
+                    <strong>Drop a Mudlet <code>.dat</code> map here</strong>
+                    <span>or click to choose a file</span>
+                    <input type="file" id="map-file" accept=".dat" hidden>
+                </div>
+                <div class="map-source-row">
+                    <span id="map-source-name" class="map-source-name">Default sample map</span>
+                    <button type="button" id="map-reset" class="btn btn-sm" hidden>Use default</button>
+                </div>
+            </div>
+            <div class="panel-section">
                 <div class="section-title">Navigation</div>
                 <button type="button" id="walker-toggle" class="btn">Start walker</button>
                 <form id="room-form" class="inline-form">
@@ -166,6 +178,15 @@
                         <option value="rectangle">Rectangle</option>
                         <option value="roundedRectangle">Rounded Rectangle</option>
                         <option value="circle">Circle</option>
+                    </select>
+                </label>
+                <label class="select-label">
+                    <span>Hidden rooms</span>
+                    <select id="hidden-rooms">
+                        <option value="hide">Hide</option>
+                        <option value="show">Show</option>
+                        <option value="faded">Show faded</option>
+                        <option value="dashed">Show dashed</option>
                     </select>
                 </label>
                 <label class="select-label">

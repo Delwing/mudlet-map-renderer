@@ -7,8 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.4.0] - 2026-06-20
+
 ### Added
 
+- **Hidden rooms & per-room border styling**, both driven by Mudlet `userData`:
+  - `Settings.hiddenRooms` controls how Mudlet-hidden rooms (the `system.fallback_hidden` userData key, used as a fallback where the v21+ binary `hidden` field isn't surfaced) are drawn: `"hide"` (default — drops the room **and** any exit touching it), `"show"`, `"faded"` (reduced opacity), or `"dashed"` (full opacity with a dashed border — a more distinct marker than a fade). Hidden rooms fold into the active lens (`isVisible` / `getExitTreatment`), so the scene build, culling, and the current-room overlay all hide them and their exits consistently.
+  - Per-room **border colour & thickness** via the `room.ui_borderColor` / `room.ui_borderThickness` userData keys: they override the room's stroke, draw even when global borders are off, survive emboss, and accept Mudlet's Qt `#AARRGGBB` colour strings (converted to CSS).
+  - New public exports: `isRoomHidden`, `getRoomBorderColor`, `getRoomBorderThickness`, the `ROOM_UI_HIDDEN` / `ROOM_UI_BORDER_COLOR` / `ROOM_UI_BORDER_THICKNESS` key constants, and the `HiddenRoomMode` type. The demo gains a "Hidden rooms" mode selector.
 - Optional **neighbouring-area spill**: when enabled, rooms from adjacent areas that are reachable within a step budget of the player's room are drawn across the boundary, projected into the current area's coordinate space. Because areas use independent coordinates, the projection BFS advances by real coordinate deltas within an area and anchors a 2-unit gap along the crossing exit's planar direction at the boundary (a visible seam). The BFS follows **special exits** as well as regular exits, so rooms reachable only via a special exit still appear (boundaries are crossed only via a planar regular exit, which is the only thing that gives an anchor direction). Only **visible** rooms (lens / fog-of-war) are spilled. Spilled rooms are **cloned into the current frame** (coordinates *and* custom-line points offset by the same delta) and rendered through the **normal room pass** — so their bodies, custom lines, stubs and inner exits all use the same drawing logic, they participate in culling, and they stay clickable (clicks navigate to the real room). Their plain regular/special exits are drawn as connector lines (custom-line exits are skipped there since the room pass already draws them as polylines). Cross-area arrows/labels for crossings *into* spilled rooms are suppressed (main pass, room-level special/inner exits, and the current-room highlight overlay) so the crossing reads as an ordinary connection, and spilled rooms don't sprout their own area-exit arrows. **Highlights and paths** on spilled rooms are drawn at their projected positions via a `ProjectedMapReader` that presents them as current-area rooms to the overlay code. Configured by `neighborSpill` (default `false`) and `neighborSpillDistance` (default `20`). New public exports: `computeNeighborSpill`, `projectRoom`, `spillPositionMap`, `ProjectedMapReader` (plus `NeighborSpill`, `ProjectedRoom`, `ProjectedEdge` types). The demo gains a "Neighbour area spill" toggle and a spill-distance slider. Controlled by three new `Settings`: `neighborSpill` (default `false`), `neighborSpillDistance` (default `20`), and `neighborSpillAlpha` (default `1` — render like ordinary rooms; set below `1` to fade). The spill is recomputed as the player moves so it tracks proximity to boundaries, and appears immediately on crossing a boundary. New public exports: `computeNeighborSpill`, `spillPositionMap`, `ProjectedMapReader` (plus `NeighborSpill`, `ProjectedRoom`, `ProjectedEdge` types). The demo gains a "Neighbour area spill" toggle and a spill-distance slider.
 
 ## [2.3.1] - 2026-06-03
@@ -146,6 +152,7 @@ Initial public release.
 - Support for stub exits, special exits, and link exits with custom rendering.
 - Published as dual-format ESM + CJS npm package with TypeScript declarations.
 
+[2.4.0]: https://github.com/Delwing/mudlet-map-renderer/releases/tag/2.4.0
 [2.3.1]: https://github.com/Delwing/mudlet-map-renderer/releases/tag/2.3.1
 [2.3.0]: https://github.com/Delwing/mudlet-map-renderer/releases/tag/2.3.0
 [2.2.0]: https://github.com/Delwing/mudlet-map-renderer/releases/tag/2.2.0

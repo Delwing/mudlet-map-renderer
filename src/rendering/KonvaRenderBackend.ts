@@ -27,6 +27,9 @@ import {layoutRoom} from "../scene/elements/RoomLayout";
 import {computeNeighborSpill, spillPositionMap, ProjectedMapReader} from "../scene/NeighborProjector";
 import type {NeighborSpill} from "../scene/NeighborProjector";
 import type {IMapReader} from "../reader/MapReader";
+import {hiddenAwareLens} from "../lens/hiddenAwareLens";
+import {defaultExitTreatment} from "../lens/RoomLens";
+import {hiddenRoomLayoutOptions} from "../scene/RoomFlags";
 import {layoutInnerExits} from "../scene/elements/ExitLayout";
 import {layoutGrid} from "../scene/elements/GridLayout";
 import {specialExitToShape} from "../scene/elements/SpecialExitLayout";
@@ -793,7 +796,9 @@ export class KonvaRenderBackend implements InteractiveBackend {
 
         const preRoomShapes: Shape[] = [];
         const exitRenderer = this.sceneManager.exitRenderer;
-        const lens = this.state.lens;
+        // Respect the active lens (exploration + hidden rooms) so the overlay
+        // never highlights exits/neighbours the main scene drops.
+        const lens = hiddenAwareLens(this.state.lens, settings.hiddenRooms === "hide");
 
         // Link exits for this room → rendered as ExitDrawData through DrawingBackend
         if (this.state.currentAreaInstance && this.state.currentZIndex !== undefined) {
@@ -801,6 +806,13 @@ export class KonvaRenderBackend implements InteractiveBackend {
                 .getLinkExits(this.state.currentZIndex)
                 .filter(exit => exit.a === room.id || exit.b === room.id);
             exits.forEach(exit => {
+                const roomA = this.state.mapReader.getRoom(exit.a);
+                const roomB = this.state.mapReader.getRoom(exit.b);
+                if (!roomA || !roomB) return;
+                const treatment = lens.getExitTreatment
+                    ? lens.getExitTreatment(exit, roomA, roomB)
+                    : defaultExitTreatment(lens, exit, roomA, roomB);
+                if (treatment !== "full") return; // skip hidden/partially-visible exits
                 const data = exitRenderer.renderDataWithColor(exit, currentRoomColor, this.state.currentZIndex!);
                 if (data) {
                     // Match the main pass: a crossing into a spilled neighbour room
@@ -847,6 +859,9 @@ export class KonvaRenderBackend implements InteractiveBackend {
                 {
                     strokeOverride: isCurrent ? currentRoomColor : settings.lineColor,
                     flatPipeline: true,
+                    // Keep a redrawn hidden room looking hidden (dashed/faded),
+                    // matching the main scene instead of overpainting it solid.
+                    ...hiddenRoomLayoutOptions(roomToRedraw, settings.hiddenRooms),
                 },
             );
             overlayShape.children.push(...layoutInnerExits(roomToRedraw, this.state.mapReader, settings));

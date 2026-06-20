@@ -11,9 +11,14 @@ import {
     ExplorationLens, ALL_VISIBLE,
     type Style,
 } from "@src";
-import type {Settings} from "@src";
+import type {Settings, IMapReader} from "@src";
 import {createOffscreenBackend} from "@src/rendering/offscreen";
 import MapReader from "@src/reader/MapReader";
+import {BinaryMapReader} from "@src/binary";
+import {Buffer} from "buffer";
+// qtdatastream / int64-buffer reach for a global `Buffer` when parsing .dat
+// bytes in the browser; the bundler does not provide one, so expose the polyfill.
+(globalThis as unknown as {Buffer: typeof Buffer}).Buffer ??= Buffer;
 import {initControls} from "./controls";
 import {initContextMenu} from "./context-menu";
 import {Walker} from "./walker";
@@ -47,9 +52,37 @@ const DEFAULT_STARTING_ROOM_ID = 1;
 const mapDataUrl = new URL("./mapExport.json", import.meta.url).href;
 const colorDataUrl = new URL("./colors.json", import.meta.url).href;
 
-let mapReader!: MapReader;
+let mapReader!: IMapReader;
 let renderer!: MapRenderer;
 let pathFinder!: PathFinder;
+
+// Every listener attached while wiring one map load is bound to this
+// controller's signal (see `bindListenersTo`). Loading another map aborts it,
+// dropping all of them at once so re-init never stacks duplicate handlers on
+// the persistent elements (stage, window, control inputs).
+let loadListeners = new AbortController();
+
+/**
+ * Route `addEventListener` through `signal` for the duration of the current
+ * (synchronous) map wiring, so every listener attached while building a map —
+ * by initControls, initContextMenu, the preview, Konva, and the inline handlers
+ * in `initialize` — is torn down together when the next map loads. Restored on
+ * the next microtask, i.e. the moment the synchronous wiring finishes. This
+ * keeps the ~90 existing `el?.addEventListener(...)` call sites untouched (and
+ * their event/null typing intact) while still making them abortable.
+ */
+function bindListenersTo(signal: AbortSignal) {
+    const proto = EventTarget.prototype;
+    const original = proto.addEventListener;
+    proto.addEventListener = function (type, listener, options) {
+        const merged: AddEventListenerOptions = typeof options === "boolean"
+            ? {capture: options, signal}
+            : {...options, signal};
+        original.call(this, type, listener, merged);
+    };
+    queueMicrotask(() => { proto.addEventListener = original; });
+}
+
 const settings: Settings = createSettings();
 const explorationLens = new ExplorationLens();
 let explorationEnabled = false;
@@ -374,13 +407,29 @@ function applyRenderMode(mode: string) {
 
 // --- Initialization ---
 
-async function initialize() {
+async function loadDefaultReader(): Promise<IMapReader> {
+    const [mapData, colorData] = await Promise.all([
+        fetch(mapDataUrl).then(r => r.json()) as Promise<MapData.Map>,
+        fetch(colorDataUrl).then(r => r.json()) as Promise<MapData.Env[]>,
+    ]);
+    return new MapReader(mapData, colorData);
+}
+
+/**
+ * Build (or rebuild) the renderer and all map-bound wiring. Re-runnable: when
+ * `reader` is supplied (a dropped .dat), the previous renderer/walker and all
+ * listeners from the prior run are torn down first, so the demo swaps maps live
+ * without a page reload. With no `reader`, the bundled sample map is loaded.
+ */
+async function initialize(reader?: IMapReader) {
+    // Tear down the previous load (no-op on first run).
+    loadListeners.abort();
+    loadListeners = new AbortController();
+    if (typeof walker !== "undefined") walker?.stop("Walker is stopped.");
+    renderer?.destroy();
+
     try {
-        const [mapData, colorData] = await Promise.all([
-            fetch(mapDataUrl).then(r => r.json()) as Promise<MapData.Map>,
-            fetch(colorDataUrl).then(r => r.json()) as Promise<MapData.Env[]>,
-        ]);
-        mapReader = new MapReader(mapData, colorData);
+        mapReader = reader ?? await loadDefaultReader();
     } catch (error) {
         console.error("Failed to load map data", error);
         statusElement.textContent = "Failed to load map data.";
@@ -388,6 +437,10 @@ async function initialize() {
         if (walkerToggleButton) walkerToggleButton.disabled = true;
         return;
     }
+
+    // From here the wiring is synchronous; bind every listener it attaches to
+    // this load's signal so the next load can drop them in one abort().
+    bindListenersTo(loadListeners.signal);
 
     pathFinder = new PathFinder(mapReader);
     savedBackgroundColor = settings.backgroundColor;
@@ -400,7 +453,7 @@ async function initialize() {
     const offscreenToggle = document.getElementById("offscreen-toggle") as HTMLInputElement | null;
     if (offscreenToggle) {
         offscreenToggle.checked = useOffscreen;
-        offscreenToggle.addEventListener("change", () => {
+        offscreenToggle?.addEventListener("change", () => {
             const url = new URL(location.href);
             if (offscreenToggle.checked) url.searchParams.set("backend", "offscreen");
             else url.searchParams.delete("backend");
@@ -452,10 +505,10 @@ async function initialize() {
     // shapes), so resolve clicks against the overlay ourselves: convert the
     // pointer to world space and ask the overlay which bubble (if any) was hit.
     let wpClickStart: {x: number; y: number} | null = null;
-    stageElement.addEventListener("mousedown", (e) => {
+    stageElement?.addEventListener("mousedown", (e) => {
         if (e.button === 0) wpClickStart = {x: e.clientX, y: e.clientY};
     });
-    stageElement.addEventListener("mouseup", (e) => {
+    stageElement?.addEventListener("mouseup", (e) => {
         const start = wpClickStart;
         wpClickStart = null;
         if (e.button !== 0 || !start || !waypointsEnabled) return;
@@ -470,7 +523,7 @@ async function initialize() {
     // Pointer cursor when hovering a clickable bubble. Runs after the renderer's
     // own cursor handler (registered earlier), so it only upgrades to "pointer"
     // over a clickable bubble and otherwise leaves the renderer's choice intact.
-    stageElement.addEventListener("mousemove", (e) => {
+    stageElement?.addEventListener("mousemove", (e) => {
         if (!waypointsEnabled) return;
         const rect = stageElement.getBoundingClientRect();
         const p = renderer.camera.clientToMapPoint(e.clientX, e.clientY, rect);
@@ -513,6 +566,13 @@ async function initialize() {
         } else {
             initialStatus = `Room ${requestedRoomId} not found. Showing default room instead.`;
         }
+    }
+
+    // Fall back to the first available room when the chosen id is absent —
+    // essential for dropped maps, whose room ids need not include 1.
+    if (!mapReader.getRoom(startingRoomId)) {
+        const firstRoom = mapReader.getAreas()[0]?.getRooms()?.[0];
+        if (firstRoom) startingRoomId = firstRoom.id;
     }
 
     const startingRoom = mapReader.getRoom(startingRoomId);
@@ -659,7 +719,7 @@ async function initialize() {
         if (destinationInput) destinationInput.value = "";
     });
 
-    window.addEventListener("keydown", event => {
+    window?.addEventListener("keydown", event => {
         if (event.defaultPrevented || isEditableElement(event.target)) return;
         const direction = getDirectionFromKeyboardEvent(event);
         if (!direction) return;
@@ -684,7 +744,7 @@ async function initialize() {
     });
 
     // Area exit arrow click → navigate to the target room's area
-    stageElement.addEventListener("areaexitclick", ((event: CustomEvent) => {
+    stageElement?.addEventListener("areaexitclick", ((event: CustomEvent) => {
         const targetRoomId = event.detail?.targetRoomId;
         if (typeof targetRoomId !== 'number') return;
         const room = mapReader.getRoom(targetRoomId);
@@ -715,4 +775,57 @@ async function initialize() {
     }) as EventListener);
 }
 
+// --- Map loader (drop any Mudlet .dat to render it; default map stays) ---
+
+function setupMapLoader() {
+    const drop = document.getElementById("map-drop") as HTMLDivElement | null;
+    const fileInput = document.getElementById("map-file") as HTMLInputElement | null;
+    const resetBtn = document.getElementById("map-reset") as HTMLButtonElement | null;
+    const nameEl = document.getElementById("map-source-name") as HTMLSpanElement | null;
+    if (!drop || !fileInput) return;
+
+    const setName = (text: string) => { if (nameEl) nameEl.textContent = text; };
+
+    async function loadFile(file: File) {
+        setName(`Loading ${file.name}…`);
+        drop!.classList.remove("error");
+        try {
+            // Mudlet's binary parser needs a Node Buffer (qtdatastream uses
+            // Buffer.readInt*); the `buffer` polyfill provides one in-browser.
+            const bytes = await file.arrayBuffer();
+            const reader = BinaryMapReader.fromBuffer(Buffer.from(bytes));
+            await initialize(reader);
+            setName(file.name);
+            if (resetBtn) resetBtn.hidden = false;
+        } catch (err) {
+            console.error("Failed to load dropped map", err);
+            setName(`Couldn't read ${file.name} — is it a Mudlet .dat map?`);
+            drop!.classList.add("error");
+        }
+    }
+
+    // The loader must stay usable after a reload, so these listeners are
+    // attached directly (not through the abortable `on` helper).
+    drop.addEventListener("click", () => fileInput.click());
+    drop.addEventListener("dragover", (e) => { e.preventDefault(); drop.classList.add("dragover"); });
+    drop.addEventListener("dragleave", () => drop.classList.remove("dragover"));
+    drop.addEventListener("drop", (e) => {
+        e.preventDefault();
+        drop.classList.remove("dragover");
+        const file = e.dataTransfer?.files?.[0];
+        if (file) void loadFile(file);
+    });
+    fileInput.addEventListener("change", () => {
+        const file = fileInput.files?.[0];
+        if (file) void loadFile(file);
+        fileInput.value = "";  // allow re-selecting the same file
+    });
+    resetBtn?.addEventListener("click", () => {
+        void initialize();
+        setName("Default sample map");
+        resetBtn.hidden = true;
+    });
+}
+
+setupMapLoader();
 void initialize();

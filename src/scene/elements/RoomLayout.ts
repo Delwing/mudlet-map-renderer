@@ -2,7 +2,7 @@ import type {IMapReader} from "../../reader/MapReader";
 import type {Settings} from "../../types/Settings";
 import {measureTextBaselineOffset} from "../../utils/textMeasure";
 import {computeRoomColors, computeEmboss} from "../RoomStyle";
-import {darkenColor} from "../../utils/color";
+import {darkenColor, hexToRgba} from "../../utils/color";
 import type {GroupShape, Shape} from "../Shape";
 
 export interface RoomLayoutOptions {
@@ -14,6 +14,18 @@ export interface RoomLayoutOptions {
      * as flat diamonds outside the cube footprint).
      */
     flatPipeline: boolean;
+    /**
+     * When set (0..1), the room's fill, border, and symbol colours are drawn at
+     * this opacity — used to render hidden rooms faded. Baked into the colour
+     * strings so every renderer (Konva, canvas, SVG) honours it identically.
+     */
+    fade?: number;
+    /**
+     * Draw the room with a dashed border at full opacity — a more distinct
+     * "hidden" marker than {@link fade}. Suppresses emboss (the dashed outline
+     * is the signal) and forces a visible border even when borders are off.
+     */
+    dashedBorder?: boolean;
 }
 
 /**
@@ -27,18 +39,36 @@ export function layoutRoom(
     settings: Settings,
     options: RoomLayoutOptions,
 ): GroupShape {
-    const {fillColor, strokeColor, borderWidth, symbolColor} = computeRoomColors(
+    const colors = computeRoomColors(
         room, mapReader, settings, options.strokeOverride,
     );
+    // Fade hidden rooms by baking the opacity into the colour strings. darken/
+    // lighten (used for emboss + rings below) preserve the alpha channel, so the
+    // whole body inherits the fade.
+    const fade = options.fade;
+    const fillColor = fade !== undefined ? hexToRgba(colors.fillColor, fade) : colors.fillColor;
+    const strokeColor = fade !== undefined ? hexToRgba(colors.strokeColor, fade) : colors.strokeColor;
+    const symbolColor = fade !== undefined ? hexToRgba(colors.symbolColor, fade) : colors.symbolColor;
+    const borderWidth = colors.borderWidth;
 
     const rs = settings.roomSize;
     const children: Shape[] = [];
 
-    const emboss = computeEmboss(fillColor, settings);
-    // When emboss is active, skip the regular border — the emboss lines serve as the border.
-    const drawBorder = emboss ? 0 : borderWidth;
+    const dashedBorder = options.dashedBorder ?? false;
 
-    const multiRing = settings.coloredMode && drawBorder > 0 && options.flatPipeline;
+    // A per-room custom border colour (userData), or a dashed hidden-room marker,
+    // must show — so suppress emboss for that room (the emboss edges would
+    // otherwise replace the border and lose the chosen colour / dash).
+    const emboss = (colors.customBorder || dashedBorder) ? null : computeEmboss(fillColor, settings);
+    // When emboss is active, skip the regular border — the emboss lines serve as the border.
+    let drawBorder = emboss ? 0 : borderWidth;
+    // A dashed hidden-room outline needs a visible border even when borders are off.
+    if (dashedBorder && drawBorder === 0) drawBorder = settings.lineWidth;
+    const borderDash = dashedBorder
+        ? [Math.max(rs * 0.32, settings.lineWidth * 4), Math.max(rs * 0.13, settings.lineWidth * 1.5)]
+        : undefined;
+
+    const multiRing = !dashedBorder && settings.coloredMode && drawBorder > 0 && options.flatPipeline;
     const cornerOf = (ins: number) =>
         settings.roomShape === "roundedRectangle" ? Math.max(0, (rs - 2 * ins) * 0.2) : 0;
 
@@ -88,6 +118,8 @@ export function layoutRoom(
                 fill: fillColor,
                 stroke: drawBorder ? strokeColor : undefined,
                 strokeWidth: drawBorder,
+                dash: borderDash,
+                dashEnabled: borderDash ? true : undefined,
             },
         });
     } else {
@@ -99,6 +131,8 @@ export function layoutRoom(
                 fill: fillColor,
                 stroke: drawBorder ? strokeColor : undefined,
                 strokeWidth: drawBorder,
+                dash: borderDash,
+                dashEnabled: borderDash ? true : undefined,
             },
         });
     }

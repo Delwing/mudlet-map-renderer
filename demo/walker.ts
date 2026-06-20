@@ -1,6 +1,6 @@
-import MapReader from "@src/reader/MapReader";
 import PathFinder from "@src/PathFinder";
 import {ExplorationLens} from "@src";
+import type {IMapReader} from "@src";
 import {getRoomExits} from "./navigation";
 
 const PREFERRED_PATH_PROBABILITY = 0.7;
@@ -14,7 +14,7 @@ export type WalkerCallbacks = {
 };
 
 export class Walker {
-    private readonly mapReader: MapReader;
+    private readonly mapReader: IMapReader;
     private readonly pathFinder: PathFinder;
     private readonly explorationLens: ExplorationLens;
     private readonly walkerStatusElement: HTMLDivElement;
@@ -24,7 +24,7 @@ export class Walker {
     running = false;
 
     constructor(
-        mapReader: MapReader,
+        mapReader: IMapReader,
         pathFinder: PathFinder,
         walkerStatusElement: HTMLDivElement,
         walkerToggleButton: HTMLButtonElement | null,
