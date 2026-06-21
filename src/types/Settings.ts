@@ -1,6 +1,6 @@
 const defaultRoomSize = 0.6;
 const defaultLineWidth = 0.025;
-const lineColor = 'rgb(225, 255, 225)';
+const lineColor = 'rgb(225, 225, 225)';
 
 export type LabelRenderMode = "image" | "data" | "none";
 
