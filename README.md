@@ -186,6 +186,74 @@ For large maps, spatial culling hides off-screen rooms for better performance:
 renderer.setCullingMode('indexed');
 ```
 
+### Big maps (LOD + skeleton reader)
+
+Very dense planes (tens of thousands to millions of rooms on one z-level)
+can't be drawn as one vector scene. Two core features combine to handle them:
+
+**Raster LOD overview** (`settings.lodEnabled`, works with any reader): when
+the current plane holds more rooms than `settings.lodRoomBudget` (default
+16 000) *and* the zoom is far enough out that a viewport could exceed that
+budget, the vector scene is replaced by a pixel overview — one filled box per
+room, painted on an underlay below the grid. Zooming in switches back to full
+vector detail. The switch is zoom-based (pan-invariant, no mid-pan flips) and
+reported through the `lod` renderer event
+(`{mode: 'vector' | 'roomsOnly' | 'raster', planeRoomCount, visibleEstimate, hitTestActive}`).
+Position marker, highlights, paths and overlays stay visible in both `raster`
+and `roomsOnly` modes.
+
+Between `settings.lodExitBudget` (default `12 000`) and `lodRoomBudget`, a
+third tier — `roomsOnly` — drops exit lines while rooms keep rendering as
+real vector shapes (env colour, border, shape): a bridge between full detail
+and the flat raster pixels. Exit pairing and exit-line shape building are
+typically the single largest share of a dense rebuild's cost (exit count
+often runs ~2x room count in a well-connected area), so this tier buys back
+most of that cost while still showing actual room geometry. Set
+`lodExitBudget` above `lodRoomBudget` (or to `Infinity`) to disable this tier
+and jump straight from full vector to raster.
+
+Above `settings.lodHitTestBudget` (default `10 000` rooms, same unit as
+`lodRoomBudget`) the scene still renders at full vector detail (with or
+without exits) but the hit-test index is skipped, so clicks/hover stop
+resolving to a room until you zoom in a bit further — rebuilding that index
+is a real cost on a large scene, and precise pointer picking rarely matters
+that zoomed out. Rebuild-on-pan also pads the viewport generously (50% per
+side): panning inside that padding is free, so it buys a lot more distance
+between rebuilds without making any single rebuild bigger — the LOD decision
+compensates for the padding so the actual room count at each tier's flip
+stays pinned near its configured budget regardless.
+
+**`SkeletonMapReader`** (`mudlet-map-renderer/bigmap`): an `IMapReader` over a
+compact typed-array `MapSkeleton` instead of a room object graph. Planes
+materialise only the rooms inside the current viewport; the interactive
+backend detects this (`ViewportDataSource`) and pushes padded camera bounds
+before every build, rebuilding on pan only when the camera leaves the padding.
+
+```ts
+import { MapRenderer, createSettings } from 'mudlet-map-renderer';
+import { buildSkeleton, SkeletonMapReader } from 'mudlet-map-renderer/bigmap';
+
+// Eager path: the map parses fine, it's the rendering that chokes.
+const reader = new SkeletonMapReader(buildSkeleton(mapData, colors));
+const settings = { ...createSettings(), lodEnabled: true };
+const renderer = new MapRenderer(reader, settings, container);
+renderer.on('lod', ({ mode, visibleEstimate }) => console.log(mode, visibleEstimate));
+```
+
+For maps too large to parse eagerly (hundreds of MB), produce the
+`MapSkeleton` out-of-process — e.g. a Web Worker that streams the binary map
+and transfers the typed arrays zero-copy. `demo/streaming/` is a reference
+implementation. `MapSkeleton` is a stable seam: coordinates are raw Mudlet map
+space (the reader converts once at construction), bulk rooms live in parallel
+`Int32Array` columns, and only rooms with visual detail (symbols, custom
+lines, special exits…) are materialised in full.
+
+Notes: exports through a viewport-narrowed reader only contain the applied
+viewport (call `reader.setViewport(...)` with larger bounds first if you need
+everything); `lodEnabled` is currently a no-op for the OffscreenCanvas
+backend; decorator styles with coordinate transforms (e.g. isometric) are not
+applied to the raster overview.
+
 ### OffscreenCanvas rendering (Web Worker)
 
 For large maps, an opt-in backend moves per-frame rasterisation into a Web

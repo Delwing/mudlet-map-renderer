@@ -4,7 +4,7 @@ export type {
     Settings, ViewportBounds, RendererEventMap,
     CullingMode, RoomShape, HiddenRoomMode, LabelRenderMode, PlayerMarkerStyle,
     RoomClickEventDetail, RoomContextMenuEventDetail,
-    ZoomChangeEventDetail, AreaExitClickEventDetail, PanEventDetail,
+    ZoomChangeEventDetail, AreaExitClickEventDetail, PanEventDetail, LodEventDetail,
 } from './types/Settings';
 export { darkenColor, colorLightness, hexToRgba } from './utils/color';
 export {
@@ -103,6 +103,12 @@ export type { IArea } from './reader/Area';
 export { default as Plane } from './reader/Plane';
 export type { IPlane } from './reader/Plane';
 export type { IExit, Kind as ExitKind } from './reader/Exit';
+
+// --- Big-map support (LOD; the skeleton reader lives in the './bigmap' subpath) ---
+export { isViewportDataSource } from './reader/ViewportDataSource';
+export type { ViewportDataSource } from './reader/ViewportDataSource';
+export { shouldUseRaster, computeLodMode } from './rendering/lod/lodDecision';
+export type { LodDecisionInput, LodModeInput, LodMode } from './rendering/lod/lodDecision';
 
 // --- Visibility lenses (filter what the renderer paints) ---
 export type { RoomLens, ExitTreatment } from './lens/RoomLens';

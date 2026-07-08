@@ -20,6 +20,7 @@ export default defineConfig(({ command }) => ({
             entry: {
                 index: 'src/index.ts',
                 binary: 'src/binary/index.ts',
+                bigmap: 'src/bigmap/index.ts',
                 offscreen: 'src/rendering/offscreen/index.ts',
             },
             name: 'mudlet-map-renderer',

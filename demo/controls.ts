@@ -712,6 +712,25 @@ export function initControls(settings: Settings, renderer: MapRenderer, getCurre
         renderer.refresh();
     });
 
+    // --- LOD (vector -> rooms-only -> raster as a plane's density/zoom-out grows) ---
+
+    const lodToggle = document.getElementById("lod-toggle") as HTMLInputElement | null;
+    const lodBudgetSlider = document.getElementById("lod-budget-slider") as HTMLInputElement | null;
+    const lodBudgetValue = document.getElementById("lod-budget-value") as HTMLSpanElement | null;
+    if (lodToggle) lodToggle.checked = settings.lodEnabled;
+    if (lodBudgetSlider) lodBudgetSlider.value = settings.lodRoomBudget.toString();
+    if (lodBudgetValue) lodBudgetValue.textContent = settings.lodRoomBudget.toLocaleString("en-US");
+    lodToggle?.addEventListener("change", () => {
+        settings.lodEnabled = lodToggle.checked;
+        renderer.refresh();
+    });
+    lodBudgetSlider?.addEventListener("input", () => {
+        const value = parseInt(lodBudgetSlider.value, 10);
+        settings.lodRoomBudget = value;
+        if (lodBudgetValue) lodBudgetValue.textContent = value.toLocaleString("en-US");
+        renderer.refresh();
+    });
+
     // --- Hit area debug overlay ---
 
     const hitAreasToggle = document.getElementById("hit-areas-toggle") as HTMLInputElement | null;

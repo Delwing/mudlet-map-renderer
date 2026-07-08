@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Streaming render — Map Renderer</title>
+    <style>
+      :root { color-scheme: dark; }
+      * { box-sizing: border-box; }
+      html, body { margin: 0; height: 100%; overflow: hidden; background: #0d1117; color: #c9d1d9;
+        font: 13px/1.4 ui-monospace, "Cascadia Code", Consolas, monospace; }
+      #stage { position: fixed; inset: 0; z-index: 1; }
+      .panel { position: fixed; z-index: 2; background: rgba(22,27,34,.9);
+        border: 1px solid #30363d; border-radius: 8px; padding: .6rem .8rem; backdrop-filter: blur(4px); }
+      #top { top: 1rem; left: 1rem; max-width: 70vw; }
+      #top h1 { font-size: .95rem; margin: 0 0 .25rem; }
+      #top p { margin: 0; color: #8b949e; }
+      #status { color: #58a6ff; margin-top: .35rem; }
+      #controls { top: 1rem; right: 1rem; display: none; gap: .5rem; align-items: center; }
+      #controls select, #controls input { background: #0d1117; color: #c9d1d9; border: 1px solid #30363d;
+        border-radius: 5px; padding: .25rem .4rem; font: inherit; }
+      #controls input { width: 7em; }
+      #hud { bottom: 1rem; left: 1rem; color: #8b949e; font-variant-numeric: tabular-nums; }
+      #hud .metrics { margin-top: .35rem; display: flex; flex-direction: column; gap: .15rem; }
+      #hud .metric { display: flex; align-items: center; gap: .5rem; }
+      #hud .metric .label { width: 5.5em; flex: none; }
+      #hud .metric .bar { width: 10em; height: .5rem; border-radius: 3px; background: #0d1117;
+        border: 1px solid #30363d; overflow: hidden; flex: none; }
+      #hud .metric .bar .fill { height: 100%; background: #58a6ff; }
+      #hud .metric.over .bar .fill { background: #f0883e; }
+      #hud .metric .value { color: #c9d1d9; }
+      #hud .metric.inactive .value { color: #6e7681; }
+      #drop { position: fixed; inset: 0; z-index: 3; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+      #drop .box { border: 2px dashed #30363d; border-radius: 12px; padding: 3rem 4rem; text-align: center;
+        transition: border-color .15s, background .15s; }
+      #drop.hot .box, #drop:hover .box { border-color: #58a6ff; background: #161b22; }
+      #drop b { color: #58a6ff; }
+      #drop .small { color: #6e7681; margin-top: .5rem; }
+      input[type=file] { display: none; }
+    </style>
+  </head>
+  <body>
+    <div id="stage"></div>
+
+    <div id="top" class="panel">
+      <h1>Streaming render</h1>
+      <p>Real Konva renderer over a viewport-virtualized streamed map. Drag to pan, scroll to zoom.</p>
+      <div id="status"></div>
+    </div>
+
+    <div id="controls" class="panel">
+      <label>area <select id="area"></select></label>
+      <label><select id="z"></select></label>
+      <label>id <input id="lookup" type="number" placeholder="room id" /></label>
+    </div>
+
+    <div id="hud" class="panel">
+      <div id="hud-line"></div>
+      <div id="hud-metrics" class="metrics"></div>
+    </div>
+
+    <div id="drop">
+      <div class="box">
+        <div><b>Drop a map.dat here</b> or click to choose</div>
+        <div class="small">streamed &amp; rendered through the real pipeline, in your browser</div>
+      </div>
+    </div>
+    <input type="file" id="file" />
+
+    <script type="module" src="./streaming/streaming-main.ts"></script>
+  </body>
+</html>

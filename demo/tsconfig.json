@@ -1,12 +1,12 @@
 {
   "extends": "../tsconfig.json",
   "compilerOptions": {
-    "types": ["node"],
+    "types": ["node", "vite/client"],
     "rootDir": "..",
-    "baseUrl": ".",
     "paths": {
       "@src": ["../src/index.ts"],
-      "@src/*": ["../src/*"]
+      "@src/*": ["../src/*"],
+      "mudlet-map-binary-reader": ["../../node-mudlet-map-binary-reader/dist/index.d.ts"]
     }
   },
   "include": ["./**/*.ts", "./**/*.tsx", "../src/types/**/*.ts"]

@@ -27,6 +27,10 @@ import {layoutRoom} from "../scene/elements/RoomLayout";
 import {computeNeighborSpill, spillPositionMap, ProjectedMapReader} from "../scene/NeighborProjector";
 import type {NeighborSpill} from "../scene/NeighborProjector";
 import type {IMapReader} from "../reader/MapReader";
+import {isViewportDataSource} from "../reader/ViewportDataSource";
+import {LodController, type RasterVisit} from "./lod/LodController";
+import {computeLodMode, type LodMode} from "./lod/lodDecision";
+import {withoutLinkExits} from "./lod/roomsOnlyArea";
 import {hiddenAwareLens} from "../lens/hiddenAwareLens";
 import {defaultExitTreatment} from "../lens/RoomLens";
 import {hiddenRoomLayoutOptions} from "../scene/RoomFlags";
@@ -50,6 +54,28 @@ import {applyStyleToShapes} from "../style/applyStyle";
 const currentRoomColor = 'rgb(120, 72, 0)';
 
 /**
+ * Fraction of the viewport added per side before pushing bounds to a
+ * viewport-aware reader (see {@link KonvaRenderBackend.padViewport}). Shared
+ * with the LOD decision so the "should this plane be vector at this zoom"
+ * check accounts for the extra rooms the padding itself pulls in — without
+ * this, the actual padded room count can exceed `lodRoomBudget` right at the
+ * flip, since the raw decision only sizes the unpadded camera viewport.
+ *
+ * Deliberately generous (50% per side, not just enough to cover edge-room
+ * popping): rebuild-on-pan only fires once the camera leaves this padded
+ * region, and panning inside it is free (the existing viewport culling
+ * already handles it) — so a bigger pad directly buys more pan distance
+ * between rebuilds. This does NOT make an individual rebuild bigger at the
+ * LOD flip: {@link VIEWPORT_PAD_AREA_FACTOR} shrinks the effective budget fed
+ * into the flip decision by the same factor, so the flip point retreats to
+ * compensate and the padded room count at the flip stays pinned near
+ * `lodRoomBudget` regardless of how generous the padding is.
+ */
+const VIEWPORT_PAD_FRACTION = 0.5;
+/** Worst-case area inflation from padding every side by {@link VIEWPORT_PAD_FRACTION}. */
+const VIEWPORT_PAD_AREA_FACTOR = (1 + 2 * VIEWPORT_PAD_FRACTION) ** 2;
+
+/**
  * Konva rendering engine. Owns the full rendering pipeline:
  * stage, layers, scene builder, culling, overlays.
  *
@@ -62,6 +88,8 @@ const currentRoomColor = 'rgb(120, 72, 0)';
  */
 export class KonvaRenderBackend implements InteractiveBackend {
     readonly stage: Konva.Stage;
+    /** Bottom-most layer: raster LOD overview underlay (see Settings.lodEnabled). */
+    readonly lodLayer: Konva.Layer;
     readonly gridLayer: Konva.Layer;
     readonly linkLayer: Konva.Layer;
     readonly roomLayer: Konva.Layer;
@@ -90,6 +118,14 @@ export class KonvaRenderBackend implements InteractiveBackend {
     // Shape → DrawEntry map rebuilt on each buildScene; used by applyClipping
     // to toggle DrawEntry.visible without knowing about CullEntry or Konva internals.
     private shapeToDrawEntry: Map<Shape, DrawEntry> = new Map();
+    /**
+     * Managed shapes visible after the last cull pass. applyClipping diffs the
+     * fresh visible set against this and flips only the entries that changed,
+     * so a pan touches O(shapes entering/leaving the viewport), not O(all).
+     * Seeded with every managed shape on rebuild (all entries start visible) so
+     * the first pass hides the off-screen ones.
+     */
+    private lastVisibleShapes: Set<Shape> = new Set();
     private sceneNode!: DrawCommandLayerNode;
     /** Lookup from a pipeline-emitted shape to its recording node; rebuilt per buildScene. */
     private shapeToGroup: Map<Shape, RecordingGroupNode> = new Map();
@@ -121,6 +157,16 @@ export class KonvaRenderBackend implements InteractiveBackend {
     private sceneOverlayNodes: Map<string, RecordingGroupNode[]> = new Map();
     private viewportSubscribers: Set<() => void> = new Set();
 
+    // --- LOD + viewport-aware reader state ---
+    private readonly lodController: LodController;
+    /** Current LOD tier for the displayed plane — see {@link computeLodMode}. */
+    private lodMode: LodMode = "vector";
+    /** Padded bounds last pushed into a ViewportDataSource reader (rebuild-on-pan hysteresis). */
+    private lastAppliedViewport: ViewportBounds | null = null;
+    /** Camera scale at the last applied viewport — see {@link onCameraViewportChanged}. */
+    private lastAppliedScale: number | null = null;
+    private refreshScheduled = false;
+
     constructor(state: MapState, container?: HTMLDivElement) {
         this.state = state;
         this.container = container;
@@ -139,6 +185,10 @@ export class KonvaRenderBackend implements InteractiveBackend {
             this.camera = new Camera(1, 1);
         }
 
+        // LOD raster underlay sits below everything else; pixels it does not
+        // paint stay transparent so the container background shows through.
+        this.lodLayer = new Konva.Layer({listening: false});
+        this.stage.add(this.lodLayer);
         this.gridLayer = new Konva.Layer({listening: false});
         this.stage.add(this.gridLayer);
         // linkLayer and roomLayer share one physical Konva.Layer to stay under
@@ -162,6 +212,10 @@ export class KonvaRenderBackend implements InteractiveBackend {
         this.gridLayerNode = new RecordingLayerNode(this.gridLayer);
         this.topLabelLayerNode = new RecordingLayerNode(this.topLabelLayer);
         this.sceneManager = new SceneManager(this.camera, state.settings, state.mapReader);
+        this.lodController = new LodController(
+            this.lodLayer, this.camera,
+            envId => this.state.mapReader.getColorValue(envId),
+        );
 
         this.events = new TypedEventEmitter<RendererEventMap>(container);
 
@@ -235,7 +289,11 @@ export class KonvaRenderBackend implements InteractiveBackend {
         this.culling.setCoordinateTransform(forward);
         this.gridCachedBounds = null;
         if (this.lastHitShapes.length > 0) {
-            this.hitTester.build(this.lastHitShapes, this.state.settings.roomSize, forward, layerOffset);
+            if (this.hitTestBudgetExceeded()) {
+                this.hitTester.clear();
+            } else {
+                this.hitTester.build(this.lastHitShapes, this.state.settings.roomSize, forward, layerOffset);
+            }
         }
 
         // Reposition camera so the same map point stays at screen center
@@ -308,6 +366,8 @@ export class KonvaRenderBackend implements InteractiveBackend {
         // Cancel any running camera animation
         this.camera.cancelAnimation();
 
+        this.lodController.destroy();
+
         // Restore monkey-patched setSize
         if (this.origSetSize) {
             this.camera.setSize = this.origSetSize;
@@ -361,11 +421,60 @@ export class KonvaRenderBackend implements InteractiveBackend {
         const vpBounds = this.camera.getViewportBounds();
         this.refreshGrid(vpBounds);
         this.culling.scheduleCulling();
+        this.onCameraViewportChanged(vpBounds);
         this.events.emit('pan', vpBounds);
         for (const cb of this.viewportSubscribers) cb();
         for (const plugin of this.liveEffects.values()) {
             plugin.updateViewport(vpBounds, scale, this.coordinateTransform);
         }
+    }
+
+    /**
+     * Camera-move follow-up for LOD and viewport-aware readers. A scene
+     * rebuild (RAF-coalesced) is scheduled when:
+     *  - the LOD mode decision flipped (zoom crossed the raster threshold), or
+     *  - a {@link ViewportDataSource} reader's camera left the padded viewport
+     *    applied on the last build (rebuild-on-pan with hysteresis — panning
+     *    inside the padding is covered by the existing culling), or
+     *  - the zoom has drifted materially (±20%) from the scale the padded
+     *    viewport was computed at. The generous (50%-per-side) padding means a
+     *    pure zoom-IN can leave the camera viewport spatially inside the old
+     *    padded region indefinitely — without this check the reader would
+     *    keep reporting the stale, much-too-wide room count (visibleEstimate,
+     *    the vector/hit-test budget decisions) forever while zooming in,
+     *    instead of narrowing to reflect what's actually worth materialising
+     *    at the new zoom.
+     * In raster mode the underlay repaints itself independently (also
+     * coalesced, and only when the painted region no longer covers the view).
+     */
+    private onCameraViewportChanged(vpBounds: ViewportBounds): void {
+        const {currentAreaInstance, currentZIndex} = this.state;
+        if (currentAreaInstance && currentZIndex !== undefined && this.hasRealViewport()) {
+            let needRefresh =
+                this.state.settings.lodEnabled && this.computeLodMode() !== this.lodMode;
+            if (!needRefresh && isViewportDataSource(this.state.mapReader)) {
+                const a = this.lastAppliedViewport;
+                const s = this.lastAppliedScale;
+                const scale = this.camera.getScale();
+                needRefresh = !a || s === null ||
+                    vpBounds.minX < a.minX || vpBounds.maxX > a.maxX ||
+                    vpBounds.minY < a.minY || vpBounds.maxY > a.maxY ||
+                    scale > s * 1.2 || scale < s / 1.2;
+            }
+            if (needRefresh) this.scheduleRefresh();
+        }
+        this.lodController.onViewportChange();
+    }
+
+    private scheduleRefresh(): void {
+        if (this.refreshScheduled) return;
+        this.refreshScheduled = true;
+        const run = () => {
+            this.refreshScheduled = false;
+            if (!this.destroyed) this.refresh();
+        };
+        if (typeof requestAnimationFrame !== "undefined") requestAnimationFrame(run);
+        else queueMicrotask(run);
     }
 
     // --- State event handlers ---
@@ -385,12 +494,40 @@ export class KonvaRenderBackend implements InteractiveBackend {
             this.positionMarker = undefined;
             this.clearOverlayShapes();
             this.currentRoomOverlay = [];
+            this.lodController.clear();
+            this.lodMode = "vector";
             this.stage.batchDraw();
             return;
         }
         this.updateBackground();
-        this.buildScene(currentAreaInstance, plane, currentZIndex);
-        this.onSceneBuilt();
+
+        // Viewport-aware readers get the padded camera bounds pushed BEFORE the
+        // build, so a plane never materialises more than the padded viewport.
+        const reader = this.state.mapReader;
+        if (isViewportDataSource(reader) && this.hasRealViewport()) {
+            const padded = this.padViewport(this.camera.getViewportBounds());
+            reader.setViewport(padded);
+            this.lastAppliedViewport = padded;
+            this.lastAppliedScale = this.camera.getScale();
+        }
+
+        const mode = this.computeLodMode();
+        this.lodMode = mode;
+        if (mode === "raster") {
+            // Raster overview: the underlay paints every room as pixels; the
+            // vector scene is cleared instead of built. Position marker,
+            // highlights, paths and scene overlays still render below.
+            this.clearVectorScene();
+            this.lodController.setSource(this.rasterVisit(currentAreaInstance, plane, currentZIndex));
+        } else {
+            this.lodController.clear();
+            // "roomsOnly" swaps in an area that reports no link exits, so the
+            // pipeline skips exit pairing and exit-shape building entirely —
+            // rooms still build as full vector shapes.
+            const areaForBuild = mode === "roomsOnly" ? withoutLinkExits(currentAreaInstance) : currentAreaInstance;
+            this.buildScene(areaForBuild, plane, currentZIndex);
+            this.onSceneBuilt();
+        }
         this.syncHighlights();
         this.syncPaths();
         if (positionRoomId !== undefined) {
@@ -399,6 +536,118 @@ export class KonvaRenderBackend implements InteractiveBackend {
         for (const [id, overlay] of this.sceneOverlays) {
             this.renderSceneOverlay(id, overlay);
         }
+        this.emitLodEvent(mode, currentAreaInstance, plane, currentZIndex);
+    }
+
+    // --- LOD helpers ---
+
+    /**
+     * Viewport clamping and LOD only engage once the camera has a real size.
+     * Container-backed stages always do; a headless backend starts at 1×1
+     * (a meaningless viewport that must not clamp exports) until the caller
+     * opts in via `camera.setSize(w, h)`.
+     */
+    private hasRealViewport(): boolean {
+        return this.camera.width > 1 || this.camera.height > 1;
+    }
+
+    /**
+     * Pad viewport bounds by 6% + 1 map unit per side: rooms are selected by
+     * centre, so a room just off-screen can still have half its body in view —
+     * the margin keeps edge rooms from popping and lets the regular culling
+     * reveal margin rooms between rebuilds (rebuild-on-pan hysteresis).
+     */
+    private padViewport(vp: ViewportBounds): ViewportBounds {
+        const padX = (vp.maxX - vp.minX) * VIEWPORT_PAD_FRACTION + 1;
+        const padY = (vp.maxY - vp.minY) * VIEWPORT_PAD_FRACTION + 1;
+        return {minX: vp.minX - padX, maxX: vp.maxX + padX, minY: vp.minY - padY, maxY: vp.maxY + padY};
+    }
+
+    private planeRoomCount(area: IArea, plane: IPlane, zIndex: number): number {
+        const reader = this.state.mapReader;
+        return isViewportDataSource(reader)
+            ? reader.getPlaneRoomCount(area.getAreaId(), zIndex)
+            : plane.getRooms().length;
+    }
+
+    private computeLodMode(): LodMode {
+        const settings = this.state.settings;
+        if (!settings.lodEnabled || !this.hasRealViewport()) return "vector";
+        const {currentAreaInstance, currentZIndex} = this.state;
+        if (!currentAreaInstance || currentZIndex === undefined) return "vector";
+        const plane = currentAreaInstance.getPlane(currentZIndex);
+        if (!plane) return "vector";
+        // The vector scene actually materialises the PADDED viewport
+        // (padViewport), not the raw camera one — shrink both effective
+        // budgets by the same overscan factor so each flip accounts for it
+        // instead of silently drawing ~25% more rooms than configured.
+        return computeLodMode({
+            planeRoomCount: this.planeRoomCount(currentAreaInstance, plane, currentZIndex),
+            scale: this.camera.getScale(),
+            stageWidth: this.camera.width,
+            stageHeight: this.camera.height,
+            roomBudget: settings.lodRoomBudget / VIEWPORT_PAD_AREA_FACTOR,
+            exitBudget: settings.lodExitBudget / VIEWPORT_PAD_AREA_FACTOR,
+        });
+    }
+
+    /** Room source for the raster painter (never materialises rooms for viewport-aware readers). */
+    private rasterVisit(area: IArea, plane: IPlane, zIndex: number): RasterVisit {
+        const reader = this.state.mapReader;
+        if (isViewportDataSource(reader)) {
+            const areaId = area.getAreaId();
+            return (b, fn) => reader.forEachInBounds(areaId, zIndex, b, fn);
+        }
+        return (b, fn) => {
+            for (const r of plane.getRooms()) {
+                if (r.x >= b.minX && r.x <= b.maxX && r.y >= b.minY && r.y <= b.maxY) {
+                    fn(r.x, r.y, r.env);
+                }
+            }
+        };
+    }
+
+    /** Tear down the vector scene (raster mode replaces it entirely). */
+    private clearVectorScene(): void {
+        this.shapeToDrawEntry = new Map();
+        this.shapeToGroup.clear();
+        this.sceneManager.reset();
+        this.hitTester.clear();
+        this.lastHitShapes = [];
+        this.lastVisibleShapes = new Set();
+        this.spilledRoomPositions = new Map();
+        this.sceneNode.destroyChildren();
+        this.topLabelLayerNode.destroyChildren();
+        this.stage.batchDraw();
+    }
+
+    /**
+     * Above `settings.lodHitTestBudget` rooms in the current plane build, skip
+     * rebuilding the hit index instead of paying for it on every rebuild — the
+     * vector scene still renders at full detail, but clicks/hover stop
+     * resolving to a room until the density drops back under the budget.
+     * Counted in rooms (same unit as `lodRoomBudget`), not raw hittable-shape
+     * count, so the two settings are directly comparable.
+     */
+    private hitTestBudgetExceeded(): boolean {
+        if (!this.state.settings.lodEnabled) return false;
+        const {currentAreaInstance, currentZIndex} = this.state;
+        if (!currentAreaInstance || currentZIndex === undefined) return false;
+        const plane = currentAreaInstance.getPlane(currentZIndex);
+        if (!plane) return false;
+        return plane.getRooms().length > this.state.settings.lodHitTestBudget;
+    }
+
+    private emitLodEvent(mode: LodMode, area: IArea, plane: IPlane, zIndex: number): void {
+        if (!this.state.settings.lodEnabled) return;
+        const reader = this.state.mapReader;
+        const planeRoomCount = this.planeRoomCount(area, plane, zIndex);
+        const bounds = this.lastAppliedViewport ?? this.camera.getViewportBounds();
+        const visibleEstimate = isViewportDataSource(reader)
+            ? reader.estimateVisibleCount(area.getAreaId(), zIndex, bounds)
+            : planeRoomCount;
+        const hitTestActive = mode === "raster" ? false : !this.hitTestBudgetExceeded();
+        this.events.emit('lod', {mode, planeRoomCount, visibleEstimate, hitTestActive});
     }
 
     addLiveEffect(id: string, effect: LiveEffect) {
@@ -696,7 +945,11 @@ export class KonvaRenderBackend implements InteractiveBackend {
 
     private onSceneBuilt() {
         this.lastHitShapes = this.sceneManager.hitShapes as Shape[];
-        this.hitTester.build(this.lastHitShapes, this.state.settings.roomSize, this._coordinateTransform, this.coordinateLayerOffset);
+        if (this.hitTestBudgetExceeded()) {
+            this.hitTester.clear();
+        } else {
+            this.hitTester.build(this.lastHitShapes, this.state.settings.roomSize, this._coordinateTransform, this.coordinateLayerOffset);
+        }
 
         const scale = this.camera.getScale();
         this.stage.scale({x: scale, y: scale});
@@ -708,6 +961,9 @@ export class KonvaRenderBackend implements InteractiveBackend {
             const drawEntry = this.sceneNode.getEntry(node);
             if (drawEntry) this.shapeToDrawEntry.set(shape, drawEntry);
         }
+        // All freshly-built entries start visible; treat the whole managed set
+        // as "previously visible" so the first cull hides the off-screen ones.
+        this.lastVisibleShapes = this.sceneManager.managedShapes(this._coordinateTransform);
         this.applyClipping();
         this.stage.batchDraw();
     }
@@ -715,15 +971,30 @@ export class KonvaRenderBackend implements InteractiveBackend {
     private applyClipping(): void {
         if (!this.sceneManager.lastResult) return;
 
-        const visibilityMap = this.sceneManager.cullInteractive(this._coordinateTransform);
+        const visible = this.sceneManager.cullInteractive(this._coordinateTransform);
+        const prev = this.lastVisibleShapes;
         let changed = false;
-        for (const [shape, entry] of this.shapeToDrawEntry) {
-            const vis = visibilityMap.get(shape) ?? true;
-            if (entry.visible !== vis) {
-                entry.visible = vis;
+
+        // Hide shapes that left the viewport since last pass.
+        for (const shape of prev) {
+            if (visible.has(shape)) continue;
+            const entry = this.shapeToDrawEntry.get(shape);
+            if (entry && entry.visible) {
+                entry.visible = false;
                 changed = true;
             }
         }
+        // Reveal shapes that entered the viewport since last pass.
+        for (const shape of visible) {
+            if (prev.has(shape)) continue;
+            const entry = this.shapeToDrawEntry.get(shape);
+            if (entry && !entry.visible) {
+                entry.visible = true;
+                changed = true;
+            }
+        }
+
+        this.lastVisibleShapes = visible;
         if (changed) this.sceneNode.batchDraw();
     }
 
@@ -784,6 +1055,18 @@ export class KonvaRenderBackend implements InteractiveBackend {
         }
 
         const settings = this.state.settings;
+
+        // Raster LOD overview: the vector scene is suppressed, so skip the
+        // exit/neighbour enrichment too (on a viewport-aware reader zoomed far
+        // out it could materialise the entire plane). The marker still shows.
+        // ("roomsOnly" only drops the BULK scene's exit lines — this overlay
+        // looks up just the current room's own exits via the real (unwrapped)
+        // area, so it stays cheap and stays enabled in that tier.)
+        if (this.lodMode === "raster") {
+            if (this.positionMarker) this.positionMarker.moveToTop();
+            this.positionLayerNode.batchDraw();
+            return;
+        }
 
         if (!settings.highlightCurrentRoom) {
             if (this.positionMarker) this.positionMarker.moveToTop();

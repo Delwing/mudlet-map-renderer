@@ -46,6 +46,26 @@ export type ViewportBounds = {
 
 export type PanEventDetail = ViewportBounds;
 
+/** Emitted after every LOD mode decision (see {@link Settings.lodEnabled}). */
+export type LodEventDetail = {
+    /**
+     * "vector": rooms + exit lines, full detail. "roomsOnly": exit lines
+     * dropped, rooms still real vector shapes (bridge tier — see
+     * {@link Settings.lodExitBudget}). "raster": pixel overview.
+     */
+    mode: "vector" | "roomsOnly" | "raster";
+    /** Total rooms on the displayed (area, z) plane. */
+    planeRoomCount: number;
+    /** Cheap upper bound of the rooms inside the applied viewport. */
+    visibleEstimate: number;
+    /**
+     * Whether clicks/hover currently resolve to a room. Always false in
+     * raster mode; false in vector/roomsOnly mode once the room count exceeds
+     * {@link Settings.lodHitTestBudget}.
+     */
+    hitTestActive: boolean;
+};
+
 export type RendererEventMap = {
     roomclick: RoomClickEventDetail;
     roomcontextmenu: RoomContextMenuEventDetail;
@@ -53,6 +73,7 @@ export type RendererEventMap = {
     mapclick: undefined;
     pan: PanEventDetail;
     zoom: ZoomChangeEventDetail;
+    lod: LodEventDetail;
 };
 
 /**
@@ -257,6 +278,49 @@ export type Settings = {
     /** Max number of steps from the player's room to spill neighbouring-area rooms across a
      *  boundary (BFS depth over planar exits). Default: 20 */
     neighborSpillDistance: number;
+    /**
+     * Level-of-detail for very dense planes: when the current plane holds more
+     * rooms than {@link lodRoomBudget} and the zoom is far enough out that a
+     * viewport could exceed that budget, the vector scene is replaced by a
+     * raster pixel overview (one filled box per room) painted on an underlay.
+     * Zooming in switches back to full vector detail. The mode is reported via
+     * the renderer's `lod` event. Interactive Konva backend only. Default: false
+     */
+    lodEnabled: boolean;
+    /**
+     * Max rooms the vector scene may hold before zoomed-out views switch to the
+     * raster overview; also the per-viewport budget the zoom threshold is
+     * derived from. Each rebuild at this density touches shape building, hit
+     * testing, and draw for the whole visible set, so lower this if rebuilds
+     * near the flip feel slow. Default: 16000
+     */
+    lodRoomBudget: number;
+    /**
+     * Above this many rooms in the current plane build (same unit as
+     * {@link lodRoomBudget}), the hit-test index is skipped instead of
+     * rebuilt — the scene still renders at full vector detail, but
+     * clicks/hover won't resolve to a room until you zoom in below this
+     * density. Rebuilding the hit index is a meaningful fraction of a large
+     * rebuild, and precise pointer interaction is rarely needed at very high
+     * densities anyway. Only takes effect while `lodEnabled` is true, and only
+     * below `lodRoomBudget` (above it the plane is raster and has no hit
+     * shapes at all). Default: 10000
+     */
+    lodHitTestBudget: number;
+    /**
+     * Above this many rooms in the current plane build (same unit as
+     * {@link lodRoomBudget}) and below `lodRoomBudget`, exit lines are
+     * dropped but rooms still render as full vector shapes — a bridge tier
+     * between full vector detail and the raster overview. Exit pairing and
+     * exit-line shape building are typically the single largest share of a
+     * dense rebuild's cost (exit count often runs ~2x room count in a
+     * well-connected area), so this buys back most of that cost while still
+     * showing real room shapes instead of raster pixels. Only takes effect
+     * while `lodEnabled` is true. Set above `lodRoomBudget` (or to `Infinity`)
+     * to disable this tier and jump straight from full vector to raster.
+     * Default: 12000
+     */
+    lodExitBudget: number;
 };
 
 /** Creates a new Settings object with default values. */
@@ -312,5 +376,9 @@ export function createSettings(): Settings {
         areaExitLabelFontSize: 0.3,
         neighborSpill: false,
         neighborSpillDistance: 20,
+        lodEnabled: false,
+        lodRoomBudget: 16000,
+        lodHitTestBudget: 10000,
+        lodExitBudget: 12000,
     };
 }

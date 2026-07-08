@@ -18,6 +18,10 @@
       "types": "./dist/binary/index.d.ts",
       "import": "./dist/binary.mjs"
     },
+    "./bigmap": {
+      "types": "./dist/bigmap/index.d.ts",
+      "import": "./dist/bigmap.mjs"
+    },
     "./offscreen": {
       "types": "./dist/rendering/offscreen/index.d.ts",
       "import": "./dist/offscreen.mjs"
@@ -39,7 +43,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:visual": "playwright test",
-    "test:visual:update": "playwright test --update-snapshots"
+    "test:visual:update": "playwright test --update-snapshots",
+    "demo:streaming": "vite --config vite.streaming.config.ts"
   },
   "dependencies": {
     "konva": "^10.2.4",

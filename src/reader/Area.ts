@@ -2,6 +2,83 @@ import Plane, {IPlane} from "./Plane";
 
 import IExit from "./Exit";
 
+const oppositeDir: Partial<Record<MapData.direction, MapData.direction>> = {
+    "north": "south", "south": "north",
+    "east": "west", "west": "east",
+    "northeast": "southwest", "southwest": "northeast",
+    "northwest": "southeast", "southeast": "northwest",
+    "up": "down", "down": "up",
+    "in": "out", "out": "in",
+};
+
+/**
+ * Pair each room's half-exits into bidirectional {@link IExit}s (or one-way
+ * fallbacks when a room's neighbour doesn't exit back). Exposed standalone so
+ * callers with an already-filtered room list (e.g. a viewport-narrowed set)
+ * can pair exits directly, without constructing a full {@link Area}.
+ */
+export function pairLinkExits(rooms: MapData.Room[]): Map<string, IExit> {
+    type HalfExit = { origin: number, target: number, z: number, dir: MapData.direction };
+    const halfExitsByPair = new Map<string, HalfExit[]>();
+
+    rooms.forEach(room => {
+        Object.entries(room.exits).forEach(([direction, targetRoomId]) => {
+            if (room.id === targetRoomId) return;
+            const a = Math.min(room.id, targetRoomId);
+            const b = Math.max(room.id, targetRoomId);
+            const key = `${a}-${b}`;
+            if (!halfExitsByPair.has(key)) halfExitsByPair.set(key, []);
+            halfExitsByPair.get(key)!.push({
+                origin: room.id, target: targetRoomId, z: room.z, dir: direction as MapData.direction
+            });
+        });
+    });
+
+    const exits = new Map<string, IExit>();
+    for (const [pairKey, halves] of halfExitsByPair) {
+        const [aStr, bStr] = pairKey.split('-');
+        const a = parseInt(aStr), b = parseInt(bStr);
+
+        const aSide = halves.filter(h => h.origin === a);
+        const bSide = halves.filter(h => h.origin === b);
+
+        const usedB = new Set<number>();
+
+        for (const aHalf of aSide) {
+            let bestIdx = -1;
+            for (let i = 0; i < bSide.length; i++) {
+                if (usedB.has(i)) continue;
+                if (bSide[i].dir === oppositeDir[aHalf.dir]) {
+                    bestIdx = i;
+                    break;
+                }
+            }
+
+            if (bestIdx !== -1) {
+                usedB.add(bestIdx);
+                const bHalf = bSide[bestIdx];
+                exits.set(`${pairKey}-${aHalf.dir}`, {
+                    a, b, aDir: aHalf.dir, bDir: bHalf.dir, zIndex: [aHalf.z, bHalf.z]
+                });
+            } else {
+                exits.set(`${pairKey}-a:${aHalf.dir}`, {
+                    a, b, aDir: aHalf.dir, zIndex: [aHalf.z]
+                });
+            }
+        }
+
+        for (let i = 0; i < bSide.length; i++) {
+            if (!usedB.has(i)) {
+                const bHalf = bSide[i];
+                exits.set(`${pairKey}-b:${bHalf.dir}`, {
+                    a, b, bDir: bHalf.dir, zIndex: [bHalf.z]
+                });
+            }
+        }
+    }
+    return exits;
+}
+
 /**
  * Public, renderer-facing surface of an area. The renderer never inspects
  * private state of {@link Area}; it talks to this interface only. Custom data
@@ -38,7 +115,7 @@ export default class Area implements IArea {
 
     private readonly planes: Record<number, Plane> = {};
     private readonly area: MapData.Area;
-    private readonly exits: Map<string, IExit> = new Map();
+    private exits: Map<string, IExit> = new Map();
     private version = 0;
 
     constructor(area: MapData.Area) {
@@ -116,73 +193,8 @@ export default class Area implements IArea {
         );
     }
 
-    private static readonly oppositeDir: Partial<Record<MapData.direction, MapData.direction>> = {
-        "north": "south", "south": "north",
-        "east": "west", "west": "east",
-        "northeast": "southwest", "southwest": "northeast",
-        "northwest": "southeast", "southeast": "northwest",
-        "up": "down", "down": "up",
-        "in": "out", "out": "in",
-    };
-
     private createExits() {
-        type HalfExit = { origin: number, target: number, z: number, dir: MapData.direction };
-        const halfExitsByPair = new Map<string, HalfExit[]>();
-
-        this.area.rooms.forEach(room => {
-            Object.entries(room.exits).forEach(([direction, targetRoomId]) => {
-                if (room.id === targetRoomId) return;
-                const a = Math.min(room.id, targetRoomId);
-                const b = Math.max(room.id, targetRoomId);
-                const key = `${a}-${b}`;
-                if (!halfExitsByPair.has(key)) halfExitsByPair.set(key, []);
-                halfExitsByPair.get(key)!.push({
-                    origin: room.id, target: targetRoomId, z: room.z, dir: direction as MapData.direction
-                });
-            });
-        });
-
-        for (const [pairKey, halves] of halfExitsByPair) {
-            const [aStr, bStr] = pairKey.split('-');
-            const a = parseInt(aStr), b = parseInt(bStr);
-
-            const aSide = halves.filter(h => h.origin === a);
-            const bSide = halves.filter(h => h.origin === b);
-
-            const usedB = new Set<number>();
-
-            for (const aHalf of aSide) {
-                let bestIdx = -1;
-                for (let i = 0; i < bSide.length; i++) {
-                    if (usedB.has(i)) continue;
-                    if (bSide[i].dir === Area.oppositeDir[aHalf.dir]) {
-                        bestIdx = i;
-                        break;
-                    }
-                }
-
-                if (bestIdx !== -1) {
-                    usedB.add(bestIdx);
-                    const bHalf = bSide[bestIdx];
-                    this.exits.set(`${pairKey}-${aHalf.dir}`, {
-                        a, b, aDir: aHalf.dir, bDir: bHalf.dir, zIndex: [aHalf.z, bHalf.z]
-                    });
-                } else {
-                    this.exits.set(`${pairKey}-a:${aHalf.dir}`, {
-                        a, b, aDir: aHalf.dir, zIndex: [aHalf.z]
-                    });
-                }
-            }
-
-            for (let i = 0; i < bSide.length; i++) {
-                if (!usedB.has(i)) {
-                    const bHalf = bSide[i];
-                    this.exits.set(`${pairKey}-b:${bHalf.dir}`, {
-                        a, b, bDir: bHalf.dir, zIndex: [bHalf.z]
-                    });
-                }
-            }
-        }
+        this.exits = pairLinkExits(this.area.rooms);
     }
 
 }
