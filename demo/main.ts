@@ -463,6 +463,8 @@ async function initialize(reader?: IMapReader) {
     if (useOffscreen) {
         statusElement.textContent = "Rendering in Web Worker (OffscreenCanvas)";
     }
+    // Debug/test hook (mirrors the streaming demo).
+    (window as unknown as Record<string, unknown>).__renderer = renderer;
     preview = new DemoPreview(stageElement, renderer);
 
     // Waypoints — auto-placed labels that avoid rooms, exit lines, and each

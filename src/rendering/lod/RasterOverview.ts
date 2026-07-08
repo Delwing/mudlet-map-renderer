@@ -12,16 +12,32 @@ export interface RasterPaintParams {
     offsetY: number;
     /** Packed little-endian RGBA (see {@link cssToPackedRGBA}) for an env id. */
     colorOf: (envId: number) => number;
+    /**
+     * `settings.roomSize` at the time of painting — how large a room's own
+     * footprint is relative to the ~1-map-unit spacing between room centres.
+     * Only ever GROWS the box beyond the gap-free minimum (when > 1, rooms
+     * overlap their neighbours in vector mode too); values ≤ 1 leave the box
+     * at the gap-free minimum, since shrinking to match a smaller footprint
+     * would reintroduce visible gaps/erosion in the overview raster is meant
+     * to avoid. Omit (or 1) for the previous gap-free-only behaviour.
+     */
+    roomSize?: number;
 }
 
 /**
  * Room box side in pixels for a given camera scale. Must always cover the
  * inter-room spacing (= `scale` px, fractional): `round(scale)` under-covers
  * at some zooms and the sub-pixel gaps read as a flickering grid, so
- * `ceil(scale)+1` guarantees overlap → consistently solid regions.
+ * `ceil(scale)+1` guarantees overlap → consistently solid regions. This is
+ * the FLOOR — `roomSize` above 1 (rooms configured larger than the spacing
+ * between them) grows the box further so the raster overview's density
+ * roughly matches how much vector mode's rooms overlap their neighbours;
+ * `roomSize` at or below 1 never shrinks the box below that floor.
  */
-export function rasterBoxSize(scale: number): number {
-    return Math.max(1, Math.min(48, Math.ceil(scale) + 1));
+export function rasterBoxSize(scale: number, roomSize = 1): number {
+    const gapFree = Math.ceil(scale) + 1;
+    const sized = Math.ceil(scale * roomSize) + 1;
+    return Math.max(1, Math.min(48, Math.max(gapFree, sized)));
 }
 
 /**
@@ -39,7 +55,7 @@ export function paintRasterOverview(
 ): void {
     const W = img.width, H = img.height;
     const data = new Uint32Array(img.data.buffer);
-    const s = rasterBoxSize(p.scale);
+    const s = rasterBoxSize(p.scale, p.roomSize);
     const half = s >> 1;
     visit((x, y, envId) => {
         const sx = Math.round(x * p.scale + p.offsetX) - half;

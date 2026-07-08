@@ -40,6 +40,7 @@ export class LodController {
         private readonly layer: Konva.Layer,
         private readonly camera: Camera,
         private readonly colorCss: (envId: number) => string,
+        private readonly roomSizeOf: () => number,
     ) {
         this.canvas = Konva.Util.createCanvasElement();
         this.layer.visible(false);
@@ -120,6 +121,7 @@ export class LodController {
             offsetX: -region.minX * scale,
             offsetY: -region.minY * scale,
             colorOf: this.colorOf,
+            roomSize: this.roomSizeOf(),
         });
         ctx.putImageData(img, 0, 0);
 

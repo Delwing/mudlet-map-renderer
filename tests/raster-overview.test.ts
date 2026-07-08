@@ -33,6 +33,24 @@ describe('rasterBoxSize', () => {
             expect(rasterBoxSize(s)).toBeGreaterThan(s); // overlap guarantee
         }
     });
+
+    it('roomSize <= 1 never shrinks below the gap-free floor', () => {
+        for (const scale of [0.5, 1, 5, 10, 20]) {
+            const floor = rasterBoxSize(scale); // roomSize omitted == 1
+            for (const roomSize of [0.2, 0.6, 1]) {
+                expect(rasterBoxSize(scale, roomSize)).toBe(floor);
+            }
+        }
+    });
+
+    it('roomSize > 1 grows the box beyond the gap-free floor', () => {
+        const scale = 10;
+        const floor = rasterBoxSize(scale);
+        expect(rasterBoxSize(scale, 1.5)).toBeGreaterThan(floor);
+        expect(rasterBoxSize(scale, 2)).toBeGreaterThan(rasterBoxSize(scale, 1.5));
+        // Still clamped at 48 for extreme combinations.
+        expect(rasterBoxSize(30, 3)).toBe(48);
+    });
 });
 
 describe('paintRasterOverview', () => {
@@ -89,6 +107,23 @@ describe('paintRasterOverview', () => {
         });
         expect(pixel(img, 10, 5)).toBe(GREEN);
         expect(pixel(img, 0, 0)).toBe(0);
+    });
+
+    it('roomSize > 1 widens the painted box; roomSize <= 1 matches the default', () => {
+        const paintWith = (roomSize?: number) => {
+            const img = makeImage(30, 30);
+            paintRasterOverview(img, fn => fn(0, 0, 1), {
+                scale: 6, offsetX: 15, offsetY: 15, colorOf: () => RED, roomSize,
+            });
+            return img;
+        };
+        const countPainted = (img: ImageData) =>
+            Array.from(new Uint32Array(img.data.buffer)).filter(v => v !== 0).length;
+
+        const base = countPainted(paintWith(undefined));
+        expect(countPainted(paintWith(1))).toBe(base); // roomSize 1 == omitted
+        expect(countPainted(paintWith(0.5))).toBe(base); // <=1 never shrinks below the floor
+        expect(countPainted(paintWith(2))).toBeGreaterThan(base); // >1 grows it
     });
 
     it('later rooms overwrite earlier ones (last write wins)', () => {

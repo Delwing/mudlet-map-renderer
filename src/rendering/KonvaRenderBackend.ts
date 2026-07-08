@@ -215,6 +215,7 @@ export class KonvaRenderBackend implements InteractiveBackend {
         this.lodController = new LodController(
             this.lodLayer, this.camera,
             envId => this.state.mapReader.getColorValue(envId),
+            () => this.state.settings.roomSize,
         );
 
         this.events = new TypedEventEmitter<RendererEventMap>(container);
