@@ -311,6 +311,11 @@ body {
     color: #a0c8d8;
 }
 
+.slider-hint {
+    font-size: 0.68rem;
+    color: #6c8794;
+}
+
 select {
     width: 100%;
     padding: 0.3rem 1.4rem 0.3rem 0.4rem;

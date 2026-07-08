@@ -713,21 +713,46 @@ export function initControls(settings: Settings, renderer: MapRenderer, getCurre
     });
 
     // --- LOD (vector -> rooms-only -> raster as a plane's density/zoom-out grows) ---
+    //
+    // Settings.lodExitBudget / lodHitTestBudget are independently configurable
+    // in the library, but a single demo slider is clearer as one knob for the
+    // whole ladder — so exit/hit-test budgets scale with the room-budget
+    // slider, preserving createSettings()'s default ratios (0.75 / 0.625).
+    // Without this, dragging the slider only moves the raster flip: below the
+    // fixed default exitBudget (12000) the rooms-only tier disappears
+    // entirely, and above it "when exits vanish" never moves with the slider
+    // at all — which reads as "the exit budget is taking over".
+
+    const LOD_EXIT_RATIO = 12000 / 16000;
+    const LOD_HIT_TEST_RATIO = 10000 / 16000;
 
     const lodToggle = document.getElementById("lod-toggle") as HTMLInputElement | null;
     const lodBudgetSlider = document.getElementById("lod-budget-slider") as HTMLInputElement | null;
     const lodBudgetValue = document.getElementById("lod-budget-value") as HTMLSpanElement | null;
+    const lodBudgetDetail = document.getElementById("lod-budget-detail") as HTMLSpanElement | null;
+
+    function applyLodRoomBudget(value: number) {
+        settings.lodRoomBudget = value;
+        settings.lodExitBudget = Math.round(value * LOD_EXIT_RATIO);
+        settings.lodHitTestBudget = Math.round(value * LOD_HIT_TEST_RATIO);
+        if (lodBudgetValue) lodBudgetValue.textContent = value.toLocaleString("en-US");
+        if (lodBudgetDetail) {
+            lodBudgetDetail.textContent =
+                `exits off ≥ ${settings.lodExitBudget.toLocaleString("en-US")} · ` +
+                `hit-test off ≥ ${settings.lodHitTestBudget.toLocaleString("en-US")}`;
+        }
+    }
+
     if (lodToggle) lodToggle.checked = settings.lodEnabled;
     if (lodBudgetSlider) lodBudgetSlider.value = settings.lodRoomBudget.toString();
-    if (lodBudgetValue) lodBudgetValue.textContent = settings.lodRoomBudget.toLocaleString("en-US");
+    applyLodRoomBudget(settings.lodRoomBudget);
+
     lodToggle?.addEventListener("change", () => {
         settings.lodEnabled = lodToggle.checked;
         renderer.refresh();
     });
     lodBudgetSlider?.addEventListener("input", () => {
-        const value = parseInt(lodBudgetSlider.value, 10);
-        settings.lodRoomBudget = value;
-        if (lodBudgetValue) lodBudgetValue.textContent = value.toLocaleString("en-US");
+        applyLodRoomBudget(parseInt(lodBudgetSlider.value, 10));
         renderer.refresh();
     });
 
