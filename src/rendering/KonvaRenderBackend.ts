@@ -28,6 +28,7 @@ import {computeNeighborSpill, spillPositionMap, ProjectedMapReader} from "../sce
 import type {NeighborSpill} from "../scene/NeighborProjector";
 import type {IMapReader} from "../reader/MapReader";
 import {isViewportDataSource} from "../reader/ViewportDataSource";
+import {projectBounds} from "../render/CullIndex";
 import {LodController, type RasterVisit} from "./lod/LodController";
 import {computeLodMode, type LodMode} from "./lod/lodDecision";
 import {withoutLinkExits} from "./lod/roomsOnlyArea";
@@ -504,10 +505,19 @@ export class KonvaRenderBackend implements InteractiveBackend {
 
         // Viewport-aware readers get the padded camera bounds pushed BEFORE the
         // build, so a plane never materialises more than the padded viewport.
+        // `padded` is in SCENE space (camera.getViewportBounds()); readers like
+        // SkeletonMapReader store raw WORLD-space room columns, so under a
+        // warped style (e.g. Isometric) the bounds must go through the
+        // inverse transform first — otherwise a scene-space window gets
+        // interpreted as a world-space one and, once zoomed in enough that the
+        // discrepancy no longer accidentally overlaps real rooms, the plane
+        // materialises nothing. Same corner-projection trick as CullIndex uses
+        // for the forward direction, just inverted.
         const reader = this.state.mapReader;
         if (isViewportDataSource(reader) && this.hasRealViewport()) {
             const padded = this.padViewport(this.camera.getViewportBounds());
-            reader.setViewport(padded);
+            const worldBounds = projectBounds(padded.minX, padded.minY, padded.maxX, padded.maxY, this.coordinateInverse);
+            reader.setViewport(worldBounds);
             this.lastAppliedViewport = padded;
             this.lastAppliedScale = this.camera.getScale();
         }

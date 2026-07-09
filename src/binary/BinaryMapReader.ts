@@ -5,6 +5,7 @@ import {
 } from "mudlet-map-binary-reader";
 import MapReader, {type IMapReader} from "../reader/MapReader";
 import type {IArea} from "../reader/Area";
+import {toMapRoom, toMapLabel} from "./convert";
 
 /**
  * {@link IMapReader} implementation backed by a parsed Mudlet binary map.
@@ -28,11 +29,13 @@ export default class BinaryMapReader implements IMapReader {
     /** Build directly from a parsed {@link MudletMap}. */
     constructor(model: MudletMap) {
         const {mapData, colors} = readerExport(model);
-        // RendererRoom (binary-reader output) and MapData.Room (renderer
-        // input) overlap structurally — RendererRoom is missing only
-        // `areaId`, which the renderer never reads from rooms (only from
-        // the area). Cast through `unknown` to bridge the nominal gap.
-        this.reader = new MapReader(mapData as unknown as MapData.Map, colors);
+        const map: MapData.Map = mapData.map(a => ({
+            areaName: a.areaName,
+            areaId: a.areaId,
+            rooms: a.rooms.map(r => toMapRoom(r, a.areaId, r.hash)),
+            labels: a.labels.map(l => toMapLabel(l, parseInt(a.areaId))),
+        }));
+        this.reader = new MapReader(map, colors);
     }
 
     /**

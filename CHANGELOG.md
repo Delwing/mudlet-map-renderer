@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.0] - 2026-07-09
+
+### Added
+
+- **Threshold-based Mudlet `.dat` loading** (`mudlet-map-renderer/binary`): `loadMudletMap(bytes, options?)` — and its split halves, `parseMudletMap`/`readerFromLoadedMap`, for running the parse in a Web Worker — picks the loading strategy from the map's total room count (read cheaply from the header, no need to walk the rooms blob first). Below `options.threshold` (default `50,000`): a normal full parse via `readMapFromBuffer`/`readerExport` into a real `MapReader`, every field preserved. Above it: streams room-by-room straight into a `MapSkeleton` via [`mudlet-map-binary-reader`'s new `streamRooms`](https://www.npmjs.com/package/mudlet-map-binary-reader/v/1.2.0), so the full parsed map and the skeleton are never both resident in memory at once. `options.mode` (`'auto' | 'plain' | 'streaming'`) overrides the threshold check to force either path regardless of size. New exports: `parseMudletMap`, `readerFromLoadedMap`, `loadMudletMap`, `LoadMode`, `LoadMudletMapOptions`, `LoadedMudletMap`.
+- The demo (both `yarn demo:dev` and `yarn demo:streaming`) gains load-mode/threshold controls, a progress bar with smooth time-based updates instead of jumping every 200,000 rooms, and status messages ("Finalizing…", "Building scene…") so the main-thread pauses a huge map still causes (scene/skeleton construction, the browser's own structured-clone of the streamed data crossing the Worker boundary) are explained instead of looking like a freeze.
+
+### Fixed
+
+- `BinaryMapReader` no longer bridges `RendererRoom` → `MapData.Room` with an `as unknown as` cast — a real typed converter (`toMapRoom`/`toMapLabel`) fills the fields the cast silently left `undefined` (`env`, `roomChar`, `areaId`). In particular, rooms with `environment === 0` loaded through `BinaryMapReader` or `loadMudletMap` previously always rendered the fallback default color (`env: undefined` skipped the real per-environment color lookup); they now render their correctly configured color.
+- Isometric mode (or any `Style` implementing `worldToScene`/`sceneToWorld`) now renders correctly over a viewport-virtualized reader (`SkeletonMapReader` — any streamed/big map). `KonvaRenderBackend` was pushing the camera's scene-space viewport bounds directly into `ViewportDataSource.setViewport`, which expects world-space room columns; zooming in far enough shrank that mismatched window until it stopped overlapping any real room, so nothing rendered. Bounds are now projected through the inverse transform first, the same corner-projection technique `CullIndex` already used for the forward direction.
+
+### Changed
+
+- The optional `mudlet-map-binary-reader` peer dependency now requires `>=1.2.0` (up from `>=1.0.0`), for the [`streamRooms`/`convertRoom`/`convertLabel` exports](https://www.npmjs.com/package/mudlet-map-binary-reader/v/1.2.0) that `loadMudletMap` depends on. Existing `BinaryMapReader` usage is unaffected in behavior; projects using the `./binary` or `./bigmap` subpaths with an older installed reader will need to bump it.
+
 ### Added
 
 - **Big-map support** — render maps with plane densities far beyond what one Konva scene can hold (proven against a 2.3M-room map, densest plane 1M rooms at one z):
@@ -175,6 +191,9 @@ Initial public release.
 - Support for stub exits, special exits, and link exits with custom rendering.
 - Published as dual-format ESM + CJS npm package with TypeScript declarations.
 
+[2.6.0]: https://github.com/Delwing/mudlet-map-renderer/releases/tag/2.6.0
+[2.5.1]: https://github.com/Delwing/mudlet-map-renderer/releases/tag/2.5.1
+[2.5.0]: https://github.com/Delwing/mudlet-map-renderer/releases/tag/2.5.0
 [2.4.0]: https://github.com/Delwing/mudlet-map-renderer/releases/tag/2.4.0
 [2.3.1]: https://github.com/Delwing/mudlet-map-renderer/releases/tag/2.3.1
 [2.3.0]: https://github.com/Delwing/mudlet-map-renderer/releases/tag/2.3.0

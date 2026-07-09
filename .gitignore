@@ -4,3 +4,4 @@ dist
 .claude/settings.local.json
 test-results
 snapshot-review
+*.dat

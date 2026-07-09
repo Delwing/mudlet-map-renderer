@@ -60,6 +60,18 @@
                     <span id="map-source-name" class="map-source-name">Default sample map</span>
                     <button type="button" id="map-reset" class="btn btn-sm" hidden>Use default</button>
                 </div>
+                <div class="inline-form">
+                    <label for="map-load-mode">Load mode</label>
+                    <div class="control-inputs">
+                        <select id="map-load-mode">
+                            <option value="auto" selected>Auto (threshold)</option>
+                            <option value="plain">Always full parse</option>
+                            <option value="streaming">Always stream</option>
+                        </select>
+                        <input type="number" id="map-load-threshold" min="1000" step="1000" value="50000"
+                               title="Total-room-count cutoff for auto mode" />
+                    </div>
+                </div>
             </div>
             <div class="panel-section">
                 <div class="section-title">Navigation</div>

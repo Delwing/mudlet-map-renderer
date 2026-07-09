@@ -16,10 +16,16 @@
       #top h1 { font-size: .95rem; margin: 0 0 .25rem; }
       #top p { margin: 0; color: #8b949e; }
       #status { color: #58a6ff; margin-top: .35rem; }
+      #load-progress { display: none; width: 100%; height: .4rem; border-radius: 3px; background: #0d1117;
+        border: 1px solid #30363d; overflow: hidden; margin-top: .35rem; }
+      #load-progress .fill { height: 100%; width: 0%; background: #58a6ff; transition: width .12s linear; }
+      #load-options { display: flex; gap: .75rem; align-items: center; margin-top: .5rem; }
       #controls { top: 1rem; right: 1rem; display: none; gap: .5rem; align-items: center; }
-      #controls select, #controls input { background: #0d1117; color: #c9d1d9; border: 1px solid #30363d;
+      #controls select, #controls input,
+      #load-options select, #load-options input { background: #0d1117; color: #c9d1d9; border: 1px solid #30363d;
         border-radius: 5px; padding: .25rem .4rem; font: inherit; }
       #controls input { width: 7em; }
+      #load-options input { width: 6em; }
       #hud { bottom: 1rem; left: 1rem; color: #8b949e; font-variant-numeric: tabular-nums; }
       #hud .metrics { margin-top: .35rem; display: flex; flex-direction: column; gap: .15rem; }
       #hud .metric { display: flex; align-items: center; gap: .5rem; }
@@ -45,7 +51,18 @@
     <div id="top" class="panel">
       <h1>Streaming render</h1>
       <p>Real Konva renderer over a viewport-virtualized streamed map. Drag to pan, scroll to zoom.</p>
+      <div id="load-options">
+        <label>load mode
+          <select id="mode">
+            <option value="auto" selected>auto (threshold)</option>
+            <option value="plain">always full parse (no streaming)</option>
+            <option value="streaming">always stream</option>
+          </select>
+        </label>
+        <label>room threshold <input id="threshold" type="number" value="50000" step="1000" /></label>
+      </div>
       <div id="status"></div>
+      <div id="load-progress"><div class="fill"></div></div>
     </div>
 
     <div id="controls" class="panel">

@@ -1,12 +1,16 @@
-import {MapRenderer, createSettings} from "@src";
-import type {LodEventDetail} from "@src";
+import {MapRenderer, createSettings, MapReader} from "@src";
+import type {LodEventDetail, IMapReader} from "@src";
 import SkeletonMapReader from "@src/bigmap/SkeletonMapReader";
-import type {MapSkeleton} from "@src/bigmap/Skeleton";
-import type {StreamMsg, StreamReady} from "./streaming-worker";
+import type {LoadedMudletMap} from "@src/binary";
+import type {LoadMode, LoadRequest, StreamMsg} from "./streaming-worker";
 
-// A worker streams the .dat into a MapSkeleton; the core SkeletonMapReader +
-// settings.lodEnabled do the rest (viewport-virtualized scene, raster LOD
-// overview when zoomed out, rebuild-on-pan). This file is UI glue only.
+// A worker runs the core parseMudletMap() dispatcher (src/binary/loadMudletMap.ts):
+// it peeks the map header (cheap: aborts before the rooms blob) to learn the
+// total room count, then either streams the .dat into a MapSkeleton (huge
+// maps — never holds the full object graph and the columns in memory at
+// once) or does a normal full parse (small maps — a real MapReader, every
+// field preserved, no skeleton overhead). This file only builds the live
+// reader from the worker's result and wires up the demo UI.
 
 const stage = document.getElementById("stage") as HTMLDivElement;
 const drop = document.getElementById("drop") as HTMLDivElement;
@@ -18,69 +22,80 @@ const areaSel = document.getElementById("area") as HTMLSelectElement;
 const zSel = document.getElementById("z") as HTMLSelectElement;
 const lookup = document.getElementById("lookup") as HTMLInputElement;
 const controls = document.getElementById("controls") as HTMLDivElement;
+const modeSel = document.getElementById("mode") as HTMLSelectElement;
+const thresholdInput = document.getElementById("threshold") as HTMLInputElement;
+const progressBar = document.getElementById("load-progress") as HTMLDivElement;
+const progressFill = progressBar.querySelector(".fill") as HTMLDivElement;
+
+function setProgress(fraction: number | null) {
+    if (fraction === null) {
+        progressBar.style.display = "none";
+        return;
+    }
+    progressBar.style.display = "block";
+    progressFill.style.width = `${Math.round(Math.min(1, Math.max(0, fraction)) * 100)}%`;
+}
 
 const fmtN = (n: number) => n.toLocaleString("en-US");
 
+/**
+ * Wait for an actual paint. A single requestAnimationFrame isn't enough —
+ * rAF callbacks run BEFORE that frame's style/layout/paint step, so resuming
+ * synchronously inside one and immediately starting heavy work pre-empts the
+ * paint entirely. The second rAF only fires once the frame in between (with
+ * nothing blocking it) has been painted.
+ */
+function nextPaint(): Promise<void> {
+    return new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+}
+
 let renderer: MapRenderer | undefined;
-let reader: SkeletonMapReader | undefined;
+let reader: IMapReader | undefined;
 interface AreaInfo {id: number; name: string; count: number; zLevels: number[]; grid: boolean;}
 let areaInfos: AreaInfo[] = [];
 let lastLod: LodEventDetail | undefined;
 
 function run(file: File) {
-    status.textContent = `Streaming ${file.name}…`;
-    let total = 0; // known up front from the header (Σ area room-id lists)
+    status.textContent = `Reading ${file.name}…`;
+    const mode = modeSel.value as LoadMode;
+    const threshold = Number(thresholdInput.value) || 50_000;
     const worker = new Worker(new URL("./streaming-worker.ts", import.meta.url), {type: "module"});
-    worker.onmessage = (e: MessageEvent<StreamMsg>) => {
+    worker.onmessage = async (e: MessageEvent<StreamMsg>) => {
         const m = e.data;
-        if (m.type === "total") total = m.total;
-        else if (m.type === "progress") {
-            const pct = total ? ` (${Math.round((m.rooms / total) * 100)}%)` : "";
-            const of = total ? ` / ${fmtN(total)}` : "";
+        if (m.type === "progress") {
+            const pct = m.total ? ` (${Math.round((m.rooms / m.total) * 100)}%)` : "";
+            const of = m.total ? ` / ${fmtN(m.total)}` : "";
             status.textContent = `Streaming ${fmtN(m.rooms)}${of} rooms…${pct}`;
-        } else if (m.type === "error") status.textContent = `Error: ${m.message}`;
-        else if (m.type === "ready") {
-            onReady(m);
+            setProgress(m.total ? m.rooms / m.total : null);
+        } else if (m.type === "finalizing") {
+            status.textContent = "Finalizing… (handing streamed data to the main thread — can take a moment for huge maps)";
+            setProgress(null);
+        } else if (m.type === "error") {
+            status.textContent = `Error: ${m.message}`;
+            setProgress(null);
+        } else if (m.type === "done") {
+            // Building the scene (skeleton construction, first PlaneIndex, initial
+            // vector/raster paint) is synchronous main-thread work — can be a real
+            // pause on a huge map. Tell the user what's happening and force a paint
+            // of that message before the hang, so it doesn't look like a freeze.
+            setProgress(null);
+            status.textContent = "Building scene…";
+            await nextPaint();
+            onDone(m.loaded, m.elapsedMs);
             worker.terminate();
         }
     };
-    worker.postMessage({file});
+    worker.postMessage({file, mode, threshold} satisfies LoadRequest);
 }
 
-function onReady(m: StreamReady) {
-    const sk: MapSkeleton = {
-        count: m.count, x: m.x, y: m.y, z: m.z, area: m.area, env: m.env, id: m.id,
-        exits: m.exits, areaNames: m.areaNames, areaGridMode: m.areaGridMode,
-        customEnvColors: m.customEnvColors,
-        names: m.names, userData: m.userData,
-        detailRooms: m.heavyRooms as unknown as MapData.Room[],
-        labels: m.labels as unknown as MapData.Label[],
-    };
-    drop.style.display = "none";
-    controls.style.display = "flex";
-    status.textContent =
-        `${fmtN(m.count)} rooms (${fmtN(m.heavyRooms.length)} detailed, ${fmtN(m.labels.length)} labels) ` +
-        `in ${(m.elapsedMs / 1000).toFixed(1)}s`;
-
-    // Per-area aggregate for the selectors (from the columns, pre-reader).
-    const byArea = new Map<number, {count: number; zs: Set<number>}>();
-    for (let i = 0; i < m.count; i++) {
-        let a = byArea.get(m.area[i]);
-        if (!a) {a = {count: 0, zs: new Set()}; byArea.set(m.area[i], a);}
-        a.count++;
-        a.zs.add(m.z[i]);
-    }
-    areaInfos = [...byArea.entries()]
-        .map(([id, v]) => ({
-            id, name: m.areaNames[id] ?? `#${id}`, count: v.count,
-            zLevels: [...v.zs].sort((p, q) => p - q), grid: !!m.areaGridMode[id],
-        }))
-        .sort((p, q) => q.count - p.count);
+/** Shared tail: attach the renderer/reader, wire HUD events, frame the first area. */
+function attach(newReader: IMapReader, infos: AreaInfo[]) {
+    areaInfos = infos;
     areaSel.innerHTML = areaInfos
         .map(a => `<option value="${a.id}">${a.name}${a.grid ? " (grid)" : ""} — ${fmtN(a.count)}</option>`)
         .join("");
 
-    reader = new SkeletonMapReader(sk);
+    reader = newReader;
     const settings = createSettings();
     settings.lodEnabled = true; // core defaults otherwise — detail zoom is identical to the real renderer
 
@@ -94,7 +109,48 @@ function onReady(m: StreamReady) {
     // Debug/test hook.
     (window as unknown as Record<string, unknown>).__renderer = renderer;
 
+    drop.style.display = "none";
+    controls.style.display = "flex";
     show(areaInfos[0]);
+}
+
+function onDone(loaded: LoadedMudletMap, elapsedMs: number) {
+    if (loaded.kind === "skeleton") {
+        const sk = loaded.skeleton;
+        status.textContent =
+            `${fmtN(sk.count)} rooms (${fmtN(sk.detailRooms?.length ?? 0)} detailed, ${fmtN(sk.labels?.length ?? 0)} labels) ` +
+            `in ${(elapsedMs / 1000).toFixed(1)}s — streamed`;
+
+        // Per-area aggregate for the selectors (from the columns, pre-reader).
+        const byArea = new Map<number, {count: number; zs: Set<number>}>();
+        for (let i = 0; i < sk.count; i++) {
+            let a = byArea.get(sk.area[i]);
+            if (!a) {a = {count: 0, zs: new Set()}; byArea.set(sk.area[i], a);}
+            a.count++;
+            a.zs.add(sk.z[i]);
+        }
+        const infos = [...byArea.entries()]
+            .map(([id, v]) => ({
+                id, name: sk.areaNames[id] ?? `#${id}`, count: v.count,
+                zLevels: [...v.zs].sort((p, q) => p - q), grid: !!sk.areaGridMode[id],
+            }))
+            .sort((p, q) => q.count - p.count);
+
+        attach(new SkeletonMapReader(sk), infos);
+    } else {
+        const {map, envs} = loaded;
+        let count = 0;
+        for (const a of map) count += a.rooms.length;
+        status.textContent = `${fmtN(count)} rooms in ${(elapsedMs / 1000).toFixed(1)}s — full parse (no data dropped)`;
+
+        const infos = map.map(a => ({
+            id: parseInt(a.areaId), name: a.areaName, count: a.rooms.length,
+            zLevels: [...new Set(a.rooms.map(r => r.z))].sort((p, q) => p - q),
+            grid: false, // grid-mode suppression is a bigmap/skeleton-only concept
+        })).sort((p, q) => q.count - p.count);
+
+        attach(new MapReader(map, envs), infos);
+    }
 }
 
 window.addEventListener("resize", () => {

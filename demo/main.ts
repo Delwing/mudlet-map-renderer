@@ -14,7 +14,9 @@ import {
 import type {Settings, IMapReader} from "@src";
 import {createOffscreenBackend} from "@src/rendering/offscreen";
 import MapReader from "@src/reader/MapReader";
-import {BinaryMapReader} from "@src/binary";
+import {readerFromLoadedMap} from "@src/binary";
+import type {LoadMode} from "@src/binary";
+import type {LoadRequest, StreamMsg} from "./streaming/streaming-worker";
 import {initControls} from "./controls";
 import {initContextMenu} from "./context-menu";
 import {Walker} from "./walker";
@@ -80,6 +82,7 @@ function bindListenersTo(signal: AbortSignal) {
 }
 
 const settings: Settings = createSettings();
+settings.lodEnabled = true; // on by default (matches the streaming demo); the LOD toggle in controls.ts can still flip it off
 const explorationLens = new ExplorationLens();
 let explorationEnabled = false;
 let currentRoomId!: number;
@@ -780,26 +783,62 @@ function setupMapLoader() {
     const fileInput = document.getElementById("map-file") as HTMLInputElement | null;
     const resetBtn = document.getElementById("map-reset") as HTMLButtonElement | null;
     const nameEl = document.getElementById("map-source-name") as HTMLSpanElement | null;
+    const modeSelect = document.getElementById("map-load-mode") as HTMLSelectElement | null;
+    const thresholdInput = document.getElementById("map-load-threshold") as HTMLInputElement | null;
     if (!drop || !fileInput) return;
 
     const setName = (text: string) => { if (nameEl) nameEl.textContent = text; };
+    const fmtN = (n: number) => n.toLocaleString("en-US");
 
-    async function loadFile(file: File) {
-        setName(`Loading ${file.name}…`);
+    /**
+     * Wait for an actual paint. A single requestAnimationFrame isn't enough —
+     * rAF callbacks run BEFORE that frame's style/layout/paint step, so
+     * resuming synchronously inside one and immediately starting heavy work
+     * pre-empts the paint. The second rAF only fires once the frame in
+     * between (nothing blocking it) has actually been painted.
+     */
+    function nextPaint(): Promise<void> {
+        return new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+    }
+
+    // Parsing runs in a Worker (shared with the streaming demo) — loadMudletMap
+    // itself is synchronous by design (see its docstring), so calling it
+    // directly here would freeze the whole UI for the parse's duration,
+    // multi-second on a huge map even in "always full parse" mode.
+    function loadFile(file: File) {
+        setName(`Reading ${file.name}…`);
         drop!.classList.remove("error");
-        try {
-            // mudlet-map-binary-reader (>=1.0.0) parses a plain Uint8Array via
-            // qtdatastream-web — no Node Buffer or polyfill needed in-browser.
-            const bytes = await file.arrayBuffer();
-            const reader = BinaryMapReader.fromBuffer(new Uint8Array(bytes));
-            await initialize(reader);
-            setName(file.name);
-            if (resetBtn) resetBtn.hidden = false;
-        } catch (err) {
-            console.error("Failed to load dropped map", err);
-            setName(`Couldn't read ${file.name} — is it a Mudlet .dat map?`);
-            drop!.classList.add("error");
-        }
+        const mode = (modeSelect?.value ?? "auto") as LoadMode;
+        const threshold = Number(thresholdInput?.value) || 50_000;
+        const worker = new Worker(new URL("./streaming/streaming-worker.ts", import.meta.url), {type: "module"});
+        worker.onmessage = async (e: MessageEvent<StreamMsg>) => {
+            const m = e.data;
+            if (m.type === "progress") {
+                const pct = m.total ? ` (${Math.round((m.rooms / m.total) * 100)}%)` : "";
+                setName(`Streaming ${fmtN(m.rooms)}${m.total ? ` / ${fmtN(m.total)}` : ""} rooms…${pct}`);
+            } else if (m.type === "finalizing") {
+                setName("Finalizing… (handing streamed data to the main thread — can take a moment for huge maps)");
+            } else if (m.type === "error") {
+                console.error("Failed to load dropped map", m.message);
+                setName(`Couldn't read ${file.name} — is it a Mudlet .dat map?`);
+                drop!.classList.add("error");
+                worker.terminate();
+            } else if (m.type === "done") {
+                // Building the scene (skeleton construction, first PlaneIndex,
+                // initial vector/raster paint) is synchronous main-thread work —
+                // can be a real pause on a huge map. Tell the user what's
+                // happening and force a paint of that message before the hang,
+                // so it doesn't look like a freeze.
+                setName("Building scene…");
+                await nextPaint();
+                const reader = readerFromLoadedMap(m.loaded);
+                await initialize(reader);
+                setName(file.name);
+                if (resetBtn) resetBtn.hidden = false;
+                worker.terminate();
+            }
+        };
+        worker.postMessage({file, mode, threshold} satisfies LoadRequest);
     }
 
     // The loader must stay usable after a reload, so these listeners are

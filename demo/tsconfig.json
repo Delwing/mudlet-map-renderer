@@ -5,8 +5,7 @@
     "rootDir": "..",
     "paths": {
       "@src": ["../src/index.ts"],
-      "@src/*": ["../src/*"],
-      "mudlet-map-binary-reader": ["../../node-mudlet-map-binary-reader/dist/index.d.ts"]
+      "@src/*": ["../src/*"]
     }
   },
   "include": ["./**/*.ts", "./**/*.tsx", "../src/types/**/*.ts"]
