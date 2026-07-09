@@ -33,8 +33,25 @@ export class DemoPreview {
         this.stage.addEventListener("pan", () => this.update());
     }
 
-    /** Capture a fresh full-area thumbnail (call after area change or render-mode change). */
+    /**
+     * Capture a fresh full-area thumbnail (call after area change or render-mode
+     * change). Deferred one animation frame: a camera change (fitArea, drawArea)
+     * schedules the interactive backend's own rebuild via requestAnimationFrame,
+     * which is what actually narrows a ViewportDataSource reader's (e.g.
+     * SkeletonMapReader) shared viewport to the new camera bounds. Exporting
+     * synchronously — in the same tick as the camera change — would build the
+     * scene against the *previous*, stale viewport (the reader has no
+     * export-specific override; it just trusts whatever the interactive
+     * backend last pushed), giving a near-empty thumbnail on a huge map where
+     * that stale window barely overlaps any real rooms. One rAF tick — the
+     * same one the interactive rebuild already uses — is enough to see the
+     * corrected viewport.
+     */
     refresh(): void {
+        requestAnimationFrame(() => this.captureNow());
+    }
+
+    private captureNow(): void {
         const bounds = this.renderer.getAreaBounds();
         if (!bounds) return;
         const areaW = bounds.maxX - bounds.minX;

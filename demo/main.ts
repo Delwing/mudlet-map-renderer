@@ -571,8 +571,12 @@ async function initialize(reader?: IMapReader) {
 
     // Fall back to the first available room when the chosen id is absent —
     // essential for dropped maps, whose room ids need not include 1.
+    // IArea.getRooms() is an intentional always-[] stub on SkeletonMapReader
+    // (viewport-virtualized readers never materialise a whole area) — go
+    // through the plane instead, which both reader types populate for real.
     if (!mapReader.getRoom(startingRoomId)) {
-        const firstRoom = mapReader.getAreas()[0]?.getRooms()?.[0];
+        const firstArea = mapReader.getAreas()[0];
+        const firstRoom = firstArea?.getPlanes()[0]?.getRooms()?.[0];
         if (firstRoom) startingRoomId = firstRoom.id;
     }
 
