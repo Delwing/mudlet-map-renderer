@@ -11,6 +11,7 @@ import type {Exporter, ExportContext} from "./Exporter";
 import {flushSceneShapes} from "./flushSceneShapes";
 import {clipSceneToViewport} from "./clipSceneToViewport";
 import {projectExportBoundsToScene} from "./sceneBounds";
+import {pushExportViewport} from "./exportViewport";
 
 const IDENTITY_CAMERA = {scale: 1, offsetX: 0, offsetY: 0};
 
@@ -48,39 +49,48 @@ export class SvgExporter implements Exporter<string | undefined> {
         const exportCamera = Camera.forMapBounds(bounds.x, bounds.x + bounds.w, bounds.y, bounds.y + bounds.h);
         const viewportBounds = exportCamera.getViewportBounds();
 
-        const pipeline = new ScenePipeline(state.mapReader, settings);
-        const result = pipeline.buildScene(area, plane, currentZIndex, state.lens);
-        const transforms = {
-            forward: style.worldToScene ? (x: number, y: number) => style.worldToScene!(x, y) : undefined,
-            inverse: style.sceneToWorld ? (x: number, y: number) => style.sceneToWorld!(x, y) : undefined,
-        };
-        const clipped = clipSceneToViewport(result, viewportBounds, settings, transforms);
-        const ctx = {scale: 1, roomSize: settings.roomSize};
-        const styled = (shapes: Shape[]): Shape[] =>
-            style === identityStyle ? shapes : applyStyleToShapes(shapes, style as Style, ctx);
+        // See pushExportViewport: a viewport-virtualized reader (SkeletonMapReader)
+        // only materialises rooms inside whatever viewport was last pushed onto
+        // it, which for the live interactive camera can be a render (rAF) behind
+        // — an export must push its own to be correct and reproducible.
+        const restoreViewport = pushExportViewport(state.mapReader, bounds);
+        try {
+            const pipeline = new ScenePipeline(state.mapReader, settings);
+            const result = pipeline.buildScene(area, plane, currentZIndex, state.lens);
+            const transforms = {
+                forward: style.worldToScene ? (x: number, y: number) => style.worldToScene!(x, y) : undefined,
+                inverse: style.sceneToWorld ? (x: number, y: number) => style.sceneToWorld!(x, y) : undefined,
+            };
+            const clipped = clipSceneToViewport(result, viewportBounds, settings, transforms);
+            const ctx = {scale: 1, roomSize: settings.roomSize};
+            const styled = (shapes: Shape[]): Shape[] =>
+                style === identityStyle ? shapes : applyStyleToShapes(shapes, style as Style, ctx);
 
-        // Coordinate-warping styles (Isometric) render shapes in scene space —
-        // the viewBox and background rect must follow the projection so rooms
-        // don't drift off the background. Scene-pad covers projection-unaware
-        // decorations (cube depth, glow halos, …).
-        const sceneBounds = projectExportBoundsToScene(bounds, style, settings.roomSize * 0.5);
+            // Coordinate-warping styles (Isometric) render shapes in scene space —
+            // the viewBox and background rect must follow the projection so rooms
+            // don't drift off the background. Scene-pad covers projection-unaware
+            // decorations (cube depth, glow halos, …).
+            const sceneBounds = projectExportBoundsToScene(bounds, style, settings.roomSize * 0.5);
 
-        const lines: string[] = [];
-        lines.push(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="${sceneBounds.x} ${sceneBounds.y} ${sceneBounds.w} ${sceneBounds.h}">`);
-        lines.push(`<rect x="${sceneBounds.x}" y="${sceneBounds.y}" width="${sceneBounds.w}" height="${sceneBounds.h}" fill="${escapeXml(settings.backgroundColor)}"/>`);
+            const lines: string[] = [];
+            lines.push(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="${sceneBounds.x} ${sceneBounds.y} ${sceneBounds.w} ${sceneBounds.h}">`);
+            lines.push(`<rect x="${sceneBounds.x}" y="${sceneBounds.y}" width="${sceneBounds.w}" height="${sceneBounds.h}" fill="${escapeXml(settings.backgroundColor)}"/>`);
 
-        const flush = (shapes: Shape[], sceneSpace?: boolean) => {
-            if (shapes.length === 0) return;
-            lines.push(...svgFromBatches(buildDrawCommands(sceneSpace ? shapes : styled(shapes), IDENTITY_CAMERA)));
-        };
+            const flush = (shapes: Shape[], sceneSpace?: boolean) => {
+                if (shapes.length === 0) return;
+                lines.push(...svgFromBatches(buildDrawCommands(sceneSpace ? shapes : styled(shapes), IDENTITY_CAMERA)));
+            };
 
-        flushSceneShapes(
-            clipped,
-            {state, viewportBounds, sceneOverlays, overlays: this.options.overlays},
-            flush,
-        );
+            flushSceneShapes(
+                clipped,
+                {state, viewportBounds, sceneOverlays, overlays: this.options.overlays},
+                flush,
+            );
 
-        lines.push("</svg>");
-        return lines.join("\n");
+            lines.push("</svg>");
+            return lines.join("\n");
+        } finally {
+            restoreViewport();
+        }
     }
 }

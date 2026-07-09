@@ -3,6 +3,7 @@ import {type IArea, pairLinkExits} from "../reader/Area";
 import type {IPlane} from "../reader/Plane";
 import type IExit from "../reader/Exit";
 import type {ViewportDataSource} from "../reader/ViewportDataSource";
+import type {HashLookupCapable} from "../reader/HashLookup";
 import type {ViewportBounds} from "../types/Settings";
 import type {MapSkeleton} from "./Skeleton";
 import {SKELETON_DIRS} from "./Skeleton";
@@ -41,8 +42,9 @@ function hslToRgb(h: number, s: number, l: number): [number, number, number] {
  * Construction takes ownership of the skeleton: coordinates are converted to
  * renderer space (y negated, matching `MapReader`) in place.
  */
-export default class SkeletonMapReader implements IMapReader, ViewportDataSource {
+export default class SkeletonMapReader implements IMapReader, ViewportDataSource, HashLookupCapable {
     readonly viewportAware = true as const;
+    readonly hashLookupCapable = true as const;
 
     private readonly sk: MapSkeleton;
     private viewport: ViewportBounds = INFINITE_VIEWPORT;
@@ -52,6 +54,7 @@ export default class SkeletonMapReader implements IMapReader, ViewportDataSource
     private readonly areaCache = new Map<number, SkeletonArea>();
     private readonly rgbCache = new Map<number, [number, number, number]>();
     private idIndex?: Map<number, number>;
+    private idToHashIndex?: Map<number, string>;
     // Per-viewport materialisation cache so getRooms() and getLinkExits()
     // share one synthesized set within a single scene build.
     private readonly visibleCache = new Map<string, MapData.Room[]>();
@@ -79,6 +82,12 @@ export default class SkeletonMapReader implements IMapReader, ViewportDataSource
 
     skeleton(): MapSkeleton {
         return this.sk;
+    }
+
+    // --- HashLookupCapable ---
+
+    getRoomIdByHash(hash: string): number | undefined {
+        return this.sk.hashToId?.[hash];
     }
 
     // --- ViewportDataSource ---
@@ -182,6 +191,16 @@ export default class SkeletonMapReader implements IMapReader, ViewportDataSource
         return v;
     }
 
+    /** Reverse of `sk.hashToId` (hash -> id), built lazily and once, same pattern as `idIndex`. */
+    private hashFor(id: number): string {
+        if (!this.sk.hashToId) return '';
+        if (!this.idToHashIndex) {
+            this.idToHashIndex = new Map();
+            for (const hash in this.sk.hashToId) this.idToHashIndex.set(this.sk.hashToId[hash], hash);
+        }
+        return this.idToHashIndex.get(id) ?? '';
+    }
+
     private makeRoom(i: number): MapData.Room {
         const sk = this.sk;
         const d = this.detail.get(sk.id[i]);
@@ -209,7 +228,7 @@ export default class SkeletonMapReader implements IMapReader, ViewportDataSource
             userData: this.userDataMap.get(sk.id[i]) ?? {},
             customLines: {},
             stubs: [],
-            hash: '',
+            hash: this.hashFor(sk.id[i]),
             env: sk.env[i],
             exits: exits as Record<MapData.direction, number>,
             doors: {},

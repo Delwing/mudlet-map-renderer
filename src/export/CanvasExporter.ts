@@ -12,6 +12,7 @@ import {canvasToBytes} from "./canvasToBytes";
 import {flushSceneShapes} from "./flushSceneShapes";
 import {clipSceneToViewport} from "./clipSceneToViewport";
 import {projectExportBoundsToScene} from "./sceneBounds";
+import {pushExportViewport} from "./exportViewport";
 
 export interface CanvasExportOptions {
     /** Width of the output image in pixels. */
@@ -82,36 +83,45 @@ export class CanvasExporter implements Exporter<ExportCanvas | undefined> {
             inverse: style.sceneToWorld ? (x: number, y: number) => style.sceneToWorld!(x, y) : undefined,
         };
 
-        const pipeline = new ScenePipeline(state.mapReader, settings);
-        const result = pipeline.buildScene(area, plane, currentZIndex, state.lens);
-        const clipped = clipSceneToViewport(result, cullingCamera.getViewportBounds(), settings, transforms);
+        // See pushExportViewport: a viewport-virtualized reader (SkeletonMapReader)
+        // only materialises rooms inside whatever viewport was last pushed onto
+        // it, which for the live interactive camera can be a render (rAF) behind
+        // — an export must push its own to be correct and reproducible.
+        const restoreViewport = pushExportViewport(state.mapReader, bounds);
+        try {
+            const pipeline = new ScenePipeline(state.mapReader, settings);
+            const result = pipeline.buildScene(area, plane, currentZIndex, state.lens);
+            const clipped = clipSceneToViewport(result, cullingCamera.getViewportBounds(), settings, transforms);
 
-        const canvas = Konva.Util.createCanvasElement() as unknown as HTMLCanvasElement;
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext("2d");
-        if (!ctx) return;
+            const canvas = Konva.Util.createCanvasElement() as unknown as HTMLCanvasElement;
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext("2d");
+            if (!ctx) return;
 
-        ctx.fillStyle = settings.backgroundColor;
-        ctx.fillRect(0, 0, width, height);
+            ctx.fillStyle = settings.backgroundColor;
+            ctx.fillRect(0, 0, width, height);
 
-        const styleCtx = {scale, roomSize: settings.roomSize};
-        const styled = (shapes: Shape[]): Shape[] =>
-            style === identityStyle ? shapes : applyStyleToShapes(shapes, style as Style, styleCtx);
+            const styleCtx = {scale, roomSize: settings.roomSize};
+            const styled = (shapes: Shape[]): Shape[] =>
+                style === identityStyle ? shapes : applyStyleToShapes(shapes, style as Style, styleCtx);
 
-        const flush = (shapes: Shape[], sceneSpace?: boolean) => {
-            if (shapes.length === 0) return;
-            renderToCanvas(ctx, buildDrawCommands(sceneSpace ? shapes : styled(shapes), renderCam));
-        };
+            const flush = (shapes: Shape[], sceneSpace?: boolean) => {
+                if (shapes.length === 0) return;
+                renderToCanvas(ctx, buildDrawCommands(sceneSpace ? shapes : styled(shapes), renderCam));
+            };
 
-        const viewportBounds = Camera.forMapBounds(bounds.x, bounds.x + bounds.w, bounds.y, bounds.y + bounds.h).getViewportBounds();
-        flushSceneShapes(
-            clipped,
-            {state, viewportBounds, sceneOverlays, overlays: this.options.overlays},
-            flush,
-        );
+            const viewportBounds = Camera.forMapBounds(bounds.x, bounds.x + bounds.w, bounds.y, bounds.y + bounds.h).getViewportBounds();
+            flushSceneShapes(
+                clipped,
+                {state, viewportBounds, sceneOverlays, overlays: this.options.overlays},
+                flush,
+            );
 
-        return canvas as unknown as ExportCanvas;
+            return canvas as unknown as ExportCanvas;
+        } finally {
+            restoreViewport();
+        }
     }
 }
 

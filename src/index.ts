@@ -107,6 +107,8 @@ export type { IExit, Kind as ExitKind } from './reader/Exit';
 // --- Big-map support (LOD; the skeleton reader lives in the './bigmap' subpath) ---
 export { isViewportDataSource } from './reader/ViewportDataSource';
 export type { ViewportDataSource } from './reader/ViewportDataSource';
+export { isHashLookupCapable } from './reader/HashLookup';
+export type { HashLookupCapable } from './reader/HashLookup';
 export { shouldUseRaster, computeLodMode } from './rendering/lod/lodDecision';
 export type { LodDecisionInput, LodModeInput, LodMode } from './rendering/lod/lodDecision';
 

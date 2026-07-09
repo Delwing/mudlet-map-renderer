@@ -1,5 +1,5 @@
 import {streamRooms, convertRoom, convertLabel, readMapFromBuffer, readerExport} from "mudlet-map-binary-reader";
-import type {MudletMapHeader} from "mudlet-map-binary-reader";
+import type {MudletMapHeader, MudletRoom} from "mudlet-map-binary-reader";
 import MapReader, {type IMapReader} from "../reader/MapReader";
 import SkeletonMapReader from "../bigmap/SkeletonMapReader";
 import type {MapSkeleton} from "../bigmap/Skeleton";
@@ -27,6 +27,18 @@ export interface LoadMudletMapOptions {
     threshold?: number;
     /** Invoked periodically (every 200,000 rooms) — the streaming path only; the full parse has no per-room hook. */
     onProgress?: (roomsRead: number, total: number) => void;
+    /**
+     * Streaming path only (the full parse always materialises every field —
+     * there's no skeleton to promote into). Overrides which rooms are
+     * promoted to a fully materialised `MapData.Room` in `MapSkeleton.detailRooms`;
+     * default `hasExtraDetail` (doors/customLines/specialExits/stubs/exitLocks/
+     * non-default weight/exitWeights — fields the compact columns can't encode
+     * at all). Pass `() => true` to promote every room — correct at any size,
+     * but memory-equivalent to a full `MapReader` object graph for the room
+     * data itself, so it only makes sense when the map's total room count
+     * doesn't actually need the streaming path's memory savings.
+     */
+    isDetailRoom?: (room: MudletRoom) => boolean;
 }
 
 /**
@@ -87,6 +99,7 @@ function parsePlain(bytes: Uint8Array): {kind: "plain"; map: MapData.Map; envs: 
 function parseStreaming(
     bytes: Uint8Array, header: MudletMapHeader, total: number,
     onProgress?: (roomsRead: number, total: number) => void,
+    isDetailRoom: (room: MudletRoom) => boolean = hasExtraDetail,
 ): {kind: "skeleton"; skeleton: MapSkeleton} {
     const x = new Int32Array(total), y = new Int32Array(total), z = new Int32Array(total);
     const area = new Int32Array(total), env = new Int32Array(total), id = new Int32Array(total);
@@ -121,7 +134,7 @@ function parseStreaming(
         names[i] = room.name ?? "";
         if (hasKeys(room.userData)) userData.push({id: roomId, data: room.userData});
 
-        if (hasExtraDetail(room)) {
+        if (isDetailRoom(room)) {
             const rr = convertRoom(roomId, room, roomIdToHash[roomId]);
             detailRooms.push(toMapRoom(rr, String(room.area), roomIdToHash[roomId]));
         }
@@ -156,6 +169,10 @@ function parseStreaming(
             count: i, x, y, z, area, env, id, exits,
             areaNames: header.areaNames ?? {}, areaGridMode: buildAreaGridMode(header), customEnvColors,
             names, userData, detailRooms, labels,
+            // Already hash -> roomId, exactly the shape SkeletonMapReader wants —
+            // no inversion needed (roomIdToHash above is the id -> hash direction,
+            // built separately for tagging detailRooms with their hash).
+            hashToId: header.mpRoomDbHashToRoomId ?? {},
         },
     };
 }
@@ -167,10 +184,10 @@ function parseStreaming(
  * {@link loadMudletMap} to do both in one call.
  */
 export function parseMudletMap(bytes: Uint8Array, options: LoadMudletMapOptions = {}): LoadedMudletMap {
-    const {mode = "auto", threshold = 50_000, onProgress} = options;
+    const {mode = "auto", threshold = 50_000, onProgress, isDetailRoom} = options;
     const {header, total} = peekHeader(bytes);
     const effectiveMode = mode === "auto" ? (total > threshold ? "streaming" : "plain") : mode;
-    return effectiveMode === "plain" ? parsePlain(bytes) : parseStreaming(bytes, header, total, onProgress);
+    return effectiveMode === "plain" ? parsePlain(bytes) : parseStreaming(bytes, header, total, onProgress, isDetailRoom);
 }
 
 /** Build the live {@link IMapReader} for data produced by {@link parseMudletMap}. */

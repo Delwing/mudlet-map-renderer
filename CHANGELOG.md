@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.1] - 2026-07-09
+
+### Added
+
+- **`HashLookupCapable`** (new `isHashLookupCapable` type guard, exported from the main entry): an opt-in capability interface, `getRoomIdByHash(hash) => number | undefined`, for readers that can resolve a Mudlet room content hash (`MapData.Room.hash`) without scanning every room. `SkeletonMapReader.getRooms()` deliberately always returns `[]` (see `ViewportDataSource`), so a consumer's `getRooms().find(r => r.hash === hash)` — the only option `IMapReader` supports on its own — could never find anything on a big/streamed map. `SkeletonMapReader` now implements it via a new `MapSkeleton.hashToId` column: `buildSkeleton()` (eager path) fills it from each room's `.hash`; the streamed path (`parseMudletMap`/`loadMudletMap`) fills it straight from the `.dat` header's `mpRoomDbHashToRoomId` (already hash → room id, no inversion needed) — so both the plain-parsed and skeleton-materialised rooms resolve a hash the same way, including rooms that weren't promoted to full detail.
+
 ## [2.6.0] - 2026-07-09
 
 ### Added

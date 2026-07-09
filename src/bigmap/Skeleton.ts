@@ -43,6 +43,8 @@ export interface MapSkeleton {
      */
     detailRooms?: MapData.Room[];
     labels?: MapData.Label[];
+    /** Content-hash (`MapData.Room.hash`) → room id, for every room that has one. */
+    hashToId?: Record<string, number>;
 }
 
 /**

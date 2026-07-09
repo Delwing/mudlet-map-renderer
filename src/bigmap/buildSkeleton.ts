@@ -48,6 +48,7 @@ export function buildSkeleton(
     const detailRooms: MapData.Room[] = [];
     const labels: MapData.Label[] = [];
     const areaNames: Record<number, string> = {};
+    const hashToId: Record<string, number> = {};
 
     let i = 0;
     for (const area of map) {
@@ -70,6 +71,7 @@ export function buildSkeleton(
             }
             names[i] = room.name ?? "";
             if (hasKeys(room.userData)) userData.push({id: room.id, data: room.userData});
+            if (room.hash) hashToId[room.hash] = room.id;
             if (isDetail(room)) detailRooms.push({...room});
             i++;
         }
@@ -86,6 +88,6 @@ export function buildSkeleton(
     return {
         count, x, y, z, area: areaCol, env, id, exits,
         areaNames, areaGridMode, customEnvColors,
-        names, userData, detailRooms, labels,
+        names, userData, detailRooms, labels, hashToId,
     };
 }
