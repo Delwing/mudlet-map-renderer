@@ -167,6 +167,10 @@ export class KonvaRenderBackend implements InteractiveBackend {
     /** Camera scale at the last applied viewport — see {@link onCameraViewportChanged}. */
     private lastAppliedScale: number | null = null;
     private refreshScheduled = false;
+    /** Pixelate ratio currently applied to the layer canvases. */
+    private appliedPixelate = 1;
+    /** Layer canvas pixel ratio before pixelation took over; restored when off. */
+    private basePixelRatio: number | null = null;
 
     constructor(state: MapState, container?: HTMLDivElement) {
         this.state = state;
@@ -394,6 +398,37 @@ export class KonvaRenderBackend implements InteractiveBackend {
         this.events.removeAllListeners();
     }
 
+    /**
+     * Apply {@link Settings.pixelate} to the layer canvases: shrink each
+     * backing store to that fraction of its CSS size and let the browser blow
+     * it back up with nearest-neighbour. That is a genuine rasterization at a
+     * lower resolution, not a shape transform, so it is the one part of the
+     * pixel-art look a {@link Style} cannot express. No-op when the ratio has
+     * not changed, and headless (container-less) backends skip it entirely.
+     */
+    private applyPixelate(): void {
+        if (!this.container) return;
+        const raw = this.state.settings.pixelate;
+        const ratio = Number.isFinite(raw) && raw > 0 ? Math.min(1, raw) : 1;
+        if (ratio === this.appliedPixelate) return;
+
+        const layers = this.stage.getLayers();
+        if (this.basePixelRatio === null) {
+            this.basePixelRatio = layers[0]?.getCanvas().pixelRatio ?? 1;
+        }
+        // Relative to the canvas's normal ratio, so `0.5` means half
+        // resolution on a HiDPI screen too rather than a fixed device ratio.
+        const target = this.basePixelRatio * ratio;
+        for (const layer of layers) {
+            const canvas = layer.getCanvas();
+            canvas.setPixelRatio(target);
+            // Without this the browser smooths the small backing store straight
+            // back into soft edges, undoing the whole point.
+            canvas._canvas.style.imageRendering = ratio === 1 ? "" : "pixelated";
+        }
+        this.appliedPixelate = ratio;
+    }
+
     updateBackground() {
         if (this.container) {
             this.container.style.backgroundColor = this.state.settings.backgroundColor;
@@ -482,6 +517,7 @@ export class KonvaRenderBackend implements InteractiveBackend {
     // --- State event handlers ---
 
     refresh() {
+        this.applyPixelate();
         const {currentAreaInstance, currentZIndex, positionRoomId} = this.state;
         if (!currentAreaInstance || currentZIndex === undefined) return;
         const plane = currentAreaInstance.getPlane(currentZIndex);

@@ -438,6 +438,16 @@ export function initControls(settings: Settings, renderer: MapRenderer, getCurre
         }
     });
 
+    const pixelateSlider = document.getElementById("pixelate") as HTMLInputElement | null;
+    const pixelateValue = document.getElementById("pixelate-value") as HTMLSpanElement | null;
+    pixelateSlider?.addEventListener("input", () => {
+        if (pixelateValue) pixelateValue.textContent = pixelateSlider.value;
+        const mode = renderModeSelect?.value;
+        if (mode === "pixel-art") {
+            onRenderModeChange?.(mode);
+        }
+    });
+
     const isoRotationSlider = document.getElementById("iso-rotation") as HTMLInputElement | null;
     const isoRotationValue = document.getElementById("iso-rotation-value") as HTMLSpanElement | null;
     isoRotationSlider?.addEventListener("input", () => {

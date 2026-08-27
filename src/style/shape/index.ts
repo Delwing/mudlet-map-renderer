@@ -33,3 +33,8 @@ export {watercolorShapeStyle} from "./WatercolorStyle";
 export type {WatercolorOptions} from "./WatercolorStyle";
 export {darkModernShapeStyle} from "./DarkModernStyle";
 export {treasureMapShapeStyle, treasureMapDecorations} from "./TreasureMapStyle";
+export {transitShapeStyle} from "./TransitStyle";
+export {circuitShapeStyle, circuitBoardColor} from "./CircuitStyle";
+export {terminalShapeStyle} from "./TerminalStyle";
+export {pixelArtShapeStyle} from "./PixelStyle";
+export type {PixelArtOptions} from "./PixelStyle";

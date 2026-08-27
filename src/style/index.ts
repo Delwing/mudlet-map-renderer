@@ -32,6 +32,10 @@ import {topographicShapeStyle} from "./shape/TopographicStyle";
 import {watercolorShapeStyle, type WatercolorOptions} from "./shape/WatercolorStyle";
 import {darkModernShapeStyle} from "./shape/DarkModernStyle";
 import {treasureMapShapeStyle, treasureMapDecorations} from "./shape/TreasureMapStyle";
+import {transitShapeStyle} from "./shape/TransitStyle";
+import {circuitShapeStyle} from "./shape/CircuitStyle";
+import {terminalShapeStyle} from "./shape/TerminalStyle";
+import {pixelArtShapeStyle, type PixelArtOptions} from "./shape/PixelStyle";
 
 export {compose, identityStyle} from "./Style";
 export type {Style, StyleContext} from "./Style";
@@ -99,6 +103,33 @@ export const DarkModern: Style = darkModernShapeStyle;
  */
 export const TreasureMap: Style = treasureMapShapeStyle;
 
+/**
+ * Transit / metro-map aesthetic — fat axis-coloured routes with the rooms
+ * reduced to white station discs ringed in their own colour. Rooms with three
+ * or more exits become fatter interchange discs.
+ */
+export const Transit: Style = transitShapeStyle;
+
+/** Printed-circuit board — gold pads and copper traces on dark solder mask. */
+export const Circuit: Style = circuitShapeStyle;
+
+/**
+ * Terminal / phosphor CRT — one green ramp, scanlined room cells, and exits
+ * drawn as the two rails of a box-drawing rule.
+ */
+export const Terminal: Style = terminalShapeStyle;
+
+/**
+ * Pixel art — geometry snapped to a pixel grid, colours quantized to a fixed
+ * 16-entry palette, corners squared off.
+ */
+export function PixelArt(options: PixelArtOptions = {}): Style {
+    return pixelArtShapeStyle(options);
+}
+
 export {treasureMapDecorations};
 
-export type {SketchyOptions, IsometricOptions, IsometricRotation, GradientRoomsOptions, WatercolorOptions};
+export type {
+    SketchyOptions, IsometricOptions, IsometricRotation, GradientRoomsOptions,
+    WatercolorOptions, PixelArtOptions,
+};

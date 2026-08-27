@@ -322,13 +322,71 @@ Built-in styles:
 | `StainedGlass` | Saturated jewel panes framed by fat near-black leading |
 | `GraphPaper` | Pale rooms inked in navy — old-school D&D graph paper |
 | `Topographic` | Earthy elevation palette with concentric contour rings |
+| `DarkModern` | Flat dark "modern UI" theme with subtle elevation shadows |
+| `TreasureMap` | Aged treasure-map palette; pair with `treasureMapDecorations()` |
+| `Transit` | Metro-map inversion: fat axis-coloured routes, rooms as station discs |
+| `Circuit` | Gold pads and copper traces on dark solder mask |
+| `Terminal` | Phosphor-CRT green ramp, scanlined rooms, box-drawing exit rails |
 | `Sketchy({ jitter, color })` | Hand-drawn pencil wobble |
 | `Watercolor({ bleed?, layers?, alpha? })` | Translucent edge-bled washes that pool on overlap |
 | `Isometric({ rotation?, depth? })` | 2:1 iso projection with optional cubes |
+| `PixelArt({ cell?, palette? })` | Geometry snapped to a pixel grid, colours quantized to 16 |
 | `GradientRooms(opts?)` | Replace flat fills with a vertical gradient |
 
-Custom styles extend `BaseStyle<Inner>` and override only the draw calls they
-transform — see the built-ins for examples.
+#### Writing a style
+
+A `Style` is a pure geometry transformer, not a backend — it never sees Konva
+or SVG. Implement one method:
+
+```ts
+import type { Style, Shape } from 'mudlet-map-renderer';
+
+const Sepia: Style = {
+  transform(shape: Shape) {
+    switch (shape.type) {
+      case 'rect':
+      case 'circle':
+      case 'polygon':
+        return { ...shape, paint: { ...shape.paint, stroke: '#5c4033' } };
+      case 'text':
+        return { ...shape, fill: '#5c4033' };
+      default:
+        return shape;                 // line, image, group
+    }
+  },
+};
+```
+
+Transforms are backend-agnostic, so one style covers every output. Notes:
+
+- Return an **array** to split one shape into several — `Neon` emits a wide
+  translucent glow before the main shape, `Topographic` emits contour rings.
+  Earlier entries render underneath.
+- Styles that warp coordinates (like `Isometric`) also implement
+  `worldToScene` / `sceneToWorld` so clicks map back to the right room.
+- Room bodies arrive as a `group` carrying `hit: { kind: 'room', payload: room }`,
+  and exits as a `group` with `layer: 'link'`. The children of those groups carry
+  neither — inspect the **group** to recognise a room or an exit.
+- Keep transforms pure: the same input plus `ctx` (`{ scale, roomSize }`) must
+  give the same output, since scenes rebuild incrementally.
+
+#### Real pixels
+
+Snapping geometry to a grid still leaves antialiased edges, because pixelation
+is a rasterization concern rather than a shape one. `settings.pixelate` renders
+the interactive canvas at a fraction of its normal resolution and upscales it
+with nearest-neighbour:
+
+```ts
+renderer.setStyle(PixelArt());
+renderer.settings.pixelate = 0.5;   // half resolution → 2x hard-edged pixels
+renderer.refresh();
+```
+
+It is relative to the canvas's normal ratio, so `0.5` means half resolution on a
+HiDPI screen too, and `1` (the default) turns it off. Hit-testing is unaffected —
+Konva's hit canvas stays at full resolution. Interactive canvas only: exporters
+and the OffscreenCanvas backend ignore it.
 
 ### Export
 
@@ -601,9 +659,15 @@ MudletMapReader.exportJson(map, 'map.json');
 | `StainedGlass` | `setStyle(StainedGlass)` |
 | `GraphPaper` | `setStyle(GraphPaper)` |
 | `Topographic` | `setStyle(Topographic)` |
+| `DarkModern` | `setStyle(DarkModern)` |
+| `TreasureMap` | `setStyle(TreasureMap)` |
+| `Transit` | `setStyle(Transit)` |
+| `Circuit` | `setStyle(Circuit)` |
+| `Terminal` | `setStyle(Terminal)` |
 | `Sketchy(opts)` | `setStyle(Sketchy({ jitter, color }))` |
 | `Watercolor(opts?)` | `setStyle(Watercolor({ bleed?, layers?, alpha? }))` |
 | `Isometric(opts)` | `setStyle(Isometric({ rotation?, depth? }))` |
+| `PixelArt(opts?)` | `setStyle(PixelArt({ cell?, palette? }))` |
 | `GradientRooms(opts?)` | `setStyle(GradientRooms())` |
 | `compose(...)` | Chain multiple styles into one |
 | `identityStyle` | Pass-through; equivalent to `clearStyle()` |

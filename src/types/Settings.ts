@@ -210,6 +210,17 @@ export type Settings = {
     lineColor: string;
     /** Background color of the map container. Default: '#000000' */
     backgroundColor: string;
+    /**
+     * Rasterize the canvas at this fraction of its normal resolution and
+     * upscale it with nearest-neighbour, so the map is drawn out of real
+     * hard-edged pixels. `1` (the default) renders at full resolution;
+     * `0.2` gives chunky 5x pixels. Pairs with the `PixelArt` style, which
+     * snaps geometry to a matching grid. Interactive canvas only — exports and
+     * the OffscreenCanvas backend ignore it, and hit-testing is unaffected
+     * (Konva's hit canvas keeps full resolution).
+     * Default: 1
+     */
+    pixelate: number;
     /** When true, map instantly jumps to new position on room change. Default: false */
     instantMapMove: boolean;
     /** When true, highlights the current room and its exits with an overlay. Default: true */
@@ -330,6 +341,7 @@ export function createSettings(): Settings {
         lineWidth: defaultLineWidth,
         lineColor: lineColor,
         backgroundColor: '#000000',
+        pixelate: 1,
         instantMapMove: false,
         highlightCurrentRoom: true,
         cullingEnabled: true,

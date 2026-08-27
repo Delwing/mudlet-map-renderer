@@ -12,6 +12,10 @@ import {topographicShapeStyle} from "../src/style/shape/TopographicStyle";
 import {watercolorShapeStyle} from "../src/style/shape/WatercolorStyle";
 import {darkModernShapeStyle} from "../src/style/shape/DarkModernStyle";
 import {treasureMapShapeStyle, treasureMapDecorations} from "../src/style/shape/TreasureMapStyle";
+import {transitShapeStyle} from "../src/style/shape/TransitStyle";
+import {circuitShapeStyle} from "../src/style/shape/CircuitStyle";
+import {terminalShapeStyle} from "../src/style/shape/TerminalStyle";
+import {pixelArtShapeStyle} from "../src/style/shape/PixelStyle";
 import {parseRgb, rgbToHsl} from "../src/style/shape/paintMap";
 
 const ctx = {scale: 1, roomSize: 1};
@@ -445,5 +449,243 @@ describe("treasureMapDecorations", () => {
     it("emits nothing for an empty viewport", () => {
         const overlay = treasureMapDecorations();
         expect(overlay.render({} as never, {minX: 0, maxX: 0, minY: 0, maxY: 0})).toEqual([]);
+    });
+});
+
+// A room as the scene actually emits it: a group carrying the room hit +
+// payload, with the body and room-character as children.
+function makeRoomGroup(exits: Record<string, number>): GroupShape {
+    return {
+        type: "group",
+        x: 0, y: 0,
+        layer: "room",
+        hit: {kind: "room", id: 1, payload: {exits, specialExits: {}}},
+        children: [
+            {
+                type: "rect",
+                x: 0, y: 0, width: 1, height: 1,
+                paint: {fill: "rgb(160, 60, 60)", stroke: "rgb(40, 40, 40)", strokeWidth: 0.05},
+            },
+            {type: "text", x: 0, y: 0, text: "@", fontSize: 0.75},
+        ],
+    };
+}
+
+const junction = makeRoomGroup({north: 2, south: 3, east: 4});
+const deadEnd = makeRoomGroup({north: 2});
+
+/** A straight two-point exit on the link layer. */
+const linkLine: LineShape = {
+    type: "line",
+    layer: "link",
+    points: [0, 0, 1, 0],
+    paint: {stroke: "rgb(200, 200, 200)", strokeWidth: 0.04},
+};
+
+describe("transitShapeStyle", () => {
+    it("collapses a room group to a station disc ringed in the room colour", () => {
+        const out = transitShapeStyle.transform(deadEnd, ctx) as GroupShape;
+        expect(out.children).toHaveLength(2);
+        const disc = out.children[0] as CircleShape;
+        expect(disc.type).toBe("circle");
+        expect(disc.paint.fill).toBe("#ffffff");
+        // Ring picks up the room hue rather than the flat slate ink.
+        expect(disc.paint.stroke).not.toBe("#16202c");
+        // The room character survives the collapse.
+        expect((out.children[1] as TextShape).text).toBe("@");
+    });
+
+    it("gives grey rooms the slate ring instead of forcing a hue", () => {
+        const grey = makeRoomGroup({north: 2});
+        grey.children[0] = {...(grey.children[0] as RectShape), paint: {fill: "rgb(100, 100, 100)"}};
+        const out = transitShapeStyle.transform(grey, ctx) as GroupShape;
+        expect((out.children[0] as CircleShape).paint.stroke).toBe("#16202c");
+    });
+
+    it("draws a fatter interchange disc for rooms with three or more exits", () => {
+        const busy = transitShapeStyle.transform(junction, ctx) as GroupShape;
+        const quiet = transitShapeStyle.transform(deadEnd, ctx) as GroupShape;
+        expect((busy.children[0] as CircleShape).radius)
+            .toBeGreaterThan((quiet.children[0] as CircleShape).radius);
+    });
+
+    it("fattens link exits into rounded routes", () => {
+        const out = transitShapeStyle.transform(linkLine, ctx) as LineShape;
+        expect(out.paint.strokeWidth ?? 0).toBeGreaterThan(linkLine.paint.strokeWidth ?? 0);
+        expect(out.lineCap).toBe("round");
+    });
+
+    it("colours routes by axis, and both directions of one axis alike", () => {
+        const east = transitShapeStyle.transform(linkLine, ctx) as LineShape;
+        const west = transitShapeStyle.transform(
+            {...linkLine, points: [1, 0, 0, 0]}, ctx,
+        ) as LineShape;
+        const north = transitShapeStyle.transform(
+            {...linkLine, points: [0, 0, 0, 1]}, ctx,
+        ) as LineShape;
+        expect(west.paint.stroke).toBe(east.paint.stroke);
+        expect(north.paint.stroke).not.toBe(east.paint.stroke);
+    });
+
+    it("leaves non-link lines alone and inks text slate", () => {
+        expect(transitShapeStyle.transform(sampleLine, ctx)).toBe(sampleLine);
+        expect((transitShapeStyle.transform(sampleText, ctx) as TextShape).fill).toBe("#16202c");
+    });
+});
+
+describe("circuitShapeStyle", () => {
+    it("plates fills to gold and rims borders", () => {
+        const out = circuitShapeStyle.transform(sampleRect, ctx) as RectShape;
+        const c = parseRgb(out.paint.fill as string)!;
+        // Gold: red heaviest, blue lightest.
+        expect(c.r).toBeGreaterThan(c.g);
+        expect(c.g).toBeGreaterThan(c.b);
+        expect(out.paint.stroke).toBe("#8a6d14");
+    });
+
+    it("keeps brighter rooms as brighter pads", () => {
+        const dim = circuitShapeStyle.transform(
+            {...sampleRect, paint: {fill: "rgb(20, 20, 20)"}}, ctx,
+        ) as RectShape;
+        const bright = circuitShapeStyle.transform(
+            {...sampleRect, paint: {fill: "rgb(240, 240, 240)"}}, ctx,
+        ) as RectShape;
+        expect(parseRgb(bright.paint.fill as string)!.r)
+            .toBeGreaterThan(parseRgb(dim.paint.fill as string)!.r);
+    });
+
+    it("drills a hole into the pad, below the room character", () => {
+        const out = circuitShapeStyle.transform(deadEnd, ctx) as GroupShape;
+        expect(out.children).toHaveLength(3);
+        const hole = out.children[1] as CircleShape;
+        expect(hole.type).toBe("circle");
+        expect(hole.cx).toBeCloseTo(0.5);
+        expect(hole.cy).toBeCloseTo(0.5);
+        expect(out.children[2].type).toBe("text");
+    });
+
+    it("emits a via at the midpoint of a copper trace", () => {
+        const out = circuitShapeStyle.transform(linkLine, ctx) as Shape[];
+        expect(out).toHaveLength(2);
+        expect((out[0] as LineShape).paint.stroke).toBe("#b87333");
+        const v = out[1] as CircleShape;
+        expect(v.cx).toBeCloseTo(0.5);
+        expect(v.cy).toBeCloseTo(0);
+        expect(v.layer).toBe("link");
+    });
+
+    it("does not via a non-link line, and silkscreens text", () => {
+        expect(Array.isArray(circuitShapeStyle.transform(sampleLine, ctx))).toBe(false);
+        expect((circuitShapeStyle.transform(sampleText, ctx) as TextShape).fill).toBe("#e8e8e0");
+    });
+});
+
+describe("terminalShapeStyle", () => {
+    it("collapses fills to one dark green ramp", () => {
+        const out = terminalShapeStyle.transform(sampleRect, ctx) as RectShape;
+        const c = parseRgb(out.paint.fill as string)!;
+        const [h, , l] = rgbToHsl(c.r, c.g, c.b);
+        expect(h).toBeGreaterThan(110);
+        expect(h).toBeLessThan(160);
+        expect(l).toBeLessThan(0.25);
+        expect(out.paint.stroke).toBe("#33ff66");
+    });
+
+    it("keeps colour as brightness, so lighter rooms glow more", () => {
+        const lum = (s: string) => {
+            const c = parseRgb(s)!;
+            return rgbToHsl(c.r, c.g, c.b)[2];
+        };
+        const dim = terminalShapeStyle.transform(
+            {...sampleRect, paint: {fill: "rgb(20, 20, 20)"}}, ctx,
+        ) as RectShape;
+        const bright = terminalShapeStyle.transform(
+            {...sampleRect, paint: {fill: "rgb(240, 240, 240)"}}, ctx,
+        ) as RectShape;
+        expect(lum(bright.paint.fill as string)).toBeGreaterThan(lum(dim.paint.fill as string));
+    });
+
+    it("splits a straight exit into two parallel rails", () => {
+        const out = terminalShapeStyle.transform(linkLine, ctx) as LineShape[];
+        expect(out).toHaveLength(2);
+        // Offset perpendicular to an east-west run: same x, mirrored y.
+        expect(out[0].points[1]).toBeCloseTo(-out[1].points[1]);
+        expect(out[0].points[0]).toBeCloseTo(out[1].points[0]);
+        expect(out[0].paint.stroke).toBe("#33ff66");
+    });
+
+    it("keeps a bent exit as a single rail", () => {
+        const bent: LineShape = {...sampleLine, layer: "link"};
+        expect(Array.isArray(terminalShapeStyle.transform(bent, ctx))).toBe(false);
+    });
+
+    it("scanlines each room cell below the room character", () => {
+        const out = terminalShapeStyle.transform(deadEnd, ctx) as GroupShape;
+        const lines = out.children.filter(c => c.type === "line") as LineShape[];
+        expect(lines).toHaveLength(2);
+        expect(lines.every(l => l.points[1] === l.points[3])).toBe(true);
+        expect(out.children[out.children.length - 1].type).toBe("text");
+    });
+});
+
+describe("pixelArtShapeStyle", () => {
+    const pixel = pixelArtShapeStyle();
+
+    it("snaps geometry to the pixel grid", () => {
+        const off: RectShape = {...sampleRect, x: 0.3, y: 0.71};
+        const out = pixel.transform(off, ctx) as RectShape;
+        // ctx.roomSize 1 with the default 1/8 cell gives a 0.125 grid.
+        expect(out.x).toBeCloseTo(0.25);
+        expect(out.y).toBeCloseTo(0.75);
+    });
+
+    it("never collapses an extent below one pixel", () => {
+        const sliver: RectShape = {...sampleRect, width: 0.01, height: 0.01};
+        const out = pixel.transform(sliver, ctx) as RectShape;
+        expect(out.width).toBeCloseTo(0.125);
+        expect(out.height).toBeCloseTo(0.125);
+    });
+
+    it("squares off rounded corners and thickens borders to half a pixel", () => {
+        const rounded: RectShape = {...sampleRect, cornerRadius: 0.2};
+        const out = pixel.transform(rounded, ctx) as RectShape;
+        expect(out.cornerRadius).toBe(0);
+        expect(out.paint.strokeWidth).toBeCloseTo(0.0625);
+    });
+
+    it("quantizes colours to the supplied palette", () => {
+        const bw = pixelArtShapeStyle({palette: ["#000000", "#ffffff"]});
+        const dark = bw.transform(sampleRect, ctx) as RectShape;
+        expect(dark.paint.fill).toBe("rgb(0, 0, 0)");
+        const light = bw.transform(
+            {...sampleRect, paint: {fill: "rgb(200, 200, 200)"}}, ctx,
+        ) as RectShape;
+        expect(light.paint.fill).toBe("rgb(255, 255, 255)");
+    });
+
+    it("quantizes gradient stops individually", () => {
+        const bw = pixelArtShapeStyle({palette: ["#000000", "#ffffff"]});
+        const grad: RectShape = {
+            ...sampleRect,
+            paint: {
+                fill: {
+                    type: "linear", x0: 0, y0: 0, x1: 0, y1: 1,
+                    stops: [
+                        {offset: 0, color: "rgb(10, 10, 10)"},
+                        {offset: 1, color: "rgb(230, 230, 230)"},
+                    ],
+                },
+            },
+        };
+        const out = bw.transform(grad, ctx) as RectShape;
+        const fill = out.paint.fill as {stops: {color: string}[]};
+        expect(fill.stops[0].color).toBe("rgb(0, 0, 0)");
+        expect(fill.stops[1].color).toBe("rgb(255, 255, 255)");
+    });
+
+    it("honours a custom cell size", () => {
+        const coarse = pixelArtShapeStyle({cell: 0.5});
+        const out = coarse.transform({...sampleRect, x: 0.3}, ctx) as RectShape;
+        expect(out.x).toBeCloseTo(0.5);
     });
 });

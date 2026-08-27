@@ -61,11 +61,12 @@ export {
     Parchment, Blueprint, Neon, Sketchy, Isometric, Construction, SciFi, GradientRooms,
     StainedGlass, GraphPaper, Topographic, Watercolor,
     DarkModern, TreasureMap, treasureMapDecorations,
+    Transit, Circuit, Terminal, PixelArt,
     compose, identityStyle, applyStyleToShapes,
 } from './style';
 export type {
     Style, StyleContext, SketchyOptions, IsometricOptions, IsometricRotation,
-    GradientRoomsOptions, WatercolorOptions,
+    GradientRoomsOptions, WatercolorOptions, PixelArtOptions,
 } from './style';
 
 // --- Exporters (pluggable output formats) ---

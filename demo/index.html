@@ -146,6 +146,10 @@
                         <option value="topographic">Topographic</option>
                         <option value="dark-modern">Dark Modern</option>
                         <option value="treasure-map">Treasure Map</option>
+                        <option value="transit">Transit Map</option>
+                        <option value="circuit">Circuit Board</option>
+                        <option value="terminal">Terminal / CRT</option>
+                        <option value="pixel-art">Pixel Art</option>
                         <option value="gradient">Gradient rooms</option>
                         <option value="gradient-parchment">Gradient + Parchment</option>
                         <option value="gradient-blueprint">Gradient + Blueprint</option>
@@ -154,6 +158,10 @@
                 <label class="color-label" id="sketch-color-label" style="display:none">
                     <input type="color" id="sketch-color" value="#444444">
                     <span>Pencil color</span>
+                </label>
+                <label class="select-label" id="pixelate-label" style="display:none">
+                    <span>Pixel size: <span id="pixelate-value">1.5</span>x</span>
+                    <input type="range" id="pixelate" min="1" max="5" step="0.25" value="1.5">
                 </label>
                 <label class="select-label" id="iso-rotation-label" style="display:none">
                     <span>Iso rotation: <span id="iso-rotation-value">30</span>°</span>

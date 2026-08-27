@@ -6,6 +6,7 @@ import {
     Parchment, Blueprint, Neon, Sketchy, Isometric, Construction, SciFi, GradientRooms,
     StainedGlass, GraphPaper, Topographic, Watercolor,
     DarkModern, TreasureMap, treasureMapDecorations,
+    Transit, Circuit, Terminal, PixelArt,
     RippleEffect,
     WaypointOverlay,
     ExplorationLens, ALL_VISIBLE,
@@ -260,6 +261,12 @@ function getIsoRotation(): number {
     return el ? parseInt(el.value, 10) : 30;
 }
 
+/** Pixel size in device pixels, from the demo slider (1 = off). */
+function getPixelSize(): number {
+    const el = document.getElementById("pixelate") as HTMLInputElement | null;
+    return el ? parseFloat(el.value) : 1.5;
+}
+
 function applyRenderMode(mode: string) {
     const sketchColorInput = document.getElementById("sketch-color") as HTMLInputElement | null;
     if (sketchColorInput) sketchColor = sketchColorInput.value;
@@ -270,10 +277,15 @@ function applyRenderMode(mode: string) {
     const isoRotationLabel = document.getElementById("iso-rotation-label") as HTMLElement | null;
     if (isoRotationLabel) isoRotationLabel.style.display = isIso ? '' : 'none';
 
+    // Pixel size control, shown only for the pixel-art mode.
+    const pixelateLabel = document.getElementById("pixelate-label") as HTMLElement | null;
+    if (pixelateLabel) pixelateLabel.style.display = mode === "pixel-art" ? '' : 'none';
+
     // Restore saved settings before applying new mode
     settings.backgroundColor = savedBackgroundColor;
     settings.lineColor = savedLineColor;
     settings.fontFamily = savedFontFamily;
+    settings.pixelate = 1;
 
     // The treasure-map decorations (compass rose + border frame) are a scene
     // overlay, not part of the Style. Clear it on every mode change; re-add below
@@ -377,6 +389,35 @@ function applyRenderMode(mode: string) {
             settings.lineColor = '#5a3a22';
             settings.fontFamily = 'Georgia, serif';
             addTreasureDecor = true;
+            break;
+        case "transit":
+            style = Transit;
+            // Cool paper-grey, the way printed transit maps are stocked — the
+            // white station cores need something to sit against.
+            settings.backgroundColor = '#eef1f5';
+            settings.lineColor = '#c3ccd8';
+            settings.fontFamily = 'Helvetica, Arial, sans-serif';
+            break;
+        case "circuit":
+            style = Circuit;
+            settings.backgroundColor = '#0a2f22';
+            settings.lineColor = '#1c5240';
+            settings.fontFamily = '"Courier New", monospace';
+            break;
+        case "terminal":
+            style = Terminal;
+            settings.backgroundColor = '#040d07';
+            settings.lineColor = '#123f1f';
+            settings.fontFamily = '"Courier New", monospace';
+            break;
+        case "pixel-art":
+            style = PixelArt();
+            // The Style snaps geometry to a grid; this rasterizes the canvas at
+            // a lower resolution so those cells land on real, hard-edged pixels.
+            settings.pixelate = 1 / getPixelSize();
+            // Darkest DB16 entry, so the canvas is part of the palette too.
+            settings.backgroundColor = '#140c1c';
+            settings.lineColor = '#30346d';
             break;
         case "gradient":
             // Pure shaded-room demo using the new linear-gradient fill.
