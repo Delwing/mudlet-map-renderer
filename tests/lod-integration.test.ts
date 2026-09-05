@@ -33,20 +33,20 @@ describe('LOD integration (headless Konva backend)', () => {
         // Default zoom 1 (scale 75) is under the threshold → raster.
         expect(events.at(-1)?.mode).toBe('raster');
         expect(events.at(-1)!.planeRoomCount).toBeGreaterThan(4);
-        expect(backend.lodLayer.visible()).toBe(true);
+        expect(backend.lodGroup.visible()).toBe(true);
         // Vector scene suppressed.
         expect(renderer.getDrawnExits().length).toBe(0);
 
         renderer.setZoom(10); // scale 750 → vector
         await flush();
         expect(events.at(-1)?.mode).toBe('vector');
-        expect(backend.lodLayer.visible()).toBe(false);
+        expect(backend.lodGroup.visible()).toBe(false);
         expect(renderer.getDrawnExits().length).toBeGreaterThan(0);
 
         renderer.setZoom(1); // back out → raster again
         await flush();
         expect(events.at(-1)?.mode).toBe('raster');
-        expect(backend.lodLayer.visible()).toBe(true);
+        expect(backend.lodGroup.visible()).toBe(true);
         expect(renderer.getDrawnExits().length).toBe(0);
         renderer.destroy();
     });
@@ -58,7 +58,7 @@ describe('LOD integration (headless Konva backend)', () => {
         renderer.setZoom(0.05);
         await flush();
         expect(events.every(e => e.mode === 'vector')).toBe(true);
-        expect(backend.lodLayer.visible()).toBe(false);
+        expect(backend.lodGroup.visible()).toBe(false);
         renderer.destroy();
     });
 
@@ -281,7 +281,7 @@ describe('LOD integration (headless Konva backend)', () => {
         renderer.on('lod', e => events.push(e));
         renderer.drawArea(1, 0);
         expect(events.at(-1)?.mode).toBe('raster');
-        expect((renderer.backend as KonvaRenderBackend).lodLayer.visible()).toBe(true);
+        expect((renderer.backend as KonvaRenderBackend).lodGroup.visible()).toBe(true);
 
         renderer.setZoom(10);
         await flush();

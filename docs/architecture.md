@@ -392,7 +392,7 @@ classDiagram
 
     class KonvaRenderBackend {
         -stage: Konva.Stage
-        -gridLayer / linkLayer / roomLayer ...
+        -backgroundLayer (lodGroup + gridGroup) / linkLayer / roomLayer ...
         -scenePipeline: ScenePipeline
         -hitTester: HitTester
         +setStyle(style)
@@ -463,13 +463,25 @@ flowchart LR
 
 ### Layer Structure (Konva)
 
-`KonvaRenderBackend` exposes six logical layers but uses **five** physical `Konva.Layer`s — `linkLayer` and `roomLayer` share one underlying layer to stay under Konva's recommended layer count. Drawn bottom-to-top:
+`KonvaRenderBackend` exposes seven logical layers but uses **five** physical
+`Konva.Layer`s, which is Konva's recommended maximum (`MAX_LAYERS_NUMBER`; the
+stage warns above it). Two pairs share a canvas:
+
+- `lodGroup` + `gridGroup` are sibling `Konva.Group`s on `backgroundLayer`.
+- `linkLayer` and `roomLayer` are the *same* `Konva.Layer` object.
+
+Each `Konva.Layer` costs a scene canvas plus a hit canvas that is cleared on
+every draw even with `listening: false`, so the pairs merged are the ones whose
+contents repaint on the same cold cadence. `positionLayer` (moves on every
+player step) and `overlayLayer` (live effects redraw per RAF frame) stay alone
+deliberately — `batchDraw` is per-layer, so merging those would couple two hot
+redraw paths for no gain. Drawn bottom-to-top:
 
 ```mermaid
 flowchart TB
     subgraph Stage["Konva.Stage"]
         direction TB
-        L1["Layer 1: Grid<br/><i>background grid lines</i>"]
+        L1["Layer 1: Background<br/><i>lodGroup: raster LOD overview (below)<br/>gridGroup: background grid lines (above)</i>"]
         L2["Layer 2: Scene (link + room)<br/><i>two-way exits, room shapes, symbols,<br/>inner exits, stubs — one shared Konva.Layer</i>"]
         L3["Layer 3: Position<br/><i>player marker, current room ring</i>"]
         L4["Layer 4: Overlay<br/><i>highlights, paths, SceneOverlays, live effects</i>"]
@@ -484,6 +496,11 @@ flowchart TB
     style L4 fill:#e94560
     style L5 fill:#3a2d5c
 ```
+
+Because the background layer is shared, `LodController` toggles `lodGroup`'s
+visibility rather than the layer's, and the grid's `RecordingLayerNode` is
+constructed over `gridGroup` so its `destroyChildren()` cannot reach the LOD
+image. `RecordingLayerNode` accepts any `Konva.Container` for this reason.
 
 ### Export Pipeline
 

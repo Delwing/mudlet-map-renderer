@@ -5,7 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [3.0.0] - 2026-09-05
+
+### Added
+
+- **Four new shape styles**, each exported from the main entry and wired into the demo's style picker:
+  - **`Transit`** — metro/transit-diagram aesthetic: exits become fat axis-coloured routes and rooms shrink to station markers riding on them.
+  - **`Circuit`** — printed-circuit-board look: gold pads for rooms, copper traces for exits, dark solder-mask ground.
+  - **`Terminal`** — monochrome phosphor CRT: a single green ramp, scanlined room cells, and exits drawn as terminal rules.
+  - **`PixelArt(options?)`** — snaps geometry to a pixel grid and quantizes every colour to a fixed 16-entry palette. Takes `PixelArtOptions` (also exported).
+- **`Settings.pixelate`** (default `1`) — renders the interactive canvas at a fraction of its normal resolution and upscales it with nearest-neighbour, so the map is drawn out of real hard-edged pixels (`0.2` gives chunky 5x pixels). This is the one part of the pixel-art look a `Style` cannot express, since it is rasterization rather than geometry; it pairs with `PixelArt`, which snaps geometry to a matching grid. Interactive canvas only — exports and the OffscreenCanvas backend ignore it, and hit-testing is unaffected (Konva's hit canvas keeps full resolution).
+
+### Changed
+
+- **BREAKING (`KonvaRenderBackend`): the LOD and grid layers are now groups on a shared background layer.** The stage previously added six `Konva.Layer`s, one over Konva's `MAX_LAYERS_NUMBER` advisory, so every map render logged `Konva warning: The stage has 6 layers. Recommended maximum number of layers is 3-5.` into the console of any consuming app ([#42](https://github.com/Delwing/mudlet-map-renderer/issues/42)). The two coldest layers — the raster LOD underlay and the grid, both of which only repaint when the camera escapes a padded region or the zoom changes — are now sibling `Konva.Group`s on one `backgroundLayer`, bringing the stage to five layers and reclaiming a scene canvas plus a hit canvas (the latter is allocated at stage size and cleared on every draw even under `listening: false`, and was never read — hit-testing goes through `HitTester`, not Konva's hit graph).
+
+  The hot layers are deliberately untouched: `batchDraw` is per-layer, so `positionLayer` (redraws on every player step) and `overlayLayer` (redrawn per RAF frame by live effects such as `RippleEffect`) remain sole occupants, and `topLabelLayer` stays above `overlayLayer` so `showOnTop` labels keep winning against highlights, paths and effects by layer boundary rather than by attach order.
+
+  Public API changes on `KonvaRenderBackend`: `lodLayer: Konva.Layer` and `gridLayer: Konva.Layer` are replaced by `backgroundLayer: Konva.Layer` holding `lodGroup: Konva.Group` and `gridGroup: Konva.Group`. Code reading `backend.lodLayer.visible()` becomes `backend.lodGroup.visible()`. `linkLayer`, `roomLayer`, `positionLayer`, `overlayLayer` and `topLabelLayer` are unchanged.
+- `RecordingLayerNode` now accepts any `Konva.Container` rather than a `Konva.Layer`, so several can share one physical layer as sibling groups — its constructor's `destroyChildren()` then scopes to the group instead of wiping the layer. `LodController` likewise takes a container and toggles *its* visibility, never the owning layer's.
 
 ## [2.6.1] - 2026-07-09
 
@@ -197,6 +215,8 @@ Initial public release.
 - Support for stub exits, special exits, and link exits with custom rendering.
 - Published as dual-format ESM + CJS npm package with TypeScript declarations.
 
+[3.0.0]: https://github.com/Delwing/mudlet-map-renderer/releases/tag/3.0.0
+[2.6.1]: https://github.com/Delwing/mudlet-map-renderer/releases/tag/2.6.1
 [2.6.0]: https://github.com/Delwing/mudlet-map-renderer/releases/tag/2.6.0
 [2.5.1]: https://github.com/Delwing/mudlet-map-renderer/releases/tag/2.5.1
 [2.5.0]: https://github.com/Delwing/mudlet-map-renderer/releases/tag/2.5.0

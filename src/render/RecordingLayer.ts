@@ -500,15 +500,19 @@ export class DrawCommandLayerNode {
  * Layer backed by a single Konva.Shape whose sceneFunc replays every added
  * {@link RecordingGroupNode} in order. Used for layers that don't need
  * per-shape cull toggling (grid, top-label).
+ *
+ * Accepts any `Konva.Container`, not just a `Konva.Layer`, so several of these
+ * can share one physical layer as sibling `Konva.Group`s — the constructor's
+ * `destroyChildren()` then scopes to the group instead of wiping the layer.
  */
 export class RecordingLayerNode {
     private groups: RecordingGroupNode[] = [];
-    private readonly konvaLayer: Konva.Layer;
+    private readonly container: Konva.Container;
     private konvaShape: Konva.Shape;
 
-    constructor(konvaLayer: Konva.Layer) {
-        this.konvaLayer = konvaLayer;
-        konvaLayer.destroyChildren();
+    constructor(container: Konva.Container) {
+        this.container = container;
+        container.destroyChildren();
         const self = this;
         this.konvaShape = new Konva.Shape({
             listening: false,
@@ -533,7 +537,7 @@ export class RecordingLayerNode {
                 ctx.setTransform(base);
             },
         });
-        konvaLayer.add(this.konvaShape);
+        container.add(this.konvaShape);
     }
 
     addNode(node: RecordingGroupNode) {
@@ -546,12 +550,14 @@ export class RecordingLayerNode {
     }
 
     batchDraw() {
-        this.konvaLayer.batchDraw();
+        // getLayer() returns the layer itself when the container IS a layer,
+        // and walks up to the owning layer when it is a group.
+        this.container.getLayer()?.batchDraw();
     }
 
     private ensureShape() {
         if (!this.konvaShape.getParent()) {
-            this.konvaLayer.add(this.konvaShape);
+            this.container.add(this.konvaShape);
         }
     }
 }

@@ -16,8 +16,9 @@ const MAX_CANVAS_PX = 8192;
 
 /**
  * Owns the raster LOD underlay: an offscreen canvas painted with the room
- * overview, shown through a single map-space `Konva.Image` on the (bottom)
- * LOD layer. Because the image is positioned in map coordinates, the stage
+ * overview, shown through a single map-space `Konva.Image` in the LOD group on
+ * the (bottom) background layer. Because the image is positioned in map
+ * coordinates, the stage
  * transform pans and zooms it like any other node — panning inside the
  * painted region costs nothing, and a repaint is only needed when the camera
  * escapes the region or the zoom changes (RAF-coalesced; the stretched image
@@ -36,14 +37,18 @@ export class LodController {
     private destroyed = false;
     private readonly packedCache = new Map<number, number>();
 
+    /**
+     * `container` is the LOD group, not the layer: the background layer is
+     * shared with the grid, so visibility must toggle this group alone.
+     */
     constructor(
-        private readonly layer: Konva.Layer,
+        private readonly container: Konva.Container,
         private readonly camera: Camera,
         private readonly colorCss: (envId: number) => string,
         private readonly roomSizeOf: () => number,
     ) {
         this.canvas = Konva.Util.createCanvasElement();
-        this.layer.visible(false);
+        this.container.visible(false);
     }
 
     /** Activate the raster overview over `visit` and paint immediately. */
@@ -55,11 +60,11 @@ export class LodController {
 
     /** Deactivate and hide the overview (vector mode). */
     clear(): void {
-        if (this.visit === null && !this.layer.visible()) return;
+        if (this.visit === null && !this.container.visible()) return;
         this.visit = null;
         this.paintedRegion = null;
-        this.layer.visible(false);
-        this.layer.batchDraw();
+        this.container.visible(false);
+        this.container.getLayer()?.batchDraw();
     }
 
     /**
@@ -129,7 +134,7 @@ export class LodController {
         // transform does the rest.
         if (!this.image) {
             this.image = new Konva.Image({image: this.canvas, listening: false});
-            this.layer.add(this.image);
+            this.container.add(this.image);
         } else {
             this.image.image(this.canvas);
         }
@@ -140,7 +145,7 @@ export class LodController {
         });
         this.paintedRegion = region;
         this.paintedScale = scale;
-        this.layer.visible(true);
-        this.layer.batchDraw();
+        this.container.visible(true);
+        this.container.getLayer()?.batchDraw();
     }
 }

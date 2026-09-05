@@ -89,13 +89,23 @@ const VIEWPORT_PAD_AREA_FACTOR = (1 + 2 * VIEWPORT_PAD_FRACTION) ** 2;
  */
 export class KonvaRenderBackend implements InteractiveBackend {
     readonly stage: Konva.Stage;
-    /** Bottom-most layer: raster LOD overview underlay (see Settings.lodEnabled). */
-    readonly lodLayer: Konva.Layer;
-    readonly gridLayer: Konva.Layer;
+    /**
+     * Bottom-most layer, holding the two coldest parts of the scene as sibling
+     * groups: the raster LOD underlay and the grid. Both only repaint when the
+     * camera escapes a padded region or the zoom changes, so sharing a canvas
+     * costs nothing — and it keeps the stage under Konva's 5-layer advisory
+     * without touching the hot position/overlay layers.
+     */
+    readonly backgroundLayer: Konva.Layer;
+    /** Raster LOD overview underlay (see Settings.lodEnabled), below the grid. */
+    readonly lodGroup: Konva.Group;
+    readonly gridGroup: Konva.Group;
     readonly linkLayer: Konva.Layer;
     readonly roomLayer: Konva.Layer;
+    /** Kept above the overlay layer so `showOnTop` labels always win. */
     readonly topLabelLayer: Konva.Layer;
     readonly overlayLayer: Konva.Layer;
+    /** Hottest layer — the player marker moves on every step. Sole occupant. */
     readonly positionLayer: Konva.Layer;
 
     readonly camera: Camera;
@@ -190,12 +200,17 @@ export class KonvaRenderBackend implements InteractiveBackend {
             this.camera = new Camera(1, 1);
         }
 
-        // LOD raster underlay sits below everything else; pixels it does not
-        // paint stay transparent so the container background shows through.
-        this.lodLayer = new Konva.Layer({listening: false});
-        this.stage.add(this.lodLayer);
-        this.gridLayer = new Konva.Layer({listening: false});
-        this.stage.add(this.gridLayer);
+        // Background layer: LOD raster underlay below the grid, as two groups
+        // on one canvas. The LOD raster sits below everything else; pixels it
+        // does not paint stay transparent so the container background shows
+        // through. Both groups repaint on the same cold cadence (camera escape
+        // / zoom change), so they share a canvas rather than each holding one.
+        this.backgroundLayer = new Konva.Layer({listening: false});
+        this.lodGroup = new Konva.Group({listening: false});
+        this.gridGroup = new Konva.Group({listening: false});
+        this.backgroundLayer.add(this.lodGroup);
+        this.backgroundLayer.add(this.gridGroup);
+        this.stage.add(this.backgroundLayer);
         // linkLayer and roomLayer share one physical Konva.Layer to stay under
         // Konva's recommended layer count. Z-order between link exits and rooms
         // is preserved by insertion order within the shared RecordingLayerNode.
@@ -214,11 +229,11 @@ export class KonvaRenderBackend implements InteractiveBackend {
         this.overlayLayerNode = new MaterializingLayerNode(this.overlayLayer);
 
         this.sceneNode = new DrawCommandLayerNode(sceneLayer, () => state.settings.coalesceRooms);
-        this.gridLayerNode = new RecordingLayerNode(this.gridLayer);
+        this.gridLayerNode = new RecordingLayerNode(this.gridGroup);
         this.topLabelLayerNode = new RecordingLayerNode(this.topLabelLayer);
         this.sceneManager = new SceneManager(this.camera, state.settings, state.mapReader);
         this.lodController = new LodController(
-            this.lodLayer, this.camera,
+            this.lodGroup, this.camera,
             envId => this.state.mapReader.getColorValue(envId),
             () => this.state.settings.roomSize,
         );
@@ -255,7 +270,7 @@ export class KonvaRenderBackend implements InteractiveBackend {
     setStyle(style: Style) {
         this.currentStyle = style;
         this.sceneNode = new DrawCommandLayerNode(this.linkLayer, () => this.state.settings.coalesceRooms);
-        this.gridLayerNode = new RecordingLayerNode(this.gridLayer);
+        this.gridLayerNode = new RecordingLayerNode(this.gridGroup);
         this.topLabelLayerNode = new RecordingLayerNode(this.topLabelLayer);
         this.gridCachedBounds = null;
         this.sceneManager.resetPipeline(this.state.mapReader);
@@ -526,7 +541,7 @@ export class KonvaRenderBackend implements InteractiveBackend {
             this.sceneManager.reset();
             this.hitTester.clear();
             this.lastHitShapes = [];
-            this.gridLayer.destroyChildren();
+            this.gridGroup.destroyChildren();
             this.linkLayer.destroyChildren();
             this.positionLayer.destroyChildren();
             this.positionMarker = undefined;
