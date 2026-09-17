@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.1.0] - 2026-09-17
+
+### Added
+
+- **`Settings.levelSilhouettes`** — faded "ghost" renderings of the z-levels below and/or above the current one, drawn underneath it so an area's vertical structure stays readable while you work on one floor. Off by default (`below`/`above` both `false`); when both are off the layout does no work at all. Options: `depth` (how many levels each way, default `1`), `offsetX`/`offsetY` (shift per level step, default `0.2` — level `z - k` moves by `(+offset·k)`, level `z + k` by `(-offset·k)`, so lower floors read as a drop shadow and upper floors lift away from it), `belowColor`/`aboveColor` (defaults `#5a78b4` / `#b48c5a`), `useRoomColors` (keep each room's environment colour and `lineColor` for exits instead of the two preset colours, default `false`), `alpha`/`falloff` (`0.35` and `0.6` per extra level), and `exits` (draw the connectors between silhouette rooms, default `true`). The new `LevelSilhouetteStyle` type is exported from the main entry.
+
+  Silhouette rooms are flat, borderless bodies following `roomShape`; exit connectors are trimmed to the room edges so they don't show through the translucent fills. Opacity is baked into the colour strings (as hidden-room fading already does) rather than `paint.alpha`, so styles that rebuild paint from scratch still draw them translucent. Room visibility goes through the same lens as the current level, so exploration fog and `hiddenRooms: "hide"` never leak a ghost room.
+
+  Built in `ScenePipeline` (new `layoutLevelSilhouettes` in `src/scene/elements/SilhouetteLayout.ts`), so it applies identically to the interactive canvas, SVG/PNG export and the OffscreenCanvas backend. The shapes are emitted first on the link layer — everything belonging to the current level paints over them — carry no `HitInfo` (never clickable), and are culled like any other scene shape via a new `SceneBuildResult.silhouetteShapeRefs` list wired into both the `CullIndex` and the export-path predicate. Not drawn in the LOD `raster` tier, which replaces the vector scene entirely; under a coordinate-warping style (`Isometric`) ghost rooms are extruded like normal rooms.
+- The demo gains silhouette controls next to the neighbour-spill ones: below/above toggles, depth, offset and opacity sliders, plus "keep room colours" and exit toggles.
+
 ## [3.0.0] - 2026-09-05
 
 ### Added
@@ -215,6 +226,7 @@ Initial public release.
 - Support for stub exits, special exits, and link exits with custom rendering.
 - Published as dual-format ESM + CJS npm package with TypeScript declarations.
 
+[3.1.0]: https://github.com/Delwing/mudlet-map-renderer/releases/tag/3.1.0
 [3.0.0]: https://github.com/Delwing/mudlet-map-renderer/releases/tag/3.0.0
 [2.6.1]: https://github.com/Delwing/mudlet-map-renderer/releases/tag/2.6.1
 [2.6.0]: https://github.com/Delwing/mudlet-map-renderer/releases/tag/2.6.0

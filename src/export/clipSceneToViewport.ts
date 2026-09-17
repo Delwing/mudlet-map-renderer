@@ -54,6 +54,9 @@ export function buildCullingVisibilityMap(
     for (const {shape, bounds: b} of result.areaExitLabelShapeRefs) {
         visibility.set(shape, inView(b.x, b.y, b.x + b.width, b.y + b.height));
     }
+    for (const {shape, bounds: b} of result.silhouetteShapeRefs) {
+        visibility.set(shape, inView(b.x, b.y, b.x + b.width, b.y + b.height));
+    }
 
     return visibility;
 }

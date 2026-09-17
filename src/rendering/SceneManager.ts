@@ -189,6 +189,9 @@ export class SceneManager {
         for (const {shape, bounds: b} of result.areaExitLabelShapeRefs) {
             add(shape, b.x, b.y, b.x + b.width, b.y + b.height);
         }
+        for (const {shape, bounds: b} of result.silhouetteShapeRefs) {
+            add(shape, b.x, b.y, b.x + b.width, b.y + b.height);
+        }
 
         return entries;
     }

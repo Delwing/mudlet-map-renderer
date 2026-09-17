@@ -24,6 +24,10 @@ import {longToShort, regularExits} from "./reader/Exit";
 import type {NeighborSpill} from "./scene/NeighborProjector";
 import {projectRoom} from "./scene/NeighborProjector";
 import {isRoomHidden, hiddenRoomLayoutOptions} from "./scene/RoomFlags";
+import {layoutLevelSilhouettes} from "./scene/elements/SilhouetteLayout";
+import type {SilhouetteShapeRef} from "./scene/elements/SilhouetteLayout";
+
+export type {SilhouetteShapeRef};
 
 type Bounds = { x: number; y: number; width: number; height: number };
 
@@ -149,6 +153,8 @@ export type SceneBuildResult = {
     stubShapeRefs: StubShapeRef[];
     /** Area-exit label shapes paired with world-space bounds (for culling). */
     areaExitLabelShapeRefs: AreaExitLabelShapeRef[];
+    /** Other-level silhouette shapes paired with world-space bounds (for culling). */
+    silhouetteShapeRefs: SilhouetteShapeRef[];
     areaExitHitZones: AreaExitHitZone[];
     drawnExits: DrawnExitEntry[];
     drawnSpecialExits: DrawnSpecialExitEntry[];
@@ -282,14 +288,21 @@ export class ScenePipeline {
         this.areaExitLabelShapeRefs = [];
         this.spilledRoomIds = spill ? new Set(spill.rooms.map(r => r.room.id)) : new Set();
 
-        // Labels
-        this.renderLabels(plane.getLabels(), area.getAreaId());
-
         // Fold "hide"-mode hidden rooms into the lens, so both the room filter
         // (isVisible) and the exit treatment (getExitTreatment → "hidden") drop
         // them through the normal lens machinery rather than special cases.
         const hideHidden = this.settings.hiddenRooms === "hide";
         const effectiveLens = hiddenAwareLens(lens, hideHidden);
+
+        // Silhouettes of the levels below/above — first on the link layer so
+        // everything belonging to the current level paints over them.
+        const silhouetteShapeRefs = layoutLevelSilhouettes(
+            area, zIndex, this.mapReader, this.settings, r => effectiveLens.isVisible(r),
+        );
+        for (const ref of silhouetteShapeRefs) this.linkShapes.push(ref.shape);
+
+        // Labels
+        this.renderLabels(plane.getLabels(), area.getAreaId());
 
         // Link exits (two-way connections)
         const exitResult = this.renderLinkExits(area.getLinkExits(zIndex), zIndex, effectiveLens);
@@ -346,6 +359,7 @@ export class ScenePipeline {
             specialExitShapeRefs: this.specialExitShapeRefs,
             stubShapeRefs: this.stubShapeRefs,
             areaExitLabelShapeRefs: this.areaExitLabelShapeRefs,
+            silhouetteShapeRefs,
             areaExitHitZones,
             drawnExits: exitResult.drawnExits,
             drawnSpecialExits: roomResult.drawnSpecialExits,

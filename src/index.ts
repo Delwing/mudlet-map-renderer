@@ -2,7 +2,7 @@
 export { createSettings } from './types/Settings';
 export type {
     Settings, ViewportBounds, RendererEventMap,
-    CullingMode, RoomShape, HiddenRoomMode, LabelRenderMode, PlayerMarkerStyle,
+    CullingMode, RoomShape, HiddenRoomMode, LabelRenderMode, PlayerMarkerStyle, LevelSilhouetteStyle,
     RoomClickEventDetail, RoomContextMenuEventDetail,
     ZoomChangeEventDetail, AreaExitClickEventDetail, PanEventDetail, LodEventDetail,
 } from './types/Settings';

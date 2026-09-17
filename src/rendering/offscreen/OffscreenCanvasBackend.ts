@@ -312,6 +312,7 @@ export class OffscreenCanvasBackend implements InteractiveBackend {
         for (const {shape, bounds} of result.specialExitShapeRefs) map.set(shape, bounds);
         for (const {shape, bounds} of result.stubShapeRefs) map.set(shape, bounds);
         for (const {shape, bounds} of result.areaExitLabelShapeRefs) map.set(shape, bounds);
+        for (const {shape, bounds} of result.silhouetteShapeRefs) map.set(shape, bounds);
         return map;
     }
 

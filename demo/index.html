@@ -289,6 +289,34 @@
                     <span>Spill distance: <span id="neighbor-spill-distance-value">20</span></span>
                     <input type="range" id="neighbor-spill-distance-slider" min="1" max="40" step="1" value="20">
                 </label>
+                <label class="check-label">
+                    <input type="checkbox" id="silhouette-below-toggle">
+                    <span>Silhouette of levels below</span>
+                </label>
+                <label class="check-label">
+                    <input type="checkbox" id="silhouette-above-toggle">
+                    <span>Silhouette of levels above</span>
+                </label>
+                <label class="select-label indented">
+                    <span>Silhouette depth: <span id="silhouette-depth-value">1</span></span>
+                    <input type="range" id="silhouette-depth-slider" min="1" max="5" step="1" value="1">
+                </label>
+                <label class="select-label indented">
+                    <span>Silhouette offset: <span id="silhouette-offset-value">0.20</span></span>
+                    <input type="range" id="silhouette-offset-slider" min="0" max="1.5" step="0.05" value="0.2">
+                </label>
+                <label class="select-label indented">
+                    <span>Silhouette opacity: <span id="silhouette-alpha-value">0.35</span></span>
+                    <input type="range" id="silhouette-alpha-slider" min="0.05" max="1" step="0.05" value="0.35">
+                </label>
+                <label class="check-label indented">
+                    <input type="checkbox" id="silhouette-room-colors-toggle">
+                    <span>Silhouettes keep room colours</span>
+                </label>
+                <label class="check-label indented">
+                    <input type="checkbox" id="silhouette-exits-toggle">
+                    <span>Silhouette exits</span>
+                </label>
             </div>
             <div class="panel-section">
                 <div class="section-title">Lighting &amp; atmosphere</div>

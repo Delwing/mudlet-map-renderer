@@ -119,7 +119,10 @@ All four share `ScenePipeline` → Style → `buildDrawCommands`:
 
 `createSettings()` returns a mutable settings object. Modify properties then call
 `renderer.refresh()` to apply. Key settings: roomSize, roomShape, culling mode,
-emboss, grid, ambient light, player marker style, hiddenRooms, LOD budgets, and
+emboss, grid, ambient light, player marker style, hiddenRooms, LOD budgets,
+`levelSilhouettes` (faded, offset ghosts of the z-levels below/above, emitted
+first on the link layer by `layoutLevelSilhouettes` in
+`src/scene/elements/SilhouetteLayout.ts`, culled via `silhouetteShapeRefs`), and
 `pixelate` (rasterizes the interactive canvas at a fraction of its normal
 resolution with nearest-neighbour upscaling — the one part of the pixel-art look
 a Style cannot express, since it is rasterization rather than geometry).

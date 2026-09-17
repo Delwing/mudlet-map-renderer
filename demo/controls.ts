@@ -89,6 +89,16 @@ export function initControls(settings: Settings, renderer: MapRenderer, getCurre
     const neighborSpillToggle = document.getElementById("neighbor-spill-toggle") as HTMLInputElement | null;
     const neighborSpillDistanceSlider = document.getElementById("neighbor-spill-distance-slider") as HTMLInputElement | null;
     const neighborSpillDistanceValue = document.getElementById("neighbor-spill-distance-value") as HTMLSpanElement | null;
+    const silhouetteBelowToggle = document.getElementById("silhouette-below-toggle") as HTMLInputElement | null;
+    const silhouetteAboveToggle = document.getElementById("silhouette-above-toggle") as HTMLInputElement | null;
+    const silhouetteRoomColorsToggle = document.getElementById("silhouette-room-colors-toggle") as HTMLInputElement | null;
+    const silhouetteExitsToggle = document.getElementById("silhouette-exits-toggle") as HTMLInputElement | null;
+    const silhouetteDepthSlider = document.getElementById("silhouette-depth-slider") as HTMLInputElement | null;
+    const silhouetteDepthValue = document.getElementById("silhouette-depth-value") as HTMLSpanElement | null;
+    const silhouetteOffsetSlider = document.getElementById("silhouette-offset-slider") as HTMLInputElement | null;
+    const silhouetteOffsetValue = document.getElementById("silhouette-offset-value") as HTMLSpanElement | null;
+    const silhouetteAlphaSlider = document.getElementById("silhouette-alpha-slider") as HTMLInputElement | null;
+    const silhouetteAlphaValue = document.getElementById("silhouette-alpha-value") as HTMLSpanElement | null;
     const uniformLevelSizeToggle = document.getElementById("uniform-level-size-toggle") as HTMLInputElement | null;
     const bordersToggle = document.getElementById("borders-toggle") as HTMLInputElement | null;
     const ambientLightToggle = document.getElementById("ambient-light-toggle") as HTMLInputElement | null;
@@ -202,6 +212,23 @@ export function initControls(settings: Settings, renderer: MapRenderer, getCurre
     if (neighborSpillDistanceSlider && neighborSpillDistanceValue) {
         neighborSpillDistanceSlider.value = settings.neighborSpillDistance.toString();
         neighborSpillDistanceValue.textContent = settings.neighborSpillDistance.toString();
+    }
+    const sil = settings.levelSilhouettes;
+    if (silhouetteBelowToggle) silhouetteBelowToggle.checked = sil.below;
+    if (silhouetteAboveToggle) silhouetteAboveToggle.checked = sil.above;
+    if (silhouetteExitsToggle) silhouetteExitsToggle.checked = sil.exits;
+    if (silhouetteRoomColorsToggle) silhouetteRoomColorsToggle.checked = sil.useRoomColors;
+    if (silhouetteDepthSlider && silhouetteDepthValue) {
+        silhouetteDepthSlider.value = sil.depth.toString();
+        silhouetteDepthValue.textContent = sil.depth.toString();
+    }
+    if (silhouetteOffsetSlider && silhouetteOffsetValue) {
+        silhouetteOffsetSlider.value = sil.offsetX.toString();
+        silhouetteOffsetValue.textContent = sil.offsetX.toFixed(2);
+    }
+    if (silhouetteAlphaSlider && silhouetteAlphaValue) {
+        silhouetteAlphaSlider.value = sil.alpha.toString();
+        silhouetteAlphaValue.textContent = sil.alpha.toFixed(2);
     }
     if (uniformLevelSizeToggle) uniformLevelSizeToggle.checked = settings.uniformLevelSize;
     if (bordersToggle) bordersToggle.checked = settings.borders;
@@ -489,6 +516,48 @@ export function initControls(settings: Settings, renderer: MapRenderer, getCurre
         const v = parseInt(neighborSpillDistanceSlider.value, 10);
         settings.neighborSpillDistance = v;
         if (neighborSpillDistanceValue) neighborSpillDistanceValue.textContent = v.toString();
+        renderer.refresh();
+    });
+
+    silhouetteBelowToggle?.addEventListener("change", () => {
+        settings.levelSilhouettes.below = silhouetteBelowToggle.checked;
+        renderer.refresh();
+    });
+
+    silhouetteAboveToggle?.addEventListener("change", () => {
+        settings.levelSilhouettes.above = silhouetteAboveToggle.checked;
+        renderer.refresh();
+    });
+
+    silhouetteRoomColorsToggle?.addEventListener("change", () => {
+        settings.levelSilhouettes.useRoomColors = silhouetteRoomColorsToggle.checked;
+        renderer.refresh();
+    });
+
+    silhouetteExitsToggle?.addEventListener("change", () => {
+        settings.levelSilhouettes.exits = silhouetteExitsToggle.checked;
+        renderer.refresh();
+    });
+
+    silhouetteDepthSlider?.addEventListener("input", () => {
+        const v = parseInt(silhouetteDepthSlider.value, 10);
+        settings.levelSilhouettes.depth = v;
+        if (silhouetteDepthValue) silhouetteDepthValue.textContent = v.toString();
+        renderer.refresh();
+    });
+
+    silhouetteOffsetSlider?.addEventListener("input", () => {
+        const v = parseFloat(silhouetteOffsetSlider.value);
+        settings.levelSilhouettes.offsetX = v;
+        settings.levelSilhouettes.offsetY = v;
+        if (silhouetteOffsetValue) silhouetteOffsetValue.textContent = v.toFixed(2);
+        renderer.refresh();
+    });
+
+    silhouetteAlphaSlider?.addEventListener("input", () => {
+        const v = parseFloat(silhouetteAlphaSlider.value);
+        settings.levelSilhouettes.alpha = v;
+        if (silhouetteAlphaValue) silhouetteAlphaValue.textContent = v.toFixed(2);
         renderer.refresh();
     });
 

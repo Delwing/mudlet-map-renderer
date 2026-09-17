@@ -195,6 +195,45 @@ export type HighlightStyle = {
     shape?: 'match' | 'rectangle' | 'roundedRectangle' | 'circle';
 };
 
+/**
+ * Ghost ("silhouette") rendering of the z-levels below and/or above the
+ * current one, drawn faded underneath the current level so the vertical
+ * structure of an area stays readable. Rooms are drawn as flat, borderless
+ * shapes in a single colour, optionally with their connecting exits.
+ *
+ * Levels are shifted by the offset per step: level `z - k` moves by
+ * `(+offsetX·k, +offsetY·k)`, level `z + k` by `(-offsetX·k, -offsetY·k)`, so
+ * lower floors read as a drop shadow and upper floors lift away from it.
+ * Silhouettes are pure decoration: never clickable, and included in exports.
+ */
+export type LevelSilhouetteStyle = {
+    /** Draw silhouettes of the levels below the current one. Default: false */
+    below: boolean;
+    /** Draw silhouettes of the levels above the current one. Default: false */
+    above: boolean;
+    /** How many levels in each direction to draw (1 = only the adjacent level). Default: 1 */
+    depth: number;
+    /** Horizontal shift per level step, in map units. Default: 0.2 */
+    offsetX: number;
+    /** Vertical shift per level step, in map units (positive = down on screen). Default: 0.2 */
+    offsetY: number;
+    /** Colour of lower-level silhouettes. Default: '#5a78b4' */
+    belowColor: string;
+    /** Colour of upper-level silhouettes. Default: '#b48c5a' */
+    aboveColor: string;
+    /**
+     * Keep each room's own environment colour (and {@link Settings.lineColor}
+     * for exits) instead of {@link belowColor} / {@link aboveColor}. Opacity,
+     * falloff and offset still apply. Default: false
+     */
+    useRoomColors: boolean;
+    /** Opacity of the adjacent level's silhouette (0..1). Default: 0.35 */
+    alpha: number;
+    /** Opacity multiplier applied per additional level of distance (0..1). Default: 0.6 */
+    falloff: number;
+    /** Also draw the exit lines between silhouette rooms. Default: true */
+    exits: boolean;
+};
 
 /**
  * Settings for map rendering.
@@ -289,6 +328,8 @@ export type Settings = {
     /** Max number of steps from the player's room to spill neighbouring-area rooms across a
      *  boundary (BFS depth over planar exits). Default: 20 */
     neighborSpillDistance: number;
+    /** Faded silhouettes of the levels below/above the current one. See {@link LevelSilhouetteStyle}. */
+    levelSilhouettes: LevelSilhouetteStyle;
     /**
      * Level-of-detail for very dense planes: when the current plane holds more
      * rooms than {@link lodRoomBudget} and the zoom is far enough out that a
@@ -388,6 +429,19 @@ export function createSettings(): Settings {
         areaExitLabelFontSize: 0.3,
         neighborSpill: false,
         neighborSpillDistance: 20,
+        levelSilhouettes: {
+            below: false,
+            above: false,
+            depth: 1,
+            offsetX: 0.2,
+            offsetY: 0.2,
+            belowColor: '#5a78b4',
+            aboveColor: '#b48c5a',
+            useRoomColors: false,
+            alpha: 0.35,
+            falloff: 0.6,
+            exits: true,
+        },
         lodEnabled: false,
         lodRoomBudget: 16000,
         lodHitTestBudget: 10000,
