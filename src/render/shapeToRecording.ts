@@ -141,10 +141,55 @@ function translatePoints(points: number[], ox: number, oy: number): number[] {
     return out;
 }
 
+/**
+ * An image element is recorded the instant its `src` is set, so the draw that
+ * follows runs while the bitmap is still decoding and `drawImage` silently
+ * paints nothing. Nothing schedules a repaint afterwards, so that blank frame
+ * is the last word until an unrelated refresh comes along — which is why a
+ * freshly generated label pixmap (a data URL the browser has never seen) can
+ * stay invisible on engines that don't decode within the frame, while an
+ * already-cached one draws fine.
+ *
+ * Two halves fix it: cache elements by src so a rebuild reuses the decoded
+ * one, and let the owning backend repaint when a decode lands.
+ */
+const imageCache = new Map<string, HTMLImageElement | any>();
+const MAX_CACHED_IMAGES = 128;
+
+const imageLoadListeners = new Set<() => void>();
+
+/**
+ * Subscribe to "an image finished decoding" — backends repaint on it so a
+ * shape recorded before the decode is not left blank. Returns an unsubscribe.
+ */
+export function onImageLoad(listener: () => void): () => void {
+    imageLoadListeners.add(listener);
+    return () => {
+        imageLoadListeners.delete(listener);
+    };
+}
+
 function createImageElement(src: string): HTMLImageElement | any {
+    const cached = imageCache.get(src);
+    if (cached) return cached;
+
     const image = typeof Konva !== "undefined"
         ? Konva.Util.createImageElement()
         : (typeof Image !== "undefined" ? new Image() : null);
-    if (image) image.src = src;
+    if (!image) return image;
+
+    image.onload = () => {
+        for (const listener of imageLoadListeners) listener();
+    };
+    // A failed decode must not stay cached, or every later rebuild reuses the
+    // broken element instead of retrying.
+    image.onerror = () => imageCache.delete(src);
+    image.src = src;
+
+    if (imageCache.size >= MAX_CACHED_IMAGES) {
+        const oldest = imageCache.keys().next().value;
+        if (oldest !== undefined) imageCache.delete(oldest);
+    }
+    imageCache.set(src, image);
     return image;
 }

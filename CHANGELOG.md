@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.1.1] - 2026-09-20
+
+### Fixed
+
+- Image shapes (label pixmaps) no longer stay blank when their bitmap misses the frame they were recorded in. `shapeToRecording` handed the replay layer an `<img>` the instant its `src` was set; the `stage.batchDraw()` that followed ran while the data URL was still decoding, `drawImage` silently painted nothing, and nothing anywhere scheduled a repaint — so that blank frame was the last word until an unrelated refresh. Elements are now cached by `src` (bounded, failed decodes evicted so they retry) and `KonvaRenderBackend` subscribes to the new `onImageLoad` hook to `batchDraw()` when a decode lands. The symptom this fixes is browser-dependent by construction: a pixmap the browser has already seen is `complete` synchronously, so only a *freshly generated* one — exactly what editing a label produces — had to win the race, and engines that decode off the main thread lost it.
+
 ## [3.1.0] - 2026-09-17
 
 ### Added

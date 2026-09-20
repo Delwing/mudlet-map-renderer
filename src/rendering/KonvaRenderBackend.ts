@@ -16,7 +16,7 @@ import {
     RecordingLayerNode,
     type DrawEntry,
 } from "../render/RecordingLayer";
-import {shapeToRecording} from "../render/shapeToRecording";
+import {onImageLoad, shapeToRecording} from "../render/shapeToRecording";
 import type {InteractiveBackend} from "./MapRenderer";
 import type {CoordFn} from "../coord/CoordFn";
 import {IDENTITY_TRANSFORM} from "../coord/CoordFn";
@@ -155,6 +155,7 @@ export class KonvaRenderBackend implements InteractiveBackend {
     private interactionHandler?: InteractionHandler;
     private origSetSize?: (w: number, h: number) => void;
     private cameraChangeHandler?: () => void;
+    private imageLoadUnsubscribe?: () => void;
     private destroyed = false;
     private _coordinateTransform: CoordFn = IDENTITY_TRANSFORM;
     private coordinateInverse: CoordFn = IDENTITY_TRANSFORM;
@@ -246,6 +247,13 @@ export class KonvaRenderBackend implements InteractiveBackend {
         // Camera drives the stage
         this.cameraChangeHandler = () => this.applyViewportToStage();
         this.camera.on('change', this.cameraChangeHandler);
+
+        // Image shapes (label pixmaps) are recorded before their bitmap has
+        // decoded, so the draw that follows paints nothing for them. Repaint
+        // when a decode lands — batchDraw coalesces a burst into one frame.
+        this.imageLoadUnsubscribe = onImageLoad(() => {
+            if (!this.destroyed) this.stage.batchDraw();
+        });
 
         if (container) {
             // Sync stage size when camera resizes
@@ -383,6 +391,9 @@ export class KonvaRenderBackend implements InteractiveBackend {
         }
         this.sceneOverlayNodes.clear();
         this.viewportSubscribers.clear();
+
+        this.imageLoadUnsubscribe?.();
+        this.imageLoadUnsubscribe = undefined;
 
         // Cancel any running camera animation
         this.camera.cancelAnimation();
