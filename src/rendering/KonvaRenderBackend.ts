@@ -52,7 +52,6 @@ import type {Style, StyleContext} from "../style/Style";
 import {identityStyle} from "../style/Style";
 import {applyStyleToShapes} from "../style/applyStyle";
 
-const currentRoomColor = 'rgb(120, 72, 0)';
 
 /**
  * Fraction of the viewport added per side before pushing bounds to a
@@ -1169,7 +1168,7 @@ export class KonvaRenderBackend implements InteractiveBackend {
                     ? lens.getExitTreatment(exit, roomA, roomB)
                     : defaultExitTreatment(lens, exit, roomA, roomB);
                 if (treatment !== "full") return; // skip hidden/partially-visible exits
-                const data = exitRenderer.renderDataWithColor(exit, currentRoomColor, this.state.currentZIndex!);
+                const data = exitRenderer.renderDataWithColor(exit, settings.currentRoomColor, this.state.currentZIndex!);
                 if (data) {
                     // Match the main pass: a crossing into a spilled neighbour room
                     // is shown as a plain connector, so suppress its cross-area arrow.
@@ -1180,12 +1179,12 @@ export class KonvaRenderBackend implements InteractiveBackend {
         }
 
         // Special exits
-        for (const se of computeSpecialExits(room, settings, currentRoomColor)) {
+        for (const se of computeSpecialExits(room, settings, settings.currentRoomColor)) {
             preRoomShapes.push(specialExitToShape(se, room.id));
         }
 
         // Stubs
-        for (const stub of computeStubs(room, settings, currentRoomColor)) {
+        for (const stub of computeStubs(room, settings, settings.currentRoomColor)) {
             preRoomShapes.push(stubToShape(stub));
         }
 
@@ -1213,7 +1212,7 @@ export class KonvaRenderBackend implements InteractiveBackend {
                 this.state.mapReader,
                 settings,
                 {
-                    strokeOverride: isCurrent ? currentRoomColor : settings.lineColor,
+                    strokeOverride: isCurrent ? settings.currentRoomColor : settings.lineColor,
                     flatPipeline: true,
                     // Keep a redrawn hidden room looking hidden (dashed/faded),
                     // matching the main scene instead of overpainting it solid.

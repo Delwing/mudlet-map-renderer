@@ -50,7 +50,6 @@ import type {ExportCanvas} from "../../export/Exporter";
 import {serializeTransform} from "./serializeTransform";
 import type {Bounds, LayerPayload, MainToWorkerMessage, WorkerToMainMessage} from "./protocol";
 
-const currentRoomColor = "rgb(120, 72, 0)";
 
 /** Transport the backend talks to. A real `Worker` satisfies this directly. */
 export interface WorkerTransport {
@@ -338,12 +337,12 @@ export class OffscreenCanvasBackend implements InteractiveBackend {
                 .getLinkExits(state.currentZIndex)
                 .filter(exit => exit.a === room.id || exit.b === room.id);
             for (const exit of exits) {
-                const data = exitRenderer.renderDataWithColor(exit, currentRoomColor, state.currentZIndex);
+                const data = exitRenderer.renderDataWithColor(exit, settings.currentRoomColor, state.currentZIndex);
                 if (data) out.push(this.pipeline.buildExitShape(data));
             }
         }
-        for (const se of computeSpecialExits(room, settings, currentRoomColor)) out.push(specialExitToShape(se, room.id));
-        for (const stub of computeStubs(room, settings, currentRoomColor)) out.push(stubToShape(stub));
+        for (const se of computeSpecialExits(room, settings, settings.currentRoomColor)) out.push(specialExitToShape(se, room.id));
+        for (const stub of computeStubs(room, settings, settings.currentRoomColor)) out.push(stubToShape(stub));
 
         [...Object.values(room.exits), ...Object.values(room.specialExits)].forEach(id => {
             const other = state.mapReader.getRoom(id as number);
@@ -355,7 +354,7 @@ export class OffscreenCanvasBackend implements InteractiveBackend {
         roomsToRedraw.forEach((roomToRedraw, id) => {
             const isCurrent = id === room.id;
             const overlayShape: GroupShape = layoutRoom(roomToRedraw, state.mapReader, settings, {
-                strokeOverride: isCurrent ? currentRoomColor : settings.lineColor,
+                strokeOverride: isCurrent ? settings.currentRoomColor : settings.lineColor,
                 flatPipeline: true,
             });
             overlayShape.children.push(...layoutInnerExits(roomToRedraw, state.mapReader, settings));

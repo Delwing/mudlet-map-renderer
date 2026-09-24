@@ -49,6 +49,7 @@ export function initControls(settings: Settings, renderer: MapRenderer, getCurre
     const cullingModeSelect = document.getElementById("culling-mode") as HTMLSelectElement | null;
     const backgroundColorInput = document.getElementById("background-color") as HTMLInputElement | null;
     const lineColorInput = document.getElementById("line-color") as HTMLInputElement | null;
+    const currentRoomColorInput = document.getElementById("current-room-color") as HTMLInputElement | null;
     const labelRenderModeSelect = document.getElementById("label-render-mode") as HTMLSelectElement | null;
     const roomSizeSlider = document.getElementById("room-size-slider") as HTMLInputElement | null;
     const roomSizeValue = document.getElementById("room-size-value") as HTMLSpanElement | null;
@@ -137,6 +138,7 @@ export function initControls(settings: Settings, renderer: MapRenderer, getCurre
     }
     if (backgroundColorInput) backgroundColorInput.value = settings.backgroundColor;
     if (lineColorInput) lineColorInput.value = rgbToHex(settings.lineColor);
+    if (currentRoomColorInput) currentRoomColorInput.value = rgbToHex(settings.currentRoomColor);
     if (labelRenderModeSelect) {
         if (settings.labelRenderMode === "data" && settings.transparentLabels) {
             labelRenderModeSelect.value = "data-transparent";
@@ -324,6 +326,11 @@ export function initControls(settings: Settings, renderer: MapRenderer, getCurre
 
     lineColorInput?.addEventListener("input", () => {
         settings.lineColor = lineColorInput.value;
+        renderer.refresh();
+    });
+
+    currentRoomColorInput?.addEventListener("input", () => {
+        settings.currentRoomColor = currentRoomColorInput.value;
         renderer.refresh();
     });
 

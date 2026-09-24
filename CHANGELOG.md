@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.2.0] - 2026-09-24
+
+### Added
+
+- **`Settings.currentRoomColor`** — colour of the current room's outline and its exits (link exits, special exits and stubs) drawn by the `highlightCurrentRoom` overlay. Previously hardcoded brown in both `KonvaRenderBackend` and `OffscreenCanvasBackend`; the default `'#784800'` is the same colour, so nothing changes unless you set it. Apply with `renderer.refresh()`.
+- The demo gains a "Current room" colour picker next to "Lines".
+
+### Fixed
+
+- `Settings.lineColor` doc comment now states the actual default, `'rgb(225, 225, 225)'`. The demo's "Lines" picker starts from that colour too.
+
 ## [3.1.1] - 2026-09-20
 
 ### Fixed

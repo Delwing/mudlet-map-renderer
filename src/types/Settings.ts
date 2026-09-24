@@ -245,7 +245,7 @@ export type Settings = {
     roomSize: number;
     /** Width of lines (exit connections, room borders) in map units. Default: 0.025 */
     lineWidth: number;
-    /** Color of exit connection lines as RGB string. Default: 'rgb(225, 255, 225)' */
+    /** Color of exit connection lines. Default: 'rgb(225, 225, 225)' */
     lineColor: string;
     /** Background color of the map container. Default: '#000000' */
     backgroundColor: string;
@@ -264,6 +264,8 @@ export type Settings = {
     instantMapMove: boolean;
     /** When true, highlights the current room and its exits with an overlay. Default: true */
     highlightCurrentRoom: boolean;
+    /** Colour of the current room's outline and exits when {@link Settings.highlightCurrentRoom} is on. Default: '#784800' */
+    currentRoomColor: string;
     /** Legacy flag for enabling/disabling culling (prefer cullingMode). Default: true */
     cullingEnabled: boolean;
     /** How off-screen elements are culled: "none" | "basic" | "indexed". Default: "indexed" */
@@ -385,6 +387,7 @@ export function createSettings(): Settings {
         pixelate: 1,
         instantMapMove: false,
         highlightCurrentRoom: true,
+        currentRoomColor: '#784800',
         cullingEnabled: true,
         cullingMode: "indexed",
         coalesceRooms: false,
