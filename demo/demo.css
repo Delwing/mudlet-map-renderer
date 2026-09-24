@@ -513,6 +513,12 @@ input[type="number"] {
     align-items: center;
 }
 
+.color-row-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.4rem 0.6rem;
+}
+
 .color-label {
     display: flex;
     align-items: center;
@@ -520,6 +526,7 @@ input[type="number"] {
     cursor: pointer;
     font-size: 0.75rem;
     color: #a0c8d8;
+    white-space: nowrap;
 }
 
 .color-label input[type="color"] {
